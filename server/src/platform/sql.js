@@ -200,7 +200,8 @@ function wrap(db) {
         for (const [table, column, decl] of addedColumns) {
           if (!have.has(table)) continue; // just created, with the column already there
           if (h.columnNames(table).includes(column)) continue;
-          db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+          // Quoted: a column may be an SQL keyword (JustWrite's scenes."when").
+          db.exec(`ALTER TABLE ${q(table)} ADD COLUMN ${q(column)} ${decl}`);
         }
       });
     },
