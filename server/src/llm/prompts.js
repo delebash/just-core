@@ -949,14 +949,16 @@ export function makeFeatureRouter(getStore, getConfig) {
         modelId: mdl,
       });
       // The routed model's context window — the local runner's own figure, read without
-      // loading the model; null off it or when the router can't say (never an error here).
+      // loading the model; null off it or when the router can't say. Never an error here: the
+      // window is optional data on a UI read, and an engine that isn't running (the host's
+      // runner-URL hook throws then), an unreachable router or an odd reply all mean "unknown".
       let context = null;
-      const runnerBase = mdl && adapter.provider_id === config.local_runner_provider_id ? localRunnerBase(adapter) : "";
-      if (runnerBase) {
+      if (mdl && adapter.provider_id === config.local_runner_provider_id) {
         try {
-          context = (await routerContext(runnerBase, mdl, CONTEXT_LOOKUP_TIMEOUT)) || null;
+          const runnerBase = localRunnerBase(adapter);
+          if (runnerBase) context = (await routerContext(runnerBase, mdl, CONTEXT_LOOKUP_TIMEOUT)) || null;
         } catch (e) {
-          if (!measureCaught(e)) throw e;
+          log.debug(`resolved-route ${key}: no context window (${excText(e)})`);
         }
       }
       return c.json(

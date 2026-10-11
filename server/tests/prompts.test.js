@@ -686,6 +686,18 @@ test("resolved_route_context_is_null_when_the_router_cannot_say", async () => {
   expect((await r.json()).context).toBeNull();
 });
 
+test("resolved_route_context_is_null_when_the_engine_is_not_running", async () => {
+  // The app's runner-URL hook THROWS when the bundled engine isn't running (seen on the
+  // JustWrite smoke, 2026-10-11) — the route must still answer, with no window.
+  const [c] = localRouteClient("local-llamacpp");
+  setLocalRunnerBaseUrl(() => {
+    throw new Error("the bundled llama.cpp engine isn't running — load a model first");
+  });
+  const r = await c.get("/v1/ai/resolved-route?feature=greet");
+  expect(r.status).toBe(200);
+  expect((await r.json()).context).toBeNull();
+});
+
 // ── the routes tell the client why generation ended (2026-09-28) ──
 test("run_and_stream_carry_finish_reason", async () => {
   const [c, adapter] = featureClient(new MemPromptStore());
