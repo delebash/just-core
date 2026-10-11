@@ -365,6 +365,11 @@ export const ResolvedRouteResponse = T.Object({
   valueSource: opt(T.String(), ""), // local: "tune"|"class"|"base"|"default"|"invalid" · cloud: "map" · "" = none
   configured: opt(T.Boolean(), true),
   detail: opt(T.String(), ""),
+  // The routed model's context window in tokens (2026-10-11) — what a caller budgets its
+  // input against (JustWrite's story context): the local runner's loaded n_ctx, else its
+  // --ctx-size; null off the local runner (a cloud provider publishes none) or when the
+  // router can't say.
+  context: opt(nullable(T.Integer()), null),
 });
 
 /** `x.strip()` of a str — a non-str raises as Python's AttributeError did (a 500). */
@@ -677,6 +682,41 @@ const measureCaught = (e) =>
 /** `%s` of a caught exception, as Python prints it. */
 const excText = (e) => errText(e);
 
+/** The bundled local runner's base URL — no trailing slash, no `/v1` — or "" when it has none. */
+function localRunnerBase(adapter) {
+  const urlFn = dispatch.getLocalRunnerBaseUrl();
+  const base = ((urlFn ? urlFn() : "") || adapter._apiBase || "").replace(/\/+$/, "");
+  return base.endsWith("/v1") ? base.slice(0, -3) : base; // .rstrip("/").removesuffix("/v1")
+}
+
+/**
+ * The context window the router at `base` gives `mdl`: the loaded model's `n_ctx`, else its
+ * `--ctx-size` launch argument; 0 when the router doesn't list the model or says neither.
+ * Never loads the model. Throws what the HTTP read throws (callers catch `measureCaught`).
+ */
+async function routerContext(base, mdl, timeout) {
+  const listedBody = (await httpxRequest("GET", `${base}/v1/models`, { timeout })).json();
+  const listed = pyGet(listedBody, "data");
+  let entry = null;
+  for (const m of pyIter(truthy(listed) ? listed : [])) {
+    if (pyGet(m, "id") === mdl) {
+      entry = m;
+      break;
+    }
+  }
+  if (entry === null) return 0;
+  const status = pyGet(entry, "status");
+  const args = pyGet(truthy(status) ? status : {}, "args");
+  const meta = pyGet(entry, "meta");
+  const nctx = pyGet(truthy(meta) ? meta : {}, "n_ctx");
+  const ctx = pyIntJson(truthy(nctx) ? nctx : 0);
+  return ctx || ctxFromArgs(truthy(args) ? args : []);
+}
+
+/** How long the resolved route waits for the router's model list: the lookup rides a UI
+ * read (the "runs on" chip, a caller's budget), so a router that hangs must not hang it. */
+const CONTEXT_LOOKUP_TIMEOUT = 5;
+
 /**
  * The exact size of the prompt `runAction(body)` would send, and the context it must fit —
  * for the bundled LOCAL runner only (2026-09-28, chapter splitting: a caller sizes pieces of
@@ -697,9 +737,7 @@ export async function measureAction(store, config, body) {
   });
   if (!mdl || adapter.provider_id !== config.local_runner_provider_id) return null;
   await ensureLocalReady(config, r.featureKey, body.action, r.providerOverride, r.modelOverride);
-  const urlFn = dispatch.getLocalRunnerBaseUrl();
-  let base = ((urlFn ? urlFn() : "") || adapter._apiBase || "").replace(/\/+$/, "");
-  if (base.endsWith("/v1")) base = base.slice(0, -3); // .rstrip("/").removesuffix("/v1")
+  const base = localRunnerBase(adapter);
   if (!base) return null;
   const messages = r.systemText ? [{ role: "system", content: r.systemText }] : [];
   for (const m of r.messages) messages.push({ role: m.role, content: m.content });
@@ -707,22 +745,7 @@ export async function measureAction(store, config, body) {
   let tokens;
   try {
     const timeout = 60;
-    const listedBody = (await httpxRequest("GET", `${base}/v1/models`, { timeout })).json();
-    const listed = pyGet(listedBody, "data");
-    let entry = null;
-    for (const m of pyIter(truthy(listed) ? listed : [])) {
-      if (pyGet(m, "id") === mdl) {
-        entry = m;
-        break;
-      }
-    }
-    if (entry === null) return null;
-    const status = pyGet(entry, "status");
-    const args = pyGet(truthy(status) ? status : {}, "args");
-    const meta = pyGet(entry, "meta");
-    const nctx = pyGet(truthy(meta) ? meta : {}, "n_ctx");
-    ctx = pyIntJson(truthy(nctx) ? nctx : 0);
-    if (!ctx) ctx = ctxFromArgs(truthy(args) ? args : []);
+    ctx = await routerContext(base, mdl, timeout);
     if (!ctx) return null;
     const applied = (
       await httpxRequest("POST", `${base}/apply-template`, { json: { model: mdl, messages }, timeout })
@@ -885,10 +908,11 @@ export function makeFeatureRouter(getStore, getConfig) {
         model: opt(T.String(), ""),
       }),
     }),
-    (c) => {
+    async (c) => {
       const query = c.req.valid("query");
       const { feature, action, providerId } = query;
       const key = action || feature;
+      const config = getConfig();
       // The same ref → feature-ref → default resolution the run path uses, plus which tier
       // won.
       const [preset, presetSource] = presetResolve.resolveFeaturePresetWithSource(key, feature);
@@ -905,7 +929,7 @@ export function makeFeatureRouter(getStore, getConfig) {
       let adapter;
       let mdl;
       try {
-        [adapter, mdl] = dispatch.resolveRoute(getConfig(), feature, { action: key, providerOverride, modelOverride });
+        [adapter, mdl] = dispatch.resolveRoute(config, feature, { action: key, providerOverride, modelOverride });
       } catch (e) {
         if (e instanceof dispatch.LLMNotConfiguredError) {
           return c.json(model(ResolvedRouteResponse, { ...base, configured: false, detail: errText(e) }));
@@ -924,6 +948,17 @@ export function makeFeatureRouter(getStore, getConfig) {
         providerType: adapter.provider_type,
         modelId: mdl,
       });
+      // The routed model's context window — the local runner's own figure, read without
+      // loading the model; null off it or when the router can't say (never an error here).
+      let context = null;
+      const runnerBase = mdl && adapter.provider_id === config.local_runner_provider_id ? localRunnerBase(adapter) : "";
+      if (runnerBase) {
+        try {
+          context = (await routerContext(runnerBase, mdl, CONTEXT_LOOKUP_TIMEOUT)) || null;
+        } catch (e) {
+          if (!measureCaught(e)) throw e;
+        }
+      }
       return c.json(
         model(ResolvedRouteResponse, {
           ...base,
@@ -934,6 +969,7 @@ export function makeFeatureRouter(getStore, getConfig) {
           reasoningWord: rp.word,
           value: rp.value,
           valueSource: rp.source,
+          context,
         }),
       );
     },

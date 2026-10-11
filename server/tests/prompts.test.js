@@ -498,7 +498,8 @@ test("resolved_route_without_preset_falls_to_dispatch", async () => {
   // The whole answer, in the model's field order (checked against the Python router).
   expect(text).toBe(
     '{"feature":"greet","action":"","providerId":"fake","model":"m","presetId":"","presetName":"","presetSource":"",' +
-      '"think":false,"level":"","reasoningWord":"","value":null,"valueSource":"","configured":true,"detail":""}',
+      '"think":false,"level":"","reasoningWord":"","value":null,"valueSource":"","configured":true,"detail":"",' +
+      '"context":null}',
   );
 });
 
@@ -645,6 +646,44 @@ test("measure_action_is_none_when_the_router_cannot_say", async () => {
   localRouteClient("local-llamacpp");
   fakeRouter({ calls: [], models: [] }); // the model is not in the router's list
   expect(await measureAction(new MemPromptStore(), LLMConfig(), { action: "farewell", variables: { name: "Sam", role: "bot" } })).toBeNull();
+});
+
+// ── the resolved route's context window (2026-10-11, JustWrite's story context) ──
+test("resolved_route_context_is_the_launch_ctx_size_without_loading_the_model", async () => {
+  const ensured = [];
+  const calls = [];
+  setEnsureLocalModel((mid) => ensured.push(mid));
+  const [c, adapter] = localRouteClient("local-llamacpp");
+  fakeRouter({ calls, models: [{ id: adapter.default_model, status: { value: "unloaded", args: ["--ctx-size", "32768"] } }] });
+  const body = await (await c.get("/v1/ai/resolved-route?feature=greet")).json();
+  expect(body.context).toBe(32768);
+  expect(ensured).toEqual([]); // a context lookup never loads the model
+  expect(calls).toEqual(["/v1/models"]);
+});
+
+test("resolved_route_context_prefers_the_loaded_n_ctx", async () => {
+  const [c, adapter] = localRouteClient("local-llamacpp");
+  fakeRouter({ calls: [], models: [{ id: adapter.default_model, meta: { n_ctx: 16384 }, status: { value: "loaded", args: ["--ctx-size", "32768"] } }] });
+  expect((await (await c.get("/v1/ai/resolved-route?feature=greet")).json()).context).toBe(16384);
+});
+
+test("resolved_route_context_is_null_off_the_local_runner", async () => {
+  const calls = [];
+  const [c] = localRouteClient("cloud");
+  fakeRouter({ calls, models: [] });
+  expect((await (await c.get("/v1/ai/resolved-route?feature=greet")).json()).context).toBeNull();
+  expect(calls).toEqual([]); // a cloud route asks the router nothing
+});
+
+test("resolved_route_context_is_null_when_the_router_cannot_say", async () => {
+  const [c] = localRouteClient("local-llamacpp");
+  fakeRouter({ calls: [], models: [] }); // not listed
+  expect((await (await c.get("/v1/ai/resolved-route?feature=greet")).json()).context).toBeNull();
+  vi.spyOn(http, "fetch").mockRejectedValue(new TypeError("fetch failed")); // unreachable
+  setLocalRunnerBaseUrl(() => "http://router.test");
+  const r = await c.get("/v1/ai/resolved-route?feature=greet");
+  expect(r.status).toBe(200);
+  expect((await r.json()).context).toBeNull();
 });
 
 // ── the routes tell the client why generation ended (2026-09-28) ──
