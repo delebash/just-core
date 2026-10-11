@@ -52,6 +52,22 @@
 }
 .ui-tag__x:hover { opacity: 1; }
 
+/* ── Banner (UiBanner on QBanner) ─────────────────────────────────────── */
+/* A tinted message: the icon centred on the text, Quasar's 54 px minimum, white ground and
+   body2 type (its .text-body2 on the content) set aside for the kit's size. An intent sets
+   --ui-banner-bg / --ui-banner-ink; a host adds one the same way. */
+.ui-banner {
+  min-height: 0; padding: 8px 12px; border-radius: 6px; margin: 0 0 10px;
+  background: var(--ui-banner-bg, var(--surface-2)); color: var(--ui-banner-ink, var(--ink));
+  font: 12.5px/1.45 var(--font-ui, inherit);
+}
+.ui-banner:last-child { margin-bottom: 0; }
+.ui-banner .q-banner__avatar { align-self: center; }
+.ui-banner .q-banner__content { font: inherit; letter-spacing: inherit; }
+.ui-banner .q-banner__avatar:not(:empty) + .q-banner__content { padding-left: 8px; }
+.ui-banner .q-banner__actions.col-auto { padding-left: 10px; }
+.ui-banner--danger { --ui-banner-bg: color-mix(in oklab, var(--danger-ink, #b91c1c) 12%, transparent); --ui-banner-ink: var(--danger-ink, #b91c1c); }
+
 /* ── Chip (UiChip on QChip) ────────────────────────────────────────────── */
 /* A selectable pill: outlined at rest, the accent when selected. It replaces a native <button>,
    so a pressable chip keeps what the button had: the text colour of its surroundings (the kit's

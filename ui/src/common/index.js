@@ -12,6 +12,7 @@ export { default as UiSecretInput } from "./components/UiSecretInput.vue";
 export { default as UiTextarea } from "./components/UiTextarea.vue";
 export { default as UiCheckbox } from "./components/UiCheckbox.vue";
 export { default as UiTag } from "./components/UiTag.vue";
+export { default as UiBanner } from "./components/UiBanner.vue";
 export { default as UiChip } from "./components/UiChip.vue";
 export { default as UiSelect } from "./components/UiSelect.vue";
 // Multi-select on Popover+Listbox — born for the i18n target-languages picker,

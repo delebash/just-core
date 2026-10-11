@@ -1,8 +1,10 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!--
   AppModal — shared generic modal wrapper. Same API both apps
-  call: eyebrow / title / wide / noPadding / closable / closeLabel props +
-  default / header / footer slots. Self-contained, token-driven styles (no app
+  call: eyebrow / title / lede / wide / noPadding / closable / closeLabel props +
+  default / header / header-extra / lede / footer slots. The lede is the window's one intro line
+  (a string, or the #lede slot when it carries markup) — 2026-10-11 it took over the per-window
+  copies of that paragraph's style. Self-contained, token-driven styles (no app
   global classes). Backdrop dismissal is locked unless `dismissable`;
   closable:false also blocks Esc + hides the X (for in-flight modals that hold an
   AbortSignal). Supersedes the per-app AppModal.vue forks (JV's `.jv-modal` + JW's
@@ -30,6 +32,7 @@ let uid = 0;
 const props = defineProps({
   eyebrow: { type: String, default: "" },
   title: { type: String, default: "" },
+  lede: { type: String, default: "" }, // the window's intro line, atop the body
   wide: { type: Boolean, default: false },
   noPadding: { type: Boolean, default: false },
   closable: { type: Boolean, default: true },
@@ -173,21 +176,24 @@ const contentStyle = computed(() => {
       :style="contentStyle"
     >
       <header ref="headerRef" class="ui-modal__header">
-        <slot name="header">
-          <div :id="titleId" class="ui-modal__titleblock">
-            <div v-if="eyebrow" class="ui-modal__eyebrow">{{ eyebrow }}</div>
-            <div v-if="title" class="ui-modal__title">{{ title }}</div>
-          </div>
-        </slot>
-        <!-- Extra header content (badges/tags) between the title and the close
-             button — keeps the eyebrow/title props + their styling. -->
-        <slot name="header-extra" />
+        <div class="ui-modal__headmain">
+          <slot name="header">
+            <div :id="titleId" class="ui-modal__titleblock">
+              <div v-if="eyebrow" class="ui-modal__eyebrow">{{ eyebrow }}</div>
+              <div v-if="title" class="ui-modal__title">{{ title }}</div>
+            </div>
+          </slot>
+          <!-- Extra header content (an AI chip, badges, a header action) beside the title —
+               keeps the eyebrow/title props + their styling. -->
+          <slot name="header-extra" />
+        </div>
         <button v-if="closable" type="button" class="ui-modal__close" :aria-label="closeLabel" @click="close">
           <Icon name="Close" :size="14" />
         </button>
       </header>
 
       <div class="ui-modal__body">
+        <p v-if="lede || slots.lede" class="ui-modal__lede"><slot name="lede">{{ lede }}</slot></p>
         <slot />
       </div>
 
@@ -232,21 +238,25 @@ const contentStyle = computed(() => {
 
 .ui-modal__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.ui-modal__titleblock { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-/* At phone width (Quasar's xs) the header wraps: the title (the first thing in it, the caller's
-   own under #header) keeps the top row beside the close button, and everything else the header
-   holds — an AI chip, badges — takes the row below, rather than squeezing the title to nothing. */
-@media (max-width: 599.98px) {
-  .ui-modal__header { flex-wrap: wrap; row-gap: 8px; }
-  .ui-modal__header > :deep(:first-child:not(.ui-modal__close)) { flex: 1 1 0; min-width: 0; }
-  .ui-modal__header > :deep(:not(:first-child):not(.ui-modal__close)) { order: 3; flex-basis: 100%; }
+/* The title and what sits beside it (an AI chip, badges) share one row while they fit; when they
+   don't, the rest drops to the row below — at every width, not only on phones — rather than
+   squeezing the title (Entity sweep's title had wrapped to four lines beside its chip). The
+   close button stays outside the row, top right; the row is at least its height, so a one-line
+   header centres on it. */
+.ui-modal__headmain {
+  flex: 1; min-width: 0; min-height: 28px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
 }
+.ui-modal__headmain > :deep(*) { min-width: 0; max-width: 100%; }
+/* flex-basis auto: the title's one-line width decides whether the rest shares its row. */
+.ui-modal__headmain > :deep(:first-child) { flex: 1 1 auto; }
+.ui-modal__titleblock { display: flex; flex-direction: column; gap: 3px; }
 .ui-modal__eyebrow {
   font-size: 10.5px;
   font-weight: 600;
@@ -277,6 +287,8 @@ const contentStyle = computed(() => {
 }
 .ui-modal__close:hover { background: var(--hover, var(--surface-2)); color: var(--ink); }
 .ui-modal__body { padding: 18px 20px; overflow-y: auto; flex: 1; min-height: 0; }
+.ui-modal__lede { margin: 0 0 16px; max-width: 80ch; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+.ui-modal__lede :deep(strong) { color: var(--ink-2, var(--ink)); font-weight: 600; }
 .ui-modal__footer {
   display: flex;
   justify-content: flex-end;

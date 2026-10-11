@@ -337,12 +337,16 @@ async function save() {
   cursor: pointer;
   line-height: 1.3;
   white-space: nowrap;
+  /* Never wider than where it sits: the provider and model names give way (…) first, the
+     feature's own name last — the tooltip carries the whole route (it ran past a 390 px window). */
+  max-width: 100%; min-width: 0; overflow: hidden;
 }
 .afc-chip:hover { background: var(--surface-2); border-color: var(--border-strong); }
 
-.afc-label    { color: var(--muted); font-weight: 500; }
-.afc-sep      { color: var(--muted); opacity: 0.6; }
+.afc-label    { color: var(--muted); font-weight: 500; flex-shrink: 0; }
+.afc-sep      { color: var(--muted); opacity: 0.6; flex-shrink: 0; }
 .afc-provider { font-weight: 600; }
+.afc-provider, .afc-model { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .afc-model {
   font-family: var(--font-mono, monospace);
   font-size: 10.5px;
