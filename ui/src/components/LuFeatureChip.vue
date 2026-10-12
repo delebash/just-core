@@ -368,6 +368,10 @@ async function save() {
      used inside modals — one value for one role. Pinned by justwrite-app
      chipPopoverStacking.test.js. */
   z-index: 999;
+  /* It takes the pointer itself, as .ui-select-content does: a chip inside a kit menu (JustWrite's
+     scene-strip AI menu, 2026-10-11) opens this popover while the menu holds the page's pointer
+     (useModalPopup sets <body> to none), and the popover inherited none — unclickable. */
+  pointer-events: auto;
   width: 300px; max-width: calc(100vw - 24px);
   display: flex; flex-direction: column; gap: 10px;
   padding: 12px 14px;

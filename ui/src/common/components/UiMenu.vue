@@ -17,7 +17,8 @@
 // (useModalPopup), as Reka's did. The kit keeps the menu keyboard: Enter, Space or ↓ on the
 // trigger opens it on its first item (↑ on its last); ↑/↓, Home/End and typing a label's first
 // letters move between the items; Enter or Space picks; Tab stays in the menu (under Reka the
-// focus stayed on the trigger and the keys did little). The items and the trigger carry Reka's
+// focus stayed on the trigger and the keys did little). A control the menu holds (a select, a chip's own popover) keeps its own
+// keys: the list's keys apply only on the list and its items. The items and the trigger carry Reka's
 // state attributes (data-highlighted, data-disabled, data-state), so the hosts' styles still read
 // them. The look is the caller's (its trigger and content classes).
 import { QMenu } from "quasar";
@@ -71,6 +72,7 @@ function onShow() {
 let typed = "";
 let typedTimer = null;
 function onListKeydown(e) {
+  if (e.target !== listEl() && !e.target?.closest?.('[role="menuitem"]')) return;
   const list = items();
   if (!list.length) return;
   const at = list.indexOf(document.activeElement);

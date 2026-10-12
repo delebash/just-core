@@ -154,6 +154,7 @@ export const useAiTasksStore = defineStore("aiTasks", {
         // rate-relative stall test (mean inter-token gap = span / (deltaCount - 1)).
         deltaCount: 0,
         finishedAt: 0,
+        durationMs: 0, // set when the task ends (_end) — the same on its lingering row and in history
         tokensIn: 0,
         tokensOut: 0,
         chars: 0,
@@ -340,13 +341,20 @@ export const useAiTasksStore = defineStore("aiTasks", {
       t.thinkingChars = (t.thinkingChars || 0) + (typeof text === "string" ? text.length : 0);
     },
 
+    // A task's end: its outcome, when, and how long it ran — set once, so the row that lingers
+    // and its history entry carry the same numbers. (Until 2026-10-11 only history got
+    // durationMs: JustWrite's chapter footer read a lingering task and showed "done in NaNs".)
+    _end(t, status) {
+      t.status = status;
+      t.finishedAt = Date.now();
+      t.durationMs = Math.max(0, t.finishedAt - t.startedAt);
+    },
+
     _finish(id, result) {
       const t = this.tasks[id];
       if (!t) return;
       if (!this.isRunning(id)) return; // first outcome wins — see _fail
-      const now = Date.now();
-      t.status = "done";
-      t.finishedAt = now;
+      this._end(t, "done");
       if (result?.usage) {
         t.tokensIn = result.usage.promptTokens || t.tokensIn;
         t.tokensOut = result.usage.completionTokens || t.tokensOut;
@@ -373,10 +381,8 @@ export const useAiTasksStore = defineStore("aiTasks", {
       // cancelled would flip to "error", badge the titlebar red, and with
       // `failed: null` never leave the panel.
       if (!this.isRunning(id)) return;
-      const now = Date.now();
-      t.status = "error";
+      this._end(t, "error");
       t.error = err?.message || String(err || "Unknown error");
-      t.finishedAt = now;
       this._archiveAfterLinger(id, "failed");
       // QC-37 (the toast law): failures signal DURABLY, not with a toast
       // that disappears — the titlebar chip badges red until the panel is
@@ -389,8 +395,7 @@ export const useAiTasksStore = defineStore("aiTasks", {
       if (!t) return;
       if (t.status !== "connecting" && t.status !== "streaming") return;
       try { t._controller?.abort?.(); } catch {}
-      t.status = "cancelled";
-      t.finishedAt = Date.now();
+      this._end(t, "cancelled");
       this._archiveAfterLinger(id, "cancelled");
       // No toast — the user just clicked Cancel, telling them so again
       // is noise. The history entry in the panel records it.
@@ -414,7 +419,7 @@ export const useAiTasksStore = defineStore("aiTasks", {
         status: t.status,
         startedAt: t.startedAt,
         finishedAt: t.finishedAt,
-        durationMs: Math.max(0, t.finishedAt - t.startedAt),
+        durationMs: t.durationMs,
         tokensIn: t.tokensIn,
         tokensOut: t.tokensOut,
         // The app's own numbers ("3.2 KB", "1.4s audio") — they ride into history
