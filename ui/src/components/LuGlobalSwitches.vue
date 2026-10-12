@@ -10,6 +10,7 @@
 // sit BELOW class tunes and saved machine tunes in the resolution (the Tune grid's
 // per-row origin tags show exactly which layer won).
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import KnobGrid from "./KnobGrid.vue";
 import UiButton from "../common/components/UiButton.vue";
@@ -24,12 +25,12 @@ const props = defineProps({
   expanded: { type: Boolean, default: false },
 });
 
-const APPLIES_LABELS = {
-  all: "All models",
-  moe: "MoE models",
-  dense: "Dense models",
-  mtp: "Speculative decode (MTP-capable models)",
-};
+const { t, te } = useI18n();
+// A bundle's name: the kit's word for what it applies to, else the server's label.
+function bundleLabel(p) {
+  const key = `kit.switches.applies.${p.appliesTo}`;
+  return te(key) ? t(key) : p.label || p.id;
+}
 
 const loaded = ref(false);
 const loading = ref(false);
@@ -41,7 +42,7 @@ const catalogMap = ref({});
 function _apply(res) {
   presets.value = (res.rows || []).map((p) => ({
     id: p.id,
-    label: APPLIES_LABELS[p.appliesTo] || p.label || p.id,
+    label: p.label,
     appliesTo: p.appliesTo,
     position: p.position,
     rows: (p.switches || []).map((s) => ({ name: s.flagName, value: s.flagValue })),
@@ -58,7 +59,7 @@ async function reload() {
     }
     loaded.value = true;
   } catch (e) {
-    error.value = e.message || "Couldn't load the launch defaults.";
+    error.value = e.message || t("kit.switches.err.load");
   } finally {
     loading.value = false;
   }
@@ -82,7 +83,7 @@ async function savePreset(p) {
       },
     }));
   } catch (e) {
-    error.value = e.message || "Save failed.";
+    error.value = e.message || t("kit.switches.err.save");
   } finally {
     busy.value = "";
   }
@@ -90,9 +91,9 @@ async function savePreset(p) {
 
 async function reset() {
   const ok = await confirmDialog({
-    title: "Reset the launch defaults?",
-    message: "Restores the shipped switch bundles (all models · MoE · dense · speculative decode). Your PC class configs and saved machine tunes are not touched.",
-    confirmLabel: "Reset",
+    title: t("kit.switches.reset.title"),
+    message: t("kit.switches.reset.body"),
+    confirmLabel: t("kit.switches.reset.confirm"),
   });
   if (!ok) return;
   busy.value = "__reset";
@@ -100,7 +101,7 @@ async function reset() {
   try {
     _apply(await request("/v1/ai/switch-presets/reset", { method: "POST" }));
   } catch (e) {
-    error.value = e.message || "Reset failed.";
+    error.value = e.message || t("kit.switches.err.reset");
   } finally {
     busy.value = "";
   }
@@ -114,8 +115,8 @@ const ordered = computed(() =>
 <template>
   <component :is="expanded ? 'div' : 'details'" class="lu-gsw" :class="{ 'lu-gsw--expanded': expanded }" @toggle="onToggle">
     <summary v-if="!expanded" class="lu-gsw-summary">
-      <span class="lu-gsw-title">Global launch defaults</span>
-      <span class="lu-muted">the always-on switch bundles under every tune — all models · MoE · dense · speculative decode</span>
+      <span class="lu-gsw-title">{{ t('kit.switches.title') }}</span>
+      <span class="lu-muted">{{ t('kit.switches.summary') }}</span>
     </summary>
 
     <div class="lu-gsw-body">
@@ -123,26 +124,24 @@ const ordered = computed(() =>
            caption; the layer-mechanics explainer lives in docs/models.md and on
            the Tune grid's own origin tags. -->
       <p class="lu-muted lu-gsw-help">
-        These bundles are the first layer of every model's launch — a PC class config
-        or an applied config overrides them per value.
-        <b>Models with an applied config keep their saved values</b> — a change here reaches
-        them only when you refresh or remove their applied config in Tune &amp; measure.
+        {{ t('kit.switches.help') }}
+        <i18n-t keypath="kit.switches.helpKept" scope="global"><template #kept><b>{{ t('kit.switches.helpBold') }}</b></template></i18n-t>
       </p>
 
       <div v-if="error" class="lu-error">{{ error }}</div>
-      <div v-if="loading" class="lu-muted">Loading…</div>
+      <div v-if="loading" class="lu-muted">{{ t('kit.common.loading') }}</div>
 
       <template v-else-if="loaded">
         <div v-for="p in ordered" :key="p.id" class="lu-gsw-preset">
           <div class="lu-gsw-phead">
-            <span class="lu-gsw-plabel">{{ p.label }}</span>
-            <UiButton intent="primary" size="small" :loading="busy === p.id" @click="savePreset(p)">Save</UiButton>
+            <span class="lu-gsw-plabel">{{ bundleLabel(p) }}</span>
+            <UiButton intent="primary" size="small" :loading="busy === p.id" @click="savePreset(p)">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
           </div>
           <KnobGrid v-model="p.rows" :catalog="catalogMap" />
         </div>
 
         <div class="lu-gsw-foot">
-          <UiButton intent="secondary" size="small" :loading="busy === '__reset'" @click="reset">Reset to defaults</UiButton>
+          <UiButton intent="secondary" size="small" :loading="busy === '__reset'" @click="reset">{{ t('kit.switches.reset.button') }}</UiButton>
         </div>
       </template>
     </div>

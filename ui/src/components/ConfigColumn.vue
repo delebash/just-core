@@ -26,6 +26,7 @@
 // JSON, reasoning. The old per-column switch grid wrote preset rows that nothing
 // applied at load — deleted, not rebuilt.
 import { computed, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 import { request } from "../client.js";
 import { resolvedSourceLabel, useResolvedRoute } from "../composables/useResolvedRoute.js";
@@ -60,6 +61,7 @@ let _labColSeq = 1;
 // sets what's shown. JSON mode forces it off (B3) regardless. No clamp anywhere ("no
 // magic behind the curtains": there is no min(), the resolved value IS the budget).
 const varHint = "{{variable}}"; // shown literally in the UI (avoids a nested {{ }} in the template)
+const { t } = useI18n();
 
 const props = defineProps({
   action: { type: String, default: "" },
@@ -76,7 +78,8 @@ const props = defineProps({
   // one-shot /run path (which Compare uses); the live stream is the FW writing path.
   runStream: { type: Function, default: null },
   // The inherit option's label on the model picker.
-  inheritLabel: { type: String, default: "— inherit —" },
+  // "" = the kit's own words (kit.config.inherit)
+  inheritLabel: { type: String, default: "" },
   // This action's saved presets (parent-owned list, already filtered to the action).
   presets: { type: Array, default: () => [] },
   // The feature's current IN-PRODUCTION preset id → preselect it + mark it
@@ -302,7 +305,7 @@ const localBudgetLine = computed(() => {
   // A `reasoning_budget` typed into the MoE/dense/MTP bundles resolves with origin
   // "type"/"mtp" (switch_resolve.py:24-25) — outside the approved 5-label vocabulary. Say
   // the layer's raw origin rather than trailing an empty dash.
-  return `local: thinking budget ${r.value} — ${label || r.valueSource}`;
+  return t("kit.config.localBudget", { value: r.value, source: label || r.valueSource });
 });
 
 // The gate REMOVAL (ruled 2026-08-06, "no fancy magic"): thinking is sent
@@ -443,7 +446,7 @@ const testCtrl = ref(null);
 // surface mounts, replacing the bare "Running…" text this surface had.
 const labColId = `labcol-${_labColSeq++}`;
 const aiTasks = useAiTasksStore();
-const myTask = computed(() => aiTasks.runningTasks.find((t) => t.meta?.labColId === labColId) || null);
+const myTask = computed(() => aiTasks.runningTasks.find((task) => task.meta?.labColId === labColId) || null);
 
 function wordCount(s) {
   return (String(s || "").trim().match(/\S+/g) || []).length;
@@ -502,7 +505,7 @@ async function runViaAdapter(body, t0) {
   const { handle, effectiveSignal } = startTaskHandle({
     // inline: the column renders its own strip (myTask), so a global task stack
     // must not show this run a second time.
-    task: { label: `Lab test — ${props.action}`, meta: { labColId }, inline: true },
+    task: { label: t("kit.config.labTask", { action: props.action }), meta: { labColId }, inline: true },
     action: props.action,
     signal: ctrl.signal,
   });
@@ -579,7 +582,7 @@ async function run() {
       const r = await runAiFeature({
         ...o, signal: ctrl.signal,
         // inline: the column renders its own strip — see the adapter path above.
-        task: { label: `Lab test — ${props.action}`, meta: { labColId }, inline: true },
+        task: { label: t("kit.config.labTask", { action: props.action }), meta: { labColId }, inline: true },
       });
       const ms = Math.round(performance.now() - t0);
       const out = r.completionTokens || 0;
@@ -596,8 +599,8 @@ async function run() {
     emit("result", testOut.value);
     return testOut.value;
   } catch (e) {
-    if (e?.name === "AbortError" || /abort|cancel/i.test(e?.message || "")) testErr.value = "Cancelled.";
-    else testErr.value = (e?.statusCode === 501 || e.message?.includes("501")) ? "No LLM wired — set a model above or connect a provider." : (e.message || "Run failed.");
+    if (e?.name === "AbortError" || /abort|cancel/i.test(e?.message || "")) testErr.value = t("kit.config.cancelled");
+    else testErr.value = (e?.statusCode === 501 || e.message?.includes("501")) ? t("kit.config.noLlm") : (e.message || t("kit.config.runFailed"));
     emit("result", null);
     return null;
   } finally {
@@ -627,32 +630,32 @@ defineExpose({ run, cancel });
     <div v-if="label || removable" class="cc-head">
       <span class="cc-title">{{ label }}</span>
       <span class="cc-spacer" />
-      <UiButton v-if="removable" intent="ghost" size="small" title="Remove column" @click="emit('remove')">✕</UiButton>
+      <UiButton v-if="removable" intent="ghost" size="small" :title="t('kit.config.removeColumn')" @click="emit('remove')">✕</UiButton>
     </div>
 
     <!-- Engine-preset bar — load an existing preset into this column, or save the
          (tested) config as a new preset. The parent owns the /engine-presets calls. -->
     <div class="cc-presets">
-      <span class="cc-eyebrow">Preset</span>
+      <span class="cc-eyebrow">{{ t('kit.config.preset') }}</span>
       <UiSelect width="name" :model-value="selPreset"
-        :options="[{ value: '', label: '— start fresh —' }, ...presets.map((p) => ({ value: p.id, label: p.name }))]"
+        :options="[{ value: '', label: t('kit.config.startFresh') }, ...presets.map((p) => ({ value: p.id, label: p.name }))]"
         @update:model-value="onApplyPreset" />
-      <span v-if="selPreset && selPreset === productionPresetId" class="cc-inprod" title="This preset is in production for this feature">● in production</span>
+      <span v-if="selPreset && selPreset === productionPresetId" class="cc-inprod" :title="t('kit.config.inProdTitle')">{{ t('kit.config.inProd') }}</span>
       <UiButton v-if="selPreset && selPreset !== productionPresetId" intent="success" size="small"
-        title="Make this preset the one this feature uses"
-        @click="emit('use-production', selPreset)">Use in production</UiButton>
-      <UiButton v-if="selPreset && !naming" intent="secondary" size="small" title="Save changes to the loaded preset in place — &quot;Save as preset&quot; makes a new copy instead" @click="emit('update-preset', selPreset)">Save</UiButton>
-      <UiInput v-if="naming" v-model="newName" placeholder="name — Enter" class="cc-name-in"
+        :title="t('kit.config.useProdTitle')"
+        @click="emit('use-production', selPreset)">{{ t('kit.config.useProd') }}</UiButton>
+      <UiButton v-if="selPreset && !naming" intent="secondary" size="small" :title="t('kit.config.saveTitle')" @click="emit('update-preset', selPreset)">{{ t('kit.config.save') }}</UiButton>
+      <UiInput v-if="naming" v-model="newName" :placeholder="t('kit.config.namePh')" class="cc-name-in"
         @keyup.enter="confirmSaveAs" @keyup.esc="naming = false; newName = ''" />
-      <UiButton v-else intent="primary" size="small" title="Save this tested config as a reusable preset" @click="startNaming">＋ Save as preset</UiButton>
-      <UiButton v-if="selPreset" intent="ghost" size="small" title="Delete this preset" @click="emit('delete-preset', selPreset)">🗑</UiButton>
+      <UiButton v-else intent="primary" size="small" :title="t('kit.config.saveAsTitle')" @click="startNaming">＋ {{ t('kit.config.saveAs') }}</UiButton>
+      <UiButton v-if="selPreset" intent="ghost" size="small" :title="t('kit.config.deleteTitle')" @click="emit('delete-preset', selPreset)">🗑</UiButton>
     </div>
 
     <!-- Model -->
     <div class="cc-field">
-      <label>Provider &amp; model</label>
+      <label>{{ t('kit.config.providerModel') }}</label>
       <LuModelPicker editable :model-value="modelValue?.pin || null" :providers="providers" :labels="true"
-        :inherit-label="inheritLabel" @update:model-value="patchPin" />
+        :inherit-label="inheritLabel || t('kit.config.inherit')" @update:model-value="patchPin" />
     </div>
 
     <!-- Engine switches live on the MODEL (§7.1) — one editor, linked, not embedded.
@@ -660,9 +663,9 @@ defineExpose({ run, cancel });
          needs a reload); this task decides how it's asked (the params below). -->
     <div v-if="canTuneModel" class="cc-engsw">
       <UiButton intent="secondary" size="small"
-        title="Open Tune & measure for this model — engine switches are set once per model and shared by every task that uses it"
-        @click="openTune">Engine switches ↗</UiButton>
-      <span class="lu-muted">shared by every task using this model — set in Tune &amp; measure</span>
+        :title="t('kit.config.engineTitle')"
+        @click="openTune">{{ t('kit.config.engine') }}</UiButton>
+      <span class="lu-muted">{{ t('kit.config.engineHint') }}</span>
     </div>
 
     <!-- The adapter's per-column app controls (configExtra) — e.g. attribution's
@@ -673,27 +676,27 @@ defineExpose({ run, cancel });
 
     <!-- Prompt (system + user) -->
     <template v-if="promptEditable">
-      <div class="cc-field"><label>System prompt</label>
+      <div class="cc-field"><label>{{ t('kit.config.system') }}</label>
         <textarea class="lu-input cc-ta" rows="5" :value="modelValue?.system || ''"
           @input="patch('system', $event.target.value)" /></div>
-      <div class="cc-field"><label>Instruction <span class="lu-muted">— user template · {{ varHint }} placeholders</span></label>
+      <div class="cc-field"><label>{{ t('kit.config.instruction') }} <span class="lu-muted">— {{ t('kit.config.instructionHint', { hint: varHint }) }}</span></label>
         <textarea class="lu-input cc-ta" rows="3" :value="modelValue?.userTemplate || ''"
           @input="patch('userTemplate', $event.target.value)" /></div>
     </template>
 
     <!-- Plane-2 per-call params -->
     <div class="cc-params">
-      <div class="cc-field cc-num"><label>Temp</label>
+      <div class="cc-field cc-num"><label>{{ t('kit.config.temp') }}</label>
         <UiInput :model-value="modelValue?.temperature" type="number" @update:model-value="patch('temperature', $event)" /></div>
-      <div class="cc-field cc-num"><label>Top-p <span class="lu-muted">blank=def</span></label>
+      <div class="cc-field cc-num"><label>{{ t('kit.config.topP') }} <span class="lu-muted">{{ t('kit.config.topPHint') }}</span></label>
         <UiInput :model-value="modelValue?.topP" type="number" @update:model-value="patch('topP', $event)" /></div>
-      <div class="cc-field cc-num"><label>Max tok <span class="lu-muted">0=none</span></label>
+      <div class="cc-field cc-num"><label>{{ t('kit.config.maxTok') }} <span class="lu-muted">{{ t('kit.config.maxTokHint') }}</span></label>
         <UiInput :model-value="modelValue?.maxTokens" type="number" @update:model-value="patch('maxTokens', $event)" /></div>
-      <div class="cc-field cc-reason"><label>Reasoning</label>
+      <div class="cc-field cc-reason"><label>{{ t('kit.config.reasoning') }}</label>
         <UiSelect :model-value="modelValue?.reasoningEffort || ''" :options="REASONING_OPTIONS"
           @update:model-value="patch('reasoningEffort', $event)" /></div>
       <div class="cc-field cc-json">
-        <label v-if="jsonToggle" class="cc-chk" title="Output as JSON — the model must return valid JSON for this feature. Turn on when the app needs the result as structured data instead of prose. Saved for this feature."><UiCheckbox :model-value="!!modelValue?.jsonMode" @update:model-value="onJsonToggle" /><span>Output as JSON</span></label>
+        <label v-if="jsonToggle" class="cc-chk" :title="t('kit.config.jsonTitle')"><UiCheckbox :model-value="!!modelValue?.jsonMode" @update:model-value="onJsonToggle" /><span>{{ t('kit.config.json') }}</span></label>
       </div>
     </div>
 
@@ -702,60 +705,60 @@ defineExpose({ run, cancel });
          lives) rather than inside that field — .cc-reason is capped at 120px and would
          wrap this to a column of fragments. -->
     <div v-if="localBudgetLine" class="cc-localbudget lu-muted"
-      title="The model's layered reasoning_budget on this PC (Global launch defaults → PC class config → your applied config) — edit it in Tune &amp; measure">{{ localBudgetLine }}</div>
+      :title="t('kit.config.localBudgetTitle')">{{ localBudgetLine }}</div>
 
     <!-- Plane-2 long-tail samplers (KnobGrid checklist). temperature + top_p are
          excluded — they are edited in the per-call params row above. #35 (B4-3,
          2026-07-08): ONE flat column — no multi-column spread, no Advanced section. -->
     <details class="cc-samplers">
-      <summary class="cc-eyebrow">Samplers <span class="lu-muted">— top_k · min_p · penalties · mirostat … (mostly local)</span></summary>
+      <summary class="cc-eyebrow">{{ t('kit.config.samplers') }} <span class="lu-muted">— {{ t('kit.config.samplersHint') }}</span></summary>
       <div class="cc-samplers-body">
         <KnobGrid checklist flat :catalog-list="samplerCatalogList" :exclude="['temperature', 'top_p']" :reserved-keys="['samplers', 'stop']"
           :model-value="modelValue?.samplers || []"
-          add-label="＋ Add custom sampler" name-placeholder="sampler (e.g. top_k)"
+          :add-label="t('kit.knobs.addSampler')" :name-placeholder="t('kit.knobs.samplerPlaceholder')"
           @update:model-value="onEditSamplers" />
 
         <!-- Sampler ORDER — the chain the samplers apply in (off = engine default). -->
         <div class="cc-samporder">
-          <label class="cc-chk"><UiCheckbox :model-value="orderOn" @update:model-value="toggleOrder" /><span class="lu-muted">Custom sampler order</span></label>
+          <label class="cc-chk"><UiCheckbox :model-value="orderOn" @update:model-value="toggleOrder" /><span class="lu-muted">{{ t('kit.config.customOrder') }}</span></label>
           <div v-if="orderOn" class="cc-samporder-list">
             <div v-for="(name, i) in orderList" :key="name" class="cc-samporder-row">
               <span class="cc-samporder-name"><span class="lu-muted">{{ i + 1 }}.</span> {{ name }}</span>
-              <UiButton intent="ghost" size="small" :disabled="i === 0" title="Move up" @click="moveOrder(i, -1)">▲</UiButton>
-              <UiButton intent="ghost" size="small" :disabled="i === orderList.length - 1" title="Move down" @click="moveOrder(i, 1)">▼</UiButton>
+              <UiButton intent="ghost" size="small" :disabled="i === 0" :title="t('kit.config.moveUp')" @click="moveOrder(i, -1)">▲</UiButton>
+              <UiButton intent="ghost" size="small" :disabled="i === orderList.length - 1" :title="t('kit.config.moveDown')" @click="moveOrder(i, 1)">▼</UiButton>
             </div>
-            <UiButton intent="ghost" size="small" title="Restore the engine's default sampler order" @click="toggleOrder(true)">Reset order</UiButton>
+            <UiButton intent="ghost" size="small" :title="t('kit.config.resetOrderTitle')" @click="toggleOrder(true)">{{ t('kit.config.resetOrder') }}</UiButton>
           </div>
         </div>
 
         <!-- Per-feature STOP sequences — one per line; generation halts on any. -->
         <div class="cc-stops">
-          <span class="cc-eyebrow">Stop sequences <span class="lu-muted">— one per line; generation halts on any</span></span>
+          <span class="cc-eyebrow">{{ t('kit.config.stop') }} <span class="lu-muted">— {{ t('kit.config.stopHint') }}</span></span>
           <textarea class="lu-input cc-stops-ta" rows="2" :value="stopText"
-            placeholder="one stop string per line" @input="writeStop($event.target.value)" />
+            :placeholder="t('kit.config.stopPh')" @input="writeStop($event.target.value)" />
         </div>
       </div>
     </details>
 
     <!-- Preview + token count + budget guard -->
     <details class="cc-preview">
-      <summary class="cc-eyebrow">Preview &amp; tokens
-        <span class="lu-muted">— {{ exactTokens != null ? `${exactTokens} tokens` : `≈${estTokens} tokens` }}<span v-if="overBudget" class="cc-over"> · ⚠ over window</span></span>
+      <summary class="cc-eyebrow">{{ t('kit.config.preview') }}
+        <span class="lu-muted">— {{ exactTokens != null ? t('kit.config.tokens', { n: exactTokens }) : t('kit.config.tokensApprox', { n: estTokens }) }}<span v-if="overBudget" class="cc-over"> · {{ t('kit.config.overWindow') }}</span></span>
       </summary>
       <div class="cc-preview-body">
-        <pre class="cc-pre">{{ previewText || "(empty)" }}</pre>
+        <pre class="cc-pre">{{ previewText || t('kit.config.empty') }}</pre>
         <div class="cc-preview-foot">
-          <span class="lu-muted">{{ exactTokens != null ? `${exactTokens} tokens (exact)` : `≈ ${estTokens} tokens (est)` }}</span>
+          <span class="lu-muted">{{ exactTokens != null ? t('kit.config.tokensExact', { n: exactTokens }) : t('kit.config.tokensEst', { n: estTokens }) }}</span>
           <UiButton v-if="exactTokens == null" intent="ghost" size="small" :loading="counting"
-            title="Count with the loaded local model's tokenizer" @click="countExact">Count exact</UiButton>
+            :title="t('kit.config.countTitle')" @click="countExact">{{ t('kit.config.count') }}</UiButton>
           <span class="cc-spacer" />
-          <label class="cc-win">window <span class="lu-muted" :title="windowSource === 'assumed' ? 'No local model picked — this is an assumed default, edit it to your model\'s real window' : 'From the model\'s resolved launch config (Tune & measure) / loaded model'">({{ windowSource }})</span> <UiInput :model-value="window" type="number" class="cc-win-in" @update:model-value="window = $event" /></label>
+          <label class="cc-win">{{ t('kit.config.window') }} <span class="lu-muted" :title="windowSource === 'assumed' ? t('kit.config.windowAssumedTitle') : t('kit.config.windowModelTitle')">({{ t(`kit.config.windowSource.${windowSource}`) }})</span> <UiInput :model-value="window" type="number" class="cc-win-in" @update:model-value="window = $event" /></label>
         </div>
         <div v-if="overBudget" class="cc-budget cc-budget-over">
-          ⚠ prompt ≈{{ promptTok }} + {{ outReserve || 0 }} output = {{ budgetUsed }} tok exceeds the {{ window }}-token window — it will truncate or error.
+          {{ t('kit.config.over', { prompt: promptTok, out: outReserve || 0, used: budgetUsed, window }) }}
         </div>
         <div v-else-if="nearBudget" class="cc-budget cc-budget-near">
-          ⚠ prompt ≈{{ promptTok }} + {{ outReserve || 0 }} output is close to the {{ window }}-token window.
+          {{ t('kit.config.near', { prompt: promptTok, out: outReserve || 0, window }) }}
         </div>
       </div>
     </details>
@@ -765,10 +768,10 @@ defineExpose({ run, cancel });
          exactly like every other AI surface; the bare ■ Cancel + "Running…" pair
          remains only for a run no task registered (the host runStream path). -->
     <div class="cc-run">
-      <UiButton v-if="!testing" intent="primary" size="small" :disabled="busy" @click="run">▶ Run</UiButton>
+      <UiButton v-if="!testing" intent="primary" size="small" :disabled="busy" @click="run">▶ {{ t('kit.config.run') }}</UiButton>
       <template v-else-if="!myTask">
-        <UiButton intent="secondary" size="small" @click="cancel">■ Cancel</UiButton>
-        <span class="lu-muted cc-running">Running…</span>
+        <UiButton intent="secondary" size="small" @click="cancel">■ {{ t('kit.dialog.cancel') }}</UiButton>
+        <span class="lu-muted cc-running">{{ t('kit.config.running') }}</span>
       </template>
       <span v-if="testErr" class="lu-error cc-err">{{ testErr }}</span>
     </div>
@@ -782,13 +785,13 @@ defineExpose({ run, cancel });
         <component :is="adapter.render" :result="testOut" :all-results="allResults"
           :config="modelValue" :action="action" :column-label="label" />
         <details v-if="testOut.content" class="cc-raw">
-          <summary class="cc-eyebrow">Raw model output</summary>
+          <summary class="cc-eyebrow">{{ t('kit.config.raw') }}</summary>
           <pre class="cc-pre">{{ testOut.content }}</pre>
         </details>
       </template>
       <pre v-else class="cc-pre">{{ testOut.content }}</pre>
       <div class="lu-muted cc-stats">
-        <template v-if="testOut.model">model <b>{{ testOut.model }}</b> · </template>
+        <template v-if="testOut.model">{{ t('kit.config.model') }} <b>{{ testOut.model }}</b> · </template>
         {{ fmtWords(testOut.words) }}<template v-if="testOut.outputTokens"> · {{ fmtTokens(testOut) }}</template><template v-if="testOut.tps"> · {{ fmtTps(testOut.tps) }}</template> · {{ fmtSeconds(testOut.ms) }} · {{ fmtCost(testOut.cost) }}
       </div>
     </div>

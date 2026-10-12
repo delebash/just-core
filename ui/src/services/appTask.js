@@ -22,6 +22,7 @@
 
 import { requestStream } from "../client.js";
 import { useAiTasksStore } from "../stores/aiTasks.js";
+import { kitT } from "../common/services/kitI18n.js";
 
 /** Map a server usage object to the shape `finish()` expects. Accepts the
  * family's snake_case `RunUsage` (`prompt_tokens`, from server-composed
@@ -156,7 +157,7 @@ export async function runAiEndpointStream({ url, body, task, onDelta, onStep, st
         onStep?.(s);
       },
     });
-    if (!done) throw new Error("The stream ended without a result.");
+    if (!done) throw new Error(kitT("kit.aiError.noResult"));
     return { result: done, usage: done, model: done.model };
   });
 }

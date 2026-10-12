@@ -464,7 +464,7 @@ kit's peer dependencies go in THIS app's `package.json` (`ui/package.json` lists
   installLlmUi(app, {
     devPorts: ["<DEV_PORT>"], fallbackBase: "http://127.0.0.1:<PORT>",
     capabilities: { embeddings: false },        // what this app's stack does
-    catalogCopy: { … },                          // this app's words
+    i18n,                                        // the app's vue-i18n instance — required
     external: { open: openUrl, openPath },      // from services/native.js (§5)
   });
   ```
@@ -663,10 +663,10 @@ Ruled 2026-08-03 after the i18n rewrite shipped its workflow with NONE of this �
 user had to ask "are you bringing in the data directory, the style changer, the ai
 progress cancel, the logs?" The answer must never again be no. Each row names its
 canonical implementation; all of it is kit/platform code — the app writes wiring only.
-**Canonical WORDS live in `ui/src/common/familyContract.js` (FAMILY_LABELS), never in
-this document** — this section names components and shapes; the manifest is the one
-source the kit components read their own defaults from, and the contract tests
-assert. (2026-08-04: §11 stopped restating label words.)
+**Canonical WORDS live in the kit's catalog, `ui/src/i18n/locales/en.json` (`kit.*` keys),
+never in this document** — this section names components and shapes; the kit's components
+read their words from that catalog through vue-i18n, in the app's language. (2026-08-04: §11
+stopped restating label words; 2026-10-12: FAMILY_LABELS became the catalog.)
 
 **The governing principle (user's words, law — parity batch 2026-08-05):**
 *Same function ⇒ same kit surface and mechanism, in every app — including
@@ -687,7 +687,8 @@ reach DB rows; row-label localization is a future family design).
 **The Settings canon (from code, 2026-08-06):** the seven family sections
 keep this RELATIVE order wherever they appear —
 **Appearance · Backups · Storage · Server · Logs · Updates · About**
-(`FAMILY_LABELS.settingsSections` is the word source). App sections may
+(`kit.settingsSections.*` in the kit's catalog is the word source, `SETTINGS_SECTION_ORDER`
+the order). App sections may
 lead, trail, or interleave freely: JW leads with Project; JV leads with
 General and trails its voice-domain sections (Mastering → Webhooks); docgen
 interleaves Reviewer before About. Every app renders them through the kit
@@ -699,9 +700,9 @@ headless-URL + bearer-token + keep-running section in every app.
 split) · Routing by feature · usage · console, plus the app's HOST TABS via
 `appTabs` (`[{id, label, after}]` — `after` anchors each into the strip;
 `#app-tab-<id>` slots carry the content; tabs mount lazily on first visit).
-Words relabel per app ONLY through the labels feed (`configureFamilyLabels`
-— JV says "LLM providers"/"LLM models" because it has two provider kinds;
-siblings keep the canon words). Deep links: `initialTab` (?tab=) and
+Words relabel per app ONLY by setting the kit's key in the app's own catalog (an
+app's `kit.*` key wins over the kit's — JV says "LLM providers"/"LLM models"
+because it has two provider kinds; siblings keep the kit's words). Deep links: `initialTab` (?tab=) and
 `initialFeatureAction` (?action= → the Workbench focuses that action row) —
 both one-shot, consumed off the URL on mount. The Lab runs an app's REAL
 pipeline through the `labAdapters` seam (installLlmUi option, keyed by
@@ -754,8 +755,8 @@ The donor answered all four questions already. Reading it took ten minutes; not 
 it cost a rewrite and shipped a routing-corrupting bug behind a success toast.
 
 **Setup wizards**: since the surgery (2026-08-04) there is ONE wizard — the kit's
-`QuickSetup` (LLM chat/embedding) — voiced per app through `quickSetupCopy` (the
-copy seam) and gated by `llmUiCapabilities` (embeddings hidden where an app has
+`QuickSetup` (LLM chat/embedding) — voiced per app through `kit.quickSetup.*` keys
+in the app's catalog and gated by `llmUiCapabilities` (embeddings hidden where an app has
 none); `AiModelsArea` mounts it inline and the `wizard` prop exists only for a
 DIFFERENT wizard kind (JV's TTS wizard is app-local — a different pipeline, not a
 fork). i18n's 359-line fork is DELETED; forking the kit wizard again is the

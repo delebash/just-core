@@ -6,6 +6,7 @@
 // applied rows equal an autotune trial's switches; "hand" = anything else;
 // PC-class membership = a PC class config exists for this box's class.
 import { request } from "./client.js";
+import { kitT } from "./common/services/kitI18n.js";
 
 // { hwKey, classKey, tuned: { modelId: "auto"|"hand" }, classConfigured: [modelId] }
 // — null on failure (badges are an enrichment; every surface must keep working).
@@ -17,12 +18,15 @@ export async function fetchTuneState() {
   }
 }
 
-// THE user-facing name of the class layer (2026-07-26 rename). ONE export, because the
-// same words are said in TWO independent families: this badge and the resolved-route
-// source labels (useResolvedRoute.js RESOLVED_SOURCE_LABELS.class) — which had ALREADY
-// drifted ("hardware class default" vs the badge's "Hardware/model class default"),
-// which is why the literal now lives in exactly one place.
-export const CLASS_LAYER_LABEL = "PC class config";
+
+// THE user-facing name of the class layer (2026-07-26 rename) is ONE message, kit.tune.classLayer,
+// because the same words are said in TWO independent families: this badge and the resolved-route
+// source words (useResolvedRoute.js) — which had ALREADY drifted ("hardware class default" vs the
+// badge's "Hardware/model class default"). The other messages LINK to it (@:kit.tune.classLayer),
+// vue-i18n's own way of composing one message from another.
+export function classLayerLabel() {
+  return kitT("kit.tune.classLayer");
+}
 
 // The §7.6 badge family — user-decided wording (queue doc §7.6, "d3-4 your rec").
 // QC-1 (2026-07-08): tags use the REAL editor name, never invented shorthand. The name
@@ -35,16 +39,16 @@ export const CLASS_LAYER_LABEL = "PC class config";
 // by, ie tuned by autotune, my hand, by class config … should be consistent").
 // Before this, three named a MECHANISM ("Auto-tuned") and one named an ENTITY
 // ("PC class config"), which is why the class badge did not read as tuning at all —
-// it read as a hardware spec. The class label COMPOSES on CLASS_LAYER_LABEL rather
+// it read as a hardware spec. The class label LINKS to the class layer's name rather
 // than restating it, so the one-source law above still holds and QC-1 is satisfied
-// (the tag still contains the real editor name).
+// (the tag still contains the real editor name). `labelKey` is the badge's words (kit.tune.badge.*).
 export const TUNE_BADGES = {
-  auto: { label: "Tuned by auto-tune", intent: "success" },
-  hand: { label: "Tuned by hand", intent: "success" },
-  class: { label: `Tuned by ${CLASS_LAYER_LABEL}`, intent: "secondary" },
+  auto: { labelKey: "kit.tune.badge.auto", intent: "success" },
+  hand: { labelKey: "kit.tune.badge.hand", intent: "success" },
+  class: { labelKey: "kit.tune.badge.class", intent: "secondary" },
   // Tuned — just not for THIS box's class. The caller appends the count.
-  elsewhere: { label: "Not tuned here", intent: "secondary" },
-  untuned: { label: "Not tuned", intent: "secondary" },
+  elsewhere: { labelKey: "kit.tune.badge.elsewhere", intent: "secondary" },
+  untuned: { labelKey: "kit.tune.badge.untuned", intent: "secondary" },
 };
 
 /**

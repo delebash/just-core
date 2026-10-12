@@ -20,6 +20,7 @@
 //   });
 
 import { reactive } from "vue";
+import { kitT } from "./kitI18n.js";
 
 // slug === null → drawer closed. Any string opens it; anchor is an optional
 // in-doc heading id to scroll to.
@@ -30,7 +31,7 @@ export const helpState = reactive({ slug: null, anchor: "" });
 const config = reactive({
   loadDoc: async () => null,
   hasDoc: () => false,
-  titleForSlug: (s) => s || "Help",
+  titleForSlug: (s) => s || kitT("kit.help.title"),
   onOpenFull: null, // (slug) => void — "Open full docs" button shown iff set
   onOpenWeb: null, // (slug) => void — "Open on the web" button shown iff set
 });

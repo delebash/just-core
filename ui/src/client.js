@@ -12,19 +12,9 @@
 import { serverFetch } from "./common/services/transport.js";
 
 let _base = "";
-let _catalogCopy = {};
 
-export function configureLlmUi({ baseUrl, catalogCopy } = {}) {
+export function configureLlmUi({ baseUrl } = {}) {
   _base = (baseUrl || "").replace(/\/$/, "");
-  // Host-voiced catalog copy (2026-08-03): the model-slot sentences and section
-  // labels were JW's writing words hardcoded — every other app inherited them
-  // ("Writes prose, chats, extracts" in a translation tool). Hosts override the
-  // tokens they need; defaults (JW's words) live in LuModelCatalog.
-  if (catalogCopy !== undefined) _catalogCopy = catalogCopy || {};
-}
-
-export function catalogCopyConfig() {
-  return _catalogCopy;
 }
 
 export function llmUiBase() {

@@ -27,7 +27,37 @@
       "editCopies": "Edit copies for this test",
       "lockCopies": "Lock copies",
       "restoreGenerated": "Restore generated",
-      "changeData": "Change what this prompt says:"
+      "changeData": "Change what this prompt says:",
+      "counter": "{words} words · {chars} chars · ~{tokens} tokens",
+      "presetSaved": "Preset saved.",
+      "jsonOn": "JSON output on for this feature.",
+      "jsonOff": "JSON output off for this feature.",
+      "err": {
+        "json": "Couldn't save the JSON-output setting.",
+        "item": "Couldn't load that item.",
+        "compose": "Couldn't compose from this book."
+      },
+      "insertFrom": "Insert from {source}…",
+      "sampleMismatch": "That sample's fields don't match this prompt's variables.",
+      "itemMismatch": "That {kind}'s fields don't match this prompt's variables.",
+      "item": "item",
+      "composedMismatch": "The composed input doesn't match this prompt's variables.",
+      "tuneTitle": "Tune presets",
+      "tuneSubGenerated": "run this feature's REAL generated prompt · Save a column as a preset (it appears in the dropdowns)",
+      "tuneSub": "run this feature's prompt on a test input · Save a column as a preset (it appears in the dropdowns)",
+      "refreshTitle": "Rebuild the prompt from the project's current data (context · glossary · notes)",
+      "restoreTitle": "Re-seed the test columns from this generated prompt — discards the columns' test edits, no refetch",
+      "lockTitle": "Hide the editable copies in the columns",
+      "editTitle": "Reveal editable prompt copies in the columns — they run once and are never saved; every real run rebuilds its own prompt",
+      "systemGenerated": "System — generated",
+      "userGenerated": "User — generated",
+      "testInput": "Test input",
+      "testInputHint": "the {hint} the prompt fills — shared across columns",
+      "composeTitle": "Build this feature's real input from your book — the same composition a live run uses",
+      "fromBook": "From this book",
+      "sampleNextTitle": "Fill with a sample from the app — click again for the next one",
+      "sampleTitle": "Fill with the app's sample data",
+      "sample": "Sample"
     },
     "downloadBar": {
       "cancel": "Cancel",
@@ -37,7 +67,10 @@
     },
     "connectionError": {
       "title": "Can't reach the {appName} server",
-      "retry": "Retry"
+      "retry": "Retry",
+      "body": "{appName} needs its server to {need}. It isn't responding at {url}.",
+      "need": "load and save your work",
+      "theApp": "the app"
     },
     "quickSetup": {
       "runButton": "Run Quick Setup",
@@ -64,7 +97,137 @@
       "embedRole": "powers search + Ask the book",
       "checkBody": "No preset matches this hardware, so the model recommended on the next screen would be chosen from estimates. A one-minute check downloads a small test model ({size}, one time), runs it briefly two ways, and measures how fast this PC really moves model data — the number that decides which models run at reading speed.",
       "checkSkipNote": "Skip it and the recommendation is estimated from your hardware's specs instead. Nothing else changes either way.",
-      "checkDoneNote": "Measured — the recommendation on the next screen now uses this PC's real speed."
+      "checkDoneNote": "Measured — the recommendation on the next screen now uses this PC's real speed.",
+      "aModel": "a model",
+      "title": "Quick Setup",
+      "cache": {
+        "anotherApp": "another app",
+        "anotherAppCap": "Another app",
+        "share": "Share {who}'s AI files ({size} already downloaded)",
+        "keepSeparate": "Keep a separate copy for this app",
+        "nextStart": "This applies the next time the app starts.",
+        "switchFailed": "Couldn't switch the AI files: {error}",
+        "offer": "{app} on this PC already has {n} AI model and the engine — {size} downloaded. | {app} on this PC already has {n} AI models and the engine — {size} downloaded.",
+        "sharingHint": "Sharing means a model you already have downloads again in no time and takes no extra disk. Nothing is moved or deleted either way, and you can change this later under Settings."
+      },
+      "embed": {
+        "onGpu": "It will run on your GPU alongside the writing model.",
+        "onCpu": "It runs on the CPU on this PC — the GPU stays with your writing model.",
+        "powers": "Powers semantic search + grounded chat.",
+        "bundled": "Runs on the bundled runner alongside your chat model; a smaller embed is fine."
+      },
+      "hw": {
+        "vram": "{gb} GB VRAM",
+        "ram": "{gb} GB RAM",
+        "cpuOnly": "CPU only"
+      },
+      "verdict": {
+        "ok": "This machine runs the full local setup.",
+        "tight": "This machine runs the setup — a tight fit, but it works."
+      },
+      "err": {
+        "readHardware": "Couldn't read hardware / catalog: {error}",
+        "serverSilent": "the server didn't answer within {s}s",
+        "readSetup": "Couldn't finish reading your setup — {error}",
+        "apply": "Apply failed: {error}"
+      },
+      "check": {
+        "starting": "Starting…",
+        "startFailed": "Couldn't start the check.",
+        "cancelled": "Check cancelled."
+      },
+      "opt": {
+        "stillRunning": "Optimization is still running",
+        "closeBody": "Auto-tuning is still measuring the fastest launch settings for this machine, and it holds the GPU so other AI features are paused. Close now and stop it? No tuned settings will be saved.",
+        "closeAndStop": "Close and stop",
+        "keepOptimizing": "Keep optimizing",
+        "applyBody": "An optimize sweep is still measuring launch settings and holds the GPU. Applying now stops it — no tuned settings will be saved.",
+        "stopAndApply": "Stop it and apply",
+        "startFailed": "Couldn't start optimizing.",
+        "measuring": "measuring…",
+        "overwriteTitle": "Overwrite this machine's tuned settings?",
+        "overwriteBody": "This machine already has a measured launch config for this model. Re-optimizing runs a new sweep and replaces the saved settings only if a strictly faster configuration is found.",
+        "reoptimize": "Re-optimize",
+        "tunedAlready": "This machine already has measured launch settings for this model — re-run the sweep only if your hardware changed.",
+        "classApplied": "Tuned settings for your hardware were applied ✓",
+        "classNote": "PCs with this much video memory and RAM come pre-measured, so no sweep is needed. Optional: a full measured sweep can still fine-tune this exact machine — it can take 10 minutes or more; other AI features pause while it runs.",
+        "optimizePc": "Optimize for this PC",
+        "untuned": "No measured settings for this PC yet — it runs on the engine's automatic memory fitting, which works but may not be the fastest.",
+        "quick": "2-minute optimize",
+        "full": "Full optimize",
+        "quickVsFull": "The 2-minute pass tries the most likely settings and keeps the best; Full keeps measuring (10 minutes or more) and is often several times faster to first token. Both are the same measured sweep as the model's Tune & measure, with the winner saved automatically. Other AI features pause while a sweep runs.",
+        "quickRunning": "2-minute optimize — measuring…",
+        "fullRunning": "Optimizing for this PC…",
+        "elapsed": "{time} elapsed",
+        "quickEta": "This pass is time-boxed to about 2 minutes — it tries the most likely settings and keeps the best one found. Your GPU is busy while it runs, so other AI features pause until it finishes or you stop it.",
+        "fullEta": "This runs a sequence of load-and-measure trials and can take 10 minutes or more — longer for larger models. Your GPU is busy while it runs, so other AI features pause until it finishes or you stop it.",
+        "trialSkipped": "skipped",
+        "trialFailed": "failed",
+        "skip": "Skip",
+        "skipHint": "Skipping keeps everything set up; you can optimize later from the model's Tune dialog.",
+        "optimized": "Optimized ✓ {speed}",
+        "saved": "saved for this machine.",
+        "quickNothing": "the 2-minute pass found nothing faster — Full optimize or the model's Tune dialog can search deeper.",
+        "alreadyFastest": "your current launch is already the fastest — nothing needed saving.",
+        "saveFailed": "save failed — open Tune & measure to save it.",
+        "cancelled": "Optimize cancelled.",
+        "failed": "Optimize failed."
+      },
+      "apply": {
+        "engineCancelled": "The engine install was cancelled — install it above, then this continues.",
+        "engineFailed": "The engine didn't install — retry it above, then this continues.",
+        "engineFirstModel": "Setting up your model — installing the engine first, then your model.",
+        "engineFirstModels": "Setting up your models — installing the engine first, then your model.",
+        "bothDownload": "Setting up your models — both download at once.",
+        "settingUpModel": "Setting up your model.",
+        "settingUpModels": "Setting up your models.",
+        "waitingEngine": "Waiting for the engine…",
+        "stopped": "Setup stopped — nothing downloaded.",
+        "stoppedNote": "Back returns to your choices — Apply there starts the downloads again. Close leaves the setup; {rerun} opens it again any time.",
+        "sizeNote": "A model is several gigabytes, so a first run can take a few minutes — each only downloads once. Cancel stops a download; Retry starts it again.",
+        "back": "Back"
+      },
+      "step": {
+        "probing": "Probing your hardware…",
+        "stopped": "Setup stopped",
+        "settingUp": "Setting up…",
+        "allSet": "All set",
+        "reading": "Reading GPU + model catalog…"
+      },
+      "configured": {
+        "line": "{model} is the default local model — everything is set up.",
+        "hint": "Quick Setup sets up the built-in llama.cpp provider only. Change the model to walk the setup again with a different pick; nothing changes until you apply."
+      },
+      "confirm": {
+        "requirements": "Requirements: a video card with at least 8 GB VRAM and 32 GB of system RAM.",
+        "detected": "Detected",
+        "readingCatalog": "Reading the catalog…",
+        "defaultModel": "Default model",
+        "aboutModel": "About this model:",
+        "goodToKnow": "Good to know:",
+        "qatNote": "these are QAT (quantization-aware trained) models — about 3–4× lighter on memory than full precision while keeping close to the original quality. That's how a capable model fits your card.",
+        "emptyCatalog": "No curated models — add one or connect a provider. This app ships no ready-made model list: add a model to the catalog ({edit} the built-in provider → {add} — any Hugging Face GGUF link works), or connect an {online}. Every AI feature works either way.",
+        "edit": "Edit",
+        "addModel": "Add a model",
+        "onlineProvider": "online provider",
+        "noLocal": "No local model can run well on this machine — generating on the CPU alone is too slow for writing. You can still use every AI feature by connecting an {online} below: your work stays on your disk, and only the text a feature needs is sent. Local search still runs on your CPU.",
+        "embedding": "Embedding",
+        "whatHappens": "What happens when you click Apply",
+        "becomesDefault": "becomes the model for every preset, except any you've changed yourself under Routing by feature.",
+        "downloadsNow": "It {now} if it isn't already on disk, then loads as the active model.",
+        "downloadsNowWords": "downloads now",
+        "searchModel": "Search model set to {name} — it {now} too (it powers search + Ask the book) and runs alongside your main model.",
+        "alreadyTitle": "This machine is already set up — what Apply will change",
+        "repoints": "re-points from {from} to {to}",
+        "noRouting": "All tasks already use this model — Apply changes no task routing.",
+        "kept": "Kept as you set them: {names}.",
+        "tunesKept": "Your saved machine tunes are never touched by Apply.",
+        "setUpOnline": "Set up an online provider"
+      },
+      "done": {
+        "applied": "Setup applied.",
+        "searchPending": "The search model didn't finish downloading — it downloads itself on your first search, or you can grab it any time from the model catalog."
+      }
     },
     "aiOffer": {
       "eyebrow": "Optional",
@@ -75,7 +238,8 @@
       "quickSetupSub": "Local — uses this PC, private & free",
       "connectProvider": "Connect an online provider",
       "connectProviderSub": "OpenAI-compatible endpoint",
-      "skip": "Skip for now"
+      "skip": "Skip for now",
+      "thisApp": "This app"
     },
     "settingsSections": {
       "appearance": "Appearance",
@@ -97,6 +261,1560 @@
       "chatSectionHint": "write prose, chat, extract — pick one as your General model",
       "generalUse": "Writes prose, chats, extracts",
       "slotsFootnote": "The app runs these two side by side — the General model writes and chats; the Embedding model powers search. Each loads automatically the first time it's needed; Load now just skips that first wait."
-    }
+    },
+    "modelCatalog": {
+      "col": {
+        "model": "Model",
+        "type": "Type",
+        "license": "License",
+        "bench": "Bench",
+        "fit": "Fit",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "embedSection": "Embedding models",
+      "embedSectionHint": "power semantic search + grounded chat — pick one as your Embedding model",
+      "err": {
+        "setDefault": "Couldn't set the default.",
+        "unload": "Couldn't unload.",
+        "setEmbedding": "Couldn't set the embedding.",
+        "load": "Couldn't load.",
+        "listFiles": "Couldn't list the repo's files.",
+        "repoFirst": "Enter the Hugging Face repo first.",
+        "readLink": "Couldn't read the model from the link.",
+        "loadModel": "Couldn't load the model.",
+        "nameRequired": "A name (for the id) is required.",
+        "save": "Save failed.",
+        "repoint": "Couldn't re-point the references — nothing was deleted.",
+        "delete": "Delete failed.",
+        "redownload": "Re-download failed.",
+        "freeDownload": "Couldn't free the download.",
+        "reset": "Reset failed."
+      },
+      "speed": {
+        "measured": "Measured on this PC: {tokS} tok/s.",
+        "estimated": "Estimated speed: ~{tokS} tok/s — a real run replaces this estimate.",
+        "mtp": "May run faster with speculative decoding (MTP)."
+      },
+      "fit": {
+        "embedCpuRam": "Runs on the CPU on this PC — the GPU stays with your writing model. Needs ~{gb} GB RAM.",
+        "embedCpu": "Runs on the CPU on this PC — the GPU stays with your writing model. Needs system RAM, not VRAM.",
+        "embedGpu": "Runs on your GPU here — it fits the ~{gb} GB left beside your writing model.",
+        "noGpu": "No GPU detected — runs on CPU (slower).",
+        "vramUnknown": "VRAM requirement unknown for this model.",
+        "estimated": "Estimated — needs ~{gb} GB VRAM",
+        "youHave": "you have {gb} GB",
+        "untested": "not yet tested on your PC class"
+      },
+      "runsOn": {
+        "computed": "Computed from the model file: {vram} MB VRAM · {ram} MB RAM.",
+        "classes": "PC classes this model runs on: {names}",
+        "none": "No shipped PC class holds it — bigger machines than the class list covers."
+      },
+      "openFolderDesktop": "Open folder requires the desktop app.",
+      "tag": {
+        "embedding": "Embedding",
+        "recommended": "Recommended for this PC",
+        "recommendedTitle": "What Quick Setup would pick for this machine — a model with a PC class config for your class first, then the speed-floor rule",
+        "mtp": "MTP",
+        "mtpTitle": "Multi-token prediction — speculative decode enables by default",
+        "embed": "Embed",
+        "embedTitle": "Embedding model — powers semantic search + grounded chat"
+      },
+      "tune": {
+        "auto": "This PC runs your applied config — produced by the auto-tune sweep",
+        "hand": "This PC runs your applied config — hand-set in Tune & measure",
+        "class": "No applied config on this PC — launches start from the PC class config for your class",
+        "classRange": "No applied config on this PC — launches start from the PC class config for your class ({range})",
+        "elsewhere": "Nothing tuned for your PC class — but this model has a PC class config on {n} other class. Launches use the layered defaults. | Nothing tuned for your PC class — but this model has a PC class config on {n} other classes. Launches use the layered defaults.",
+        "elsewhereRange": "Nothing tuned for your PC class ({range}) — but this model has a PC class config on {n} other class. Launches use the layered defaults. | Nothing tuned for your PC class ({range}) — but this model has a PC class config on {n} other classes. Launches use the layered defaults.",
+        "untuned": "Nobody has tuned this model on any PC class yet — launches use the layered defaults.",
+        "otherClasses": "{label} — {n} other PC class | {label} — {n} other PC classes"
+      },
+      "mtp": {
+        "builtin": "built-in — in-file prediction heads",
+        "separate": "separate — external draft file (separate download)",
+        "unloadable": "this model ships an MTP draft, but none the built-in engine can load — check MTP below to paste a compatible draft",
+        "otherRepo": "separate — external draft from another repo (separate download)",
+        "mayWork": "the base family may support MTP — a drafter is pre-filled; check MTP below to try it or paste your own",
+        "none": "not available"
+      },
+      "custom": "Custom…",
+      "none": "None",
+      "draftUnsupported": "{arch} not supported by your engine",
+      "draftUnsupportedArch": "its architecture",
+      "del": {
+        "removeTitle": "Remove \"{name}\" from the catalog?",
+        "removeBody": "Removes the catalog entry and deletes its downloaded weights from disk. Reset restores the built-in entries; weights re-download on demand.",
+        "usedPresets": "{n} task preset | {n} task presets",
+        "usedEmbedSlot": "the embedding slot",
+        "usedBoth": "{presets} and {slot}",
+        "title": "Delete {name}?",
+        "repointBody": "It's in use by {used}. They'll be re-pointed to {repl}, then the entry is removed and its downloaded weights are deleted from disk.",
+        "noReplChatBody": "It's in use by {used}, and no other chat model is available to re-point to. Delete anyway and everything pointing at it will show \"removed from the catalog\" until you pick a replacement. Its downloaded weights are deleted from disk.",
+        "noReplEmbedBody": "It's in use by {used}, and no other embedding model is available to re-point to. Delete anyway and everything pointing at it will show \"removed from the catalog\" until you pick a replacement. Its downloaded weights are deleted from disk.",
+        "repointConfirm": "Re-point & delete",
+        "anyway": "Delete anyway"
+      },
+      "free": {
+        "title": "Delete the downloaded model \"{name}\"?",
+        "body": "Deletes its downloaded weights from disk. The model stays in your catalog and re-downloads on demand. A loaded model is unloaded first."
+      },
+      "reset": {
+        "title": "Reset the model catalog to factory?",
+        "body": "Restores the built-in models. Your added models are kept."
+      },
+      "slot": {
+        "general": "General model",
+        "embedding": "Embedding model",
+        "removed": "{id} — removed from the catalog",
+        "choose": "Choose a model…",
+        "chooseEmbed": "Choose an embedding model…",
+        "generalGone": "Your tasks still point at it, but it's gone — pick a replacement here.",
+        "generalSet": "{use} — every task uses it unless you override a task. Changing it swaps the loaded model.",
+        "generalRecommend": "{use} — we recommend {model} for this PC.",
+        "generalPick": "{use} — pick one to get started.",
+        "embedGone": "Search still points at it, but it's gone — pick a replacement here.",
+        "embedSet": "Powers semantic search + grounded chat, alongside your General model. Changing it swaps the loaded model.",
+        "embedRecommend": "Powers semantic search + grounded chat — we recommend {model} for this PC.",
+        "embedPick": "Powers semantic search + grounded chat — pick one to get started."
+      },
+      "state": {
+        "loaded": "● loaded",
+        "unloading": "Unloading…",
+        "slotLoadFailed": "load failed — see its row below",
+        "loadsOnFirstUse": "○ loads on first use",
+        "loadsOnFirstSearch": "○ loads on first search",
+        "slotNotDownloaded": "not downloaded — see its row below",
+        "working": "Working…",
+        "failed": "Failed — see below",
+        "downloaded": "Downloaded",
+        "notDownloaded": "Not downloaded"
+      },
+      "btn": {
+        "loadNow": "Load now",
+        "loadNowTitle": "Load it into memory now so your first write doesn't pay the load wait",
+        "loadNowEmbedTitle": "Load it into memory now, alongside your chat model",
+        "unload": "Unload",
+        "unloadTitle": "Unload from memory — frees VRAM; it loads again on next use",
+        "unloadEmbedTitle": "Unload from memory — frees VRAM; it loads again on the next search",
+        "reset": "Reset catalog",
+        "add": "Add model",
+        "save": "Save",
+        "edit": "Edit",
+        "editTitle": "Edit catalog fields",
+        "download": "Download",
+        "unloadModel": "Unload model",
+        "unloadModelTitle": "Free this model's memory (VRAM) — it loads again on next use",
+        "loadModel": "Load model",
+        "loadModelTitle": "Load this model into memory now, so the first run doesn't wait",
+        "isDefault": "Default ✓",
+        "setDefault": "Set as default",
+        "setEmbedTitle": "Make this the embedding model for semantic search + grounded chat. It loads the first time a search needs it — or press Load model to warm it now.",
+        "setDefaultTitle": "Make this the default model for every task. It loads on first use — or press Load model to warm it now."
+      },
+      "title": "Model Catalog",
+      "thisPc": "This PC",
+      "pcClass": "PC class {name}",
+      "search": "Search models…",
+      "loading": "Loading catalog…",
+      "noMatch": "No models match “{query}”.",
+      "empty": "No models in the catalog — {add} to add your own, or {reset} to restore the built-ins.",
+      "noFit": "Doesn't fit this machine — {n} more",
+      "sizeTitle": "Download size on disk",
+      "sizeOnDisk": "Size on disk · {size}",
+      "needs": "Needs {vram} GB VRAM · {ram} GB RAM",
+      "needsUnknown": "Hardware needs unknown — edit the model to set its requirements",
+      "yourNotes": "Your notes: {notes}",
+      "benchTitle": "Published general-purpose benchmark rank (lower = better); “—” = unranked",
+      "measuredTitle": "Measured on this PC — replaces the estimate",
+      "tokS": "{n} tok/s",
+      "menu": {
+        "more": "More actions",
+        "tune": "Tune & measure",
+        "redownload": "Re-download",
+        "openFolder": "Open folder",
+        "viewHf": "View on Hugging Face",
+        "deleteDownload": "Delete downloaded model",
+        "deleteCatalog": "Delete from catalog"
+      },
+      "foot": "Models download from {hub} — the open model hub. Models load automatically when a task uses them; your chat default and the embedding can run together.",
+      "footHub": "Hugging Face ↗",
+      "form": {
+        "editTitle": "Edit {name}",
+        "name": "Name",
+        "idLine": "id: {id}",
+        "sourceTitle": "Download source",
+        "sourceBody": "where the GGUF is pulled from. The one thing you must set; the rest is read from the model itself.",
+        "repo": "Hugging Face repo",
+        "cardLink": "model card ↗",
+        "cardLinkTitle": "Open the model card in your browser — full details, files, license",
+        "inspect": "Load model info from HF",
+        "inspectHint": "lists the repo's quants (sizes · QAT/IQ) + reads the GGUF header",
+        "quant": "Quant",
+        "quantPh": "pick a quant",
+        "chooseFromList": "choose from list",
+        "autoTitle": "Auto-detected from the file",
+        "autoBody": "read from the GGUF header (Read from link, or confirmed at download)",
+        "architecture": "Architecture",
+        "experts": "{n} experts",
+        "sizeFile": "Size (file)",
+        "trainedCtx": "Trained context",
+        "tokens": "{n} tokens",
+        "samplers": "Recommended samplers",
+        "downloadSize": "Download size",
+        "estVram": "≈ {mb} MB VRAM (full GPU · 8K ctx)",
+        "pooling": "Embedding pooling: {pooling}",
+        "poolingBody": "how the model's token vectors are combined into one embedding (mean · cls · last). Curated per embedding model; read-only here because the wrong pooling degrades search quality.",
+        "whatTitle": "What this model is",
+        "whatBody": "auto-detected from the file; override if you know better.",
+        "moe": "MoE",
+        "moeHint": "mixture-of-experts (offloads experts to RAM)",
+        "mtpHint": "multi-token prediction (speculative decode). Check to enable + configure below.",
+        "embeddingHint": "a RAG/search model, not a chat LLM",
+        "mtpOff": "MTP left off — this repo's draft uses an architecture your engine can't load.",
+        "mtpOffArch": "MTP left off — this repo's draft uses an architecture your engine can't load ({arch}).",
+        "moeNote": "experts offload to system RAM; the launch pins layers on GPU and frees VRAM via CPU MoE layers (adds {noMmap} at load). Tune {nCpuMoe} per box in {tune}.",
+        "mtpConfig": "MTP config",
+        "mtpBuiltinNote": "built-in prediction heads; no external draft needed.",
+        "mtpExternalNote": "runs via an external speculative-decode draft file (a separate download).",
+        "mtpEnabling": "Enabling adds {spec} at load; uncheck to turn MTP off.",
+        "draftFile": "Draft file",
+        "draftFileBuiltin": "optional — built-in MTP",
+        "draftFileHint": "the speculative-decode model (feeds --model-draft)",
+        "draftRepo": "Draft repo",
+        "draftRepoHint": "optional — blank = the same repo as the model",
+        "borrowed": "Borrowed official drafter: {repo} / {file} — this model ships none of its own, so it uses the base family's.",
+        "tplTitle": "Task templates",
+        "tplBody": "some embedding models need an instruction around the text ({'{'}text{'}'} is the slot; leave empty if the model needs none). Changing these needs a Rebuild of the book index.",
+        "docTpl": "Document template",
+        "docTplHint": "applied when indexing",
+        "queryTpl": "Query template",
+        "queryTplHint": "applied to questions/searches",
+        "fitTitle": "Fit estimate",
+        "fitBody": "computed from the model file itself (read the link once and the app knows what the file needs); nothing here for you to figure out. Embedding models keep hand-set floors — they steer the wizard, not the badge.",
+        "totalParams": "Total params",
+        "activeParams": "Active params",
+        "moeOnly": "MoE only",
+        "minVram": "Min VRAM (MB)",
+        "minRam": "Min RAM (MB)",
+        "needsComputed": "Needs {vram} GB VRAM · {ram} GB RAM — computed from the file, updates on read.",
+        "licenseHint": "SPDX id (Apache-2.0 · MIT · Llama-Community · …)",
+        "useLimited": "Use-limited license",
+        "useLimitedHint": "not free for unrestricted/commercial use; shows the ⚠ badge",
+        "descTitle": "Description & your notes",
+        "descBody": "the description refreshes from the file facts on Read from link; Notes are yours alone and are never touched by reads, downloads, or resets.",
+        "description": "Description",
+        "descriptionHint": "generated from hf info card",
+        "descriptionPh": "What this model is — refreshed from the file facts",
+        "notes": "Notes",
+        "notesHint": "yours — measurements, taste, use policy",
+        "notesPh": "e.g. measured writer TTFT 1.6 s on my box; my go-to for dark scenes",
+        "bench": "Benchmark rank",
+        "benchHint": "published general-benchmark order; lower = better; 100 = unranked (sorts last)"
+      },
+      "license": {
+        "word": "license",
+        "limited": "{license} — use-limited: not free for unrestricted/commercial use, never a default. The catalog only lists it; the weights download on your machine.",
+        "permissive": "{license} — permissive (free to use).",
+        "unknown": "license unknown"
+      }
+    },
+    "fit": {
+      "ok": "Fits",
+      "tight": "Tight",
+      "cpu": "CPU",
+      "no": "Won't fit",
+      "gpu": "GPU",
+      "recommended": "Recommended",
+      "warning": "The estimate says this PC doesn't have the memory for it. You can still load it — the engine will try, and backs off if the load fails."
+    },
+    "speedBand": {
+      "fast": "fast",
+      "fine": "fine",
+      "slow": "slow",
+      "painful": "very slow",
+      "predicted": "~{n} tok/s"
+    },
+    "tune": {
+      "classLayer": "PC class config",
+      "badge": {
+        "auto": "Tuned by auto-tune",
+        "hand": "Tuned by hand",
+        "class": "Tuned by @:kit.tune.classLayer",
+        "elsewhere": "Not tuned here",
+        "untuned": "Not tuned"
+      }
+    },
+    "source": {
+      "preset": "this preset",
+      "tune": "your applied config",
+      "class": "@:kit.tune.classLayer",
+      "base": "global default",
+      "default": "built-in default",
+      "invalid": "invalid value"
+    },
+    "aiArea": {
+      "lede": "Connect AI providers — free local or metered cloud — and manage which models power each feature.",
+      "hw": {
+        "os": "OS",
+        "cpu": "CPU",
+        "memory": "Memory",
+        "gpu": "GPU",
+        "acceleration": "Acceleration",
+        "vram": "{size} VRAM",
+        "inUse": "{rt} (in use)",
+        "supported": "{rt} (supported)",
+        "threads": "{n} threads",
+        "cpuOnly": "CPU only"
+      },
+      "mem": {
+        "vramReserved": "VRAM reserved",
+        "memoryReserved": "Memory reserved",
+        "vramUsed": "VRAM used",
+        "memoryUsed": "Memory used",
+        "ofTotal": "{gb} of {total} GB",
+        "gb": "{gb} GB",
+        "free": "Free",
+        "reservedTitle": "This box has no per-process memory probe — these are the ledger's bookings, not a measurement",
+        "usedTitle": "Measured occupancy — what the card actually holds right now",
+        "llm": "LLM",
+        "loaded": "loaded",
+        "asleep": "asleep",
+        "llmTitle": "The AI runner's booked take for its loaded models",
+        "asleepTitle": "Idle, so its memory has been released — it reloads on the next request",
+        "otherApps": "Other apps",
+        "otherAppsTitle": "Memory held by processes this app doesn't manage (browser, desktop compositor, games)",
+        "hide": "hide",
+        "showApps": "show apps"
+      },
+      "gpuApps": {
+        "readFailed": "Couldn't read the process list: {error}",
+        "title": "Using the GPU right now",
+        "reading": "Reading the system's GPU counters…",
+        "none": "No process is holding GPU memory right now.",
+        "pid": "pid {pid}",
+        "thisApp": "this app",
+        "nvidiaNote": "Reported by nvidia-smi, which sees compute workloads only — apps using the GPU purely for graphics won't appear here.",
+        "sumNote": "These add up to a little less than the total above: driver and desktop overhead isn't charged to any one process."
+      },
+      "refresh": "Refresh",
+      "clipboardFailed": "Couldn't reach the clipboard — select and copy from the console instead.",
+      "debug": {
+        "title": "Copy this machine's AI state — hardware, driver, engine build, tuning keys, VRAM, loaded models — for a bug report",
+        "copy": "Copy debug info",
+        "copied": "Copied ✓"
+      },
+      "usage": {
+        "colCalls": "Calls",
+        "colPrompt": "Prompt",
+        "colCompletion": "Completion",
+        "colCost": "Cost",
+        "colFeature": "Feature",
+        "colProvider": "Provider",
+        "sub": "Tokens + estimated cost across every AI call. Local providers are recorded at $0.",
+        "reset": "Reset ledger",
+        "calls": "calls",
+        "tokens": "tokens",
+        "prompt": "prompt",
+        "completion": "completion",
+        "cost": "est. cost",
+        "byFeature": "By feature",
+        "byProvider": "By provider",
+        "none": "No usage recorded yet."
+      },
+      "cap": {
+        "llm": "LLM",
+        "embed": "EMBED"
+      },
+      "status": {
+        "checking": "Checking…",
+        "ok": "Connected",
+        "fail": "Failed",
+        "unchecked": "Not checked"
+      },
+      "setDefault": {
+        "done": "{name} is now the default provider — tasks run on {model}.",
+        "failed": "Set as default failed: {error}",
+        "title": "Set as default provider",
+        "becomes": "{name} becomes the default for your AI tasks — they run on {model}.",
+        "embedUnchanged": "Your embedding ({model}) already runs here — unchanged.",
+        "embedAlso": "Also becomes the embeddings (search) provider: {model}.",
+        "embedKept": "Search embeddings keep their current provider — this provider has no embedding model set.",
+        "overwrite": "Also overwrite presets I customized",
+        "assignFirst": "Assign a chat model first — pick one in the Model Catalog (Edit this provider), or run Quick Setup.",
+        "fillFirst": "Set this provider's chat model first — open Edit and fill {field}.",
+        "defaultModelField": "Default model",
+        "editProvider": "Edit provider"
+      },
+      "hwChanged": {
+        "title": "Your graphics hardware changed",
+        "body": "A different model may now fit this PC — run Quick Setup to re-check, or re-tune your current model from its Tune dialog (Edit the built-in server)."
+      },
+      "providers": {
+        "title": "Providers",
+        "configured": "{n} configured",
+        "add": "Add provider",
+        "builtin": "Built-in",
+        "chat": "chat:",
+        "embed": "embed:",
+        "keySet": "API key set",
+        "noKey": "no key",
+        "test": "Test",
+        "edit": "Edit",
+        "noLocal": "No local providers yet. Click “{add}” and point at {url}",
+        "noCloud": "No cloud providers. Click “{add}” and paste a key from OpenAI / Anthropic / OpenRouter."
+      },
+      "scope": {
+        "local": "Local · free",
+        "localSub": "Runs on your machine — no API key, no per-token cost",
+        "online": "Online · metered",
+        "onlineSub": "Your account — API key + URL; pay per token"
+      }
+    },
+    "common": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "copy": "Copy",
+      "copied": "Copied ✓",
+      "loading": "Loading…",
+      "thisPc": "This PC",
+      "builtin": "Built-in",
+      "removeItem": "Remove {item}",
+      "tag": "tag"
+    },
+    "classTunes": {
+      "memType": {
+        "discrete": "Dedicated GPU (separate VRAM)",
+        "integrated": "Integrated GPU (shares system RAM)",
+        "unified": "Unified memory (Apple Silicon / SoC)"
+      },
+      "shortfall": "{model} needs about {vram} GB VRAM and {ram} GB RAM — more than this PC class has. You can still save a config for it.",
+      "err": {
+        "load": "Couldn't load the PC class library.",
+        "setClass": "Couldn't set the class for this PC.",
+        "autoDetect": "Couldn't switch back to auto-detect.",
+        "memoryGb": "Enter the memory in whole GB.",
+        "vramGb": "Enter the VRAM in whole GB.",
+        "saveClass": "Couldn't save the PC class.",
+        "deleteClass": "Couldn't delete the PC class.",
+        "pickModel": "Pick the model this config is for.",
+        "oneSwitch": "Add at least one launch switch.",
+        "saveConfig": "Couldn't save the config.",
+        "deleteConfig": "Couldn't delete the config.",
+        "json": "That isn't valid JSON — paste a config copied from this panel.",
+        "needsClassKey": "The config needs a \"classKey\" and a non-empty \"switches\" object.",
+        "needsModelId": "The config needs a \"modelId\" here — this panel spans every model.",
+        "import": "Import failed."
+      },
+      "delClass": {
+        "title": "Delete this PC class?",
+        "body": "Remove \"{name}\" and all of its PC class configs? PCs of that class go back to the engine's automatic settings."
+      },
+      "saved": "PC class config saved ✓",
+      "delConfig": {
+        "title": "Delete this PC class config?",
+        "body": "Remove {model}'s launch settings for this PC class?"
+      },
+      "title": "PC classes",
+      "titleSub": "named PC profiles — each holds the PC class config per model",
+      "help": "A PC class groups PCs with similar memory. Each class stores one set of launch switches per model, used automatically on every PC in that class — unless that machine has its own tuned config.",
+      "helpOverride": "Detection picks your class; you can override it below.",
+      "hwNotDetected": "hardware not detected",
+      "notDetected": "not detected",
+      "savingTo": "Saving to PC class",
+      "saveForClass": "Save for this class",
+      "setManually": "Set manually",
+      "useAutoDetect": "Use auto-detect",
+      "form": {
+        "name": "Name",
+        "nameHint": "(optional — a label like \"My Laptop\")",
+        "namePh": "e.g. My PC",
+        "hwType": "Hardware type",
+        "vram": "VRAM (GB)",
+        "systemRam": "System RAM (GB)",
+        "memory": "Memory (GB)",
+        "vramBw": "VRAM bandwidth (GB/s)",
+        "vramBwHint": "(optional — speed estimate)",
+        "ramBw": "RAM bandwidth (GB/s)",
+        "memoryBw": "Memory bandwidth (GB/s)",
+        "optional": "(optional)",
+        "savedAs": "Saved as {name} — one class covers a range of machines, so nearby sizes share a config.",
+        "saveClass": "Save class",
+        "model": "Model"
+      },
+      "forClass": "For class",
+      "saveConfig": "Save config",
+      "importPh": "Paste a config copied from this panel — {'{'}\"modelId\": …, \"classKey\": …, \"switches\": {'{'}…{'}'}{'}'}",
+      "import": "Import",
+      "empty": "No PC classes yet — add one for your PC, or measure a config in a model's Tune dialog and use \"Save for PC class\".",
+      "useForThisPc": "Use for this PC",
+      "moreModels": "{n} more model in this class — no switches yet | {n} more models in this class — no switches yet",
+      "noSwitches": "no switches",
+      "addSwitches": "Add switches",
+      "addModel": "Add model to this class",
+      "addClass": "Add PC class",
+      "importConfig": "Import config…",
+      "key": {
+        "discrete": "{vram} GB VRAM · {ram} GB RAM",
+        "unified": "Unified memory · {gb} GB",
+        "integrated": "Integrated GPU · {gb} GB"
+      }
+    },
+    "tuneModal": {
+      "group": {
+        "global": "Global launch defaults",
+        "computed": "Computed for this PC",
+        "applied": "Your applied config"
+      },
+      "badge": {
+        "onThisPc": "{label} on this PC ✓",
+        "applied": "Applied on this PC ✓",
+        "untuned": "{label} — using the layered defaults"
+      },
+      "refreshed": "Loaded today's defaults into the grid — review, then Apply to commit.",
+      "applying": "applying — reloading the model with the new config",
+      "apply": {
+        "more": "{names} +{n} more",
+        "everyPreset": "Every preset that uses this model on this PC will run these switches.",
+        "presets": "Every preset that uses this model on this PC will run these switches: {names}.",
+        "noPreset": "No preset currently uses this model — the config takes effect whenever it loads.",
+        "title": "Apply to {model}?",
+        "body": "{scope} The model reloads now if it's running. (Temperature, tokens, and thinking stay per-preset — unchanged.)",
+        "button": "Apply",
+        "buttonTitle": "Set this model's engine switches for every task that uses it on this PC — the model reloads now if it's running",
+        "doneReloaded": "Applied ✓ — the model reloaded; every preset using it runs this config now.",
+        "doneNextLoad": "Applied ✓ — every preset using this model runs this config from its next load."
+      },
+      "remove": {
+        "doneReloaded": "Removed — the model reloaded on its layered defaults.",
+        "doneNextLoad": "Removed ✓ — the model uses its layered defaults from its next load.",
+        "title": "Delete this PC's applied config — the model returns to its layered defaults (reloads now if running)",
+        "button": "Remove applied config"
+      },
+      "err": {
+        "defaults": "Couldn't load today's defaults.",
+        "apply": "Couldn't apply the config.",
+        "remove": "Couldn't remove the applied config.",
+        "reset": "Couldn't reset to defaults.",
+        "oneSwitch": "Add at least one switch first.",
+        "saveClass": "Couldn't save the PC class config.",
+        "load": "Load failed.",
+        "loadTimeout": "Timed out waiting for the model to load.",
+        "measure": "Measurement failed.",
+        "autoTune": "Auto-tune failed.",
+        "autoTunePoll": "Auto-tune polling failed.",
+        "autoTuneBusy": "Auto-tune is busy.",
+        "autoTuneStart": "Couldn't start auto-tune."
+      },
+      "auto": {
+        "confirmTitle": "Run auto-tune?",
+        "confirmBody": "This can take a long time — 4 to 30 minutes depending on your hardware — while it loads and measures real configurations. It usually gives the best results for a model that hasn't been tuned yet. You can cancel after any trial.",
+        "button": "Auto-tune",
+        "title": "Run a measured sweep (4–30 minutes depending on hardware) and fill the grid with the fastest config — review, then Apply",
+        "cancel": "Cancel auto-tune",
+        "cancelTitle": "Stop after the current trial finishes",
+        "running": "Auto-tuning — {detail}",
+        "working": "working…",
+        "winner": "winner → grid (review, then Apply)"
+      },
+      "title": "Tune & measure — {model}",
+      "lede": "Each section shows where its switches come from — tweak, measure, then {apply}.",
+      "ledeSamplers": "Samplers like temperature are set on the Tasks or Routing by feature tabs.",
+      "drift": "Defaults have changed since you applied this config — {n} value differs. | Defaults have changed since you applied this config — {n} values differ.",
+      "refreshTitle": "Load today's defaults into the grid — your applied config stays until you hit Apply",
+      "refresh": "Refresh from defaults",
+      "unknown": {
+        "tag": "Unrecognized",
+        "body": "{names} — not a known engine flag (mistyped, or dropped by an engine update). Remove or fix it, or prefix with “--” for a raw flag."
+      },
+      "resetDefault": "Reset to model default",
+      "classLibTitle": "This model's PC class configs — the shared starting points a machine without its own applied config uses",
+      "classLib": "PC class configs ↗",
+      "globalLibTitle": "The always-on switch bundles (all models · MoE · dense · speculative decode) underneath every tune",
+      "globalLib": "Global launch defaults ↗",
+      "measuring": "Measuring decode speed…",
+      "result": {
+        "vram": "VRAM {gb} GB",
+        "ram": "RAM {gb} GB",
+        "cpu": "No GPU detected — measured on CPU.",
+        "classSaved": "Saved as the PC class config for PCs like this one ({name}) ✓",
+        "offerClass": "Works well? Make it the starting point for every PC like this one ({name}) — machines with their own saved tune keep it.",
+        "saveClass": "Save for PC class"
+      },
+      "classLibModal": "PC class configs — {model}",
+      "measureAgain": "Measure again",
+      "loadMeasure": "Load & measure"
+    },
+    "sync": {
+      "theApp": "the app",
+      "item": "item",
+      "items": "items",
+      "otherDevice": "the other device",
+      "theFile": "the file",
+      "ago": {
+        "justNow": "just now",
+        "min": "{n} min ago",
+        "h": "{n} h ago"
+      },
+      "kind": {
+        "file": "by hand",
+        "folder": "cloud folder",
+        "http": "network"
+      },
+      "toast": {
+        "unfinished": "Sync didn't finish: {errors}",
+        "synced": "Synced.",
+        "restart": "Restart {app} for this to take effect.",
+        "restartReach": "Restart {app} so your other devices can reach it.",
+        "codeCopied": "Pairing code copied.",
+        "copyFailed": "Couldn't copy — select the code and copy it.",
+        "paired": "Paired with {who}.",
+        "joined": "Joined {who}'s library. {who} didn't answer — changes arrive through the cloud folder, or when it can be reached.",
+        "downloaded": "Sync file downloaded.",
+        "saved": "Sync file saved.",
+        "imported": "Imported from {from}: {n} change. | Imported from {from}: {n} changes."
+      },
+      "folderOther": "This folder already holds another library ({names}). To join it, pair with a code from one of those devices first — otherwise your {units} start a second library in this folder.",
+      "err": {
+        "export": "Export failed (HTTP {status}).",
+        "import": "Import failed (HTTP {status})."
+      },
+      "save": {
+        "title": "Save {units} for another device",
+        "filterName": "{app} sync file"
+      },
+      "join": {
+        "title": "Join another library?",
+        "body": "This file is from another library. Join it? Your {units} merge into that library from now on.",
+        "bodyFrom": "This file is from another library ({from}). Join it? Your {units} merge into that library from now on.",
+        "confirm": "Join and import"
+      },
+      "status": {
+        "synced": "Synced {ago} · from {from}",
+        "never": "Not synced with another device yet",
+        "thisDevice": "This device: {name}."
+      },
+      "syncNow": "Sync now",
+      "syncNowNeeds": "Choose a cloud folder or pair a device first.",
+      "device": {
+        "title": "This device",
+        "name": "Name",
+        "nameHint": "Your other devices see this name.",
+        "every": "Sync automatically every",
+        "minutes": "minutes",
+        "zero": "0 syncs only when you press Sync now."
+      },
+      "others": {
+        "title": "Other devices",
+        "allow": "Let my other devices connect",
+        "allowHint": "This computer accepts {app} on your other devices — on the same Wi-Fi, or over Tailscale or ZeroTier. Takes effect when {app} restarts.",
+        "showCode": "Show pairing code",
+        "codeAlt": "Pairing code",
+        "codeHint": "On the other device: Settings → Sync → Pair with a code, and paste or scan this. It carries this library's key — share it only with your own devices.",
+        "copyCode": "Copy code",
+        "hide": "Hide",
+        "phoneHint": "Pair this device with a computer: on the computer, Settings → Sync → Other devices → Show pairing code; then scan it or paste it here.",
+        "pairTitle": "Pair with a code",
+        "pastePh": "Paste the pairing code from your other device",
+        "pair": "Pair",
+        "scan": "Scan code…"
+      },
+      "folder": {
+        "title": "Cloud folder",
+        "hint": "A folder that Dropbox, OneDrive or another sync app keeps the same on every device. Each device writes its own encrypted files there.",
+        "notHere": "Not on this device yet — it needs signing in to OneDrive or Dropbox. Pair with a computer, or carry a file by hand.",
+        "none": "No folder chosen.",
+        "pathPh": "The folder's full path",
+        "use": "Use this folder",
+        "change": "Change folder…",
+        "choose": "Choose folder…",
+        "stop": "Stop using it"
+      },
+      "hand": {
+        "title": "By hand",
+        "hint": "No network or account: export a file, take it to the other device any way you like, and import it there. Importing merges — the same file twice changes nothing.",
+        "none": "No {units} yet.",
+        "ticked": "Ticked: the {units} changed since your last export.",
+        "encrypt": "Encrypt the file with this library's key",
+        "export": "Export…",
+        "import": "Import…"
+      },
+      "devices": {
+        "title": "Devices",
+        "none": "None yet.",
+        "network": "Synced over the network",
+        "remove": "Remove"
+      }
+    },
+    "config": {
+      "inherit": "— inherit —",
+      "localBudget": "local: thinking budget {value} — {source}",
+      "labTask": "Lab test — {action}",
+      "cancelled": "Cancelled.",
+      "noLlm": "No LLM wired — set a model above or connect a provider.",
+      "runFailed": "Run failed.",
+      "removeColumn": "Remove column",
+      "preset": "Preset",
+      "startFresh": "— start fresh —",
+      "inProd": "● in production",
+      "inProdTitle": "This preset is in production for this feature",
+      "useProd": "Use in production",
+      "useProdTitle": "Make this preset the one this feature uses",
+      "save": "Save",
+      "saveTitle": "Save changes to the loaded preset in place — \"Save as preset\" makes a new copy instead",
+      "namePh": "name — Enter",
+      "saveAs": "Save as preset",
+      "saveAsTitle": "Save this tested config as a reusable preset",
+      "deleteTitle": "Delete this preset",
+      "providerModel": "Provider & model",
+      "engine": "Engine switches ↗",
+      "engineTitle": "Open Tune & measure for this model — engine switches are set once per model and shared by every task that uses it",
+      "engineHint": "shared by every task using this model — set in Tune & measure",
+      "system": "System prompt",
+      "instruction": "Instruction",
+      "instructionHint": "user template · {hint} placeholders",
+      "temp": "Temp",
+      "topP": "Top-p",
+      "topPHint": "blank=def",
+      "maxTok": "Max tok",
+      "maxTokHint": "0=none",
+      "reasoning": "Reasoning",
+      "json": "Output as JSON",
+      "jsonTitle": "Output as JSON — the model must return valid JSON for this feature. Turn on when the app needs the result as structured data instead of prose. Saved for this feature.",
+      "localBudgetTitle": "The model's layered reasoning_budget on this PC (Global launch defaults → PC class config → your applied config) — edit it in Tune & measure",
+      "samplers": "Samplers",
+      "samplersHint": "top_k · min_p · penalties · mirostat … (mostly local)",
+      "customOrder": "Custom sampler order",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "resetOrder": "Reset order",
+      "resetOrderTitle": "Restore the engine's default sampler order",
+      "stop": "Stop sequences",
+      "stopHint": "one per line; generation halts on any",
+      "stopPh": "one stop string per line",
+      "preview": "Preview & tokens",
+      "tokens": "{n} tokens",
+      "tokensApprox": "≈{n} tokens",
+      "overWindow": "⚠ over window",
+      "empty": "(empty)",
+      "tokensExact": "{n} tokens (exact)",
+      "tokensEst": "≈ {n} tokens (est)",
+      "count": "Count exact",
+      "countTitle": "Count with the loaded local model's tokenizer",
+      "window": "window",
+      "windowAssumedTitle": "No local model picked — this is an assumed default, edit it to your model's real window",
+      "windowModelTitle": "From the model's resolved launch config (Tune & measure) / loaded model",
+      "windowSource": {
+        "set": "set",
+        "loaded": "loaded",
+        "model": "model",
+        "assumed": "assumed"
+      },
+      "over": "⚠ prompt ≈{prompt} + {out} output = {used} tok exceeds the {window}-token window — it will truncate or error.",
+      "near": "⚠ prompt ≈{prompt} + {out} output is close to the {window}-token window.",
+      "run": "Run",
+      "running": "Running…",
+      "raw": "Raw model output",
+      "model": "model"
+    },
+    "appearance": {
+      "pairing": {
+        "finePress": "Fine Press",
+        "calm": "Calm Modern",
+        "editorial": "Editorial",
+        "classic": "Classic"
+      },
+      "tint": {
+        "neutral": "Neutral",
+        "ivory": "Ivory",
+        "paperwhite": "Paper white",
+        "cool": "Cool grey",
+        "slate": "Slate"
+      },
+      "ink": {
+        "auto": "Auto",
+        "warm": "Warm",
+        "neutral": "Neutral",
+        "cool": "Cool",
+        "sepia": "Sepia",
+        "soft": "Soft"
+      },
+      "scale": {
+        "compact": "Compact",
+        "snug": "Snug",
+        "normal": "Normal",
+        "comfortable": "Comfortable",
+        "large": "Large"
+      },
+      "style": {
+        "eyebrow": "Eyebrow",
+        "mono": "Mono",
+        "editorial": "Editorial",
+        "plain": "Plain",
+        "standard": "Standard",
+        "bold": "Bold"
+      },
+      "size": {
+        "xs": "XS",
+        "s": "S",
+        "m": "M",
+        "l": "L"
+      },
+      "color": {
+        "oxblood": "Oxblood",
+        "teal": "Teal",
+        "rose": "Rose",
+        "amber": "Amber",
+        "olive": "Olive",
+        "indigo": "Indigo",
+        "plum": "Plum",
+        "green": "Green",
+        "gold": "Gold",
+        "brass": "Brass",
+        "bronze": "Bronze",
+        "copper": "Copper",
+        "sage": "Sage",
+        "verdigris": "Verdigris",
+        "slate": "Slate",
+        "mauve": "Mauve",
+        "emerald": "Emerald",
+        "moss": "Moss",
+        "red": "Red",
+        "crimson": "Crimson",
+        "rust": "Rust",
+        "ruby": "Ruby",
+        "blue": "Blue",
+        "sky": "Sky",
+        "cyan": "Cyan"
+      },
+      "radius": {
+        "sharp": "Sharp",
+        "standard": "Standard",
+        "rounded": "Rounded",
+        "pill": "Pill"
+      },
+      "density": {
+        "compact": "Compact",
+        "comfy": "Comfy"
+      },
+      "labelCase": {
+        "default": "Sentence",
+        "uppercase": "UPPERCASE"
+      },
+      "panel": {
+        "localeDesc": "UI language.",
+        "mode": {
+          "system": "Follow system",
+          "light": "Light",
+          "dark": "Dark"
+        },
+        "theme": "Theme",
+        "themeDesc": "Light, Dark, or Follow system.",
+        "size": "Interface size",
+        "sizeDesc": "Scales the whole interface — labels, controls, and panels — together.",
+        "font": "UI font",
+        "fontDesc": "The interface typeface.",
+        "accent": "Accent hue · {hue}°",
+        "accentDesc": "Drag to pick a new accent color across the whole app."
+      }
+    },
+    "provider": {
+      "type": {
+        "openai-compat": "OpenAI-compatible",
+        "anthropic": "Anthropic (Claude)",
+        "gemini": "Gemini (Google)",
+        "ollama": "Ollama (native)",
+        "openai": "OpenAI",
+        "deepseek": "DeepSeek",
+        "openrouter": "OpenRouter",
+        "xai": "xAI (Grok)",
+        "mistral": "Mistral"
+      },
+      "noModels": "No models returned — check the URL / key / that a model is loaded.",
+      "fetchFailed": "Fetch failed.",
+      "test": {
+        "testing": "Testing…",
+        "connected": "✓ connected — {n} model | ✓ connected — {n} models",
+        "noModels": "reachable, but no models listed",
+        "failed": "failed",
+        "button": "Test connection"
+      },
+      "err": {
+        "name": "Name is required.",
+        "save": "Save failed.",
+        "delete": "Delete failed."
+      },
+      "tasksNowRun": "Tasks now run on {model}.",
+      "embedNowRuns": "Embedding now runs on {model}.",
+      "level": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "xhigh": "XHigh",
+        "max": "Max"
+      },
+      "presetsHead": "Start from a known provider — fills URL · type · where it runs",
+      "where": "Where it runs",
+      "whereBuiltin": "Local · free · built-in",
+      "lockedOnline": "This provider type is a metered cloud API — it always runs online.",
+      "whereHint": "Local = on this machine, no key. Online = your metered cloud account.",
+      "name": "Name",
+      "namePh": "My provider",
+      "baseUrl": "Base URL",
+      "apiKey": "API key",
+      "keySavedPh": "••••••••  (a key is saved)",
+      "keySaved": "🔒 An API key is saved (never shown). Leave blank to keep it — typing replaces it.",
+      "typeLabel": "Provider type",
+      "builtinType": "llama.cpp · built-in engine",
+      "chatModel": "Default chat model",
+      "chatModelPh": "Fetch or type a model id",
+      "hidden": "{n} model hidden | {n} models hidden",
+      "showAll": "show all",
+      "chatModelHint": "Fetched from the provider once connected — switch it per feature in Features.",
+      "embedModel": "Embedding model",
+      "optional": "optional",
+      "embedModelPh": "leave blank if not used",
+      "embedModelHint": "Fills the RAG / semantic-search index — fetch the provider's list and pick its embedding model.",
+      "reasoning": {
+        "button": "Reasoning levels…",
+        "title": "Reasoning levels",
+        "cap": "what each level asks this provider for — words for effort-word providers, token budgets for the local engine",
+        "modelDefault": "This provider runs thinking at the model's own default — no per-level control.",
+        "level": "Level",
+        "word": "Word",
+        "tokens": "Tokens",
+        "hintBoth": "what each level asks this provider for — new models take the word, legacy models the token budget",
+        "hintTokens": "the thinking-token budget each level asks this provider for",
+        "hintWord": "the effort word each level asks this provider for"
+      },
+      "libs": {
+        "classTunes": "PC class configs…",
+        "global": "Global launch defaults…",
+        "cap": "the launch-config libraries — per-PC-class starting points, and the always-on switch bundles under every tune",
+        "classTunesTitle": "PC class configs — the library"
+      },
+      "saving": "Saving…",
+      "save": "Save provider",
+      "presetLocalEngine": "Local engine"
+    },
+    "engine": {
+      "family": {
+        "cuda": "NVIDIA CUDA",
+        "vulkan": "Vulkan",
+        "rocm": "AMD ROCm",
+        "metal": "Apple Metal"
+      },
+      "autoBackend": "Auto (recommended)",
+      "willDownload": "{backend} — will download",
+      "budgetVram": "VRAM {used} / {total} MB · {free} MB free",
+      "budgetMemory": "Memory {used} / {total} MB · {free} MB free",
+      "log": {
+        "none": "(no engine log yet — it is written when a model spawns)",
+        "failed": "(couldn't read the log)",
+        "hide": "Hide log",
+        "view": "View log"
+      },
+      "saved": "Engine settings saved.",
+      "title": "Local engine",
+      "installing": "Installing the llama.cpp engine…",
+      "installed": "Installed",
+      "cudaMissing": "CUDA runtime DLLs missing",
+      "checking": "Checking the engine…",
+      "notInstalled": "Not installed — install it before you load a model.",
+      "uninstall": "Uninstall engine",
+      "uninstallTitle": "Delete the engine binaries — models are kept",
+      "reinstall": "Reinstall",
+      "reinstallTitle": "Re-download the pinned engine build",
+      "hideDetails": "Hide details ▴",
+      "details": "Details ▾",
+      "backend": "Acceleration backend",
+      "runningOn": "running on {backend}",
+      "loaded": "Loaded models",
+      "ctx": "ctx {n}",
+      "mb": "{n} MB",
+      "noneLoaded": "No models loaded right now.",
+      "loadsOnFirstUse": "The engine loads models on first use — nothing loaded yet.",
+      "knob": {
+        "maxModels": "Models kept loaded at once",
+        "idleUnload": "Unload an idle model after (seconds · 0 = never)",
+        "vramMargin": "VRAM safety margin (MB)",
+        "vramMarginTitle": "VRAM held back when computing how much of a model goes on the GPU — headroom for the display and other apps.",
+        "ctxCap": "Default context cap (tokens)",
+        "ctxCapTitle": "The most context an untuned model gets automatically; a tune's explicit context always overrides. 0 = no cap.",
+        "ramHeadroom": "RAM headroom (MB)",
+        "ramHeadroomTitle": "System RAM held back when computing a model's RAM requirement — room for the OS and your other programs."
+      },
+      "band": {
+        "title": "Speed bands (tokens/second)",
+        "fast": "Fast at ≥",
+        "fastTitle": "At or above this many tokens per second a model is labeled “fast”.",
+        "fine": "Fine at ≥",
+        "fineTitle": "Comfortable reading speed — at or above this the label is “fine”.",
+        "slow": "Slow at ≥",
+        "slowTitle": "Below “fine” but at or above this the label is “slow”; anything under is “very slow”.",
+        "deadZone": "Show the number within (%)",
+        "deadZoneTitle": "When an estimated speed lands this close to one of the lines above, the catalog shows the estimate itself (for example “~7.9 tok/s”) instead of a label a small difference could flip. A measured speed always keeps its label. 0 turns this off.",
+        "floor": "Recommend down to (% under Fine)",
+        "floorTitle": "On a PC with no hardware preset, Quick Setup won't recommend a model whose speed falls more than this far below the “fine” line (20 % with “fine” at 8 → nothing under 6.4 tokens per second). The margin stops a model that lands just under the line from being swapped for a much weaker one. 0 = the “fine” line itself."
+      },
+      "updates": "Engine updates",
+      "updateNotify": "Notify",
+      "updateOff": "Off",
+      "dl": {
+        "title": "Faster downloads (parallel connections)",
+        "connections": "Connections per download (1–16)",
+        "split": "Split files larger than (MB)",
+        "retries": "Retries per connection (0–10)"
+      },
+      "phase": {
+        "downloading": "Downloading the engine",
+        "settingUp": "Setting it up",
+        "cancelling": "Cancelling"
+      },
+      "err": {
+        "status": "Couldn't read engine status.",
+        "install": "Install failed.",
+        "cancel": "Couldn't cancel the install.",
+        "uninstall": "Uninstall failed.",
+        "backend": "Couldn't install that backend.",
+        "backendSave": "Couldn't save the backend choice.",
+        "warm": "Couldn't save the warm-on-startup setting.",
+        "policy": "Couldn't save the update policy.",
+        "update": "The engine update didn't complete.",
+        "updateFailed": "Update failed."
+      },
+      "removeTitle": "Remove the engine?",
+      "removeBody": "Deletes the installed llama.cpp binaries. Your downloaded models are kept — reinstall the engine any time to use them again.",
+      "removeConfirm": "Uninstall",
+      "restartTitle": "Restart the engine to apply?",
+      "restartBody": "The new acceleration backend takes effect the next time the engine starts. Restart now to switch immediately — any loaded model unloads and a running generation stops — or leave it and it applies on the next model load.",
+      "restartConfirm": "Restart engine",
+      "rolledBack": "{error} Your engine was left on {build}.",
+      "noDownload": "{build} has no download for this computer's graphics type ({gpu}). Nothing was changed.",
+      "update": {
+        "tipTested": "Update the engine to {latest}, the build this app is tested with (you have {current}) — the new build is checked before it replaces yours, and the old build folder is removed only once it installs",
+        "tipStable": "Update the engine to {latest}, llama.cpp's official release {stable} (you have {current}) — the new build is checked before it replaces yours, and the old build folder is removed only once it installs",
+        "tipOfficial": "Update the engine to {latest}, llama.cpp's official release (you have {current}) — the new build is checked before it replaces yours, and the old build folder is removed only once it installs",
+        "button": "Update to {latest}"
+      },
+      "install": {
+        "tip": "Download + install the llama.cpp engine for this machine",
+        "button": "Install engine"
+      }
+    },
+    "binaries": {
+      "err": {
+        "load": "Couldn't load engine config.",
+        "save": "Save failed.",
+        "required": "platform and gpu are required.",
+        "reset": "Reset failed."
+      },
+      "resetConfirm": "Reset the engine binaries and pinned build to their shipped defaults? Custom rows you added are kept. (Engine settings like the VRAM margin also reset — they live under Loaded models.)",
+      "title": "Engine binaries",
+      "titleSub": "llama.cpp download URLs · pinned build · speed-check model",
+      "help": "The app auto-detects your system and downloads the matching llama.cpp build. Change the pinned build and every download URL below re-points to that build automatically. If a download fails because a release asset moved or was renamed, paste the correct URL from the {releases} (choose the asset for your OS + GPU). Windows CUDA needs both the build {build} and its matching {runtime} runtime URL.",
+      "releasesLink": "llama.cpp releases page ↗",
+      "pinned": "Pinned build",
+      "col": {
+        "platform": "Platform",
+        "gpu": "GPU",
+        "asset": "Asset URL",
+        "runtime": "Runtime URL (cudart)",
+        "exe": "Server exe"
+      },
+      "docker": "docker",
+      "add": "Add",
+      "calib": {
+        "title": "Speed-check model",
+        "body": "the small test model Quick setup's one-minute speed check downloads and runs. The file is verified against its sha256 after every download; the two sizes describe that exact file (per token, the expert weights read and everything else), so a different file needs its own numbers.",
+        "url": "Download URL",
+        "size": "Size (bytes)",
+        "expertMb": "Expert MB per token",
+        "otherMb": "Other MB",
+        "sha": "sha256"
+      },
+      "reset": "Reset to defaults"
+    },
+    "aiTasks": {
+      "secs": "{s}s",
+      "minSecs": "{m}m {s}s",
+      "ago": {
+        "m": "{n}m ago",
+        "h": "{n}h ago",
+        "d": "{n}d ago"
+      },
+      "phase": {
+        "connecting": "Connecting",
+        "streaming": "Streaming"
+      },
+      "status": "Status",
+      "running": "Running",
+      "cancelAll": "Cancel all",
+      "nothingRunning": "Nothing running. Start any AI feature and you'll see it here with live status.",
+      "thinking": "Thinking",
+      "batchTip": "Batch progress — Cancel stops the whole run",
+      "prefillTip": "The model is reading your prompt",
+      "prefill": "reading prompt {pct}%",
+      "firstTip": "Latency from request to first streamed token",
+      "first": "first {s}s",
+      "tokensExactTip": "Exact output tokens (from the model)",
+      "tokensApproxTip": "Approximate from streamed characters (~4 chars/token), thinking included",
+      "stuckTip": "No new tokens for well past this model's usual pace — likely stuck",
+      "stallingTip": "Slower than this model's usual pace right now",
+      "liveTip": "Streaming live",
+      "live": "live",
+      "stalling": "stalling · {time}",
+      "stuck": "stuck · {time}",
+      "hidePreview": "Hide preview",
+      "showPreview": "Show preview",
+      "chars": "{n} chars",
+      "recent": "Recent",
+      "clear": "Clear",
+      "noneCompleted": "No completed tasks yet.",
+      "tokOut": "{n} tok out",
+      "again": "Run it again",
+      "showLess": "Show less",
+      "showAll": "Show all ({n})",
+      "strip": {
+        "done": "done",
+        "failed": "failed",
+        "cancelled": "cancelled",
+        "thinkingTip": "The model is thinking before it answers — its thinking counts in the tokens",
+        "thinking": "thinking…",
+        "firstToken": "first token in {s}s",
+        "stalling": "stalling",
+        "stuck": "stuck",
+        "detailsTip": "Open full status panel",
+        "details": "Details"
+      },
+      "button": {
+        "failed": "{n} AI task failed — open the queue | {n} AI tasks failed — open the queue",
+        "running": "{n} AI task running | {n} AI tasks running",
+        "idle": "AI tasks"
+      },
+      "defaultLabel": "AI call",
+      "unknownError": "Unknown error"
+    },
+    "logs": {
+      "live": "Live tail",
+      "level": {
+        "all": "All levels",
+        "warn": "Warnings & errors",
+        "error": "Errors only"
+      },
+      "err": {
+        "load": "Couldn't load logs: {error}",
+        "deleteDay": "Couldn't delete the day.",
+        "deleteAll": "Couldn't delete the logs."
+      },
+      "delDay": {
+        "title": "Delete this day's log?",
+        "body": "The stored log for {day} will be removed from disk. This can't be undone.",
+        "confirm": "Delete day",
+        "buttonTitle": "Remove this day's stored log file"
+      },
+      "delAll": {
+        "title": "Delete ALL logs?",
+        "body": "Every stored day is removed from disk and the live tail is cleared. This can't be undone.",
+        "confirm": "Delete all logs",
+        "buttonTitle": "Remove every stored log file + clear the tail"
+      },
+      "sub": "Stored one file per day — pick a day, or watch the live tail.",
+      "clearVsDelete": "{clear} empties the on-screen tail; {delete} removes stored files.",
+      "clear": "Clear",
+      "copied": "Copied",
+      "noMatch": "No lines match this filter.",
+      "none": "No log lines yet."
+    },
+    "workbench": {
+      "otherGroup": "Other",
+      "presetSet": "This feature now runs that preset.",
+      "presetCleared": "Cleared — this feature runs the default preset.",
+      "err": {
+        "preset": "Preset change failed: {error}",
+        "reset": "Reset failed: {error}",
+        "save": "Save failed: {error}",
+        "preview": "The app's prompt preview is unavailable."
+      },
+      "resetPresets": {
+        "title": "Reset presets to defaults?",
+        "body": "Restores the built-in presets and every feature assignment to the shipped defaults. Your custom presets are kept.",
+        "done": "Presets reset to defaults.",
+        "button": "Reset presets to defaults",
+        "buttonTitle": "Restore the built-in presets + every feature assignment to the shipped defaults — your custom presets are kept"
+      },
+      "built": "{sample} · built {at}",
+      "sectionSaved": "{name} saved.",
+      "resetFeature": {
+        "title": "Reset this feature to defaults?",
+        "body": "Restores this feature's preset (model, params, reasoning) and its prompt to the shipped defaults. Any customization for this feature is discarded.",
+        "done": "Reset to defaults.",
+        "button": "Reset to default",
+        "buttonTitle": "Reset this feature to its own default preset (model · params · reasoning) and prompt"
+      },
+      "presetTitle": "engine preset for this feature",
+      "showList": "Show list",
+      "hideList": "Hide list",
+      "building": "Building the prompt preview…",
+      "pickAction": "Pick an action on the left."
+    },
+    "data": {
+      "saveTitle": "Save {app} backup",
+      "filterName": "{app} backup",
+      "downloaded": "Backup downloaded.",
+      "saved": "Backup saved.",
+      "err": {
+        "backup": "Backup failed: {error}",
+        "restore": "Restore failed: {error}",
+        "reset": "Reset failed: {error}"
+      },
+      "restore": {
+        "title": "Restore from backup?",
+        "body": "This replaces ALL current data with the backup's contents. Anything not in the backup is lost.",
+        "confirm": "Restore",
+        "done": "Restored — reloading…"
+      },
+      "reset": {
+        "title": "Reset {app}?",
+        "label": "Wipes ALL data — projects, settings, AI providers — and reloads with the demo seed. Type {word} to confirm.",
+        "confirm": "Reset",
+        "mismatch": "Confirmation didn't match — not reset.",
+        "done": "Reset — reloading…",
+        "heading": "Reset {app}",
+        "hint": "Wipes the entire database and reloads with the demo seed. Take a backup first.",
+        "button": "Reset…"
+      },
+      "title": "Backup & restore",
+      "hint": "Download a full snapshot (database + assets) as a ZIP, or restore one — to move between machines or keep an off-device copy.",
+      "export": "Export backup…",
+      "import": "Import backup…",
+      "defaultApp": "Workspace"
+    },
+    "chip": {
+      "editTip": "Change the model & reasoning for {feature} — edits its preset",
+      "viewTip": "Runs on {feature} — manage under AI settings → Routing by feature",
+      "thisPreset": "this preset",
+      "budgetNoValue": "thinking budget — {source}",
+      "budget": "thinking budget {value} — {source}",
+      "err": {
+        "load": "Could not load the preset.",
+        "noPreset": "No preset to edit.",
+        "save": "Save failed."
+      },
+      "runsOn": "Runs on",
+      "popHead": "Runs on {feature}",
+      "inherit": "Inherit default",
+      "thinking": "Thinking",
+      "unlimited": "Unlimited ⚠ — this model has been observed to loop; may think until the context fills",
+      "blast": "Changes the “{preset}” preset — used by {n} feature | Changes the “{preset}” preset — used by {n} features"
+    },
+    "switches": {
+      "applies": {
+        "all": "All models",
+        "moe": "MoE models",
+        "dense": "Dense models",
+        "mtp": "Speculative decode (MTP-capable models)"
+      },
+      "err": {
+        "load": "Couldn't load the launch defaults.",
+        "save": "Save failed.",
+        "reset": "Reset failed."
+      },
+      "reset": {
+        "title": "Reset the launch defaults?",
+        "body": "Restores the shipped switch bundles (all models · MoE · dense · speculative decode). Your PC class configs and saved machine tunes are not touched.",
+        "confirm": "Reset",
+        "button": "Reset to defaults"
+      },
+      "title": "Global launch defaults",
+      "summary": "the always-on switch bundles under every tune — all models · MoE · dense · speculative decode",
+      "help": "These bundles are the first layer of every model's launch — a PC class config or an applied config overrides them per value.",
+      "helpBold": "Models with an applied config keep their saved values",
+      "helpKept": "{kept} — a change here reaches them only when you refresh or remove their applied config in Tune & measure."
+    },
+    "history": {
+      "col": {
+        "when": "When",
+        "run": "Run",
+        "settings": "Settings",
+        "tps": "tok/s",
+        "vram": "VRAM"
+      },
+      "err": {
+        "load": "Couldn't load the measurement history.",
+        "clear": "Couldn't clear the history."
+      },
+      "automatic": "engine automatic settings",
+      "clear": {
+        "title": "Clear measurement history?",
+        "body": "Delete every recorded measurement for this model? Saved tunes and PC class configs are not touched. This clears the measured speeds AND the app's remembered memory footprints for it — the estimates take over again and re-learn on the next load.",
+        "button": "Clear history",
+        "tip": "Delete this model's recorded measurements — saved tunes and PC class configs are kept"
+      },
+      "title": "Measurement history",
+      "summary": "every measured speed for this model, saved across restarts",
+      "autotune": "Auto-tune",
+      "measured": "measured",
+      "gb": "{gb} GB",
+      "empty": "Nothing measured yet — every “Load & measure” result and auto-tune trial is recorded here automatically."
+    },
+    "console": {
+      "source": {
+        "server": "Server log",
+        "engine": "Engine output"
+      },
+      "level": {
+        "info": "Info +",
+        "warning": "Warnings +"
+      },
+      "emptyAt": {
+        "info": "No info-or-higher lines in view.",
+        "warning": "No warning-or-higher lines in view.",
+        "error": "No error-or-higher lines in view."
+      },
+      "noEngineOutput": "No engine output yet — start a model to spawn the engine and see its output.",
+      "sub": "Live tail of the app server log and the engine child's output.",
+      "resume": "Resume",
+      "pause": "Pause",
+      "spawnLog": "Spawn log: {path}",
+      "stale": "Live tail stalled — can't reach the server. Showing the last snapshot.",
+      "jump": "↓ Following paused — jump to latest"
+    },
+    "aiError": {
+      "status": {
+        "401": "Authentication failed — check the provider's API key on the AI page.",
+        "402": "Payment required — your provider says you're out of credit.",
+        "403": "Access denied — the API key may not have permission for this model.",
+        "404": "Endpoint not found — the Base URL or model name may be wrong.",
+        "408": "Timed out before the model responded.",
+        "413": "The prompt is too large for this model.",
+        "429": "Rate-limited — wait a moment and try again.",
+        "500": "The provider returned an error. Try a different model.",
+        "502": "Bad gateway — the provider's upstream is unreachable.",
+        "503": "Service unavailable — the provider's server may be restarting.",
+        "504": "Gateway timed out — model took too long to start."
+      },
+      "refused": "The local AI engine isn't running — pick your models in AI Settings, or press Load now.",
+      "dns": "Couldn't resolve the host — check the Base URL.",
+      "timeout": "Timed out — local models often need to load before the first call.",
+      "cors": "Browser blocked the request — in dev mode the provider needs CORS enabled, or run in the Tauri app.",
+      "reachHost": "Couldn't reach {host}",
+      "reachLlm": "Couldn't reach the LLM",
+      "withHint": "{lead} — {hint}",
+      "withRaw": "{lead}. {raw}",
+      "cutOff": "The answer was cut off: the model ran out of room before it finished. If this feature's preset has a Max tok cap, raise or clear it; otherwise the text sent was too long for the model's context.",
+      "noResult": "The stream ended without a result."
+    },
+    "bookSearch": {
+      "noneFits": "No embedding model in the catalog fits this PC.",
+      "ready": "Book search ready ✓ — {model}.",
+      "keepsLocal": "Book search keeps running on your local embedding ({model}) — unchanged.",
+      "keepsOn": "Book search keeps running on {provider} — unchanged.",
+      "title": "Book search",
+      "recommended": "— recommended.",
+      "pitch": "Lets chat find and quote your actual scenes, not just your story bible. Runs on this PC — private, no rate limits.",
+      "skip": "Skip it and chat answers from your story bible only — you can add book search here any time.",
+      "setUp": "Set up book search",
+      "useProvider": "Use {name} — nothing to download",
+      "oneTimeInstall": "one-time install",
+      "modelBar": "Book-search model"
+    },
+    "phase": {
+      "gettingReady": "Getting ready",
+      "downloadingModel": "Downloading the model",
+      "downloadingHelper": "Downloading the fast-generation helper file",
+      "loadingVram": "Loading it into your graphics card",
+      "unloading": "Unloading…",
+      "cancelling": "Cancelling…",
+      "cancelled": "Cancelled",
+      "downloading": "Downloading",
+      "startingEngine": "Starting the engine",
+      "working": "Working",
+      "workingEllipsis": "Working…",
+      "ready": "Ready",
+      "failed": "Failed",
+      "itFailed": "It failed.",
+      "couldntStart": "Couldn't start.",
+      "waiting": "Waiting…",
+      "engineMissing": "The engine isn't installed — install it first (the engine bar above).",
+      "err": {
+        "catalog": "Couldn't load the model catalog.",
+        "download": "Download failed.",
+        "engine": "The engine didn't install.",
+        "load": "Couldn't load the model.",
+        "lastAttempt": "The last attempt failed."
+      }
+    },
+    "eta": {
+      "fewSeconds": "a few seconds left",
+      "seconds": "~{n}s left",
+      "minutes": "~{n}m left",
+      "hours": "~{n}h left"
+    },
+    "pricing": {
+      "err": {
+        "load": "Couldn't load pricing.",
+        "save": "Save failed.",
+        "idRequired": "A model id is required.",
+        "delete": "Delete failed."
+      },
+      "removeConfirm": "Remove pricing for “{id}”? Its recorded cost becomes $0.",
+      "title": "Cloud pricing",
+      "hint": "USD per 1,000,000 tokens — edits take effect on the next call's recorded cost. Local models (Ollama / llama.cpp) are always $0.",
+      "col": {
+        "id": "Model id",
+        "input": "Input $/1M",
+        "output": "Output $/1M"
+      },
+      "remove": "Remove",
+      "idExample": "e.g. {id}",
+      "add": "＋ Add"
+    },
+    "updates": {
+      "checking": "Checking for updates…",
+      "latest": "This is the latest version.",
+      "available": "Version {version} is out.",
+      "availableManual": "Version {version} is out — download it from its release page.",
+      "downloading": "Downloading version {version} — {percent}%",
+      "ready": "Version {version} is downloaded. It installs when you quit the app.",
+      "error": "Couldn't update: {error}",
+      "current": "Current version {version}",
+      "checkAgain": "Check again",
+      "openRelease": "Open the release page",
+      "restart": "Restart now",
+      "restartTip": "Quit, install the update and start again",
+      "noNotes": "No release notes available.",
+      "versionTag": "v{version}"
+    },
+    "settings": {
+      "language": {
+        "label": "Language"
+      }
+    },
+    "knobs": {
+      "namePlaceholder": "flag (e.g. ctx_len)",
+      "valuePlaceholder": "value",
+      "add": "＋ Add switch",
+      "on": "On",
+      "off": "Off",
+      "advanced": "Advanced",
+      "originTip": "Where this value comes from",
+      "resetOne": "Reset to default",
+      "otherKeys": "Other keys",
+      "remove": "Remove",
+      "resetAllTip": "Reset the listed knobs to their defaults",
+      "perRequest": "per-request — sent with every request as JSON, not a launch flag; applies without reload",
+      "addSampler": "＋ Add custom sampler",
+      "samplerPlaceholder": "sampler (e.g. top_k)"
+    },
+    "embed": {
+      "failed": "The local embedding model \"{model}\" failed to load. Open the AI page and Edit the built-in provider to see the model log, then try again.",
+      "timeout": "Timed out preparing the local embedding model \"{model}\". It may still be downloading — try again in a moment.",
+      "preparing": "Preparing the embedding model"
+    },
+    "help": {
+      "title": "Help",
+      "close": "Close help",
+      "none": "No help article for this surface yet.",
+      "browse": "Browse all docs",
+      "openFull": "Open full docs",
+      "openWeb": "Open on the web",
+      "tooltip": "Help — {title}"
+    },
+    "table": {
+      "noResults": "No results.",
+      "range": "{start}–{end} of {total}",
+      "first": "First page",
+      "prev": "Previous page",
+      "next": "Next page",
+      "last": "Last page",
+      "page": "Page {page} / {pages}",
+      "rowsPerPage": "Rows per page",
+      "perPage": "{n} / page"
+    },
+    "modelPicker": {
+      "provider": "Provider",
+      "model": "Model",
+      "providerDefault": "(provider default)",
+      "pickProvider": "Pick a provider first",
+      "modelsTip": "Models for the pinned provider",
+      "pickProviderTip": "Pick a provider first to choose its model"
+    },
+    "modal": {
+      "close": "Close",
+      "dialog": "Dialog"
+    },
+    "select": {
+      "noMatches": "No matches",
+      "placeholder": "Select…",
+      "clearAll": "Clear all",
+      "filter": "Filter…"
+    },
+    "titleBar": {
+      "back": "Back",
+      "backNone": "Back (no history)",
+      "forward": "Forward",
+      "forwardNone": "Forward (no history)"
+    },
+    "color": {
+      "name": "Color",
+      "preset": "Preset {n}",
+      "custom": "Custom color",
+      "customOf": "{name} — custom"
+    },
+    "compare": {
+      "runAll": "▶ Run all",
+      "addColumn": "＋ Add column",
+      "hint": "one action across every column · same test input · cloud parallel, local serial",
+      "fastest": "Fastest",
+      "column": "Config {n}",
+      "pickModel": "— pick a model —"
+    },
+    "thinking": {
+      "level": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "xhigh": "XHigh",
+        "max": "Max"
+      },
+      "withTokens": "{level} ({tokens})",
+      "custom": "Custom",
+      "customValue": "Custom ({value})"
+    },
+    "modelType": {
+      "moe": "MoE",
+      "dense": "Dense",
+      "moeTip": "Mixture of experts — only a fraction of the parameters run on each token, so it needs far less VRAM than its size suggests.",
+      "denseTip": "Dense — every parameter runs on every token, so it needs VRAM in proportion to its size."
+    },
+    "stats": {
+      "tokensInOut": "{inp}→{out} tok",
+      "tokens": "{n} tok",
+      "tps": "{n} tok/s",
+      "words": "{n} words"
+    },
+    "secret": {
+      "show": "Show",
+      "hide": "Hide"
+    },
+    "bootLoad": {
+      "engineTitle": "Setting up the AI engine",
+      "continue": "Continue without waiting"
+    },
+    "combobox": {
+      "placeholder": "Fetch or type a model id",
+      "noMatch": "No match",
+      "fetchFirst": "No models yet — Fetch first",
+      "typeOne": "No models listed — type one"
+    },
+    "toast": {
+      "close": "Close toast"
+    },
+    "fileSave": {
+      "failed": "save failed"
+    },
+    "warmStartup": "Load the default local model into memory on startup"
   }
 }

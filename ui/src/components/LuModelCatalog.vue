@@ -11,17 +11,22 @@
 // VRAM-fit + HF-GGUF download/spawn lifecycle (/v1/llm-runner/*). Ollama / LM Studio
 // manage their own models, so they keep the Fetch-models combobox instead of this table.
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { catalogCopyConfig, request } from "../client.js";
+import { request } from "../client.js";
+import { llmUiCapabilities } from "../installLlmUi.js";
 
-// Host-voiced copy tokens with JW's words as defaults (see configureLlmUi).
-const CC = {
-  showEmbedding: true,
-  chatSectionLabel: "Chat & writing models",
-  chatSectionHint: "write prose, chat, extract — pick one as your General model",
-  generalUse: "Writes prose, chats, extracts",
-  slotsFootnote: "The app runs these two side by side — the General model writes and chats; the Embedding model powers search. Each loads automatically the first time it's needed; Load now just skips that first wait.",
-  ...catalogCopyConfig(),
+// The catalog's words are the kit's (kit.modelCatalog.*); the four an app voices — the chat
+// section's name and hint, the General model's use, the slots footnote — are kit.catalog.*, which
+// an app rewords with its own keys (docgen: "Translation models"). The embedding slot shows
+// unless the app declared it has no embedding features (installLlmUi's capabilities).
+const { t, n: fmtNum } = useI18n();
+const showEmbedding = llmUiCapabilities().embeddings !== false;
+// Examples in the form's placeholders are values, not words — never translated.
+const EXAMPLE = {
+  name: "Qwen3 14B · Q4_K_M", repo: "unsloth/Qwen3-14B-GGUF", quant: "Q4_K_M", draftFile: "MTP/…-Q4_0-MTP.gguf",
+  docTemplate: "search_document: {text}", queryTemplate: "search_query: {text}", totalParams: "14B", activeParams: "3.6B",
+  minVram: "11000", minRam: "14000", license: "Apache-2.0", rank: "100",
 };
 import { useRunnerModels } from "../composables/useRunnerModels.js";
 import { useCatalogMeta } from "../composables/useCatalogMeta.js";
@@ -54,7 +59,7 @@ import UiMenuSeparator from "../common/components/UiMenuSeparator.vue";
 // grid + this list. Everything comes from the ONE singleton so the two surfaces never drift.
 const {
   models, vramMb, speedFloor, loading, error, loadingId,
-  fmtBytes, FIT_LABEL, refresh, download, retryLoad, taskFor,
+  fmtBytes, fitLabel, refresh, download, retryLoad, taskFor,
 } = useRunnerModels();
 // ONE mechanism (2026-07-21, the user's ruling "same mech, same function"): the rows + slot
 // cards render the SAME createDownloadTask via taskFor(id), fed by the singleton's poll —
@@ -85,12 +90,12 @@ const COLUMNS = [
   // wraps happily, so a narrower share just means another line), and Bench held a two-digit
   // number in a column sized for far more. Bench's floor is its own HEADER — the word
   // "Bench" plus the sort caret — not the data, which is why it can't go below ~5%.
-  { key: "name", label: "Model", defDir: "asc", w: "29%" },
-  { key: "type", label: "Type", defDir: "asc", w: "11%" },
-  { key: "license", label: "License", defDir: "asc", w: "11%" },
-  { key: "quality", label: "Bench", num: true, defDir: "asc", w: "5%" },
-  { key: "fit", label: "Fit", defDir: "asc", w: "7%" },
-  { key: "status", label: "Status", defDir: "asc", w: "17%" },
+  { key: "name", label: "kit.modelCatalog.col.model", defDir: "asc", w: "29%" },
+  { key: "type", label: "kit.modelCatalog.col.type", defDir: "asc", w: "11%" },
+  { key: "license", label: "kit.modelCatalog.col.license", defDir: "asc", w: "11%" },
+  { key: "quality", label: "kit.modelCatalog.col.bench", num: true, defDir: "asc", w: "5%" },
+  { key: "fit", label: "kit.modelCatalog.col.fit", defDir: "asc", w: "7%" },
+  { key: "status", label: "kit.modelCatalog.col.status", defDir: "asc", w: "17%" },
 ];
 // The un-sortable Actions column takes the remainder. Shares total 100%.
 const ACTIONS_W = "20%";
@@ -108,12 +113,12 @@ const TABLE_COLUMNS = computed(() => [
     // reads is never used (every cell comes from a slot, and the ORDER comes from
     // sortModels() under `manual-sorting`).
     accessorKey: c.key,
-    header: c.label,
+    header: t(c.label),
     sortable: true,
     headerStyle: { width: c.w },
     meta: { headerClass: c.num ? "lu-th-num" : "" },
   })),
-  { id: "actions", header: "Actions", sortable: false, headerStyle: { width: ACTIONS_W }, meta: { headerClass: "lu-th-act" } },
+  { id: "actions", header: t("kit.modelCatalog.col.actions"), sortable: false, headerStyle: { width: ACTIONS_W }, meta: { headerClass: "lu-th-act" } },
 ]);
 // UiTable emits { id, desc }; the two refs above stay the source of truth for sortModels().
 // A header click that CLEARS the sort (null) is impossible here — the table is mounted with
@@ -202,11 +207,11 @@ const groupedRows = computed(() => {
   const chatFit = fits(chatRows.value);
   const embedFit = fits(embedRows.value);
   if (chatFit.length) {
-    rows.push({ __section: CC.chatSectionLabel, hint: CC.chatSectionHint, __key: "sec-chat" });
+    rows.push({ __section: t("kit.catalog.chatSectionLabel"), hint: t("kit.catalog.chatSectionHint"), __key: "sec-chat" });
     rows.push(...chatFit);
   }
-  if (CC.showEmbedding && embedFit.length) {
-    rows.push({ __section: "Embedding models", hint: "power semantic search + grounded chat — pick one as your Embedding model", __key: "sec-embed" });
+  if (showEmbedding && embedFit.length) {
+    rows.push({ __section: t("kit.modelCatalog.embedSection"), hint: t("kit.modelCatalog.embedSectionHint"), __key: "sec-embed" });
     rows.push(...embedFit);
   }
   const noFit = [...rest(chatRows.value), ...rest(embedRows.value)]; // chat first, then embeds
@@ -235,7 +240,7 @@ async function makeDefault(m) {
     // the LLM catalog back in step with JustVoice's speech rows, where Set as
     // default and Load have always been separate verbs.
     refresh();
-  } catch (e) { error.value = e.message || "Couldn't set the default."; }
+  } catch (e) { error.value = e.message || t("kit.modelCatalog.err.setDefault"); }
   finally { applyingId.value = ""; }
 }
 // The stop/unload wire call — ONE source (Unload's unloadModel + Re-download's unload-first
@@ -249,7 +254,7 @@ async function unloadModel(m) {
   try {
     await stopModel(m);
     await refresh();
-  } catch (e) { error.value = e.message || "Couldn't unload."; }
+  } catch (e) { error.value = e.message || t("kit.modelCatalog.err.unload"); }
   finally { busy.value = ""; }
 }
 async function makeEmbedding(m) {
@@ -263,7 +268,7 @@ async function makeEmbedding(m) {
     // into memory in the row menu, which routes through that same co-resident
     // ensure-embedding door (a plain /load would contend for the primary slot).
     refresh();
-  } catch (e) { error.value = e.message || "Couldn't set the embedding."; }
+  } catch (e) { error.value = e.message || t("kit.modelCatalog.err.setEmbedding"); }
   finally { applyingId.value = ""; }
 }
 // Load — warm a model into memory without touching any assignment. Used by the strip
@@ -278,7 +283,7 @@ async function loadAssigned(m, isEmbed) {
     if (isEmbed) await request("/v1/llm-runner/ensure-embedding", { method: "POST" });
     else await retryLoad(m.id);
     refresh();
-  } catch (e) { error.value = e.message || "Couldn't load."; }
+  } catch (e) { error.value = e.message || t("kit.modelCatalog.err.load"); }
   finally { applyingId.value = ""; }
 }
 
@@ -289,14 +294,14 @@ const busy = ref(""); // CATALOG-op id in flight (delete) — distinct from the 
 // ".0" so a real 8 GB floor reads "8", not "8.0" (2026-07-27, same ruling that snapped the
 // seed floors to binary MB: "vram and ram usually only come in even sizes").
 const gb = (mb) => (mb >= 10240 ? `${Math.round(mb / 1024)}` : `${+(mb / 1024).toFixed(1)}`);
-function fitLabel(m) {
+function fitChipLabel(m) {
   // Embedding rows show WHERE THE POLICY PUTS THEM, not a raw-card VRAM grade
   // (2026-07-25, the user's catch: the old chip said "Fits · needs ~6.8 GB VRAM"
   // for a model the loader forces onto the CPU). The field comes from the server's
   // own placement rule, so chip and load can never disagree. `m.fit` itself is
   // untouched underneath — section grouping / FIT_RUNNABLE still read it.
-  if (m.embedPlacement) return m.embedPlacement === "gpu" ? "GPU" : "CPU";
-  return FIT_LABEL[m.fit] || "—";
+  if (m.embedPlacement) return m.embedPlacement === "gpu" ? t("kit.fit.gpu") : t("kit.fit.cpu");
+  return fitLabel(m.fit);
 }
 // The chip's SPEED sentence (fit-redesign §5.4): a real measurement on this box
 // outranks the physics estimate; an MTP model without a measurement gets the
@@ -304,9 +309,9 @@ function fitLabel(m) {
 function speedTitle(m) {
   if (m.embedPlacement || embeddingOf(m)) return "";
   const bits = [];
-  if (m.measuredTokS) bits.push(`Measured on this PC: ${m.measuredTokS} tok/s.`);
-  else if (m.predTokS) bits.push(`Estimated speed: ~${m.predTokS} tok/s — a real run replaces this estimate.`);
-  if (mtpOf(m) && !m.measuredTokS) bits.push("May run faster with speculative decoding (MTP).");
+  if (m.measuredTokS) bits.push(t("kit.modelCatalog.speed.measured", { tokS: m.measuredTokS }));
+  else if (m.predTokS) bits.push(t("kit.modelCatalog.speed.estimated", { tokS: m.predTokS }));
+  if (mtpOf(m) && !m.measuredTokS) bits.push(t("kit.modelCatalog.speed.mtp"));
   return bits.join(" ");
 }
 function fitChipTitle(m) {
@@ -314,12 +319,11 @@ function fitChipTitle(m) {
 }
 function fitTitle(m) {
   if (m.embedPlacement === "cpu")
-    return "Runs on the CPU on this PC — the GPU stays with your writing model. Needs "
-      + (m.minRamMb ? `~${gb(m.minRamMb)} GB RAM.` : "system RAM, not VRAM.");
+    return m.minRamMb ? t("kit.modelCatalog.fit.embedCpuRam", { gb: gb(m.minRamMb) }) : t("kit.modelCatalog.fit.embedCpu");
   if (m.embedPlacement === "gpu")
-    return `Runs on your GPU here — it fits the ~${gb(m.embedLeftoverMb || 0)} GB left beside your writing model.`;
-  if (m.fit === "cpu") return "No GPU detected — runs on CPU (slower).";
-  if (m.fit === "unknown") return "VRAM requirement unknown for this model.";
+    return t("kit.modelCatalog.fit.embedGpu", { gb: gb(m.embedLeftoverMb || 0) });
+  if (m.fit === "cpu") return t("kit.modelCatalog.fit.noGpu");
+  if (m.fit === "unknown") return t("kit.modelCatalog.fit.vramUnknown");
   if (!m.minVramMb) return "";
   // The fit grade is a CURATED FLOOR compared against this card — never a measurement on
   // your box, so it says "Estimated" (2026-07-26, the user: "long as we present user with
@@ -327,13 +331,13 @@ function fitTitle(m) {
   // at your class yet. ONLY this branch takes the prefix/suffix — the cpu / unknown /
   // no-floor / embed-placement returns above are already whole sentences, and appending a
   // fragment to them would splice (Ruling 6).
-  const have = vramMb.value ? ` · you have ${gb(vramMb.value)} GB` : "";
+  const have = vramMb.value ? t("kit.modelCatalog.fit.youHave", { gb: gb(vramMb.value) }) : "";
   // isUntunedHere, NOT `=== ""` — "" now means only "the state fetch failed", and the
   // untuned case became two named states (2026-07-26). The old equality check would
   // have gone permanently false here and silently dropped this sentence.
   const untested = !embeddingOf(m) && isUntunedHere(tuneBadgeIdOf(tuneState.value, m.id, otherClassCount(m.id)))
-    ? " · not yet tested on your PC class" : "";
-  return `Estimated — needs ~${gb(m.minVramMb)} GB VRAM${have}${untested}`;
+    ? t("kit.modelCatalog.fit.untested") : "";
+  return [t("kit.modelCatalog.fit.estimated", { gb: gb(m.minVramMb) }), have, untested].filter(Boolean).join(" · ");
 }
 // Grid TYPE tags (Plan B — the Params column is REPLACED: the params count already
 // rides the name/description, the user wants the space for architecture/role).
@@ -384,12 +388,12 @@ function runsOnTitle(m) {
   // 2026-08-13 ruling) previously returned "" here and lost its tooltip
   // entirely; it now states the raw needs and says no class holds it.
   const raw = (m.minVramMb && m.minRamMb)
-    ? `Computed from the model file: ${m.minVramMb.toLocaleString()} MB VRAM · ${m.minRamMb.toLocaleString()} MB RAM.`
+    ? t("kit.modelCatalog.runsOn.computed", { vram: fmtNum(m.minVramMb), ram: fmtNum(m.minRamMb) })
     : "";
   const names = rowClasses(m).map((c) => classKeyLabel(c.classKey, c.name)).join(" · ");
   const classes = names
-    ? `PC classes this model runs on: ${names}`
-    : "No shipped PC class holds it — bigger machines than the class list covers.";
+    ? t("kit.modelCatalog.runsOn.classes", { names })
+    : t("kit.modelCatalog.runsOn.none");
   return [raw, classes].filter(Boolean).join(" ");
 }
 // The Bench column cell: the published benchmark rank, or "—" when unranked (100).
@@ -407,7 +411,7 @@ function viewOnHf(m) { openExternal(cardUrlOf(m)); }
 // host wires the opener; a browser has none and is told so.
 function openModelFolder(m) {
   if (!openPath(m.localDir)) {
-    pushToast({ message: "Open folder requires the desktop app.", kind: "warning" });
+    pushToast({ message: t("kit.modelCatalog.openFolderDesktop"), kind: "warning" });
   }
 }
 // Does anything sit ABOVE the delete group? A hand-added local row that was
@@ -502,8 +506,8 @@ const recommendedEmbedId = computed(() => {
 function licenseTitle(m) {
   const lic = licenseOf(m);
   return useLimitedOf(m)
-    ? `${lic || "license"} — use-limited: not free for unrestricted/commercial use, never a default. The catalog only lists it; the weights download on your machine.`
-    : (lic ? `${lic} — permissive (free to use).` : "license unknown");
+    ? t("kit.modelCatalog.license.limited", { license: lic || t("kit.modelCatalog.license.word") })
+    : (lic ? t("kit.modelCatalog.license.permissive", { license: lic }) : t("kit.modelCatalog.license.unknown"));
 }
 
 // ── Tune & measure (#20) — the modal is shared (TuneMeasureModal), opened per model ─
@@ -544,12 +548,12 @@ function otherClassCount(modelId) {
 function rowTags(m) {
   const tags = [];
   if (m.id === currentEmbeddingId.value) {
-    tags.push({ key: "embed", intent: "info", label: "Embedding" });
+    tags.push({ key: "embed", intent: "info", label: t("kit.modelCatalog.tag.embedding") });
   }
   if (m.id === recommendedId.value) {
     tags.push({
-      key: "rec", intent: "accent2", label: "Recommended for this PC",
-      title: "What Quick Setup would pick for this machine — a model with a PC class config for your class first, then the speed-floor rule",
+      key: "rec", intent: "accent2", label: t("kit.modelCatalog.tag.recommended"),
+      title: t("kit.modelCatalog.tag.recommendedTitle"),
     });
   }
   const tune = tuneBadge(m);
@@ -567,16 +571,18 @@ function tuneBadge(m) {
   if (embeddingOf(m) && isUntunedHere(id)) return null;
   const classRange = classKeyLabel(tuneState.value?.classKey || "");
   const titles = {
-    auto: "This PC runs your applied config — produced by the auto-tune sweep",
-    hand: "This PC runs your applied config — hand-set in Tune & measure",
+    auto: t("kit.modelCatalog.tune.auto"),
+    hand: t("kit.modelCatalog.tune.hand"),
     // The range is dropped, not printed empty, when the box's class is unknown:
     // classKeyLabel("") returns "" (classTunes.js:134-138) and "for your class ()"
     // would read as a bug.
-    class: `No applied config on this PC — launches start from the PC class config for your class${classRange ? ` (${classRange})` : ""}`,
-    elsewhere: `Nothing tuned for your PC class${classRange ? ` (${classRange})` : ""} — but this model has a PC class config on ${others} other ${others === 1 ? "class" : "classes"}. Launches use the layered defaults.`,
-    untuned: "Nobody has tuned this model on any PC class yet — launches use the layered defaults.",
+    class: classRange ? t("kit.modelCatalog.tune.classRange", { range: classRange }) : t("kit.modelCatalog.tune.class"),
+    elsewhere: classRange
+      ? t("kit.modelCatalog.tune.elsewhereRange", { range: classRange, n: others }, others)
+      : t("kit.modelCatalog.tune.elsewhere", { n: others }, others),
+    untuned: t("kit.modelCatalog.tune.untuned"),
   };
-  const badge = { ...TUNE_BADGES[id], title: titles[id] };
+  const badge = { intent: TUNE_BADGES[id].intent, label: t(TUNE_BADGES[id].labelKey), title: titles[id] };
   // The COUNT is what makes "not tuned here" worth saying — bare, it is the absence
   // this change exists to kill. The class NAME is deliberately NOT appended any more
   // (2026-07-26, the user: "as a user i see 'PC class config · 8 GB VRAM · 32 GB RAM'
@@ -585,7 +591,7 @@ function tuneBadge(m) {
   // two read as contradictory numbers about the same thing. Your class is now stated
   // once above the table instead of on every row.
   if (id === "elsewhere") {
-    badge.label = `${badge.label} — ${others} other PC ${others === 1 ? "class" : "classes"}`;
+    badge.label = t("kit.modelCatalog.tune.otherClasses", { label: badge.label, n: others }, others);
   }
   return badge;
 }
@@ -631,22 +637,22 @@ const samplersLabel = computed(() => {
 const mtpFact = computed(() => {
   const e = editing.value || {};
   const builtin = inspected.value ? inspected.value.mtpBuiltin : e.mtpBuiltin;
-  if (builtin) return "built-in — in-file prediction heads";
+  if (builtin) return t("kit.modelCatalog.mtp.builtin");
   // An OWN draft (same repo) the built-in engine can load — auto-picked → CERTAIN, MTP on.
-  if (e.mtpDraftFile && !e.mtpDraftRepo) return "separate — external draft file (separate download)";
+  if (e.mtpDraftFile && !e.mtpDraftRepo) return t("kit.modelCatalog.mtp.separate");
   // Own drafts present but NONE the built-in engine can load (e.g. dspark) → the model IS
   // MTP-capable, just not for our engine. Conservative (the user's rule, 2026-07-21): MTP stays
   // OFF, its own drafts stay in the dropdown (labeled), the user can check MTP + paste a
   // compatible one. NO borrow substitution (it ships its own).
   if (allDraftsUnloadable(listing.value?.drafts))
-    return "this model ships an MTP draft, but none the built-in engine can load — check MTP below to paste a compatible draft";
+    return t("kit.modelCatalog.mtp.unloadable");
   // A draft from ANOTHER repo: applied by the user → describe it; the PRE-FILLED tier-C guess
   // (MTP off) → say it may work and point at the opt-in.
   if (e.mtpDraftFile && e.mtpDraftRepo)
     return e.mtp
-      ? "separate — external draft from another repo (separate download)"
-      : "the base family may support MTP — a drafter is pre-filled; check MTP below to try it or paste your own";
-  return "not available";
+      ? t("kit.modelCatalog.mtp.otherRepo")
+      : t("kit.modelCatalog.mtp.mayWork");
+  return t("kit.modelCatalog.mtp.none");
 });
 
 // ── repo file listing (Plan B D9): the quant dropdown + MTP-draft detection ──
@@ -660,16 +666,16 @@ const quantOptions = computed(() => {
     value: q.quant,
     label: `${q.quant} · ${gb(q.sizeMb)} GB${q.qat ? " · QAT" : ""}${q.kind === "IQ" ? " · IQ" : q.kind === "special" ? " · special" : ""}`,
   }));
-  return [...opts, { value: "__custom", label: "Custom…" }];
+  return [...opts, { value: "__custom", label: t("kit.modelCatalog.custom") }];
 });
 const draftOptions = computed(() => [
-  { value: "", label: "None" },
+  { value: "", label: t("kit.modelCatalog.none") },
   ...(listing.value?.drafts || []).map((d) => ({
     value: d.path,
     // An unloadable draft (arch the engine can't load) stays selectable — a forced pick
     // hits the load-time "unknown model architecture" fail-fast — but its label says so,
     // so it never reads as a normal option (UiSelect has no per-option disable).
-    label: `${d.path}${d.quant ? ` · ${d.quant}` : ""}${d.sizeMb ? ` · ${gb(d.sizeMb)} GB` : ""}${d.loadable === false ? ` — ${d.unsupportedArch || "arch"} not supported by your engine` : ""}`,
+    label: `${d.path}${d.quant ? ` · ${d.quant}` : ""}${d.sizeMb ? ` · ${gb(d.sizeMb)} GB` : ""}${d.loadable === false ? ` — ${t("kit.modelCatalog.draftUnsupported", { arch: d.unsupportedArch || t("kit.modelCatalog.draftUnsupportedArch") })}` : ""}`,
   })),
 ]);
 // The repo ships draft(s) but the engine can load NONE — the form leaves MTP off and says
@@ -712,7 +718,7 @@ async function loadRepoFiles({ autopick = true } = {}) {
     }
   } catch (err) {
     listing.value = null;
-    listingErr.value = err.message || "Couldn't list the repo's files.";
+    listingErr.value = err.message || t("kit.modelCatalog.err.listFiles");
   }
 }
 function onQuantPick(v) {
@@ -751,7 +757,7 @@ let inspectSeq = 0;
 const lastComposed = { name: null, description: null };
 async function inspectLink({ auto = false } = {}) {
   const e = editing.value;
-  if (!e?.hfRepo?.trim()) { inspectErr.value = "Enter the Hugging Face repo first."; return; }
+  if (!e?.hfRepo?.trim()) { inspectErr.value = t("kit.modelCatalog.err.repoFirst"); return; }
   const seq = ++inspectSeq;
   inspecting.value = true; inspectErr.value = ""; inspected.value = null;
   try {
@@ -833,13 +839,15 @@ async function inspectLink({ auto = false } = {}) {
       lastComposed.name = e.name;
     }
   } catch (err) {
-    inspectErr.value = err.message || "Couldn't read the model from the link.";
+    inspectErr.value = err.message || t("kit.modelCatalog.err.readLink");
   } finally {
     inspecting.value = false;
   }
 }
 
-// The composed description mirrors the field's own placeholder register ("fast 9B for
+// The composed description is DATA (it is saved on the catalog row, like the seeded rows'), so it
+// stays English as every database-stored text does (the i18n plan's decision 4).
+// It mirrors the field's own placeholder register ("fast 9B for
 // quick chat and drafts"): short " · "-joined facts, no sentence padding. Sources are
 // the same facts inspectLink just wrote (params/type/ctx/MTP) + the listing's quant row
 // (for QAT + file size); anything missing is simply skipped.
@@ -949,7 +957,7 @@ async function startEdit(m) {
     // mutate the row; only an explicit Read-from-link pre-picks quant/draft.
     loadRepoFiles({ autopick: false });
   } catch (e) {
-    saveErr.value = e.message || "Couldn't load the model.";
+    saveErr.value = e.message || t("kit.modelCatalog.err.loadModel");
     editing.value = { ...blankModel(), id: m.id, name: m.name }; editingNew.value = false;
   }
 }
@@ -961,7 +969,7 @@ function slugFromName(name) {
 async function saveModel() {
   const e = editing.value;
   if (editingNew.value && !e.id?.trim()) e.id = slugFromName(e.name);
-  if (!e.id?.trim()) { saveErr.value = "A name (for the id) is required."; return; }
+  if (!e.id?.trim()) { saveErr.value = t("kit.modelCatalog.err.nameRequired"); return; }
   saving.value = true; saveErr.value = "";
   try {
     await request("/v1/ai/model-catalog", {
@@ -985,7 +993,7 @@ async function saveModel() {
     await refresh();
     loadCatalogMeta();
   } catch (err) {
-    saveErr.value = err.message || "Save failed.";
+    saveErr.value = err.message || t("kit.modelCatalog.err.save");
   } finally {
     saving.value = false;
   }
@@ -1007,8 +1015,8 @@ async function deleteModel(m) {
 
   if (!used.length && !embedRef) {
     const ok = await confirmDialog({
-      title: `Remove "${m.name || m.id}" from the catalog?`,
-      message: "Removes the catalog entry and deletes its downloaded weights from disk. Reset restores the built-in entries; weights re-download on demand.",
+      title: t("kit.modelCatalog.del.removeTitle", { name: m.name || m.id }),
+      message: t("kit.modelCatalog.del.removeBody"),
       danger: true,
     });
     if (!ok) return;
@@ -1021,16 +1029,15 @@ async function deleteModel(m) {
   const repl = cands.some((c) => c.id === recommendedId.value) && !kind
     ? recommendedId.value
     : pickLowestQuality(cands, { qualityOf }) || "";
-  const usedBits = [
-    used.length ? `${used.length} task preset${used.length > 1 ? "s" : ""}` : "",
-    embedRef ? "the embedding slot" : "",
-  ].filter(Boolean).join(" and ");
+  const presets = used.length ? t("kit.modelCatalog.del.usedPresets", { n: used.length }, used.length) : "";
+  const slot = embedRef ? t("kit.modelCatalog.del.usedEmbedSlot") : "";
+  const usedBits = presets && slot ? t("kit.modelCatalog.del.usedBoth", { presets, slot }) : presets || slot;
   const ok = await confirmDialog({
-    title: `Delete ${m.name || m.id}?`,
+    title: t("kit.modelCatalog.del.title", { name: m.name || m.id }),
     message: repl
-      ? `It's in use by ${usedBits}. They'll be re-pointed to ${nameOf(repl)}, then the entry is removed and its downloaded weights are deleted from disk.`
-      : `It's in use by ${usedBits}, and no other ${kind ? "embedding" : "chat"} model is available to re-point to. Delete anyway and everything pointing at it will show "removed from the catalog" until you pick a replacement. Its downloaded weights are deleted from disk.`,
-    confirmLabel: repl ? "Re-point & delete" : "Delete anyway",
+      ? t("kit.modelCatalog.del.repointBody", { used: usedBits, repl: nameOf(repl) })
+      : t(kind ? "kit.modelCatalog.del.noReplEmbedBody" : "kit.modelCatalog.del.noReplChatBody", { used: usedBits }),
+    confirmLabel: repl ? t("kit.modelCatalog.del.repointConfirm") : t("kit.modelCatalog.del.anyway"),
     danger: true,
   });
   if (!ok) return;
@@ -1048,7 +1055,7 @@ async function deleteModel(m) {
       if (embedRef) await setAsEmbedding(LOCAL_RUNNER_ID, repl);
     }
   } catch (e) {
-    error.value = e.message || "Couldn't re-point the references — nothing was deleted.";
+    error.value = e.message || t("kit.modelCatalog.err.repoint");
     busy.value = "";
     return;
   }
@@ -1065,7 +1072,7 @@ async function _doDelete(m) {
     await refresh();
     loadCatalogMeta(); // keep the shared catalog-meta map in sync (like save/reset do)
     refreshApplied(); // the strip + badges re-read the (possibly re-pointed) applied state
-  } catch (e) { error.value = e.message || "Delete failed."; } finally { busy.value = ""; }
+  } catch (e) { error.value = e.message || t("kit.modelCatalog.err.delete"); } finally { busy.value = ""; }
 }
 
 // Re-download / repair a model WITHOUT touching its catalog entry (the corrupt-GGUF recovery,
@@ -1084,7 +1091,7 @@ async function redownload(m) {
     if (m.status === "loaded") await stopModel(m);
     await request("/v1/llm-runner/models-cache/delete", { method: "POST", body: { modelId: m.id } });
     await download(m.id); // re-fetch from Hugging Face (own progress channel + refresh)
-  } catch (e) { error.value = e.message || "Re-download failed."; } finally { busy.value = ""; }
+  } catch (e) { error.value = e.message || t("kit.modelCatalog.err.redownload"); } finally { busy.value = ""; }
 }
 
 // Free a model's downloaded weights while KEEPING its catalog entry (the disk-reclaim
@@ -1094,9 +1101,9 @@ async function redownload(m) {
 // exactly as redownload does; on unload failure the error surfaces and nothing is deleted.
 async function freeDownload(m) {
   const ok = await confirmDialog({
-    title: `Delete the downloaded model "${m.name || m.id}"?`,
-    message: "Deletes its downloaded weights from disk. The model stays in your catalog and re-downloads on demand. A loaded model is unloaded first.",
-    confirmLabel: "Delete downloaded model",
+    title: t("kit.modelCatalog.free.title", { name: m.name || m.id }),
+    message: t("kit.modelCatalog.free.body"),
+    confirmLabel: t("kit.modelCatalog.menu.deleteDownload"),
   });
   if (!ok) return;
   busy.value = `free:${m.id}`; // own namespace so its spinner ≠ Delete's / Re-download's / the row load spinner
@@ -1105,16 +1112,16 @@ async function freeDownload(m) {
     if (m.status === "loaded") await stopModel(m);
     await request("/v1/llm-runner/models-cache/delete", { method: "POST", body: { modelId: m.id } });
     await refresh(); // re-pull so the row flips to "Not downloaded" and this button hides
-  } catch (e) { error.value = e.message || "Couldn't free the download."; } finally { busy.value = ""; }
+  } catch (e) { error.value = e.message || t("kit.modelCatalog.err.freeDownload"); } finally { busy.value = ""; }
 }
 async function resetCatalog() {
-  const ok = await confirmDialog({ title: "Reset the model catalog to factory?", message: "Restores the built-in models. Your added models are kept." });
+  const ok = await confirmDialog({ title: t("kit.modelCatalog.reset.title"), message: t("kit.modelCatalog.reset.body") });
   if (!ok) return;
   try {
     await request("/v1/ai/model-catalog/reset", { method: "POST" });
     await refresh();
     loadCatalogMeta();
-  } catch (e) { error.value = e.message || "Reset failed."; }
+  } catch (e) { error.value = e.message || t("kit.modelCatalog.err.reset"); }
 }
 
 loadCatalogMeta();
@@ -1128,85 +1135,85 @@ refreshApplied();
          load state + its own Load/Unload (the same writers as the rows below). -->
     <div class="lu-setup">
       <div class="lu-setup-card" :class="{ 'lu-setup-card--empty': !defaultName || defaultGone }">
-        <div class="lu-setup-role">General model</div>
+        <div class="lu-setup-role">{{ t('kit.modelCatalog.slot.general') }}</div>
         <!-- The picker IS the card's value line and stays visible when set (#5:
              "leave the drop downs visible so you can change it will just unload and
              load") — changing it assigns + loads through the same writers as the
              rows, swapping the resident model. -->
-        <div v-if="defaultGone" class="lu-setup-val">{{ currentDefaultId }} — removed from the catalog</div>
+        <div v-if="defaultGone" class="lu-setup-val">{{ t('kit.modelCatalog.slot.removed', { id: currentDefaultId }) }}</div>
         <UiSelect v-if="chatSlotOptions.length" class="lu-setup-pick"
           :model-value="defaultGone ? '' : (currentDefaultId || '')" :options="chatSlotOptions"
-          placeholder="Choose a model…" @update:model-value="pickSlot($event, false)" />
+          :placeholder="t('kit.modelCatalog.slot.choose')" @update:model-value="pickSlot($event, false)" />
         <!-- §8.23: a "no"-fit pick is allowed and INFORMED — the warning, never a gate. -->
         <p v-if="chatSlotWarning" class="lu-setup-warn">{{ chatSlotWarning }}</p>
         <div class="lu-setup-hint">
           {{ defaultGone
-            ? "Your tasks still point at it, but it's gone — pick a replacement here."
+            ? t('kit.modelCatalog.slot.generalGone')
             : defaultName
-              ? `${CC.generalUse} — every task uses it unless you override a task. Changing it swaps the loaded model.`
+              ? t('kit.modelCatalog.slot.generalSet', { use: t('kit.catalog.generalUse') })
               : recommendedId
-                ? `${CC.generalUse} — we recommend ${nameOf(recommendedId)} for this PC.`
-                : `${CC.generalUse} — pick one to get started.` }}
+                ? t('kit.modelCatalog.slot.generalRecommend', { use: t('kit.catalog.generalUse'), model: nameOf(recommendedId) })
+                : t('kit.modelCatalog.slot.generalPick', { use: t('kit.catalog.generalUse') }) }}
         </div>
         <div v-if="defaultModel && !defaultGone" class="lu-setup-live">
-          <span v-if="slotState(defaultModel) === 'loaded'" class="lu-pill lu-pill--run">● loaded</span>
+          <span v-if="slotState(defaultModel) === 'loaded'" class="lu-pill lu-pill--run">{{ t('kit.modelCatalog.state.loaded') }}</span>
           <!-- Unload isn't a download — a plain "Unloading…" indicator, not the bar. -->
-          <span v-else-if="slotState(defaultModel) === 'stopping'" class="lu-muted">Unloading…</span>
+          <span v-else-if="slotState(defaultModel) === 'stopping'" class="lu-muted">{{ t('kit.modelCatalog.state.unloading') }}</span>
           <!-- THE shared control (QuickSetup's bar — same createDownloadTask, phases, Cancel). -->
           <DownloadBar v-else-if="slotState(defaultModel) === 'working'"
-            class="lu-setup-dlbar" :title="defaultName" role="General model" :task="taskFor(defaultModel.id)" />
-          <span v-else-if="slotState(defaultModel) === 'error'" class="lu-error-inline">load failed — see its row below</span>
-          <span v-else-if="slotState(defaultModel) === 'idle'" class="lu-muted">○ loads on first use</span>
-          <span v-else class="lu-muted">not downloaded — see its row below</span>
+            class="lu-setup-dlbar" :title="defaultName" :role="t('kit.modelCatalog.slot.general')" :task="taskFor(defaultModel.id)" />
+          <span v-else-if="slotState(defaultModel) === 'error'" class="lu-error-inline">{{ t('kit.modelCatalog.state.slotLoadFailed') }}</span>
+          <span v-else-if="slotState(defaultModel) === 'idle'" class="lu-muted">{{ t('kit.modelCatalog.state.loadsOnFirstUse') }}</span>
+          <span v-else class="lu-muted">{{ t('kit.modelCatalog.state.slotNotDownloaded') }}</span>
           <UiButton v-if="slotState(defaultModel) === 'idle'" intent="secondary" size="small"
             :loading="applyingId === defaultModel.id"
-            title="Load it into memory now so your first write doesn't pay the load wait"
-            @click="loadAssigned(defaultModel, false)">Load now</UiButton>
+            :title="t('kit.modelCatalog.btn.loadNowTitle')"
+            @click="loadAssigned(defaultModel, false)">{{ t('kit.modelCatalog.btn.loadNow') }}</UiButton>
           <UiButton v-else-if="slotState(defaultModel) === 'loaded'" intent="ghost" size="small"
             :loading="busy === 'unload:' + defaultModel.id"
-            title="Unload from memory — frees VRAM; it loads again on next use"
-            @click="unloadModel(defaultModel)">Unload</UiButton>
+            :title="t('kit.modelCatalog.btn.unloadTitle')"
+            @click="unloadModel(defaultModel)">{{ t('kit.modelCatalog.btn.unload') }}</UiButton>
         </div>
       </div>
-      <div v-if="CC.showEmbedding" class="lu-setup-card" :class="{ 'lu-setup-card--empty': !embeddingName || embeddingGone }">
-        <div class="lu-setup-role">Embedding model</div>
-        <div v-if="embeddingGone" class="lu-setup-val">{{ currentEmbeddingId }} — removed from the catalog</div>
+      <div v-if="showEmbedding" class="lu-setup-card" :class="{ 'lu-setup-card--empty': !embeddingName || embeddingGone }">
+        <div class="lu-setup-role">{{ t('kit.modelCatalog.slot.embedding') }}</div>
+        <div v-if="embeddingGone" class="lu-setup-val">{{ t('kit.modelCatalog.slot.removed', { id: currentEmbeddingId }) }}</div>
         <UiSelect v-if="embedSlotOptions.length" class="lu-setup-pick"
           :model-value="embeddingGone ? '' : (currentEmbeddingId || '')" :options="embedSlotOptions"
-          placeholder="Choose an embedding model…" @update:model-value="pickSlot($event, true)" />
+          :placeholder="t('kit.modelCatalog.slot.chooseEmbed')" @update:model-value="pickSlot($event, true)" />
         <p v-if="embedSlotWarning" class="lu-setup-warn">{{ embedSlotWarning }}</p>
         <div class="lu-setup-hint">
           {{ embeddingGone
-            ? "Search still points at it, but it's gone — pick a replacement here."
+            ? t('kit.modelCatalog.slot.embedGone')
             : embeddingName
-              ? "Powers semantic search + grounded chat, alongside your General model. Changing it swaps the loaded model."
+              ? t('kit.modelCatalog.slot.embedSet')
               : recommendedEmbedId
-                ? `Powers semantic search + grounded chat — we recommend ${nameOf(recommendedEmbedId)} for this PC.`
-                : "Powers semantic search + grounded chat — pick one to get started." }}
+                ? t('kit.modelCatalog.slot.embedRecommend', { model: nameOf(recommendedEmbedId) })
+                : t('kit.modelCatalog.slot.embedPick') }}
         </div>
         <div v-if="embeddingModel && !embeddingGone" class="lu-setup-live">
-          <span v-if="slotState(embeddingModel) === 'loaded'" class="lu-pill lu-pill--run">● loaded</span>
-          <span v-else-if="slotState(embeddingModel) === 'stopping'" class="lu-muted">Unloading…</span>
+          <span v-if="slotState(embeddingModel) === 'loaded'" class="lu-pill lu-pill--run">{{ t('kit.modelCatalog.state.loaded') }}</span>
+          <span v-else-if="slotState(embeddingModel) === 'stopping'" class="lu-muted">{{ t('kit.modelCatalog.state.unloading') }}</span>
           <DownloadBar v-else-if="slotState(embeddingModel) === 'working'"
-            class="lu-setup-dlbar" :title="embeddingName" role="Embedding model" :task="taskFor(embeddingModel.id)" />
-          <span v-else-if="slotState(embeddingModel) === 'error'" class="lu-error-inline">load failed — see its row below</span>
-          <span v-else-if="slotState(embeddingModel) === 'idle'" class="lu-muted">○ loads on first search</span>
-          <span v-else class="lu-muted">not downloaded — see its row below</span>
+            class="lu-setup-dlbar" :title="embeddingName" :role="t('kit.modelCatalog.slot.embedding')" :task="taskFor(embeddingModel.id)" />
+          <span v-else-if="slotState(embeddingModel) === 'error'" class="lu-error-inline">{{ t('kit.modelCatalog.state.slotLoadFailed') }}</span>
+          <span v-else-if="slotState(embeddingModel) === 'idle'" class="lu-muted">{{ t('kit.modelCatalog.state.loadsOnFirstSearch') }}</span>
+          <span v-else class="lu-muted">{{ t('kit.modelCatalog.state.slotNotDownloaded') }}</span>
           <UiButton v-if="slotState(embeddingModel) === 'idle'" intent="secondary" size="small"
             :loading="applyingId === embeddingModel.id"
-            title="Load it into memory now, alongside your chat model"
-            @click="loadAssigned(embeddingModel, true)">Load now</UiButton>
+            :title="t('kit.modelCatalog.btn.loadNowEmbedTitle')"
+            @click="loadAssigned(embeddingModel, true)">{{ t('kit.modelCatalog.btn.loadNow') }}</UiButton>
           <UiButton v-else-if="slotState(embeddingModel) === 'loaded'" intent="ghost" size="small"
             :loading="busy === 'unload:' + embeddingModel.id"
-            title="Unload from memory — frees VRAM; it loads again on the next search"
-            @click="unloadModel(embeddingModel)">Unload</UiButton>
+            :title="t('kit.modelCatalog.btn.unloadEmbedTitle')"
+            @click="unloadModel(embeddingModel)">{{ t('kit.modelCatalog.btn.unload') }}</UiButton>
         </div>
       </div>
     </div>
-    <p class="lu-setup-cap lu-muted">{{ CC.slotsFootnote }}</p>
+    <p class="lu-setup-cap lu-muted">{{ t('kit.catalog.slotsFootnote') }}</p>
 
     <!-- #10 (user, 2026-07-08): a real section heading over the catalog. -->
-    <div class="lu-mcat-title">Model Catalog</div>
+    <div class="lu-mcat-title">{{ t('kit.modelCatalog.title') }}</div>
     <!-- THIS PC, stated ONCE (2026-07-26). It used to be appended to every class
          badge, where it sat beside each model's own VRAM/RAM requirement and read as
          a second, contradictory requirement. It is the same for every row — so it
@@ -1218,22 +1225,25 @@ refreshApplied();
          "8 GB VRAM · 32 GB RAM" and was wrong on both numbers. The class still shows,
          after the hardware, because it is what every row's Runs-on hover is keyed to. -->
     <div v-if="hardwareLabel || tuneState?.classKey" class="lu-mcat-thispc lu-muted">
-      This PC · <b>{{ hardwareLabel || classKeyLabel(tuneState.classKey) }}</b>
+      {{ t('kit.modelCatalog.thisPc') }} · <b>{{ hardwareLabel || classKeyLabel(tuneState.classKey) }}</b>
       <span v-if="hardwareLabel && tuneState?.classKey">
-        — PC class {{ classKeyLabel(tuneState.classKey) }}</span>
+        — {{ t('kit.modelCatalog.pcClass', { name: classKeyLabel(tuneState.classKey) }) }}</span>
     </div>
     <div class="lu-mcat-bar">
-      <UiInput v-model="query" class="lu-mcat-search" placeholder="Search models…" />
+      <UiInput v-model="query" class="lu-mcat-search" :placeholder="t('kit.modelCatalog.search')" />
       <span class="lu-mcat-spacer" />
-      <UiButton intent="secondary" size="small" @click="resetCatalog">Reset catalog</UiButton>
-      <UiButton intent="primary" size="small" @click="startAdd"><template #icon>＋</template>Add model</UiButton>
+      <UiButton intent="secondary" size="small" @click="resetCatalog">{{ t('kit.modelCatalog.btn.reset') }}</UiButton>
+      <UiButton intent="primary" size="small" @click="startAdd"><template #icon>＋</template>{{ t('kit.modelCatalog.btn.add') }}</UiButton>
     </div>
 
     <div v-if="error" class="lu-error lu-mcat-err">{{ error }}</div>
-    <div v-else-if="loading" class="lu-mcat-empty">Loading catalog…</div>
+    <div v-else-if="loading" class="lu-mcat-empty">{{ t('kit.modelCatalog.loading') }}</div>
     <div v-else-if="!hasAny" class="lu-mcat-empty">
-      <template v-if="query.trim()">No models match “{{ query }}”.</template>
-      <template v-else>No models in the catalog — <b>Add model</b> to add your own, or <b>Reset catalog</b> to restore the built-ins.</template>
+      <template v-if="query.trim()">{{ t('kit.modelCatalog.noMatch', { query }) }}</template>
+      <i18n-t v-else keypath="kit.modelCatalog.empty" tag="span" scope="global">
+        <template #add><b>{{ t('kit.modelCatalog.btn.add') }}</b></template>
+        <template #reset><b>{{ t('kit.modelCatalog.btn.reset') }}</b></template>
+      </i18n-t>
     </div>
 
     <div v-else class="lu-mcat-wrap">
@@ -1259,7 +1269,7 @@ refreshApplied();
           <!-- THE one shared DownloadBar + createDownloadTask, now with the full grid
                width to lay out its caption, speed and percent on one line. -->
           <DownloadBar v-else-if="m.__progressFor" :title="m.model.name" :task="taskFor(m.model.id)" />
-          <template v-else>Doesn't fit this machine — {{ m.count }} more</template>
+          <template v-else>{{ t('kit.modelCatalog.noFit', { n: m.count }) }}</template>
         </template>
 
         <template #name="{ row: m }">
@@ -1274,8 +1284,8 @@ refreshApplied();
                      provider rows (2026-07-17). `:empty` hides the line on a row with no
                      tags, so it costs no space rather than needing a v-if. -->
                 <div class="lu-mtags">
-                  <UiTag v-for="t in rowTags(m)" :key="t.key" :intent="t.intent"
-                    class="lu-mbadge" :title="t.title">{{ t.label }}</UiTag>
+                  <UiTag v-for="tag in rowTags(m)" :key="tag.key" :intent="tag.intent"
+                    class="lu-mbadge" :title="tag.title">{{ tag.label }}</UiTag>
                 </div>
                 <!-- The catalog id line was REMOVED 2026-07-26 (the user: "Qwen3.6 27B
                      (MTP) / qwen3.6-27b diplicate name"). On a chooser row the id restates
@@ -1284,8 +1294,8 @@ refreshApplied();
                 <!-- Two labelled facts, each on its own line (the user's final shape,
                      2026-07-26): the download size, then the model's PC classes — the
                      answer to "what hardware does this run on" (see rowClasses). -->
-                <div v-if="rowSize(m)" class="lu-mrowmeta lu-muted" title="Download size on disk">
-                  Size on disk · {{ rowSize(m) }}
+                <div v-if="rowSize(m)" class="lu-mrowmeta lu-muted" :title="t('kit.modelCatalog.sizeTitle')">
+                  {{ t('kit.modelCatalog.sizeOnDisk', { size: rowSize(m) }) }}
                 </div>
                 <!-- WHAT HARDWARE THIS NEEDS, in plain words on the row; the enumeration
                      of PC classes moved to the hover (2026-07-27, the user's call after
@@ -1302,13 +1312,13 @@ refreshApplied();
                   class="lu-mrowmeta lu-muted" :title="runsOnTitle(m)">
                   <!-- Display snaps UP real hardware sizes (§5.6/§8.15); the floors
                        themselves stay RAW (stored+compared) — the hover keeps raw. -->
-                  Needs {{ displayVramGb(m.minVramMb) }} GB VRAM · {{ displayRamGb(m.minRamMb) }} GB RAM
+                  {{ t('kit.modelCatalog.needs', { vram: displayVramGb(m.minVramMb), ram: displayRamGb(m.minRamMb) }) }}
                 </div>
                 <div v-else-if="!embeddingOf(m)" class="lu-mrowmeta lu-muted">
-                  Hardware needs unknown — edit the model to set its requirements
+                  {{ t('kit.modelCatalog.needsUnknown') }}
                 </div>
                 <div v-if="descriptionOf(m)" class="lu-mdesc">{{ descriptionOf(m) }}</div>
-                <div v-if="notesOf(m)" class="lu-mnotes">Your notes: {{ notesOf(m) }}</div>
+                <div v-if="notesOf(m)" class="lu-mnotes">{{ t('kit.modelCatalog.yourNotes', { notes: notesOf(m) }) }}</div>
                 <!-- The "Model card ↗" row link died 2026-08-14 (user): the same
                      act is "View on Hugging Face" in the ⋯ menu here AND on
                      JustVoice's speech rows. Two names for one verb, one of them
@@ -1323,8 +1333,8 @@ refreshApplied();
                 <!-- Params column REPLACED (Plan B — the count already rides name/description).
                      Architecture + capabilities: Dense/MoE is the type; MTP/Embed are flags. -->
                 <LuModelTypeTag :type="typeOf(m)" class="lu-typetag" />
-                <UiTag v-if="mtpOf(m)" intent="info" class="lu-typetag" title="Multi-token prediction — speculative decode enables by default">MTP</UiTag>
-                <UiTag v-if="embeddingOf(m)" intent="accent2" class="lu-typetag" title="Embedding model — powers semantic search + grounded chat">Embed</UiTag>
+                <UiTag v-if="mtpOf(m)" intent="info" class="lu-typetag" :title="t('kit.modelCatalog.tag.mtpTitle')">{{ t('kit.modelCatalog.tag.mtp') }}</UiTag>
+                <UiTag v-if="embeddingOf(m)" intent="accent2" class="lu-typetag" :title="t('kit.modelCatalog.tag.embedTitle')">{{ t('kit.modelCatalog.tag.embed') }}</UiTag>
               </div>
         </template>
 
@@ -1338,7 +1348,7 @@ refreshApplied();
         <template #quality="{ row: m }">
               <div class="lu-mnum">
                 <span :class="['lu-bench', { 'lu-bench-none': qualityOf(m) >= 100 }]"
-                  title="Published general-purpose benchmark rank (lower = better); “—” = unranked">{{ benchLabel(m) }}</span>
+                  :title="t('kit.modelCatalog.benchTitle')">{{ benchLabel(m) }}</span>
               </div>
         </template>
 
@@ -1348,28 +1358,28 @@ refreshApplied();
                      measured band drops it. No band (facts/bandwidth unknown) →
                      the plain feasibility chip, never a guess. The row states a
                      REAL measured tok/s once one exists (outranks the estimate). -->
-                <span class="lu-fit" :class="`lu-fit--${m.fit}`" :title="fitChipTitle(m)">{{ fitLabel(m) }}<template v-if="speedBandLabel(m)"> · {{ speedBandLabel(m) }}</template></span>
+                <span class="lu-fit" :class="`lu-fit--${m.fit}`" :title="fitChipTitle(m)">{{ fitChipLabel(m) }}<template v-if="speedBandLabel(m)"> · {{ speedBandLabel(m) }}</template></span>
                 <div v-if="m.measuredTokS" class="lu-mrowmeta lu-muted"
-                  title="Measured on this PC — replaces the estimate">{{ m.measuredTokS }} tok/s</div>
+                  :title="t('kit.modelCatalog.measuredTitle')">{{ t('kit.modelCatalog.tokS', { n: m.measuredTokS }) }}</div>
         </template>
 
         <template #status="{ row: m }">
-                <span v-if="m.status === 'loaded'" class="lu-pill lu-pill--run">● loaded</span>
-                <span v-else-if="m.status === 'stopping'" class="lu-mstat">Unloading…</span>
+                <span v-if="m.status === 'loaded'" class="lu-pill lu-pill--run">{{ t('kit.modelCatalog.state.loaded') }}</span>
+                <span v-else-if="m.status === 'stopping'" class="lu-mstat">{{ t('kit.modelCatalog.state.unloading') }}</span>
                 <!-- The bar itself lives in a full-width row UNDER this one (user,
                      2026-08-14) — one narrow column made its caption, speed and percent
                      wrap into a stack. The cell keeps a word so the column never goes
                      blank; the bar below always has content now that taskFor falls back
                      to the server's own row, so "see below" can't point at nothing. -->
-                <span v-else-if="m.status === 'loading'" class="lu-mstat">{{ m.detail || "Working…" }}</span>
-                <span v-else-if="m.status === 'error'" class="lu-mstat">Failed — see below</span>
-                <span v-else-if="m.status === 'disk'" class="lu-pill lu-pill--disk">Downloaded</span>
-                <span v-else class="lu-mstat">Not downloaded</span>
+                <span v-else-if="m.status === 'loading'" class="lu-mstat">{{ m.detail || t('kit.modelCatalog.state.working') }}</span>
+                <span v-else-if="m.status === 'error'" class="lu-mstat">{{ t('kit.modelCatalog.state.failed') }}</span>
+                <span v-else-if="m.status === 'disk'" class="lu-pill lu-pill--disk">{{ t('kit.modelCatalog.state.downloaded') }}</span>
+                <span v-else class="lu-mstat">{{ t('kit.modelCatalog.state.notDownloaded') }}</span>
         </template>
 
         <template #actions="{ row: m }">
                 <div class="lu-macts">
-                  <UiButton intent="ghost" size="small" title="Edit catalog fields" @click="startEdit(m)">Edit</UiButton>
+                  <UiButton intent="ghost" size="small" :title="t('kit.modelCatalog.btn.editTitle')" @click="startEdit(m)">{{ t('kit.modelCatalog.btn.edit') }}</UiButton>
                 <!-- Cancel lives IN the status-cell DownloadBar now (task.cancel — one control,
                      both channels: a spawn-LOAD aborts via /stop, a download via /download/cancel).
                      So the load/download CTAs simply HIDE while loading; no per-row Cancel button. -->
@@ -1380,16 +1390,16 @@ refreshApplied();
                        the pair read as two different controls across the two
                        catalogs. Same order, same words now. -->
                   <UiButton v-if="m.status === 'available'" intent="primary" size="small"
-                    :loading="loadingId === m.id" @click="download(m.id)">Download</UiButton>
+                    :loading="loadingId === m.id" @click="download(m.id)">{{ t('kit.modelCatalog.btn.download') }}</UiButton>
                   <!-- Load / Unload are ROW BUTTONS, not menu items (user, 2026-08-14):
                        since setting a default no longer loads, warming and freeing are
                        everyday verbs and belong in reach. -->
                   <UiButton v-if="m.status === 'loaded'" intent="ghost" size="small"
-                    :loading="applyingId === m.id" title="Free this model's memory (VRAM) — it loads again on next use"
-                    @click="unloadModel(m)">Unload model</UiButton>
+                    :loading="applyingId === m.id" :title="t('kit.modelCatalog.btn.unloadModelTitle')"
+                    @click="unloadModel(m)">{{ t('kit.modelCatalog.btn.unloadModel') }}</UiButton>
                   <UiButton v-else-if="m.downloaded && m.status !== 'stopping'" intent="ghost" size="small"
-                    :loading="applyingId === m.id" title="Load this model into memory now, so the first run doesn't wait"
-                    @click="loadAssigned(m, embeddingOf(m))">Load model</UiButton>
+                    :loading="applyingId === m.id" :title="t('kit.modelCatalog.btn.loadModelTitle')"
+                    @click="loadAssigned(m, embeddingOf(m))">{{ t('kit.modelCatalog.btn.loadModel') }}</UiButton>
                   <!-- Green when it IS the default (2026-07-17, user: "make it green when default
                        is true"); disabled greys out, so the default stays ENABLED + clickable
                        (re-apply is idempotent). Embed vs general differ only in the TARGET.
@@ -1397,15 +1407,15 @@ refreshApplied();
                   <template v-if="m.status !== 'available'">
                     <UiButton v-if="embeddingOf(m)" :intent="m.id === currentEmbeddingId ? 'success' : 'primary'" size="small"
                       :disabled="m.status === 'stopping'" :loading="applyingId === m.id"
-                      title="Make this the embedding model for semantic search + grounded chat. It loads the first time a search needs it — or press Load model to warm it now."
+                      :title="t('kit.modelCatalog.btn.setEmbedTitle')"
                       @click="makeEmbedding(m)">
-                      {{ m.id === currentEmbeddingId ? "Default ✓" : "Set as default" }}
+                      {{ m.id === currentEmbeddingId ? t('kit.modelCatalog.btn.isDefault') : t('kit.modelCatalog.btn.setDefault') }}
                     </UiButton>
                     <UiButton v-else :intent="m.id === currentDefaultId ? 'success' : 'primary'" size="small"
                       :disabled="m.status === 'stopping'" :loading="applyingId === m.id"
-                      title="Make this the default model for every task. It loads on first use — or press Load model to warm it now."
+                      :title="t('kit.modelCatalog.btn.setDefaultTitle')"
                       @click="makeDefault(m)">
-                      {{ m.id === currentDefaultId ? "Default ✓" : "Set as default" }}
+                      {{ m.id === currentDefaultId ? t('kit.modelCatalog.btn.isDefault') : t('kit.modelCatalog.btn.setDefault') }}
                     </UiButton>
                   </template>
                 </template>
@@ -1413,168 +1423,165 @@ refreshApplied();
                        list's overflow:auto clip (the kit's UiMenu: focus, keys, Esc and click-outside built in).
                        Load / Unload are NOT here (user, 2026-08-14) — they are row buttons
                        beside the default toggle, where everyday verbs belong. -->
-                  <UiMenu label="More actions" trigger-class="lu-mkebab" content-class="lu-mmenu" align="end">
+                  <UiMenu :label="t('kit.modelCatalog.menu.more')" trigger-class="lu-mkebab" content-class="lu-mmenu" align="end">
                     <template #trigger>⋯</template>
-                    <UiMenuItem v-if="m.status === 'loaded' || m.status === 'disk'" class="lu-mmi" @select="tuning = m">Tune &amp; measure</UiMenuItem>
-                    <UiMenuItem v-if="m.status === 'error' || m.status === 'disk' || m.status === 'loaded'" class="lu-mmi" @select="redownload(m)">Re-download</UiMenuItem>
+                    <UiMenuItem v-if="m.status === 'loaded' || m.status === 'disk'" class="lu-mmi" @select="tuning = m">{{ t('kit.modelCatalog.menu.tune') }}</UiMenuItem>
+                    <UiMenuItem v-if="m.status === 'error' || m.status === 'disk' || m.status === 'loaded'" class="lu-mmi" @select="redownload(m)">{{ t('kit.modelCatalog.menu.redownload') }}</UiMenuItem>
                     <!-- Open folder · View on Hugging Face — the SAME two verbs,
                          in the same order, as JustVoice's speech-model menu. -->
-                    <UiMenuItem v-if="m.localDir" class="lu-mmi" @select="openModelFolder(m)">Open folder</UiMenuItem>
-                    <UiMenuItem v-if="cardUrlOf(m)" class="lu-mmi" @select="viewOnHf(m)">View on Hugging Face</UiMenuItem>
+                    <UiMenuItem v-if="m.localDir" class="lu-mmi" @select="openModelFolder(m)">{{ t('kit.modelCatalog.menu.openFolder') }}</UiMenuItem>
+                    <UiMenuItem v-if="cardUrlOf(m)" class="lu-mmi" @select="viewOnHf(m)">{{ t('kit.modelCatalog.menu.viewHf') }}</UiMenuItem>
                     <UiMenuSeparator v-if="hasUpperMenu(m)" class="lu-mmsep" />
-                    <UiMenuItem v-if="m.downloaded && m.status !== 'loading' && m.status !== 'stopping'" class="lu-mmi lu-mmi-danger" @select="freeDownload(m)">Delete downloaded model</UiMenuItem>
-                    <UiMenuItem class="lu-mmi lu-mmi-danger" @select="deleteModel(m)">Delete from catalog</UiMenuItem>
+                    <UiMenuItem v-if="m.downloaded && m.status !== 'loading' && m.status !== 'stopping'" class="lu-mmi lu-mmi-danger" @select="freeDownload(m)">{{ t('kit.modelCatalog.menu.deleteDownload') }}</UiMenuItem>
+                    <UiMenuItem class="lu-mmi lu-mmi-danger" @select="deleteModel(m)">{{ t('kit.modelCatalog.menu.deleteCatalog') }}</UiMenuItem>
                   </UiMenu>
                 </div>
         </template>
       </UiTable>
     </div>
 
-    <div class="lu-muted lu-mcat-foot">
-      Models download from
-      <a class="lu-mlink" href="https://huggingface.co/models?library=gguf" target="_blank" rel="noopener"
-        @click.prevent="openExternal('https://huggingface.co/models?library=gguf')">Hugging Face ↗</a>
-      — the open model hub. Models load automatically when a task uses them; your chat default and the embedding can run together.
-    </div>
+    <i18n-t keypath="kit.modelCatalog.foot" tag="div" class="lu-muted lu-mcat-foot" scope="global">
+      <template #hub><a class="lu-mlink" href="https://huggingface.co/models?library=gguf" target="_blank" rel="noopener"
+        @click.prevent="openExternal('https://huggingface.co/models?library=gguf')">{{ t('kit.modelCatalog.footHub') }}</a></template>
+    </i18n-t>
 
     <!-- Add / edit a catalog model. Switch editing lives in the Lab (per-Task presets),
          not here — this form is catalog metadata only. -->
-    <AppModal v-if="editing" :title="editingNew ? 'Add model' : `Edit ${editing.name || editing.id}`"
+    <AppModal v-if="editing" :title="editingNew ? t('kit.modelCatalog.btn.add') : t('kit.modelCatalog.form.editTitle', { name: editing.name || editing.id })"
       :max-width="'560px'" @close="cancelEdit">
       <div class="lu-mm-form">
-        <label class="lu-mm-l">Name<UiInput v-model="editing.name" placeholder="Qwen3 14B · Q4_K_M" /></label>
+        <label class="lu-mm-l">{{ t('kit.modelCatalog.form.name') }}<UiInput v-model="editing.name" :placeholder="EXAMPLE.name" /></label>
         <!-- The id isn't a field to fill — it's derived from the name on save. Show
              the value that WILL be saved (resolved truth), not an empty box. -->
-        <div v-if="editingNew && editing.name?.trim()" class="lu-mm-idline lu-muted">id: {{ slugFromName(editing.name) }}</div>
+        <div v-if="editingNew && editing.name?.trim()" class="lu-mm-idline lu-muted">{{ t('kit.modelCatalog.form.idLine', { id: slugFromName(editing.name) }) }}</div>
 
-        <div class="lu-mm-note"><b>Download source</b> — where the GGUF is pulled from. The one thing you must set; the rest is read from the model itself.</div>
+        <div class="lu-mm-note"><b>{{ t('kit.modelCatalog.form.sourceTitle') }}</b> — {{ t('kit.modelCatalog.form.sourceBody') }}</div>
         <label class="lu-mm-l">
-          <span class="lu-mm-lrow">Hugging Face repo
+          <span class="lu-mm-lrow">{{ t('kit.modelCatalog.form.repo') }}
             <a v-if="editing.hfRepo?.trim()" class="lu-mlink" :href="`https://huggingface.co/${editing.hfRepo.trim()}`"
-              target="_blank" rel="noopener" title="Open the model card in your browser — full details, files, license"
-              @click.prevent="openExternal(`https://huggingface.co/${editing.hfRepo.trim()}`)">model card ↗</a>
+              target="_blank" rel="noopener" :title="t('kit.modelCatalog.form.cardLinkTitle')"
+              @click.prevent="openExternal(`https://huggingface.co/${editing.hfRepo.trim()}`)">{{ t('kit.modelCatalog.form.cardLink') }}</a>
           </span>
-          <UiInput v-model="editing.hfRepo" placeholder="unsloth/Qwen3-14B-GGUF" />
+          <UiInput v-model="editing.hfRepo" :placeholder="EXAMPLE.repo" />
         </label>
         <!-- #12c/d (user, 2026-07-08): the load-info action sits ABOVE the quant
              dropdown (it's what FILLS the quant list), renamed to say where the
              info comes from, in a stand-out color. -->
         <div class="lu-mm-inspect">
-          <UiButton intent="info" size="small" :loading="inspecting" @click="inspectLink">Load model info from HF</UiButton>
-          <span class="lu-muted">lists the repo's quants (sizes · QAT/IQ) + reads the GGUF header</span>
+          <UiButton intent="info" size="small" :loading="inspecting" @click="inspectLink">{{ t('kit.modelCatalog.form.inspect') }}</UiButton>
+          <span class="lu-muted">{{ t('kit.modelCatalog.form.inspectHint') }}</span>
         </div>
         <div v-if="inspectErr" class="lu-error">{{ inspectErr }}</div>
         <div v-if="listingErr" class="lu-error">{{ listingErr }}</div>
-        <label class="lu-mm-l">Quant
+        <label class="lu-mm-l">{{ t('kit.modelCatalog.form.quant') }}
           <template v-if="quantOptions.length > 1 && !quantCustom">
             <UiSelect :model-value="editing.quant" :options="quantOptions"
-              placeholder="pick a quant" @update:model-value="onQuantPick" />
+              :placeholder="t('kit.modelCatalog.form.quantPh')" @update:model-value="onQuantPick" />
           </template>
           <span v-else class="lu-mm-qrow">
-            <UiInput v-model="editing.quant" placeholder="Q4_K_M" />
+            <UiInput v-model="editing.quant" :placeholder="EXAMPLE.quant" />
             <UiButton v-if="quantOptions.length > 1" intent="ghost" size="small"
-              @click="quantCustom = false">choose from list</UiButton>
+              @click="quantCustom = false">{{ t('kit.modelCatalog.form.chooseFromList') }}</UiButton>
           </span>
         </label>
 
         <!-- #141: every row reads from the PERSISTED catalog facts (seeded, or written
              at download / by the boot backfill), so Edit-open shows exactly what
              Read-from-link shows; a fresh inspect overrides live. -->
-        <div class="lu-mm-note"><b>Auto-detected from the file</b> <span class="lu-muted">— read from the GGUF header (Read from link, or confirmed at download)</span></div>
+        <div class="lu-mm-note"><b>{{ t('kit.modelCatalog.form.autoTitle') }}</b> <span class="lu-muted">— {{ t('kit.modelCatalog.form.autoBody') }}</span></div>
         <div class="lu-mm-auto">
-          <div class="lu-mm-auto-row"><span class="lu-muted">Architecture</span><span>{{ (inspected?.architecture || editing.architecture) || "—" }}<template v-if="inspected?.experts || editing.experts"> · {{ inspected?.experts || editing.experts }} experts</template></span></div>
-          <div class="lu-mm-auto-row"><span class="lu-muted">Size (file)</span><span>{{ (inspected?.sizeLabel || editing.sizeLabel) || "—" }}</span></div>
-          <div class="lu-mm-auto-row"><span class="lu-muted">Trained context</span><span>{{ editing.trainedCtx ? `${editing.trainedCtx.toLocaleString()} tokens` : "—" }}</span></div>
-          <div class="lu-mm-auto-row"><span class="lu-muted">MTP</span><span>{{ mtpFact }}</span></div>
-          <div class="lu-mm-auto-row"><span class="lu-muted">Recommended samplers</span><span>{{ samplersLabel }}</span></div>
-          <div class="lu-mm-auto-row"><span class="lu-muted">Download size</span><span>{{ (inspected?.sizeBytes || editing.sizeBytes) ? fmtBytes(inspected?.sizeBytes || editing.sizeBytes) : "—" }}<template v-if="inspected?.estVramMb ?? editing.estVramMb"> · ≈ {{ (inspected?.estVramMb ?? editing.estVramMb).toLocaleString() }} MB VRAM (full GPU · 8K ctx)</template></span></div>
+          <div class="lu-mm-auto-row"><span class="lu-muted">{{ t('kit.modelCatalog.form.architecture') }}</span><span>{{ (inspected?.architecture || editing.architecture) || "—" }}<template v-if="inspected?.experts || editing.experts"> · {{ t('kit.modelCatalog.form.experts', { n: inspected?.experts || editing.experts }) }}</template></span></div>
+          <div class="lu-mm-auto-row"><span class="lu-muted">{{ t('kit.modelCatalog.form.sizeFile') }}</span><span>{{ (inspected?.sizeLabel || editing.sizeLabel) || "—" }}</span></div>
+          <div class="lu-mm-auto-row"><span class="lu-muted">{{ t('kit.modelCatalog.form.trainedCtx') }}</span><span>{{ editing.trainedCtx ? t('kit.modelCatalog.form.tokens', { n: fmtNum(editing.trainedCtx) }) : "—" }}</span></div>
+          <div class="lu-mm-auto-row"><span class="lu-muted">{{ t('kit.modelCatalog.tag.mtp') }}</span><span>{{ mtpFact }}</span></div>
+          <div class="lu-mm-auto-row"><span class="lu-muted">{{ t('kit.modelCatalog.form.samplers') }}</span><span>{{ samplersLabel }}</span></div>
+          <div class="lu-mm-auto-row"><span class="lu-muted">{{ t('kit.modelCatalog.form.downloadSize') }}</span><span>{{ (inspected?.sizeBytes || editing.sizeBytes) ? fmtBytes(inspected?.sizeBytes || editing.sizeBytes) : "—" }}<template v-if="inspected?.estVramMb ?? editing.estVramMb"> · {{ t('kit.modelCatalog.form.estVram', { mb: fmtNum(inspected?.estVramMb ?? editing.estVramMb) }) }}</template></span></div>
         </div>
-        <div v-if="poolingOf(editing)" class="lu-mm-note"><b>Embedding pooling: {{ poolingOf(editing) }}</b> <span class="lu-muted">— how the model's token vectors are combined into one embedding (mean · cls · last). Curated per embedding model; read-only here because the wrong pooling degrades search quality.</span></div>
+        <div v-if="poolingOf(editing)" class="lu-mm-note"><b>{{ t('kit.modelCatalog.form.pooling', { pooling: poolingOf(editing) }) }}</b> <span class="lu-muted">— {{ t('kit.modelCatalog.form.poolingBody') }}</span></div>
 
         <!-- Capability checkboxes (Plan B — replace the read-only Type/MTP rows; the user's
              editable-over-auto rule: auto-detected, override if you know better). MoE ⇄ the
              exclusive `type`; MTP + Embedding are independent flags. -->
-        <div class="lu-mm-note"><b>What this model is</b> <span class="lu-muted">— auto-detected from the file; override if you know better.</span></div>
+        <div class="lu-mm-note"><b>{{ t('kit.modelCatalog.form.whatTitle') }}</b> <span class="lu-muted">— {{ t('kit.modelCatalog.form.whatBody') }}</span></div>
         <div class="lu-mm-caps">
           <UiCheckbox :model-value="editing.type === 'moe'"
             @update:model-value="editing.type = $event ? 'moe' : 'dense'">
-            <span>MoE <span class="lu-muted">— mixture-of-experts (offloads experts to RAM)</span></span>
+            <span>{{ t('kit.modelCatalog.form.moe') }} <span class="lu-muted">— {{ t('kit.modelCatalog.form.moeHint') }}</span></span>
           </UiCheckbox>
           <UiCheckbox v-model="editing.mtp">
-            <span>MTP <span class="lu-muted">— multi-token prediction (speculative decode). Check to enable + configure below.</span></span>
+            <span>{{ t('kit.modelCatalog.tag.mtp') }} <span class="lu-muted">— {{ t('kit.modelCatalog.form.mtpHint') }}</span></span>
           </UiCheckbox>
           <UiCheckbox v-model="editing.embedding">
-            <span>Embedding <span class="lu-muted">— a RAG/search model, not a chat LLM</span></span>
+            <span>{{ t('kit.modelCatalog.tag.embedding') }} <span class="lu-muted">— {{ t('kit.modelCatalog.form.embeddingHint') }}</span></span>
           </UiCheckbox>
         </div>
         <!-- Honest gap (2026-07-21): a repo whose only draft uses an arch the engine can't
              load (e.g. dspark) leaves MTP off — say WHY, so a model whose card advertises
              MTP doesn't read as a silent unexplained blank. Built-in MTP needs no draft. -->
-        <div v-if="onlyUnsupportedDrafts && !editing.mtpBuiltin" class="lu-mm-note"><span class="lu-muted">MTP left off — this repo's draft uses an architecture your engine can't load<template v-if="listing?.drafts?.[0]?.unsupportedArch"> ({{ listing.drafts[0].unsupportedArch }})</template>.</span></div>
+        <div v-if="onlyUnsupportedDrafts && !editing.mtpBuiltin" class="lu-mm-note"><span class="lu-muted">{{ listing?.drafts?.[0]?.unsupportedArch ? t('kit.modelCatalog.form.mtpOffArch', { arch: listing.drafts[0].unsupportedArch }) : t('kit.modelCatalog.form.mtpOff') }}</span></div>
 
         <!-- Consistency (2026-07-13, decision A): each capability checkbox REVEALS +
              owns its config below, in checkbox order (MoE · MTP · Embedding); uncheck
              hides it. MoE/MTP change resolved switches via switch_resolve; Embedding
              drives placement + pooling (its own plane) — same interaction, uniform. -->
         <template v-if="editing.type === 'moe'">
-          <div class="lu-mm-note"><b>MoE</b> <span class="lu-muted">— experts offload to system RAM; the launch pins layers on GPU and frees VRAM via CPU MoE layers (adds <code>no_mmap</code> at load). Tune <code>n_cpu_moe</code> per box in Tune &amp; measure.</span></div>
+          <div class="lu-mm-note"><b>{{ t('kit.modelCatalog.form.moe') }}</b> <span class="lu-muted">— <i18n-t keypath="kit.modelCatalog.form.moeNote" scope="global"><template #noMmap><code>no_mmap</code></template><template #nCpuMoe><code>n_cpu_moe</code></template><template #tune>{{ t('kit.modelCatalog.menu.tune') }}</template></i18n-t></span></div>
         </template>
 
         <template v-if="editing.mtp">
-          <div class="lu-mm-note"><b>MTP config</b> <span class="lu-muted">—
-            <template v-if="editing.mtpBuiltin">built-in prediction heads; no external draft needed. </template>
-            <template v-else>runs via an external speculative-decode draft file (a separate download). </template>
-            Enabling adds <code>spec_type=draft-mtp</code> at load; uncheck to turn MTP off.</span></div>
-          <label class="lu-mm-l">Draft file <span class="lu-muted">{{ editing.mtpBuiltin ? "optional — built-in MTP" : "the speculative-decode model (feeds --model-draft)" }}</span>
+          <div class="lu-mm-note"><b>{{ t('kit.modelCatalog.form.mtpConfig') }}</b> <span class="lu-muted">—
+            {{ editing.mtpBuiltin ? t('kit.modelCatalog.form.mtpBuiltinNote') : t('kit.modelCatalog.form.mtpExternalNote') }}
+            <i18n-t keypath="kit.modelCatalog.form.mtpEnabling" scope="global"><template #spec><code>spec_type=draft-mtp</code></template></i18n-t></span></div>
+          <label class="lu-mm-l">{{ t('kit.modelCatalog.form.draftFile') }} <span class="lu-muted">{{ editing.mtpBuiltin ? t('kit.modelCatalog.form.draftFileBuiltin') : t('kit.modelCatalog.form.draftFileHint') }}</span>
             <!-- Dropdown = THIS repo's own drafts. When a DIFFERENT draft repo is set (a pre-filled
                  base-family guess, or one the user pasted), its file lives in that other repo — not
                  in this repo's listing — so it's a free-type field the user can edit. -->
             <UiSelect v-if="listing?.drafts?.length && !editing.mtpDraftRepo" :model-value="editing.mtpDraftFile"
               :options="draftOptions" @update:model-value="onDraftPick" />
-            <UiInput v-else v-model="editing.mtpDraftFile" placeholder="MTP/…-Q4_0-MTP.gguf" />
+            <UiInput v-else v-model="editing.mtpDraftFile" :placeholder="EXAMPLE.draftFile" />
           </label>
-          <label class="lu-mm-l">Draft repo <span class="lu-muted">optional — blank = the same repo as the model</span>
+          <label class="lu-mm-l">{{ t('kit.modelCatalog.form.draftRepo') }} <span class="lu-muted">{{ t('kit.modelCatalog.form.draftRepoHint') }}</span>
             <UiInput v-model="editing.mtpDraftRepo" placeholder="" /></label>
-          <div v-if="inspected?.mtpInheritedFile && (editing.mtpDraftRepo === inspected.mtpInheritedRepo)" class="lu-mm-note"><span class="lu-muted">Borrowed official drafter: <code>{{ inspected.mtpInheritedRepo }}</code> / <code>{{ inspected.mtpInheritedFile }}</code> — this model ships none of its own, so it uses the base family's.</span></div>
+          <div v-if="inspected?.mtpInheritedFile && (editing.mtpDraftRepo === inspected.mtpInheritedRepo)" class="lu-mm-note"><i18n-t keypath="kit.modelCatalog.form.borrowed" tag="span" class="lu-muted" scope="global"><template #repo><code>{{ inspected.mtpInheritedRepo }}</code></template><template #file><code>{{ inspected.mtpInheritedFile }}</code></template></i18n-t></div>
         </template>
 
         <template v-if="editing.embedding">
-          <div class="lu-mm-note"><b>Task templates</b> <span class="lu-muted">— some embedding models need an instruction around the text ({text} is the slot; leave empty if the model needs none). Changing these needs a Rebuild of the book index.</span></div>
-          <label class="lu-mm-l">Document template <span class="lu-muted">applied when indexing</span><UiTextarea v-model="editingTpl.documentTemplate" placeholder="search_document: {text}" /></label>
-          <label class="lu-mm-l">Query template <span class="lu-muted">applied to questions/searches</span><UiTextarea v-model="editingTpl.queryTemplate" placeholder="search_query: {text}" /></label>
+          <div class="lu-mm-note"><b>{{ t('kit.modelCatalog.form.tplTitle') }}</b> <span class="lu-muted">— {{ t('kit.modelCatalog.form.tplBody') }}</span></div>
+          <label class="lu-mm-l">{{ t('kit.modelCatalog.form.docTpl') }} <span class="lu-muted">{{ t('kit.modelCatalog.form.docTplHint') }}</span><UiTextarea v-model="editingTpl.documentTemplate" :placeholder="EXAMPLE.docTemplate" /></label>
+          <label class="lu-mm-l">{{ t('kit.modelCatalog.form.queryTpl') }} <span class="lu-muted">{{ t('kit.modelCatalog.form.queryTplHint') }}</span><UiTextarea v-model="editingTpl.queryTemplate" :placeholder="EXAMPLE.queryTemplate" /></label>
         </template>
 
-        <div class="lu-mm-note"><b>Fit estimate</b> — computed from the model file itself (read the link once and the app knows what the file needs); nothing here for you to figure out. Embedding models keep hand-set floors — they steer the wizard, not the badge.</div>
+        <div class="lu-mm-note"><b>{{ t('kit.modelCatalog.form.fitTitle') }}</b> — {{ t('kit.modelCatalog.form.fitBody') }}</div>
         <div class="lu-mm-row">
-          <label class="lu-mm-l">Total params<UiInput v-model="editing.totalParams" placeholder="14B" /></label>
-          <label class="lu-mm-l">Active params <span class="lu-muted">MoE only</span><UiInput v-model="editing.activeParams" placeholder="3.6B" /></label>
+          <label class="lu-mm-l">{{ t('kit.modelCatalog.form.totalParams') }}<UiInput v-model="editing.totalParams" :placeholder="EXAMPLE.totalParams" /></label>
+          <label class="lu-mm-l">{{ t('kit.modelCatalog.form.activeParams') }} <span class="lu-muted">{{ t('kit.modelCatalog.form.moeOnly') }}</span><UiInput v-model="editing.activeParams" :placeholder="EXAMPLE.activeParams" /></label>
         </div>
         <!-- Fit-redesign §13.17: the floor INPUTS retired for chat rows — the user
              never types a memory number; the server computes floors fresh from the
              file's stored facts on every read. Embeds keep the curated inputs
              (§8.6 — wizard-steering values embed_placement gates on). -->
         <div v-if="editing.embedding" class="lu-mm-row">
-          <label class="lu-mm-l">Min VRAM (MB)<UiInput v-model.number="editing.minVramMb" type="number" placeholder="11000" /></label>
-          <label class="lu-mm-l">Min RAM (MB)<UiInput v-model.number="editing.minRamMb" type="number" placeholder="14000" /></label>
+          <label class="lu-mm-l">{{ t('kit.modelCatalog.form.minVram') }}<UiInput v-model.number="editing.minVramMb" type="number" :placeholder="EXAMPLE.minVram" /></label>
+          <label class="lu-mm-l">{{ t('kit.modelCatalog.form.minRam') }}<UiInput v-model.number="editing.minRamMb" type="number" :placeholder="EXAMPLE.minRam" /></label>
         </div>
         <div v-else-if="editing.minVramMb && editing.minRamMb" class="lu-mm-note lu-muted">
-          Needs {{ displayVramGb(editing.minVramMb) }} GB VRAM · {{ displayRamGb(editing.minRamMb) }} GB RAM — computed from the file, updates on read.
+          {{ t('kit.modelCatalog.form.needsComputed', { vram: displayVramGb(editing.minVramMb), ram: displayRamGb(editing.minRamMb) }) }}
         </div>
 
-        <label class="lu-mm-l">License <span class="lu-muted">— SPDX id (Apache-2.0 · MIT · Llama-Community · …)</span><UiInput v-model="editing.license" placeholder="Apache-2.0" /></label>
-        <div class="lu-mm-l"><UiCheckbox v-model="editing.useLimited"><span>Use-limited license <span class="lu-muted">— not free for unrestricted/commercial use; shows the ⚠ badge</span></span></UiCheckbox></div>
+        <label class="lu-mm-l">{{ t('kit.modelCatalog.col.license') }} <span class="lu-muted">— {{ t('kit.modelCatalog.form.licenseHint') }}</span><UiInput v-model="editing.license" :placeholder="EXAMPLE.license" /></label>
+        <div class="lu-mm-l"><UiCheckbox v-model="editing.useLimited"><span>{{ t('kit.modelCatalog.form.useLimited') }} <span class="lu-muted">— {{ t('kit.modelCatalog.form.useLimitedHint') }}</span></span></UiCheckbox></div>
 
-        <div class="lu-mm-note"><b>Description & your notes</b> <span class="lu-muted">— the description refreshes from the file facts on Read from link; Notes are yours alone and are never touched by reads, downloads, or resets.</span></div>
-        <label class="lu-mm-l">Description <span class="lu-muted">generated from hf info card</span><UiTextarea v-model="editing.description" placeholder="What this model is — refreshed from the file facts" /></label>
-        <label class="lu-mm-l">Notes <span class="lu-muted">yours — measurements, taste, use policy</span><UiTextarea v-model="editing.notes" placeholder="e.g. measured writer TTFT 1.6 s on my box; my go-to for dark scenes" /></label>
-        <label class="lu-mm-l">Benchmark rank <span class="lu-muted">— published general-benchmark order; lower = better; 100 = unranked (sorts last)</span><UiInput v-model.number="editing.qualityRank" type="number" placeholder="100" /></label>
+        <div class="lu-mm-note"><b>{{ t('kit.modelCatalog.form.descTitle') }}</b> <span class="lu-muted">— {{ t('kit.modelCatalog.form.descBody') }}</span></div>
+        <label class="lu-mm-l">{{ t('kit.modelCatalog.form.description') }} <span class="lu-muted">{{ t('kit.modelCatalog.form.descriptionHint') }}</span><UiTextarea v-model="editing.description" :placeholder="t('kit.modelCatalog.form.descriptionPh')" /></label>
+        <label class="lu-mm-l">{{ t('kit.modelCatalog.form.notes') }} <span class="lu-muted">{{ t('kit.modelCatalog.form.notesHint') }}</span><UiTextarea v-model="editing.notes" :placeholder="t('kit.modelCatalog.form.notesPh')" /></label>
+        <label class="lu-mm-l">{{ t('kit.modelCatalog.form.bench') }} <span class="lu-muted">— {{ t('kit.modelCatalog.form.benchHint') }}</span><UiInput v-model.number="editing.qualityRank" type="number" :placeholder="EXAMPLE.rank" /></label>
 
         <div v-if="saveErr" class="lu-error">{{ saveErr }}</div>
       </div>
       <template #footer>
-        <UiButton intent="ghost" @click="cancelEdit">Cancel</UiButton>
+        <UiButton intent="ghost" @click="cancelEdit">{{ t('kit.dialog.cancel') }}</UiButton>
         <span class="lu-mm-spacer" />
-        <UiButton intent="primary" :loading="saving" @click="saveModel">{{ editingNew ? "Add model" : "Save" }}</UiButton>
+        <UiButton intent="primary" :loading="saving" @click="saveModel">{{ editingNew ? t('kit.modelCatalog.btn.add') : t('kit.modelCatalog.btn.save') }}</UiButton>
       </template>
     </AppModal>
 

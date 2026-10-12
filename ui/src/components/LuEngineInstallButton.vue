@@ -14,14 +14,16 @@
   (v-if) — matching the panel's original inline gate; this component is just the button.
 -->
 <script setup>
+import { useI18n } from "vue-i18n";
 import UiButton from "../common/components/UiButton.vue";
 import { useEngine } from "../composables/useEngine.js";
 
 const { install, busy } = useEngine();
+const { t } = useI18n();
 </script>
 
 <template>
   <UiButton intent="primary" size="small" :loading="busy"
-    title="Download + install the llama.cpp engine for this machine"
-    @click="install()">Install engine</UiButton>
+    :title="t('kit.engine.install.tip')"
+    @click="install()">{{ t('kit.engine.install.button') }}</UiButton>
 </template>

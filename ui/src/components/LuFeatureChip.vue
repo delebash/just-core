@@ -35,6 +35,7 @@
 // docs/plans/2026-10-09-kit-controls-on-quasar.md, slice 7): inside a modal (QDialog) it
 // opens in the dialog's own layer, so the dialog's focus trap lets its fields take focus.
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { QMenu } from "quasar";
 import Icon from "../common/components/Icon.vue";
 import UiButton from "../common/components/UiButton.vue";
@@ -74,10 +75,11 @@ const emit = defineEmits(["navigate"]);
 // The Thinking control — vocabulary, options builder and both mappings live ONCE in
 // ../thinkingControl.js (imported below); see it for the states' meaning.
 
+const { t } = useI18n();
 const tooltip = computed(() =>
   props.editable
-    ? `Change the model & reasoning for ${props.label || props.feature} — edits its preset`
-    : `Runs on ${props.label || props.feature} — manage under AI settings → Routing by feature`,
+    ? t("kit.chip.editTip", { feature: props.label || props.feature })
+    : t("kit.chip.viewTip", { feature: props.label || props.feature }),
 );
 
 // ── the edit doorway (editable only) ────────────────────────────────────────
@@ -102,7 +104,7 @@ const thinkingOptions = computed(() => thinkingOptionsFor({
   customValue: draftIsLocal.value ? props.route?.value : null,
 }));
 
-const presetName = computed(() => props.route?.presetName || "this preset");
+const presetName = computed(() => props.route?.presetName || t("kit.chip.thisPreset"));
 
 // ── local vs cloud (2026-07-16 — DISPLAY-ONLY since the preset tier) ─────────
 // Is the ROUTE's resolved provider the built-in runner? Uses the same
@@ -148,8 +150,8 @@ const budgetLine = computed(() => {
   // raw origin rather than a dangling dash; never claim a layer it didn't come from.
   const label = resolvedSourceLabel(r.valueSource) || r.valueSource;
   return r.value == null
-    ? `thinking budget — ${label}`
-    : `thinking budget ${r.value} — ${label}`;
+    ? t("kit.chip.budgetNoValue", { source: label })
+    : t("kit.chip.budget", { value: r.value, source: label });
 });
 // -1 is a LEGAL typed value (never seeded) and honoured verbatim by the engine — so
 // it ships with the warning it earned: the Gemma thinking loop is verified on-box.
@@ -193,7 +195,7 @@ async function loadPopover() {
       ? resolvedToThinkingControl(p, props.route?.value, levelRows.value)
       : presetToThinkingControl(p);
   } catch (e) {
-    saveErr.value = e?.message || "Could not load the preset.";
+    saveErr.value = e?.message || t("kit.chip.err.load");
   } finally {
     loading.value = false;
   }
@@ -222,7 +224,7 @@ async function loadLevelMap() {
 // written from here: the PC class config stays product data (the Tune & measure
 // libraries edit it), your applied config stays what Apply wrote.
 async function save() {
-  if (!presetRow.value) { saveErr.value = "No preset to edit."; return; }
+  if (!presetRow.value) { saveErr.value = t("kit.chip.err.noPreset"); return; }
   saving.value = true;
   saveErr.value = "";
   try {
@@ -245,7 +247,7 @@ async function save() {
     // every mounted chip (incl. this one, via its host's `route` prop) refetches.
     popoverOpen.value = false;
   } catch (e) {
-    saveErr.value = e?.message || "Save failed.";
+    saveErr.value = e?.message || t("kit.chip.err.save");
   } finally {
     saving.value = false;
   }
@@ -259,7 +261,7 @@ async function save() {
       <span class="afc-sep">·</span>
     </template>
     <template v-else-if="!compact">
-      <span class="afc-label">Runs on</span>
+      <span class="afc-label">{{ t('kit.chip.runsOn') }}</span>
       <span class="afc-sep">·</span>
     </template>
     <b class="afc-provider">{{ resolvedProviderName }}</b>
@@ -277,9 +279,9 @@ async function save() {
       :offset="[0, 6]"
       :transition-duration="0"
     >
-      <div class="afc-pop-h">Runs on <b>{{ label || feature }}</b></div>
+      <i18n-t keypath="kit.chip.popHead" tag="div" class="afc-pop-h" scope="global"><template #feature><b>{{ label || feature }}</b></template></i18n-t>
 
-      <div v-if="loading" class="afc-pop-loading">Loading…</div>
+      <div v-if="loading" class="afc-pop-loading">{{ t('kit.common.loading') }}</div>
       <template v-else>
         <LuModelPicker
           :model-value="draftPin"
@@ -287,14 +289,14 @@ async function save() {
           editable
           stacked
           labels
-          inherit-label="Inherit default"
+          :inherit-label="t('kit.chip.inherit')"
           @update:model-value="draftPin = $event" />
 
         <!-- ONE three-state control, both routes (Off / Model|Provider default /
              levels). Local levels show their map numbers; the line below reports
              what actually resolves and which layer said so. -->
         <label class="afc-pop-field">
-          <span class="afc-pop-lbl">Thinking</span>
+          <span class="afc-pop-lbl">{{ t('kit.chip.thinking') }}</span>
           <select class="lu-input afc-pop-sel" :value="draftThinking"
             @change="draftThinking = $event.target.value">
             <option v-for="o in thinkingOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
@@ -302,22 +304,21 @@ async function save() {
         </label>
 
         <div v-if="budgetLine" class="afc-pop-cap">{{ budgetLine }}</div>
-        <div v-if="isUnlimited" class="afc-pop-warn">Unlimited ⚠ — this model has been observed to loop; may think until the context fills</div>
+        <div v-if="isUnlimited" class="afc-pop-warn">{{ t('kit.chip.unlimited') }}</div>
         <!-- The gate REMOVAL (ruled 2026-08-06, "no fancy magic"): thinking is
              sent exactly as the preset asks — no inactive state exists to
              annotate; a model that can't take it answers with its own error. -->
 
         <!-- Every save is preset-sized now — the thinking level rides the preset. -->
         <div class="afc-pop-blast">
-          Changes the “<b>{{ presetName }}</b>” preset — used by {{ memberCount }}
-          feature{{ memberCount === 1 ? "" : "s" }}
+          <i18n-t keypath="kit.chip.blast" scope="global" :plural="memberCount"><template #preset><b>{{ presetName }}</b></template><template #n>{{ memberCount }}</template></i18n-t>
         </div>
 
         <div v-if="saveErr" class="afc-pop-err">{{ saveErr }}</div>
 
         <div class="afc-pop-foot">
-          <UiButton intent="ghost" size="small" @click="popoverOpen = false">Cancel</UiButton>
-          <UiButton intent="primary" size="small" :loading="saving" @click="save">Save</UiButton>
+          <UiButton intent="ghost" size="small" @click="popoverOpen = false">{{ t('kit.dialog.cancel') }}</UiButton>
+          <UiButton intent="primary" size="small" :loading="saving" @click="save">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
         </div>
       </template>
     </QMenu>

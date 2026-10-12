@@ -20,6 +20,7 @@
 // The embed pick reuses pickBestEmbedId (ONE rule — modelPick.js); next to an
 // online chat default no local chat co-resides, so the full card is the budget.
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import DownloadBar from "../common/components/DownloadBar.vue";
 import UiButton from "../common/components/UiButton.vue";
@@ -30,6 +31,8 @@ import { useEngine } from "../composables/useEngine.js";
 import { useRouting } from "../composables/useRouting.js";
 import { models, vramMb, refresh as refreshModels } from "../composables/useRunnerModels.js";
 import { LOCAL_RUNNER_ID, setAsEmbedding } from "../services/modelApply.js";
+
+const { t } = useI18n();
 
 const props = defineProps({
   // The page's provider list — for the "use Ollama's embedding" zero-download offer.
@@ -96,7 +99,7 @@ async function setupLocal() {
     await refreshModels();
     pickedEmbedId.value = bestLocalEmbedId();
     if (!pickedEmbedId.value) {
-      error.value = "No embedding model in the catalog fits this PC.";
+      error.value = t("kit.bookSearch.noneFits");
       return;
     }
     if (!engine.installed.value) {
@@ -133,27 +136,23 @@ async function useOllama() {
 <template>
   <div v-if="loaded" class="lu-bss">
     <!-- Already routed anywhere → the truth in one line, nothing to do. -->
-    <p v-if="doneModel" class="lu-sd-line lu-bss-done">Book search ready ✓ — <b>{{ doneModel }}</b>.</p>
-    <p v-else-if="routedId === 'local-llamacpp' && routedModel" class="lu-sd-line lu-muted">
-      Book search keeps running on your local embedding (<b>{{ routedModel }}</b>) — unchanged.
-    </p>
-    <p v-else-if="routedId" class="lu-sd-line lu-muted">
-      Book search keeps running on <b>{{ routedName }}</b> — unchanged.
-    </p>
+    <i18n-t v-if="doneModel" keypath="kit.bookSearch.ready" tag="p" class="lu-sd-line lu-bss-done" scope="global"><template #model><b>{{ doneModel }}</b></template></i18n-t>
+    <i18n-t v-else-if="routedId === 'local-llamacpp' && routedModel" keypath="kit.bookSearch.keepsLocal" tag="p" class="lu-sd-line lu-muted" scope="global"><template #model><b>{{ routedModel }}</b></template></i18n-t>
+    <i18n-t v-else-if="routedId" keypath="kit.bookSearch.keepsOn" tag="p" class="lu-sd-line lu-muted" scope="global"><template #provider><b>{{ routedName }}</b></template></i18n-t>
 
     <!-- No embedding anywhere → the recommendation (skippable — Apply never blocks). -->
     <template v-else>
-      <p class="lu-sd-line"><b>Book search</b> <span class="lu-muted">— recommended.</span>
-        Lets chat find and quote your actual scenes, not just your story bible. Runs on this PC — private, no rate limits.</p>
-      <p class="lu-sd-line lu-muted">Skip it and chat answers from your story bible only — you can add book search here any time.</p>
+      <p class="lu-sd-line"><b>{{ t('kit.bookSearch.title') }}</b> <span class="lu-muted">{{ t('kit.bookSearch.recommended') }}</span>
+        {{ t('kit.bookSearch.pitch') }}</p>
+      <p class="lu-sd-line lu-muted">{{ t('kit.bookSearch.skip') }}</p>
       <div class="lu-bss-actions">
-        <UiButton intent="secondary" size="small" :loading="busy" @click="setupLocal">Set up book search</UiButton>
+        <UiButton intent="secondary" size="small" :loading="busy" @click="setupLocal">{{ t('kit.bookSearch.setUp') }}</UiButton>
         <UiButton v-if="ollamaRow" intent="ghost" size="small" :disabled="busy" @click="useOllama">
-          Use {{ ollamaRow.name || "Ollama" }} — nothing to download
+          {{ t('kit.bookSearch.useProvider', { name: ollamaRow.name || "Ollama" }) }}
         </UiButton>
       </div>
-      <DownloadBar v-if="engineTask.state" title="Local engine" role="one-time install" :task="engineTask" />
-      <DownloadBar v-if="embedTask.state" title="Book-search model" :role="pickedEmbedId" :task="embedTask" />
+      <DownloadBar v-if="engineTask.state" :title="t('kit.engine.title')" :role="t('kit.bookSearch.oneTimeInstall')" :task="engineTask" />
+      <DownloadBar v-if="embedTask.state" :title="t('kit.bookSearch.modelBar')" :role="pickedEmbedId" :task="embedTask" />
       <p v-if="error" class="lu-sd-line lu-bss-err">{{ error }}</p>
     </template>
   </div>

@@ -7,26 +7,34 @@
 // bars, the catalog slot cards, the catalog rows) renders through friendlyPhase.
 // Scope honesty: the ENGINE install keeps its own friendlyEnginePhase (useEngine.js)
 // — a pre-existing, separate vocabulary, deliberately not folded in.
-export const PHASE_WORDS = {
-  queued: "Getting ready",
+// The words are the kit catalog's (kit.phase.*); each phase the server reports names its key.
+import { kitT } from "./kitI18n.js";
+
+const PHASE_KEYS = {
+  queued: "gettingReady",
   // T1 (2026-07-17): the neutral phase before any real download chunk lands — the
   // download itself sets "model weights"; a cached file never announces one.
-  preparing: "Getting ready",
-  "model weights": "Downloading the model",
-  "MTP draft model": "Downloading the fast-generation helper file",
-  "loading into VRAM": "Loading it into your graphics card",
+  preparing: "gettingReady",
+  "model weights": "downloadingModel",
+  "MTP draft model": "downloadingHelper",
+  "loading into VRAM": "loadingVram",
   // T2/T2b (2026-07-17): the transient teardown statuses arrive with EMPTY detail —
   // friendlyPhase falls through to the STATUS for these.
-  stopping: "Unloading…",
-  cancelling: "Cancelling…",
+  stopping: "unloading",
+  cancelling: "cancelling",
 };
+
+// phase → its words in the current language (a getter per phase, read when shown).
+export const PHASE_WORDS = Object.defineProperties({}, Object.fromEntries(
+  Object.entries(PHASE_KEYS).map(([phase, key]) => [phase, { get: () => kitT(`kit.phase.${key}`), enumerable: true }]),
+));
 
 export function friendlyPhase(detail, status) {
   const d = String(detail || "").trim();
-  if (PHASE_WORDS[d]) return PHASE_WORDS[d];
+  if (Object.hasOwn(PHASE_KEYS, d)) return PHASE_WORDS[d];
   if (d) return d; // already a sentence (the MTP notes)
-  if (PHASE_WORDS[status]) return PHASE_WORDS[status];
-  if (status === "downloading") return "Downloading";
-  if (status === "starting") return "Starting the engine";
-  return "Working";
+  if (Object.hasOwn(PHASE_KEYS, status || "")) return PHASE_WORDS[status];
+  if (status === "downloading") return kitT("kit.phase.downloading");
+  if (status === "starting") return kitT("kit.phase.startingEngine");
+  return kitT("kit.phase.working");
 }

@@ -10,15 +10,17 @@
 // v-model is the pin object (or null = inherit the empty fallback). The host
 // owns persistence (writes the routing pin and saves).
 import { computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { useProviderModels } from "../composables/useProviderModels.js";
 import LuCombobox from "./LuCombobox.vue";
 
+const { t } = useI18n();
 const props = defineProps({
   modelValue: { type: Object, default: null }, // { providerId, model } | null
   providers: { type: Array, default: () => [] },
   // Text of the "no explicit provider" option (e.g. "Inherit default",
   // "Use Default LLM", "Default").
-  inheritLabel: { type: String, default: "Inherit default" },
+  inheritLabel: { type: String, default: "" }, // "" → the kit's "Inherit default"
   compact: { type: Boolean, default: false }, // smaller selects (nav)
   labels: { type: Boolean, default: false },  // inline "Provider"/"Model" labels
   stacked: { type: Boolean, default: false }, // provider OVER model (1 col) for narrow columns
@@ -92,20 +94,20 @@ function setModel(model) {
 <template>
   <div class="lu-mp" :class="{ 'lu-mp--compact': compact, 'lu-mp--labels': labels, 'lu-mp--stacked': stacked }">
     <div class="lu-mp-field">
-      <span v-if="labels" class="lu-mp-lbl">Provider</span>
-      <select class="lu-input lu-mp-sel" :value="route" aria-label="Provider" @change="setRoute($event.target.value)">
-        <option value="">{{ inheritLabel }}</option>
+      <span v-if="labels" class="lu-mp-lbl">{{ t('kit.modelPicker.provider') }}</span>
+      <select class="lu-input lu-mp-sel" :value="route" :aria-label="t('kit.modelPicker.provider')" @change="setRoute($event.target.value)">
+        <option value="">{{ inheritLabel || t('kit.chip.inherit') }}</option>
         <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.name }}</option>
       </select>
     </div>
     <div class="lu-mp-field">
-      <span v-if="labels" class="lu-mp-lbl">Model</span>
+      <span v-if="labels" class="lu-mp-lbl">{{ t('kit.modelPicker.model') }}</span>
       <LuCombobox v-if="editable" :model-value="pin.model || ''" :items="comboItems(pin.providerId)"
         :disabled="!pin.providerId" :show-fetch="false"
-        :placeholder="pin.providerId ? '(provider default)' : 'Pick a provider first'"
+        :placeholder="pin.providerId ? t('kit.modelPicker.providerDefault') : t('kit.modelPicker.pickProvider')"
         @update:model-value="setModel" />
-      <select v-else class="lu-input lu-mp-sel" :value="pin.model || ''" :disabled="!pin.providerId" aria-label="Model"
-        :title="pin.providerId ? 'Models for the pinned provider' : 'Pick a provider first to choose its model'"
+      <select v-else class="lu-input lu-mp-sel" :value="pin.model || ''" :disabled="!pin.providerId" :aria-label="t('kit.modelPicker.model')"
+        :title="pin.providerId ? t('kit.modelPicker.modelsTip') : t('kit.modelPicker.pickProviderTip')"
         @change="setModel($event.target.value)">
         <option v-for="o in modelOptions(pin.providerId)" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>

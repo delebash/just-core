@@ -12,10 +12,12 @@
 // "lu-titlebar" so both apps' existing CSS and the e2e selectors keep working.
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 
 import Icon from "./Icon.vue";
 
 defineProps({ title: { type: String, default: "" } });
+const { t } = useI18n();
 
 const router = useRouter();
 const canBack = ref(false);
@@ -39,12 +41,12 @@ onBeforeUnmount(() => stopAfterEach?.());
          drawer (nothing on a computer). -->
     <slot name="start" />
     <button class="iconbtn lu-titlebar-btn" :disabled="!canBack"
-      v-tooltip.bottom="canBack ? 'Back' : 'Back (no history)'" @click="router.back()">
+      v-tooltip.bottom="canBack ? t('kit.titleBar.back') : t('kit.titleBar.backNone')" @click="router.back()">
       <Icon name="ChevLeft" :size="16" />
     </button>
     <!-- lu-titlebar-forward: a hook for an app that leaves Forward out (JustWrite's phone). -->
     <button class="iconbtn lu-titlebar-btn lu-titlebar-forward" :disabled="!canForward"
-      v-tooltip.bottom="canForward ? 'Forward' : 'Forward (no history)'" @click="router.forward()">
+      v-tooltip.bottom="canForward ? t('kit.titleBar.forward') : t('kit.titleBar.forwardNone')" @click="router.forward()">
       <Icon name="ChevRight" :size="16" />
     </button>
     <span class="titlebar__title lu-titlebar-title"><slot name="title">{{ title }}</slot></span>

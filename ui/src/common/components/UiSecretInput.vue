@@ -5,6 +5,7 @@
 // masked by default but revealable + editable in place (#12). Border, focus ring, and
 // sizing all come from UiInput's .ui-input; this only adds the toggle affordance.
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import UiInput from "./UiInput.vue";
 import Icon from "./Icon.vue";
 
@@ -19,10 +20,11 @@ defineProps({
   id: { type: String, default: undefined },
   invalid: { type: Boolean, default: false },
   // a11y labels for the reveal toggle (host may localize).
-  revealLabel: { type: String, default: "Show" },
-  hideLabel: { type: String, default: "Hide" },
+  revealLabel: { type: String, default: "" }, // "" → the kit's "Show"
+  hideLabel: { type: String, default: "" },   // "" → the kit's "Hide"
 });
 const emit = defineEmits(["update:modelValue", "blur", "focus", "keydown"]);
+const { t } = useI18n();
 
 const revealed = ref(false);
 const inputRef = ref(null);
@@ -57,7 +59,7 @@ defineExpose({
       class="ui-secret__toggle"
       :disabled="disabled"
       :aria-pressed="revealed ? 'true' : 'false'"
-      :aria-label="revealed ? hideLabel : revealLabel"
+      :aria-label="revealed ? (hideLabel || t('kit.secret.hide')) : (revealLabel || t('kit.secret.show'))"
       @click="revealed = !revealed"
     >
       <Icon :name="revealed ? 'EyeOff' : 'Eye'" :size="16" />

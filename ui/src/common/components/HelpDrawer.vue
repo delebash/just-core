@@ -16,6 +16,7 @@
 -->
 <script setup>
 import { computed, watch, nextTick, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { QDialog } from "quasar";
 import { wrapTab } from "../composables/useTabWrap.js";
 import Icon from "./Icon.vue";
@@ -84,6 +85,7 @@ function onContentClick(e) {
 // doesn't reach the trigger (Reka's pointer-down-outside needed a guard for the
 // trigger's click re-opening it).
 
+const { t } = useI18n();
 function openFull() { helpConfig.onOpenFull?.(slug.value); }
 function openWeb() { helpConfig.onOpenWeb?.(slug.value); }
 </script>
@@ -92,7 +94,7 @@ function openWeb() { helpConfig.onOpenWeb?.(slug.value); }
   <QDialog
     v-model="open"
     class="help-drawer-overlay"
-    aria-label="Help"
+    :aria-label="t('kit.help.title')"
     no-route-dismiss
     transition-show="help-drawer"
     transition-hide="help-drawer"
@@ -102,10 +104,10 @@ function openWeb() { helpConfig.onOpenWeb?.(slug.value); }
     <div ref="drawerEl" class="help-drawer">
       <header class="help-drawer-header">
         <div class="help-drawer-titleblock">
-          <div class="help-drawer-eyebrow">Help</div>
+          <div class="help-drawer-eyebrow">{{ t('kit.help.title') }}</div>
           <div class="help-drawer-title">{{ title }}</div>
         </div>
-        <button type="button" class="help-drawer-close" aria-label="Close help" @click="closeHelp">
+        <button type="button" class="help-drawer-close" :aria-label="t('kit.help.close')" @click="closeHelp">
           <Icon name="Close" :size="14" />
         </button>
       </header>
@@ -113,10 +115,10 @@ function openWeb() { helpConfig.onOpenWeb?.(slug.value); }
       <div ref="contentEl" class="help-drawer-body" @click="onContentClick">
         <article v-if="renderedHtml" class="help-drawer-prose" v-html="renderedHtml" />
         <div v-else class="help-drawer-empty">
-          <p>No help article for this surface yet.</p>
+          <p>{{ t('kit.help.none') }}</p>
           <UiButton v-if="helpConfig.onOpenFull" intent="ghost" size="small" @click="openFull">
             <template #icon><Icon name="Book" :size="13" /></template>
-            Browse all docs
+            {{ t('kit.help.browse') }}
           </UiButton>
         </div>
       </div>
@@ -126,11 +128,11 @@ function openWeb() { helpConfig.onOpenWeb?.(slug.value); }
         class="help-drawer-footer">
         <UiButton v-if="helpConfig.onOpenFull" intent="ghost" size="small" @click="openFull">
           <template #icon><Icon name="Book" :size="13" /></template>
-          Open full docs
+          {{ t('kit.help.openFull') }}
         </UiButton>
         <UiButton v-if="helpConfig.onOpenWeb" intent="ghost" size="small" @click="openWeb">
           <template #icon><Icon name="ExternalLink" :size="13" /></template>
-          Open on the web
+          {{ t('kit.help.openWeb') }}
         </UiButton>
       </footer>
     </div>

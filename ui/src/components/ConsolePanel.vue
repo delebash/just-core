@@ -13,8 +13,8 @@
 // after a few consecutive failures). Rendering reuses the shared .lu-logbox /
 // .lu-logline* grammar + logLines.js — no fork of LogsPanel's line markup.
 import { computed, nextTick, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { request } from "../client.js";
-import { familyLabels } from "../common/services/familyLabels.js";
 import { usePoll } from "../common/composables/usePoll.js";
 import UiButton from "../common/components/UiButton.vue";
 import UiSelect from "../common/components/UiSelect.vue";
@@ -27,20 +27,22 @@ const POLL_MS = 2000;
 const STALE_AFTER = 3; // consecutive poll failures before the stale note shows
 const BOTTOM_SLACK = 24; // px from the bottom still counts as "following"
 
-const SOURCES = [
-  { value: "server", label: "Server log" },
-  { value: "engine", label: "Engine output" },
-];
+const { t } = useI18n();
+
+const SOURCES = computed(() => [
+  { value: "server", label: t("kit.console.source.server") },
+  { value: "engine", label: t("kit.console.source.engine") },
+]);
 
 // Minimum-level filter (user, 2026-07-17: "filter by log level"). Both sources parse
 // levels now — server via its [LEVEL] token, engine via llama.cpp's I/W/E/D grammar —
 // so this filters either. "ALL" = no floor.
-const LEVELS = [
-  { value: "ALL", label: "All levels" },
-  { value: "INFO", label: "Info +" },
-  { value: "WARNING", label: "Warnings +" },
-  { value: "ERROR", label: "Errors only" },
-];
+const LEVELS = computed(() => [
+  { value: "ALL", label: t("kit.logs.level.all") },
+  { value: "INFO", label: t("kit.console.level.info") },
+  { value: "WARNING", label: t("kit.console.level.warning") },
+  { value: "ERROR", label: t("kit.logs.level.error") },
+]);
 
 const source = ref("server");
 const minLevel = ref("ALL");
@@ -67,12 +69,12 @@ const rows = computed(() => {
 const hasContent = computed(() => !!text.value && rows.value.length > 0);
 const stale = computed(() => fails.value >= STALE_AFTER);
 const emptyLabel = computed(() => {
-  if (!loadedOnce.value) return "Loading…";
+  if (!loadedOnce.value) return t("kit.common.loading");
   // Content exists but the level filter hid it all — say so, don't imply the log is empty.
-  if (text.value && minLevel.value !== "ALL") return `No ${minLevel.value.toLowerCase()}-or-higher lines in view.`;
+  if (text.value && minLevel.value !== "ALL") return t(`kit.console.emptyAt.${minLevel.value.toLowerCase()}`);
   return isServer.value
-    ? "No log lines yet."
-    : "No engine output yet — start a model to spawn the engine and see its output.";
+    ? t("kit.logs.none")
+    : t("kit.console.noEngineOutput");
 });
 
 // Raising/lowering the floor changes what's visible — re-pin to the newest line.
@@ -155,15 +157,15 @@ onMounted(async () => {
 <template>
   <div class="lu-console">
     <div class="lu-console-head">
-      <span class="lu-pcard-title">{{ familyLabels.aiTabs.console }}</span>
-      <span class="lu-muted lu-console-sub">Live tail of the app server log and the engine child's output.</span>
+      <span class="lu-pcard-title">{{ t("kit.aiTabs.console") }}</span>
+      <span class="lu-muted lu-console-sub">{{ t('kit.console.sub') }}</span>
       <span class="lu-console-spacer" />
       <UiSelect :model-value="minLevel" :options="LEVELS" @update:model-value="onPickLevel" />
       <UiSelect :model-value="source" :options="SOURCES" @update:model-value="onPickSource" />
-      <UiButton intent="secondary" size="small" @click="togglePause">{{ paused ? "Resume" : "Pause" }}</UiButton>
+      <UiButton intent="secondary" size="small" @click="togglePause">{{ paused ? t('kit.console.resume') : t('kit.console.pause') }}</UiButton>
     </div>
-    <div v-if="!isServer && enginePath" class="lu-muted lu-console-path">Spawn log: {{ enginePath }}</div>
-    <div v-if="stale" class="lu-console-stale">Live tail stalled — can't reach the server. Showing the last snapshot.</div>
+    <div v-if="!isServer && enginePath" class="lu-muted lu-console-path">{{ t('kit.console.spawnLog', { path: enginePath }) }}</div>
+    <div v-if="stale" class="lu-console-stale">{{ t('kit.console.stale') }}</div>
     <div class="lu-console-boxwrap">
       <div ref="box" class="lu-logbox lu-console-box" role="log" @scroll="onScroll">
         <template v-if="hasContent">
@@ -172,7 +174,7 @@ onMounted(async () => {
         <div v-else class="lu-muted">{{ emptyLabel }}</div>
       </div>
       <div v-if="!pinned && hasContent" class="lu-console-jump">
-        <UiButton intent="secondary" size="small" @click="jumpToLatest">↓ Following paused — jump to latest</UiButton>
+        <UiButton intent="secondary" size="small" @click="jumpToLatest">{{ t('kit.console.jump') }}</UiButton>
       </div>
     </div>
   </div>

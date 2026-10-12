@@ -15,11 +15,13 @@
 // replace both). The look: ../../quasar/theme.css, "Color picker".
 
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { QMenu } from "quasar";
 
+const { t } = useI18n();
 const props = defineProps({
   modelValue: { type: String, default: "" },
-  ariaLabel:  { type: String, default: "Color" },
+  ariaLabel:  { type: String, default: "" }, // "" → the kit's "Color"
   size:       { type: Number, default: 24 },
   // Neutral 12-swatch fallback; the host passes its own palette. Inlined (not a
   // const) because defineProps default factories are hoisted out of setup scope.
@@ -74,7 +76,7 @@ function onCustomChange(e) {
       class="ui-color-swatch"
       :class="{ open }"
       :style="{ background: modelValue, width: `${size}px`, height: `${size}px` }"
-      :aria-label="ariaLabel"
+      :aria-label="ariaLabel || t('kit.color.name')"
       :aria-expanded="open"
     >
       <QMenu
@@ -92,17 +94,17 @@ function onCustomChange(e) {
             class="ui-color-preset"
             :class="{ active: c === modelValue }"
             :style="{ background: c }"
-            :aria-label="`Preset ${i + 1}`"
+            :aria-label="t('kit.color.preset', { n: i + 1 })"
             @click="pickPreset(c)" />
         </div>
         <label class="ui-color-custom">
           <span class="ui-color-custom-swatch"></span>
-          <span class="ui-color-custom-label">Custom color</span>
+          <span class="ui-color-custom-label">{{ t('kit.color.custom') }}</span>
           <input
             type="color"
             class="ui-color-custom-input"
             :value="customHexValue"
-            :aria-label="`${ariaLabel} — custom`"
+            :aria-label="t('kit.color.customOf', { name: ariaLabel || t('kit.color.name') })"
             @change="onCustomChange" />
         </label>
       </QMenu>

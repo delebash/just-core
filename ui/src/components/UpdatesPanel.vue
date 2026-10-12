@@ -11,6 +11,7 @@
 // Mac (which can't install an unsigned update). Without it, or with the shell's
 // updates off, the panel is the notes alone.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import UiButton from "../common/components/UiButton.vue";
 import { openExternal } from "../common/services/external.js";
 
@@ -20,6 +21,7 @@ const props = defineProps({
   updater: { type: Object, default: null },
 });
 
+const { t } = useI18n();
 const status = ref(null);
 const busy = ref(false);
 let unsubscribe = null;
@@ -53,17 +55,17 @@ const line = computed(() => {
   switch (s?.state) {
     case "idle":
     case "checking":
-      return "Checking for updates…";
+      return t("kit.updates.checking");
     case "latest":
-      return "This is the latest version.";
+      return t("kit.updates.latest");
     case "available":
-      return s.canInstall ? `Version ${s.version} is out.` : `Version ${s.version} is out — download it from its release page.`;
+      return s.canInstall ? t("kit.updates.available", { version: s.version }) : t("kit.updates.availableManual", { version: s.version });
     case "downloading":
-      return `Downloading version ${s.version} — ${s.percent}%`;
+      return t("kit.updates.downloading", { version: s.version, percent: s.percent });
     case "ready":
-      return `Version ${s.version} is downloaded. It installs when you quit the app.`;
+      return t("kit.updates.ready", { version: s.version });
     case "error":
-      return `Couldn't update: ${s.error}`;
+      return t("kit.updates.error", { error: s.error });
     default:
       return "";
   }
@@ -73,22 +75,22 @@ const line = computed(() => {
 <template>
   <div class="lu-updates">
     <div class="lu-updates-head">
-      <span class="lu-pcard-title">Updates</span>
-      <span class="lu-updates-ver">Current version <b>v{{ appVersion || "—" }}</b></span>
+      <span class="lu-pcard-title">{{ t('kit.settingsSections.updates') }}</span>
+      <i18n-t keypath="kit.updates.current" tag="span" class="lu-updates-ver" scope="global"><template #version><b>{{ t('kit.updates.versionTag', { version: appVersion || "—" }) }}</b></template></i18n-t>
       <span class="lu-updates-spacer" />
       <span v-if="line" class="lu-updates-status">{{ line }}</span>
       <UiButton v-if="status?.state === 'latest' || status?.state === 'error'" intent="ghost" size="small"
-        label="Check again" :disabled="busy" @click="run(updater.check)" />
+        :label="t('kit.updates.checkAgain')" :disabled="busy" @click="run(updater.check)" />
       <UiButton v-else-if="status?.state === 'available' && status.canInstall" intent="primary" size="small"
-        label="Download" :disabled="busy" @click="run(updater.download)" />
+        :label="t('kit.modelCatalog.btn.download')" :disabled="busy" @click="run(updater.download)" />
       <UiButton v-else-if="status?.state === 'available' && status.releaseUrl" intent="primary" size="small"
-        label="Open the release page" @click="openExternal(status.releaseUrl)" />
+        :label="t('kit.updates.openRelease')" @click="openExternal(status.releaseUrl)" />
       <UiButton v-else-if="status?.state === 'ready'" intent="primary" size="small"
-        label="Restart now" title="Quit, install the update and start again" :disabled="busy" @click="run(updater.install)" />
+        :label="t('kit.updates.restart')" :title="t('kit.updates.restartTip')" :disabled="busy" @click="run(updater.install)" />
       <slot name="actions" />
     </div>
     <div v-if="changelogHtml" class="lu-updates-log" v-html="changelogHtml" />
-    <div v-else class="lu-muted lu-updates-empty">No release notes available.</div>
+    <div v-else class="lu-muted lu-updates-empty">{{ t('kit.updates.noNotes') }}</div>
   </div>
 </template>
 

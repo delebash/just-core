@@ -17,6 +17,7 @@
 // law): the CLASS editor (Name · Type · VRAM/RAM) and the CONFIG editor (Model +
 // switches). Copy/Import move a config between users as one small JSON blob.
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import KnobGrid from "./KnobGrid.vue";
 import LuModelTypeTag from "./LuModelTypeTag.vue";
@@ -49,14 +50,9 @@ const globalMode = computed(() => !props.modelId);
 // Per-model popup opens straight into this model's config editor (QC-5): no list.
 const directEdit = computed(() => props.expanded && !globalMode.value);
 
-const MEM_TYPE_OPTIONS = [
-  { label: "Dedicated GPU (separate VRAM)", value: "discrete" },
-  { label: "Integrated GPU (shares system RAM)", value: "integrated" },
-  { label: "Unified memory (Apple Silicon / SoC)", value: "unified" },
-];
-const MEM_TYPE_LABEL = {
-  discrete: "Dedicated GPU", integrated: "Integrated GPU", unified: "Unified memory",
-};
+const { t } = useI18n();
+const MEM_TYPE_OPTIONS = computed(() => ["discrete", "integrated", "unified"]
+  .map((value) => ({ value, label: t(`kit.classTunes.memType.${value}`) })));
 
 const loaded = ref(false);
 const loading = ref(false);
@@ -125,13 +121,13 @@ const pickedShortfall = computed(() => {
   if (!m || !c || !m.minVramMb || !m.minRamMb) return "";
   if (modelBelongsToClass(m.minVramMb, m.minRamMb, c)) return "";
   const asGb = (mb) => Math.round(mb / 1024);
-  return `${m.name || m.id} needs about ${asGb(m.minVramMb)} GB VRAM and ${asGb(m.minRamMb)} GB RAM — more than this PC class has. You can still save a config for it.`;
+  return t("kit.classTunes.shortfall", { model: m.name || m.id, vram: asGb(m.minVramMb), ram: asGb(m.minRamMb) });
 });
 
 // The model-configs grouped under their class key.
 const configsByClass = computed(() => {
   const map = {};
-  for (const t of tunes.value) (map[t.classKey] ||= []).push(t);
+  for (const tune of tunes.value) (map[tune.classKey] ||= []).push(tune);
   return map;
 });
 // EVERY chat model is addressable under EVERY class (2026-07-26, the user: show them all,
@@ -155,7 +151,7 @@ const unconfiguredMembersByClass = computed(() => {
   const map = {};
   if (!globalMode.value) return map;
   for (const c of classes.value) {
-    const have = new Set((configsByClass.value[c.classKey] || []).map((t) => t.modelId));
+    const have = new Set((configsByClass.value[c.classKey] || []).map((tune) => tune.modelId));
     map[c.classKey] = models.value
       .filter((m) => !have.has(m.id) && embeddingById.value[m.id] !== true
         && modelBelongsToClass(m.minVramMb, m.minRamMb, c))
@@ -179,7 +175,7 @@ function toggleUntested(classKey) {
 // The stored floor is the honest label, and a spec is read as a minimum.
 const classLabel = (c) => classKeyLabel(c.classKey, c.name); // name if set, else the floor
 const classHardware = (c) => classKeyLabel(c.classKey);      // the floor, always
-const summaryOf = (t) => t.rows.map((r) => `${r.flagName}=${r.flagValue}`).join(" · ");
+const summaryOf = (tune) => tune.rows.map((r) => `${r.flagName}=${r.flagValue}`).join(" · ");
 
 // Editors — ONE at a time (the editor REPLACES the list, never stacks below).
 const editingClass = ref(null);   // { origClassKey, name, memType, vramGb, ramGb }
@@ -194,7 +190,7 @@ const anyEditor = computed(() =>
 function _apply(res) {
   myClassKey.value = res.classKey || "";
   classes.value = res.classes || [];
-  tunes.value = (res.tunes || []).filter((t) => !props.modelId || t.modelId === props.modelId);
+  tunes.value = (res.tunes || []).filter((tune) => !props.modelId || tune.modelId === props.modelId);
 }
 
 async function reload() {
@@ -215,12 +211,12 @@ async function reload() {
     loaded.value = true;
     // Per-model popup: drop straight into this model's config editor for the box's class.
     if (directEdit.value && !editingConfig.value) {
-      const mine = tunes.value.find((t) => t.classKey === myClassKey.value);
+      const mine = tunes.value.find((tune) => tune.classKey === myClassKey.value);
       startConfigEdit(mine || { classKey: myClassKey.value, modelId: props.modelId, rows: [] },
         !mine);
     }
   } catch (e) {
-    error.value = e.message || "Couldn't load the PC class library.";
+    error.value = e.message || t("kit.classTunes.err.load");
   } finally {
     loading.value = false;
   }
@@ -235,14 +231,14 @@ async function setForThisPC(classKey) {
   try {
     await request("/v1/ai/engine-config", { method: "PUT", body: { classKeyOverride: classKey } });
     await reload();
-  } catch (e) { error.value = e.message || "Couldn't set the class for this PC."; }
+  } catch (e) { error.value = e.message || t("kit.classTunes.err.setClass"); }
 }
 async function useAutoDetect() {
   error.value = "";
   try {
     await request("/v1/ai/engine-config", { method: "PUT", body: { classKeyOverride: "" } });
     await reload();
-  } catch (e) { error.value = e.message || "Couldn't switch back to auto-detect."; }
+  } catch (e) { error.value = e.message || t("kit.classTunes.err.autoDetect"); }
 }
 
 // ── the CLASS editor (Name · Type · VRAM/RAM) ─────────────────────────────────
@@ -286,8 +282,8 @@ async function saveClass() {
   if (!e) return;
   const ram = wholeGb(e.ramGb);
   const vram = e.memType === "discrete" ? wholeGb(e.vramGb) : 0;
-  if (ram <= 0) { error.value = "Enter the memory in whole GB."; return; }
-  if (e.memType === "discrete" && vram <= 0) { error.value = "Enter the VRAM in whole GB."; return; }
+  if (ram <= 0) { error.value = t("kit.classTunes.err.memoryGb"); return; }
+  if (e.memType === "discrete" && vram <= 0) { error.value = t("kit.classTunes.err.vramGb"); return; }
   saving.value = true; error.value = "";
   try {
     _apply(await saveHardwareClass({
@@ -298,19 +294,19 @@ async function saveClass() {
     }));
     editingClass.value = null;
   } catch (err) {
-    error.value = err.message || "Couldn't save the PC class.";
+    error.value = err.message || t("kit.classTunes.err.saveClass");
   } finally { saving.value = false; }
 }
 async function removeClass(c) {
   const ok = await confirmDialog({
-    title: "Delete this PC class?",
-    message: `Remove "${classLabel(c)}" and all of its PC class configs? PCs of that class go back to the engine's automatic settings.`,
-    confirmLabel: "Delete",
+    title: t("kit.classTunes.delClass.title"),
+    message: t("kit.classTunes.delClass.body", { name: classLabel(c) }),
+    confirmLabel: t("kit.common.delete"),
   });
   if (!ok) return;
   error.value = "";
   try { _apply(await deleteHardwareClass(c.classKey)); }
-  catch (e) { error.value = e.message || "Couldn't delete the PC class."; }
+  catch (e) { error.value = e.message || t("kit.classTunes.err.deleteClass"); }
 }
 
 // ── the CONFIG editor (Model + switches, under a class) ────────────────────────
@@ -325,11 +321,11 @@ function startAddConfig(classKey, modelId = "") {
     modelLocked: !!props.modelId, rows: [],
   };
 }
-function startConfigEdit(t, isNew = false) {
+function startConfigEdit(tune, isNew = false) {
   showImport.value = false; editingClass.value = null;
   editingConfig.value = {
-    classKey: t.classKey, modelId: t.modelId, modelLocked: !isNew,
-    rows: (t.rows || []).map((r) => ({ name: r.flagName, value: r.flagValue })),
+    classKey: tune.classKey, modelId: tune.modelId, modelLocked: !isNew,
+    rows: (tune.rows || []).map((r) => ({ name: r.flagName, value: r.flagValue })),
   };
 }
 async function saveConfig() {
@@ -338,41 +334,41 @@ async function saveConfig() {
   const mid = (e.modelId || "").trim();
   const switches = Object.fromEntries(
     e.rows.filter((r) => (r.name || "").trim()).map((r) => [r.name.trim(), r.value ?? ""]));
-  if (!mid) { error.value = "Pick the model this config is for."; return; }
-  if (!Object.keys(switches).length) { error.value = "Add at least one launch switch."; return; }
+  if (!mid) { error.value = t("kit.classTunes.err.pickModel"); return; }
+  if (!Object.keys(switches).length) { error.value = t("kit.classTunes.err.oneSwitch"); return; }
   saving.value = true; error.value = "";
   try {
     _apply(await putClassTune(mid, switches, e.classKey));
     if (directEdit.value) {
-      const saved = tunes.value.find((t) => t.modelId === mid && t.classKey === e.classKey);
+      const saved = tunes.value.find((tune) => tune.modelId === mid && tune.classKey === e.classKey);
       if (saved) startConfigEdit(saved);
-      pushToast({ message: "PC class config saved ✓" });
+      pushToast({ message: t("kit.classTunes.saved") });
     } else {
       editingConfig.value = null;
     }
   } catch (err) {
-    error.value = err.message || "Couldn't save the config.";
+    error.value = err.message || t("kit.classTunes.err.saveConfig");
   } finally { saving.value = false; }
 }
-async function removeConfig(t) {
+async function removeConfig(tune) {
   const ok = await confirmDialog({
-    title: "Delete this PC class config?",
-    message: `Remove ${modelName(t.modelId)}'s launch settings for this PC class?`,
-    confirmLabel: "Delete",
+    title: t("kit.classTunes.delConfig.title"),
+    message: t("kit.classTunes.delConfig.body", { model: modelName(tune.modelId) }),
+    confirmLabel: t("kit.common.delete"),
   });
   if (!ok) return;
   error.value = "";
-  try { _apply(await deleteClassTune(t.modelId, t.classKey)); }
-  catch (e) { error.value = e.message || "Couldn't delete the config."; }
+  try { _apply(await deleteClassTune(tune.modelId, tune.classKey)); }
+  catch (e) { error.value = e.message || t("kit.classTunes.err.deleteConfig"); }
 }
 
 // ── Copy / Import — ONE JSON shape both ways (a config travels between users) ──
-async function copyConfig(t) {
+async function copyConfig(tune) {
   const blob = JSON.stringify({
-    modelId: t.modelId, classKey: t.classKey,
-    switches: Object.fromEntries(t.rows.map((r) => [r.flagName, r.flagValue])),
+    modelId: tune.modelId, classKey: tune.classKey,
+    switches: Object.fromEntries(tune.rows.map((r) => [r.flagName, r.flagValue])),
   }, null, 2);
-  const id = `${t.modelId}|${t.classKey}`;
+  const id = `${tune.modelId}|${tune.classKey}`;
   try {
     await navigator.clipboard.writeText(blob);
     copiedKey.value = id;
@@ -383,8 +379,8 @@ async function copyConfig(t) {
 }
 function copyEditingConfig() {
   const e = editingConfig.value;
-  const t = e && tunes.value.find((x) => x.modelId === e.modelId && x.classKey === e.classKey);
-  if (t) copyConfig(t);
+  const tune = e && tunes.value.find((x) => x.modelId === e.modelId && x.classKey === e.classKey);
+  if (tune) copyConfig(tune);
 }
 function startImport() {
   editingClass.value = null; editingConfig.value = null;
@@ -394,19 +390,19 @@ async function runImport() {
   error.value = "";
   let parsed;
   try { parsed = JSON.parse(importText.value); }
-  catch { error.value = "That isn't valid JSON — paste a config copied from this panel."; return; }
+  catch { error.value = t("kit.classTunes.err.json"); return; }
   const key = (parsed?.classKey || "").trim();
   const switches = parsed?.switches && typeof parsed.switches === "object" ? parsed.switches : null;
   if (!key || !switches || !Object.keys(switches).length) {
-    error.value = 'The config needs a "classKey" and a non-empty "switches" object.'; return;
+    error.value = t("kit.classTunes.err.needsClassKey"); return;
   }
   const mid = props.modelId || (parsed?.modelId || "").trim();
-  if (!mid) { error.value = 'The config needs a "modelId" here — this panel spans every model.'; return; }
+  if (!mid) { error.value = t("kit.classTunes.err.needsModelId"); return; }
   saving.value = true;
   try {
     _apply(await putClassTune(mid, switches, key));
     showImport.value = false; importText.value = "";
-  } catch (e) { error.value = e.message || "Import failed."; }
+  } catch (e) { error.value = e.message || t("kit.classTunes.err.import"); }
   finally { saving.value = false; }
 }
 </script>
@@ -414,20 +410,18 @@ async function runImport() {
 <template>
   <component :is="expanded ? 'div' : 'details'" class="lu-ct" :class="{ 'lu-ct--expanded': expanded }" @toggle="onToggle">
     <summary v-if="!expanded" class="lu-ct-summary">
-      <span class="lu-ct-title">PC classes</span>
-      <span class="lu-muted">named PC profiles — each holds the PC class config per model</span>
+      <span class="lu-ct-title">{{ t('kit.classTunes.title') }}</span>
+      <span class="lu-muted">{{ t('kit.classTunes.titleSub') }}</span>
     </summary>
 
     <div class="lu-ct-body">
       <p class="lu-muted lu-ct-help">
-        A PC class groups PCs with similar memory. Each class stores one set of launch
-        switches per model, used automatically on every PC in that class — unless that
-        machine has its own tuned config.
-        <b>Detection picks your class; you can override it below.</b>
+        {{ t('kit.classTunes.help') }}
+        <b>{{ t('kit.classTunes.helpOverride') }}</b>
       </p>
 
       <div v-if="error" class="lu-error">{{ error }}</div>
-      <div v-if="loading" class="lu-muted">Loading…</div>
+      <div v-if="loading" class="lu-muted">{{ t('kit.common.loading') }}</div>
 
       <!-- PER-MODEL popup: the config editor only (no list). -->
       <template v-else-if="loaded && directEdit && editingConfig">
@@ -438,14 +432,14 @@ async function runImport() {
                owner read "8 GB VRAM" with nothing on the panel to say it is a bucket floor
                rather than a misread of their card. That is §23's exact failure case, and it
                is the one place the floor-label ruling would otherwise still bite. -->
-          <div class="lu-ct-forrow">This PC · <b>{{ myHardware || "hardware not detected" }}</b></div>
-          <div class="lu-ct-forrow">Saving to PC class · <b>{{ classKeyLabel(editingConfig.classKey) }}</b></div>
+          <div class="lu-ct-forrow">{{ t('kit.common.thisPc') }} · <b>{{ myHardware || t('kit.classTunes.hwNotDetected') }}</b></div>
+          <div class="lu-ct-forrow">{{ t('kit.classTunes.savingTo') }} · <b>{{ classKeyLabel(editingConfig.classKey) }}</b></div>
           <KnobGrid v-model="editingConfig.rows" :catalog="catalogMap" />
           <div class="lu-ct-edact">
             <UiButton intent="ghost" size="small" @click="copyEditingConfig">
-              {{ copiedKey === `${editingConfig.modelId}|${editingConfig.classKey}` ? "Copied ✓" : "Copy" }}
+              {{ copiedKey === `${editingConfig.modelId}|${editingConfig.classKey}` ? t('kit.common.copied') : t('kit.common.copy') }}
             </UiButton>
-            <UiButton intent="primary" size="small" :loading="saving" @click="saveConfig">Save for this class</UiButton>
+            <UiButton intent="primary" size="small" :loading="saving" @click="saveConfig">{{ t('kit.classTunes.saveForClass') }}</UiButton>
           </div>
         </div>
       </template>
@@ -455,28 +449,28 @@ async function runImport() {
         <!-- This PC — the machine's OWN specs, not the band it lands in. The matching
              class is tagged in the list below, so the class is not repeated here. -->
         <div class="lu-ct-mine">
-          <span>This PC · <b>{{ myHardware || (myClassKey ? classKeyLabel(myClassKey) : "not detected") }}</b>
-            <UiTag v-if="overrideKey" intent="info">Set manually</UiTag></span>
-          <UiButton v-if="overrideKey" intent="secondary" size="small" @click="useAutoDetect">Use auto-detect</UiButton>
+          <span>{{ t('kit.common.thisPc') }} · <b>{{ myHardware || (myClassKey ? classKeyLabel(myClassKey) : t('kit.classTunes.notDetected')) }}</b>
+            <UiTag v-if="overrideKey" intent="info">{{ t('kit.classTunes.setManually') }}</UiTag></span>
+          <UiButton v-if="overrideKey" intent="secondary" size="small" @click="useAutoDetect">{{ t('kit.classTunes.useAutoDetect') }}</UiButton>
         </div>
 
         <!-- The CLASS editor -->
         <div v-if="editingClass" class="lu-ct-editor">
           <label class="lu-ct-field">
-            <span class="lu-ct-cap">Name <span class="lu-muted">(optional — a label like "My Laptop")</span></span>
-            <UiInput v-model="editingClass.name" placeholder="e.g. My PC" />
+            <span class="lu-ct-cap">{{ t('kit.classTunes.form.name') }} <span class="lu-muted">{{ t('kit.classTunes.form.nameHint') }}</span></span>
+            <UiInput v-model="editingClass.name" :placeholder="t('kit.classTunes.form.namePh')" />
           </label>
           <label class="lu-ct-field">
-            <span class="lu-ct-cap">Hardware type</span>
+            <span class="lu-ct-cap">{{ t('kit.classTunes.form.hwType') }}</span>
             <UiSelect v-model="editingClass.memType" :options="MEM_TYPE_OPTIONS" width="name" />
           </label>
           <div class="lu-ct-mrow">
             <label v-if="editingClass.memType === 'discrete'" class="lu-ct-field">
-              <span class="lu-ct-cap">VRAM (GB)</span>
+              <span class="lu-ct-cap">{{ t('kit.classTunes.form.vram') }}</span>
               <UiInput v-model="editingClass.vramGb" type="number" width="token" />
             </label>
             <label class="lu-ct-field">
-              <span class="lu-ct-cap">{{ editingClass.memType === 'discrete' ? 'System RAM (GB)' : 'Memory (GB)' }}</span>
+              <span class="lu-ct-cap">{{ editingClass.memType === 'discrete' ? t('kit.classTunes.form.systemRam') : t('kit.classTunes.form.memory') }}</span>
               <UiInput v-model="editingClass.ramGb" type="number" width="token" />
             </label>
           </div>
@@ -484,31 +478,30 @@ async function runImport() {
                a measurement or the device's own report always outranks them). -->
           <div class="lu-ct-mrow">
             <label v-if="editingClass.memType === 'discrete'" class="lu-ct-field">
-              <span class="lu-ct-cap">VRAM bandwidth (GB/s) <span class="lu-muted">(optional — speed estimate)</span></span>
+              <span class="lu-ct-cap">{{ t('kit.classTunes.form.vramBw') }} <span class="lu-muted">{{ t('kit.classTunes.form.vramBwHint') }}</span></span>
               <UiInput v-model="editingClass.vramBwGbps" type="number" width="token" />
             </label>
             <label class="lu-ct-field">
-              <span class="lu-ct-cap">{{ editingClass.memType === 'discrete' ? 'RAM bandwidth (GB/s)' : 'Memory bandwidth (GB/s)' }} <span class="lu-muted">(optional)</span></span>
+              <span class="lu-ct-cap">{{ editingClass.memType === 'discrete' ? t('kit.classTunes.form.ramBw') : t('kit.classTunes.form.memoryBw') }} <span class="lu-muted">{{ t('kit.classTunes.form.optional') }}</span></span>
               <UiInput v-model="editingClass.ramBwGbps" type="number" width="token" />
             </label>
           </div>
           <!-- The snap, said BEFORE the save: typing 10 GB saves the 8-band class, and
                finding that out afterwards reads as the app losing your number. -->
           <div v-if="editorClassPreview" class="lu-muted lu-ct-snap">
-            Saved as <b>{{ editorClassPreview }}</b> — one class covers a range of machines,
-            so nearby sizes share a config.
+            <i18n-t keypath="kit.classTunes.form.savedAs" scope="global"><template #name><b>{{ editorClassPreview }}</b></template></i18n-t>
           </div>
           <div class="lu-ct-edact">
-            <UiButton intent="ghost" size="small" @click="editingClass = null">Cancel</UiButton>
-            <UiButton intent="primary" size="small" :loading="saving" @click="saveClass">Save class</UiButton>
+            <UiButton intent="ghost" size="small" @click="editingClass = null">{{ t('kit.dialog.cancel') }}</UiButton>
+            <UiButton intent="primary" size="small" :loading="saving" @click="saveClass">{{ t('kit.classTunes.form.saveClass') }}</UiButton>
           </div>
         </div>
 
         <!-- The CONFIG editor (a model + switches, under a class) -->
         <div v-else-if="editingConfig" class="lu-ct-editor">
-          <div class="lu-ct-forrow">For class · <b>{{ classKeyLabel(editingConfig.classKey) }}</b></div>
+          <div class="lu-ct-forrow">{{ t('kit.classTunes.forClass') }} · <b>{{ classKeyLabel(editingConfig.classKey) }}</b></div>
           <label class="lu-ct-field">
-            <span class="lu-ct-cap">Model</span>
+            <span class="lu-ct-cap">{{ t('kit.classTunes.form.model') }}</span>
             <span v-if="editingConfig.modelLocked" class="lu-ct-fixed">{{ modelName(editingConfig.modelId) }}</span>
             <UiSelect v-else v-model="editingConfig.modelId" :options="modelOptions" width="name" />
           </label>
@@ -516,28 +509,27 @@ async function runImport() {
           <KnobGrid v-model="editingConfig.rows" :catalog="catalogMap" />
           <div class="lu-ct-edact">
             <UiButton v-if="editingConfig.modelLocked" intent="ghost" size="small" @click="copyEditingConfig">
-              {{ copiedKey === `${editingConfig.modelId}|${editingConfig.classKey}` ? "Copied ✓" : "Copy" }}
+              {{ copiedKey === `${editingConfig.modelId}|${editingConfig.classKey}` ? t('kit.common.copied') : t('kit.common.copy') }}
             </UiButton>
-            <UiButton intent="ghost" size="small" @click="editingConfig = null">Cancel</UiButton>
-            <UiButton intent="primary" size="small" :loading="saving" @click="saveConfig">Save config</UiButton>
+            <UiButton intent="ghost" size="small" @click="editingConfig = null">{{ t('kit.dialog.cancel') }}</UiButton>
+            <UiButton intent="primary" size="small" :loading="saving" @click="saveConfig">{{ t('kit.classTunes.saveConfig') }}</UiButton>
           </div>
         </div>
 
         <!-- The IMPORT editor -->
         <div v-else-if="showImport" class="lu-ct-editor">
           <UiTextarea v-model="importText" :rows="5"
-            placeholder='Paste a config copied from this panel — {"modelId": …, "classKey": …, "switches": {…}}' />
+            :placeholder="t('kit.classTunes.importPh')" />
           <div class="lu-ct-edact">
-            <UiButton intent="ghost" size="small" @click="showImport = false">Cancel</UiButton>
-            <UiButton intent="primary" size="small" :loading="saving" @click="runImport">Import</UiButton>
+            <UiButton intent="ghost" size="small" @click="showImport = false">{{ t('kit.dialog.cancel') }}</UiButton>
+            <UiButton intent="primary" size="small" :loading="saving" @click="runImport">{{ t('kit.classTunes.import') }}</UiButton>
           </div>
         </div>
 
         <!-- The CLASS LIST (each class holds its model-configs) -->
         <template v-else>
           <p v-if="!classes.length" class="lu-muted lu-ct-empty">
-            No PC classes yet — add one for your PC, or measure a config in a model's
-            Tune dialog and use "Save for PC class".
+            {{ t('kit.classTunes.empty') }}
           </p>
           <div v-for="c in classes" :key="c.classKey" class="lu-ct-class">
             <div class="lu-ct-chead">
@@ -547,29 +539,29 @@ async function runImport() {
                 <!-- Sentence case, like every other tag on this page — and `Built-in`
                      matches the provider row's own tag (AiModelsArea.vue:472) so one
                      word does not render two ways on one screen. -->
-                <UiTag v-if="c.classKey === myClassKey" intent="success">This PC</UiTag>
-                <UiTag v-if="c.builtIn" intent="info">Built-in</UiTag>
+                <UiTag v-if="c.classKey === myClassKey" intent="success">{{ t('kit.common.thisPc') }}</UiTag>
+                <UiTag v-if="c.builtIn" intent="info">{{ t('kit.common.builtin') }}</UiTag>
               </span>
               <span class="lu-ct-cact">
-                <UiButton v-if="c.classKey !== myClassKey" intent="secondary" size="small" @click="setForThisPC(c.classKey)">Use for this PC</UiButton>
-                <UiButton intent="ghost" size="small" @click="startEditClass(c)">Edit</UiButton>
-                <UiButton v-if="!c.builtIn" intent="ghost" size="small" @click="removeClass(c)">Delete</UiButton>
+                <UiButton v-if="c.classKey !== myClassKey" intent="secondary" size="small" @click="setForThisPC(c.classKey)">{{ t('kit.classTunes.useForThisPc') }}</UiButton>
+                <UiButton intent="ghost" size="small" @click="startEditClass(c)">{{ t('kit.common.edit') }}</UiButton>
+                <UiButton v-if="!c.builtIn" intent="ghost" size="small" @click="removeClass(c)">{{ t('kit.common.delete') }}</UiButton>
               </span>
             </div>
             <table v-if="(configsByClass[c.classKey] || []).length" class="lu-ct-tbl">
               <tbody>
-                <tr v-for="t in configsByClass[c.classKey]" :key="t.modelId">
+                <tr v-for="tune in configsByClass[c.classKey]" :key="tune.modelId">
                   <td class="lu-ct-model">
-                    {{ modelName(t.modelId) }}
-                    <LuModelTypeTag :type="typeOf(t.modelId)" class="lu-ct-mtype" />
+                    {{ modelName(tune.modelId) }}
+                    <LuModelTypeTag :type="typeOf(tune.modelId)" class="lu-ct-mtype" />
                   </td>
-                  <td class="lu-ct-sum">{{ summaryOf(t) }}</td>
+                  <td class="lu-ct-sum">{{ summaryOf(tune) }}</td>
                   <td class="lu-ct-act">
-                    <UiButton intent="ghost" size="small" @click="startConfigEdit(t)">Edit</UiButton>
-                    <UiButton intent="ghost" size="small" @click="copyConfig(t)">
-                      {{ copiedKey === `${t.modelId}|${t.classKey}` ? "Copied ✓" : "Copy" }}
+                    <UiButton intent="ghost" size="small" @click="startConfigEdit(tune)">{{ t('kit.common.edit') }}</UiButton>
+                    <UiButton intent="ghost" size="small" @click="copyConfig(tune)">
+                      {{ copiedKey === `${tune.modelId}|${tune.classKey}` ? t('kit.common.copied') : t('kit.common.copy') }}
                     </UiButton>
-                    <UiButton v-if="!t.builtIn" intent="ghost" size="small" @click="removeConfig(t)">Delete</UiButton>
+                    <UiButton v-if="!tune.builtIn" intent="ghost" size="small" @click="removeConfig(tune)">{{ t('kit.common.delete') }}</UiButton>
                   </td>
                 </tr>
               </tbody>
@@ -583,8 +575,7 @@ async function runImport() {
             <template v-if="(unconfiguredMembersByClass[c.classKey] || []).length">
               <button type="button" class="lu-ct-untbtn lu-muted" @click="toggleUntested(c.classKey)">
                 {{ showUntested[c.classKey] ? "▾" : "▸" }}
-                {{ unconfiguredMembersByClass[c.classKey].length }} more
-                {{ unconfiguredMembersByClass[c.classKey].length === 1 ? "model" : "models" }} in this class — no switches yet
+                {{ t('kit.classTunes.moreModels', { n: unconfiguredMembersByClass[c.classKey].length }, unconfiguredMembersByClass[c.classKey].length) }}
               </button>
               <table v-if="showUntested[c.classKey]" class="lu-ct-tbl">
                 <tbody>
@@ -593,22 +584,22 @@ async function runImport() {
                       {{ m.name }}
                       <LuModelTypeTag :type="typeOf(m.id)" class="lu-ct-mtype" />
                     </td>
-                    <td class="lu-ct-sum lu-muted">no switches</td>
+                    <td class="lu-ct-sum lu-muted">{{ t('kit.classTunes.noSwitches') }}</td>
                     <td class="lu-ct-act">
-                      <UiButton intent="ghost" size="small" @click="startAddConfig(c.classKey, m.id)">Add switches</UiButton>
+                      <UiButton intent="ghost" size="small" @click="startAddConfig(c.classKey, m.id)">{{ t('kit.classTunes.addSwitches') }}</UiButton>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </template>
             <div class="lu-ct-addcfg">
-              <UiButton intent="ghost" size="small" @click="startAddConfig(c.classKey)">＋ Add model to this class</UiButton>
+              <UiButton intent="ghost" size="small" @click="startAddConfig(c.classKey)">＋ {{ t('kit.classTunes.addModel') }}</UiButton>
             </div>
           </div>
 
           <div class="lu-ct-bar">
-            <UiButton intent="secondary" size="small" @click="startAddClass">＋ Add PC class</UiButton>
-            <UiButton intent="secondary" size="small" @click="startImport">Import config…</UiButton>
+            <UiButton intent="secondary" size="small" @click="startAddClass">＋ {{ t('kit.classTunes.addClass') }}</UiButton>
+            <UiButton intent="secondary" size="small" @click="startImport">{{ t('kit.classTunes.importConfig') }}</UiButton>
           </div>
         </template>
       </template>

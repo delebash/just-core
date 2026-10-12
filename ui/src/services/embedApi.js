@@ -16,6 +16,7 @@
 import { getActivePinia } from "pinia";
 
 import { request } from "../client.js";
+import { kitT } from "../common/services/kitI18n.js";
 import { useAiTasksStore } from "../stores/aiTasks.js";
 
 const BUNDLED_RUNNER_PROVIDER = "local-llamacpp";
@@ -63,17 +64,11 @@ async function pollEmbedResident(modelId, signal) {
     if (row) {
       if (READY_STATES.has(row.status)) return;
       if (row.status === "error" || row.status === "failed") {
-        throw new Error(
-          `The local embedding model "${modelId}" failed to load. Open the AI page ` +
-          `and Edit the built-in provider to see the model log, then try again.`,
-        );
+        throw new Error(kitT("kit.embed.failed", { model: modelId }));
       }
     }
     if (Date.now() > deadline) {
-      throw new Error(
-        `Timed out preparing the local embedding model "${modelId}". It may still be ` +
-        `downloading — try again in a moment.`,
-      );
+      throw new Error(kitT("kit.embed.timeout", { model: modelId }));
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
@@ -106,7 +101,7 @@ export function ensureEmbeddingReady(providerId, providerType, { signal, model }
       let handle = null;
       try {
         if (getActivePinia()) {
-          handle = useAiTasksStore().start({ feature: "embeddings", label: "Preparing the embedding model" });
+          handle = useAiTasksStore().start({ feature: "embeddings", label: kitT("kit.embed.preparing") });
         }
       } catch {
         handle = null;

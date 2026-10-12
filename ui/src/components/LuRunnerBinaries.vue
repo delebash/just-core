@@ -9,6 +9,7 @@
 // or is renamed — config is data, nothing is hardcoded. Collapsed by default;
 // lazy-loads on first open.
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 import UiButton from "../common/components/UiButton.vue";
 import UiInput from "../common/components/UiInput.vue";
@@ -16,6 +17,10 @@ import { confirmDialog } from "../common/services/dialog.js";
 import { applyBuildToUrl } from "../common/services/engineUrl.js";
 import { openExternal } from "../common/services/external.js";
 import { request } from "../client.js";
+
+const { t } = useI18n();
+// Examples in the placeholders are values, not words — never translated.
+const EXAMPLE = { asset: "https://…/llama-….zip", platform: "linux", gpu: "vulkan", url: "https://…" };
 
 const rows = ref([]);
 const pinnedBuild = ref("");
@@ -65,7 +70,7 @@ async function load() {
     _apply(await request("/v1/ai/engine-config"));
     loaded.value = true;
   } catch (e) {
-    error.value = e.message || "Couldn't load engine config.";
+    error.value = e.message || t("kit.binaries.err.load");
   } finally {
     loading.value = false;
   }
@@ -82,7 +87,7 @@ async function put(body, key) {
     _apply(await request("/v1/ai/engine-config", { method: "PUT", body }));
     return true;
   } catch (e) {
-    error.value = e.message || "Save failed.";
+    error.value = e.message || t("kit.binaries.err.save");
     return false;
   } finally {
     busy.value = "";
@@ -116,7 +121,7 @@ async function addRow() {
   const platform = (draft.value.platform || "").trim();
   const gpu = (draft.value.gpu || "").trim();
   if (!platform || !gpu) {
-    error.value = "platform and gpu are required.";
+    error.value = t("kit.binaries.err.required");
     return;
   }
   const ok = await put({ binaries: [{
@@ -127,13 +132,13 @@ async function addRow() {
 }
 
 async function reset() {
-  if (!(await confirmDialog("Reset the engine binaries and pinned build to their shipped defaults? Custom rows you added are kept. (Engine settings like the VRAM margin also reset — they live under Loaded models.)"))) return;
+  if (!(await confirmDialog(t("kit.binaries.resetConfirm")))) return;
   busy.value = "__reset";
   error.value = "";
   try {
     _apply(await request("/v1/ai/engine-config/reset", { method: "POST" }));
   } catch (e) {
-    error.value = e.message || "Reset failed.";
+    error.value = e.message || t("kit.binaries.err.reset");
   } finally {
     busy.value = "";
   }
@@ -143,86 +148,81 @@ async function reset() {
 <template>
   <details class="lu-engbin" @toggle="onToggle">
     <summary class="lu-engbin-summary">
-      <span class="lu-engbin-title">Engine binaries</span>
-      <span class="lu-muted">llama.cpp download URLs · pinned build · speed-check model</span>
+      <span class="lu-engbin-title">{{ t('kit.binaries.title') }}</span>
+      <span class="lu-muted">{{ t('kit.binaries.titleSub') }}</span>
     </summary>
 
     <div class="lu-engbin-body">
       <p class="lu-muted lu-engbin-help">
-        The app auto-detects your system and downloads the matching llama.cpp build. Change the
-        pinned build and every download URL below re-points to that build automatically. If a
-        download fails because a release asset moved or was renamed, paste the correct URL
-        from the
-        <a class="lu-mlink" href="https://github.com/ggml-org/llama.cpp/releases" target="_blank" rel="noopener"
-          @click.prevent="openExternal('https://github.com/ggml-org/llama.cpp/releases')">llama.cpp releases page ↗</a>
-        (choose the asset for your OS + GPU). Windows CUDA needs both the build
-        <code>llama-…-cuda-….zip</code> and its matching <code>cudart-…</code> runtime URL.
+        <i18n-t keypath="kit.binaries.help" scope="global">
+          <template #releases><a class="lu-mlink" href="https://github.com/ggml-org/llama.cpp/releases" target="_blank" rel="noopener"
+            @click.prevent="openExternal('https://github.com/ggml-org/llama.cpp/releases')">{{ t('kit.binaries.releasesLink') }}</a></template>
+          <template #build><code>llama-…-cuda-….zip</code></template>
+          <template #runtime><code>cudart-…</code></template>
+        </i18n-t>
       </p>
 
       <div v-if="error" class="lu-error">{{ error }}</div>
-      <div v-if="loading" class="lu-muted">Loading…</div>
+      <div v-if="loading" class="lu-muted">{{ t('kit.common.loading') }}</div>
 
       <template v-else-if="loaded">
         <div class="lu-engbin-settings">
-          <label class="lu-engbin-field">Pinned build
+          <label class="lu-engbin-field">{{ t('kit.binaries.pinned') }}
             <UiInput v-model="pinnedBuild" width="token" />
           </label>
-          <UiButton intent="primary" size="small" :loading="busy === '__settings'" @click="saveSettings">Save</UiButton>
+          <UiButton intent="primary" size="small" :loading="busy === '__settings'" @click="saveSettings">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
         </div>
 
         <div class="lu-engbin-scroll">
           <table class="ui-formgrid lu-engbin-tbl">
             <thead>
-              <tr><th>Platform</th><th>GPU</th><th>Asset URL</th><th>Runtime URL (cudart)</th><th>Server exe</th><th /></tr>
+              <tr><th>{{ t('kit.binaries.col.platform') }}</th><th>{{ t('kit.binaries.col.gpu') }}</th><th>{{ t('kit.binaries.col.asset') }}</th><th>{{ t('kit.binaries.col.runtime') }}</th><th>{{ t('kit.binaries.col.exe') }}</th><th /></tr>
             </thead>
             <tbody>
               <tr v-for="r in rows" :key="rowKey(r)">
                 <td class="lu-engbin-k">{{ r.platform }}</td>
-                <td class="lu-engbin-k">{{ r.gpu }}<span v-if="r.source === 'docker'" class="lu-muted"> · docker</span></td>
-                <td><UiInput v-model="r.assetUrl" placeholder="https://…/llama-….zip" /></td>
+                <td class="lu-engbin-k">{{ r.gpu }}<span v-if="r.source === 'docker'" class="lu-muted"> · {{ t('kit.binaries.docker') }}</span></td>
+                <td><UiInput v-model="r.assetUrl" :placeholder="EXAMPLE.asset" /></td>
                 <td><UiInput v-model="r.runtimeUrl" placeholder="—" /></td>
                 <td><UiInput v-model="r.serverExe" width="name" /></td>
-                <td><UiButton intent="primary" size="small" :loading="busy === rowKey(r)" @click="saveRow(r)">Save</UiButton></td>
+                <td><UiButton intent="primary" size="small" :loading="busy === rowKey(r)" @click="saveRow(r)">{{ t('kit.modelCatalog.btn.save') }}</UiButton></td>
               </tr>
               <tr class="ui-formgrid-add lu-engbin-addrow">
-                <td><UiInput v-model="draft.platform" placeholder="linux" width="name" /></td>
-                <td><UiInput v-model="draft.gpu" placeholder="vulkan" width="name" /></td>
-                <td><UiInput v-model="draft.assetUrl" placeholder="https://…" /></td>
+                <td><UiInput v-model="draft.platform" :placeholder="EXAMPLE.platform" width="name" /></td>
+                <td><UiInput v-model="draft.gpu" :placeholder="EXAMPLE.gpu" width="name" /></td>
+                <td><UiInput v-model="draft.assetUrl" :placeholder="EXAMPLE.url" /></td>
                 <td class="lu-muted">—</td>
                 <td><UiInput v-model="draft.serverExe" width="name" /></td>
-                <td><UiButton intent="secondary" size="small" :loading="busy === '__add'" @click="addRow">＋ Add</UiButton></td>
+                <td><UiButton intent="secondary" size="small" :loading="busy === '__add'" @click="addRow">＋ {{ t('kit.binaries.add') }}</UiButton></td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <p class="lu-muted lu-engbin-help">
-          <b>Speed-check model</b> — the small test model Quick setup's one-minute speed check
-          downloads and runs. The file is verified against its sha256 after every download; the
-          two sizes describe that exact file (per token, the expert weights read and everything
-          else), so a different file needs its own numbers.
+          <b>{{ t('kit.binaries.calib.title') }}</b> — {{ t('kit.binaries.calib.body') }}
         </p>
         <div class="lu-engbin-settings">
-          <label class="lu-engbin-field lu-engbin-field--path">Download URL
+          <label class="lu-engbin-field lu-engbin-field--path">{{ t('kit.binaries.calib.url') }}
             <UiInput v-model="calib.url" width="path" />
           </label>
-          <label class="lu-engbin-field lu-engbin-field--path">sha256
+          <label class="lu-engbin-field lu-engbin-field--path">{{ t('kit.binaries.calib.sha') }}
             <UiInput v-model="calib.sha" width="path" />
           </label>
-          <label class="lu-engbin-field">Size (bytes)
+          <label class="lu-engbin-field">{{ t('kit.binaries.calib.size') }}
             <UiInput v-model="calib.size" type="number" width="id" />
           </label>
-          <label class="lu-engbin-field">Expert MB per token
+          <label class="lu-engbin-field">{{ t('kit.binaries.calib.expertMb') }}
             <UiInput v-model="calib.activeMb" type="number" width="token" />
           </label>
-          <label class="lu-engbin-field">Other MB
+          <label class="lu-engbin-field">{{ t('kit.binaries.calib.otherMb') }}
             <UiInput v-model="calib.nonexpertMb" type="number" width="token" />
           </label>
-          <UiButton intent="primary" size="small" :loading="busy === '__calib'" @click="saveCalib">Save</UiButton>
+          <UiButton intent="primary" size="small" :loading="busy === '__calib'" @click="saveCalib">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
         </div>
 
         <div class="lu-engbin-foot">
-          <UiButton intent="secondary" size="small" :loading="busy === '__reset'" @click="reset">Reset to defaults</UiButton>
+          <UiButton intent="secondary" size="small" :loading="busy === '__reset'" @click="reset">{{ t('kit.binaries.reset') }}</UiButton>
         </div>
       </template>
     </div>

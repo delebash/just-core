@@ -5,6 +5,7 @@
 // QuickSetup's class-tune-matched check (the modelDefaults.js precedent: a small
 // shared module instead of three fetch copies).
 import { request } from "./client.js";
+import { kitT } from "./common/services/kitI18n.js";
 
 // The whole library + the CURRENT box's class key (server-derived, override-aware):
 // { classKey, classes: [{classKey, vramGb, ramGb, name, builtIn}],
@@ -70,11 +71,11 @@ export async function deleteClassTune(modelId, classKey) {
 export function classKeyLabel(key, name = "") {
   if (name && name.trim()) return name.trim();
   let m = /^dgpu-vram(\d+)\|ram(\d+)$/.exec(key || "");
-  if (m) return `${m[1]} GB VRAM · ${m[2]} GB RAM`;
+  if (m) return kitT("kit.classTunes.key.discrete", { vram: m[1], ram: m[2] });
   m = /^unified-mem(\d+)$/.exec(key || "");
-  if (m) return `Unified memory · ${m[1]} GB`;
+  if (m) return kitT("kit.classTunes.key.unified", { gb: m[1] });
   m = /^igpu-mem(\d+)$/.exec(key || "");
-  if (m) return `Integrated GPU · ${m[1]} GB`;
+  if (m) return kitT("kit.classTunes.key.integrated", { gb: m[1] });
   return key || "";
 }
 

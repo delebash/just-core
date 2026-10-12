@@ -10,6 +10,7 @@
 import { computed, ref } from "vue";
 
 import { request } from "../client.js";
+import { kitT } from "../common/services/kitI18n.js";
 
 const rows = ref([]); // raw /v1/ai/model-catalog rows
 // The (model, class) config pairs + THIS box's class riding the same response
@@ -33,7 +34,9 @@ export const typeById = computed(() =>
 // extraction-vs-copies shape we keep paying for. The picker needs the bare STRING
 // (UiSelect renders SelectItemText, text only — UiSelect.vue:99), the two tag sites need
 // it inside a UiTag, so the WORD is a function and the TAG is LuModelTypeTag.vue over it.
-export const MODEL_TYPE_LABEL = { moe: "MoE", dense: "Dense" };
+export const MODEL_TYPE_LABEL = Object.defineProperties({}, Object.fromEntries(
+  ["moe","dense"].map((k) => [k, { get: () => kitT(`kit.modelType.${k}`), enumerable: true }]),
+));
 export function modelTypeLabel(type) {
   return MODEL_TYPE_LABEL[type] || MODEL_TYPE_LABEL.dense; // catalog default, as above
 }

@@ -14,6 +14,7 @@
 // stays live without each row registering its own setInterval.
 
 import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { usePanelDismiss } from "../common/composables/usePanelDismiss.js";
 import { useAiTasksStore } from "../stores/aiTasks.js";
 import Icon from "../common/components/Icon.vue";
@@ -41,9 +42,10 @@ const hiddenHistoryCount = computed(() =>
 // lingering rows under the "Running" header, where the count read 0 above a
 // visible row. Running means running.
 const lingering = computed(() =>
-  tasks.visibleTasks.filter((t) => !tasks.isRunning(t.id)));
+  tasks.visibleTasks.filter((task) => !tasks.isRunning(task.id)));
 const recentCount = computed(() => lingering.value.length + tasks.history.length);
 
+const { t } = useI18n();
 const LINGER_ICON = { done: "Check", cancelled: "Close", error: "Alert" };
 function settledDurationMs(t) {
   return Math.max(0, (t.finishedAt || 0) - t.startedAt);
@@ -68,20 +70,20 @@ function togglePreview(id) {
 
 function fmtSeconds(ms) {
   if (!ms || ms < 0) return "0.0s";
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 60_000) return t("kit.aiTasks.secs", { s: (ms / 1000).toFixed(1) });
   const m = Math.floor(ms / 60_000);
   const s = Math.floor((ms % 60_000) / 1000);
-  return `${m}m ${s}s`;
+  return t("kit.aiTasks.minSecs", { m, s });
 }
 
 function fmtAgo(ts, now) {
   if (!ts) return "—";
   const m = Math.floor((now - ts) / 60_000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
+  if (m < 1) return t("kit.sync.ago.justNow");
+  if (m < 60) return t("kit.aiTasks.ago.m", { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return t("kit.aiTasks.ago.h", { n: h });
+  return t("kit.aiTasks.ago.d", { n: Math.floor(h / 24) });
 }
 
 // Live values driven by tasks.now (the 500ms ticker).
@@ -107,10 +109,8 @@ function freshness(task) {
   return freshnessOf(task, tasks.now);
 }
 
-const phaseLabel = {
-  connecting: "Connecting",
-  streaming:  "Streaming",
-};
+const PHASES = new Set(["connecting", "streaming"]);
+const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${status}`) : status);
 </script>
 
 <template>
@@ -123,99 +123,99 @@ const phaseLabel = {
        their own z-index values. -->
   <Teleport to="body">
     <transition name="aip-slide">
-      <aside v-if="tasks.panelOpen" ref="panelEl" class="aip" role="dialog" aria-label="AI tasks">
+      <aside v-if="tasks.panelOpen" ref="panelEl" class="aip" role="dialog" :aria-label="t('kit.nav.aiTasks')">
       <header class="aip-head">
         <div>
-          <div class="aip-eyebrow">Status</div>
-          <h2>AI tasks</h2>
+          <div class="aip-eyebrow">{{ t('kit.aiTasks.status') }}</div>
+          <h2>{{ t('kit.nav.aiTasks') }}</h2>
         </div>
         <UiButton intent="ghost" size="small" @click="tasks.closePanel()">
-          <Icon name="Close" :size="12" /> Close
+          <Icon name="Close" :size="12" /> {{ t('kit.dialog.close') }}
         </UiButton>
       </header>
 
       <!-- Running tasks ────────────────────────────────────────────── -->
       <section class="aip-section">
         <div class="aip-section-h">
-          <span>Running</span>
+          <span>{{ t('kit.aiTasks.running') }}</span>
           <span class="aip-section-count">{{ tasks.runningCount }}</span>
           <span class="aip-section-spacer" />
           <UiButton v-if="tasks.runningCount > 1" intent="ghost" size="small" @click="tasks.cancelAll()">
-            <Icon name="Close" :size="11" /> Cancel all
+            <Icon name="Close" :size="11" /> {{ t('kit.aiTasks.cancelAll') }}
           </UiButton>
         </div>
 
         <div v-if="!tasks.runningCount" class="aip-empty">
-          Nothing running. Start any AI feature and you'll see it here with live status.
+          {{ t('kit.aiTasks.nothingRunning') }}
         </div>
 
         <!-- Running means RUNNING — a settled task inside its linger window renders
              under Recent below, exactly as JustVoice's fork always did. -->
-        <div v-for="t in tasks.runningTasks" :key="t.id" class="aip-task">
+        <div v-for="task in tasks.runningTasks" :key="task.id" class="aip-task">
           <div class="aip-task-h">
-            <span class="aip-task-label">{{ t.label }}</span>
-            <span class="aip-task-feature">{{ t.feature }}</span>
+            <span class="aip-task-label">{{ task.label }}</span>
+            <span class="aip-task-feature">{{ task.feature }}</span>
             <span class="aip-task-spacer" />
-            <UiButton intent="danger" size="small" @click="tasks.cancel(t.id)">
+            <UiButton intent="danger" size="small" @click="tasks.cancel(task.id)">
               <template #icon><Icon name="Close" :size="11" /></template>
-              Cancel
+              {{ t('kit.dialog.cancel') }}
             </UiButton>
           </div>
 
           <div class="aip-task-stats">
-            <span class="aip-stat" :data-phase="t.status">
+            <span class="aip-stat" :data-phase="task.status">
               <span class="aip-stat-dot" />
-              {{ t.thinking && t.status === "streaming" ? "Thinking" : (phaseLabel[t.status] || t.status) }}
+              {{ task.thinking && task.status === "streaming" ? t('kit.aiTasks.thinking') : phaseLabel(task.status) }}
             </span>
-            <span v-if="t.progress" class="aip-stat"
-              v-tooltip.bottom="t.progress.hint || 'Batch progress — Cancel stops the whole run'">
-              {{ t.progress.text || `${t.progress.done}/${t.progress.total}` }}
+            <span v-if="task.progress" class="aip-stat"
+              v-tooltip.bottom="task.progress.hint || t('kit.aiTasks.batchTip')">
+              {{ task.progress.text || `${task.progress.done}/${task.progress.total}` }}
             </span>
             <!-- §7.4 B6-2: real prompt-eval progress (builtin engine) —
                  cleared when the first token arrives. -->
-            <span v-if="t.prefill != null" class="aip-stat"
-              v-tooltip.bottom="'The model is reading your prompt'">
-              reading prompt {{ Math.round(t.prefill * 100) }}%
+            <span v-if="task.prefill != null" class="aip-stat"
+              v-tooltip.bottom="t('kit.aiTasks.prefillTip')">
+              {{ t('kit.aiTasks.prefill', { pct: Math.round(task.prefill * 100) }) }}
             </span>
             <span class="aip-stat">
               <Icon name="Clock" :size="10" />
-              {{ fmtSeconds(elapsedMs(t)) }}
+              {{ fmtSeconds(elapsedMs(task)) }}
             </span>
-            <span v-if="firstTokenMs(t) != null" class="aip-stat" v-tooltip.bottom="'Latency from request to first streamed token'">
-              first {{ (firstTokenMs(t) / 1000).toFixed(1) }}s
+            <span v-if="firstTokenMs(task) != null" class="aip-stat" v-tooltip.bottom="t('kit.aiTasks.firstTip')">
+              {{ t('kit.aiTasks.first', { s: (firstTokenMs(task) / 1000).toFixed(1) }) }}
             </span>
-            <span v-if="t.tokensOut || taskTokensSoFar(t)" class="aip-stat" v-tooltip.bottom="t.tokensOut ? 'Exact output tokens (from the model)' : 'Approximate from streamed characters (~4 chars/token), thinking included'">
-              <template v-if="t.tokensOut">{{ fmtTokens({ outputTokens: t.tokensOut }) }}</template>
-              <template v-else>~{{ fmtTokens({ outputTokens: taskTokensSoFar(t) }) }}</template>
+            <span v-if="task.tokensOut || taskTokensSoFar(task)" class="aip-stat" v-tooltip.bottom="task.tokensOut ? t('kit.aiTasks.tokensExactTip') : t('kit.aiTasks.tokensApproxTip')">
+              <template v-if="task.tokensOut">{{ fmtTokens({ outputTokens: task.tokensOut }) }}</template>
+              <template v-else>~{{ fmtTokens({ outputTokens: taskTokensSoFar(task) }) }}</template>
             </span>
-            <span v-if="tokensPerSecond(t)" class="aip-stat">
-              {{ fmtTps(tokensPerSecond(t)) }}
+            <span v-if="tokensPerSecond(task)" class="aip-stat">
+              {{ fmtTps(tokensPerSecond(task)) }}
             </span>
-            <span v-if="freshness(t)" class="aip-stat" :data-fresh="freshness(t)" v-tooltip.bottom="freshness(t) === 'stuck' ? 'No new tokens for well past this model\'s usual pace — likely stuck' : freshness(t) === 'stalling' ? 'Slower than this model\'s usual pace right now' : 'Streaming live'">
+            <span v-if="freshness(task)" class="aip-stat" :data-fresh="freshness(task)" v-tooltip.bottom="freshness(task) === 'stuck' ? t('kit.aiTasks.stuckTip') : freshness(task) === 'stalling' ? t('kit.aiTasks.stallingTip') : t('kit.aiTasks.liveTip')">
               <span class="aip-stat-dot" />
-              <template v-if="freshness(t) === 'fresh'">live</template>
-              <template v-else-if="freshness(t) === 'stalling'">stalling · {{ fmtSeconds(lastDeltaAgoMs(t)) }}</template>
-              <template v-else>stuck · {{ fmtSeconds(lastDeltaAgoMs(t)) }}</template>
+              <template v-if="freshness(task) === 'fresh'">{{ t('kit.aiTasks.live') }}</template>
+              <template v-else-if="freshness(task) === 'stalling'">{{ t('kit.aiTasks.stalling', { time: fmtSeconds(lastDeltaAgoMs(task)) }) }}</template>
+              <template v-else>{{ t('kit.aiTasks.stuck', { time: fmtSeconds(lastDeltaAgoMs(task)) }) }}</template>
             </span>
             <!-- The app's own numbers. The strip had a slot for these; this panel had
                  nothing at all, so a host's stats appeared on one surface and vanished
                  on the other — and this is the surface the sidebar row opens. -->
-            <span v-for="(s, i) in (t.stats || [])" :key="`s${i}`" class="aip-stat">{{ s }}</span>
+            <span v-for="(s, i) in (task.stats || [])" :key="`s${i}`" class="aip-stat">{{ s }}</span>
           </div>
 
-          <div v-if="t.preview" class="aip-task-preview-row">
-            <UiButton intent="ghost" size="small" @click="togglePreview(t.id)">
-              <Icon :name="openPreviews.has(t.id) ? 'ChevDown' : 'ChevRight'" :size="11" />
-              {{ openPreviews.has(t.id) ? "Hide preview" : "Show preview" }}
-              <span class="aip-chars-note">· {{ t.chars }} chars</span>
+          <div v-if="task.preview" class="aip-task-preview-row">
+            <UiButton intent="ghost" size="small" @click="togglePreview(task.id)">
+              <Icon :name="openPreviews.has(task.id) ? 'ChevDown' : 'ChevRight'" :size="11" />
+              {{ openPreviews.has(task.id) ? t('kit.aiTasks.hidePreview') : t('kit.aiTasks.showPreview') }}
+              <span class="aip-chars-note">· {{ t('kit.aiTasks.chars', { n: task.chars }) }}</span>
             </UiButton>
-            <div v-if="openPreviews.has(t.id)" class="aip-preview">
-              <pre>{{ t.preview }}</pre>
+            <div v-if="openPreviews.has(task.id)" class="aip-preview">
+              <pre>{{ task.preview }}</pre>
             </div>
           </div>
 
-          <div v-if="t.providerId || t.model" class="aip-task-foot">
-            <code v-if="t.model">{{ t.model }}</code>
+          <div v-if="task.providerId || task.model" class="aip-task-foot">
+            <code v-if="task.model">{{ task.model }}</code>
           </div>
         </div>
       </section>
@@ -223,45 +223,45 @@ const phaseLabel = {
       <!-- Recent: settled tasks still in their linger window, then history ── -->
       <section class="aip-section">
         <div class="aip-section-h">
-          <span>Recent</span>
+          <span>{{ t('kit.aiTasks.recent') }}</span>
           <span class="aip-section-count">{{ recentCount }}</span>
           <span class="aip-section-spacer" />
           <UiButton v-if="tasks.history.length" intent="ghost" size="small" @click="tasks.clearHistory()">
-            <Icon name="Trash" :size="11" /> Clear
+            <Icon name="Trash" :size="11" /> {{ t('kit.aiTasks.clear') }}
           </UiButton>
         </div>
 
         <div v-if="!recentCount" class="aip-empty aip-empty-small">
-          No completed tasks yet.
+          {{ t('kit.aiTasks.noneCompleted') }}
         </div>
 
         <!-- Lingering (just settled; a failure stays here until dismissed — the
              durable-error law as a row the user must acknowledge, error text and
              all, not just a badge count). -->
-        <div v-for="t in lingering" :key="t.id" class="aip-hist-row" :data-status="t.status">
+        <div v-for="task in lingering" :key="task.id" class="aip-hist-row" :data-status="task.status">
           <div class="aip-hist-icon">
-            <Icon :name="LINGER_ICON[t.status] || 'Alert'" :size="11" />
+            <Icon :name="LINGER_ICON[task.status] || 'Alert'" :size="11" />
           </div>
           <div class="aip-hist-body">
             <div class="aip-hist-line">
-              <span class="aip-hist-label">{{ t.label }}</span>
-              <span class="aip-hist-ago">{{ fmtAgo(t.finishedAt, tasks.now) }}</span>
+              <span class="aip-hist-label">{{ task.label }}</span>
+              <span class="aip-hist-ago">{{ fmtAgo(task.finishedAt, tasks.now) }}</span>
             </div>
             <div class="aip-hist-meta">
-              <span>{{ fmtSeconds(settledDurationMs(t)) }}</span>
-              <span v-if="t.tokensOut">· {{ t.tokensOut }} tok out</span>
-              <span v-for="(s, i) in (t.stats || [])" :key="`ls${i}`">· {{ s }}</span>
-              <span v-if="t.model">· <code>{{ t.model }}</code></span>
+              <span>{{ fmtSeconds(settledDurationMs(task)) }}</span>
+              <span v-if="task.tokensOut">· {{ t('kit.aiTasks.tokOut', { n: task.tokensOut }) }}</span>
+              <span v-for="(s, i) in (task.stats || [])" :key="`ls${i}`">· {{ s }}</span>
+              <span v-if="task.model">· <code>{{ task.model }}</code></span>
             </div>
-            <div v-if="t.error" class="aip-hist-error">{{ t.error }}</div>
+            <div v-if="task.error" class="aip-hist-error">{{ task.error }}</div>
           </div>
           <div class="aip-hist-actions">
-            <UiButton v-if="t._onRetry" intent="ghost" size="icon" @click="tasks.retry(t.id)"
-              v-tooltip.bottom="'Run it again'">
+            <UiButton v-if="task._onRetry" intent="ghost" size="icon" @click="tasks.retry(task.id)"
+              v-tooltip.bottom="t('kit.aiTasks.again')">
               <template #icon><Icon name="Refresh" :size="11" /></template>
             </UiButton>
-            <UiButton intent="ghost" size="icon" @click="tasks.dismiss(t.id)"
-              v-tooltip.bottom="'Dismiss'">
+            <UiButton intent="ghost" size="icon" @click="tasks.dismiss(task.id)"
+              v-tooltip.bottom="t('kit.downloadBar.dismiss')">
               <template #icon><Icon name="Close" :size="11" /></template>
             </UiButton>
           </div>
@@ -280,7 +280,7 @@ const phaseLabel = {
             </div>
             <div class="aip-hist-meta">
               <span>{{ fmtSeconds(h.durationMs) }}</span>
-              <span v-if="h.tokensOut">· {{ h.tokensOut }} tok out</span>
+              <span v-if="h.tokensOut">· {{ t('kit.aiTasks.tokOut', { n: h.tokensOut }) }}</span>
               <span v-for="(s, i) in (h.stats || [])" :key="`hs${i}`">· {{ s }}</span>
               <span v-if="h.model">· <code>{{ h.model }}</code></span>
             </div>
@@ -291,7 +291,7 @@ const phaseLabel = {
                kept the whole task for the same reason). -->
           <div v-if="h._onRetry" class="aip-hist-actions">
             <UiButton intent="ghost" size="icon" @click="tasks.retry(h.id)"
-              v-tooltip.bottom="'Run it again'">
+              v-tooltip.bottom="t('kit.aiTasks.again')">
               <template #icon><Icon name="Refresh" :size="11" /></template>
             </UiButton>
           </div>
@@ -299,7 +299,7 @@ const phaseLabel = {
 
         <UiButton v-if="hiddenHistoryCount || showAllHistory" intent="ghost" size="small"
           class="aip-hist-more" @click="showAllHistory = !showAllHistory">
-          {{ showAllHistory ? "Show less" : `Show all (${tasks.history.length})` }}
+          {{ showAllHistory ? t('kit.aiTasks.showLess') : t('kit.aiTasks.showAll', { n: tasks.history.length }) }}
         </UiButton>
       </section>
       </aside>

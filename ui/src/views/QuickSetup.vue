@@ -22,12 +22,13 @@
 // JustWrite mounts this kit view; JustVoice has its own (TTS) setup wizard. It replaces the
 // old jobs-based wiring (/v1/ai/jobs + a routing `jobs` map — both long retired).
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 import { request } from "../client.js";
 import { useHardware } from "../composables/useHardware.js";
 import { listClassTunes } from "../classTunes.js";
 import { useCatalogMeta } from "../composables/useCatalogMeta.js";
-import { recommendedModelId, pickBestEmbedId, pickByClassConfig, catalogState, speedFloorOf, FIT_GPU, FIT_RUNNABLE, FIT_LABEL } from "../common/services/modelPick.js";
+import { recommendedModelId, pickBestEmbedId, pickByClassConfig, catalogState, speedFloorOf, FIT_GPU, FIT_RUNNABLE, fitLabel } from "../common/services/modelPick.js";
 import { fmtBytes } from "../common/services/downloadRate.js";
 import { applyPreview, currentDefaultId, currentDefaultProviderId, modelHasTunes, refreshApplied, setAsDefault, setAsEmbedding, LOCAL_RUNNER_ID } from "../services/modelApply.js";
 import { confirmDialog } from "../common/services/dialog.js";
@@ -35,8 +36,7 @@ import { fmtTps } from "../common/services/runStats.js";
 import { createDownloadTask, engineInstallChannel, modelDownloadChannel, modelLoadChannel } from "../composables/useDownloadTask.js";
 import { refresh as refreshRunnerModels } from "../composables/useRunnerModels.js";
 import { recordMeasurement } from "../measurements.js";
-import { familyLabels } from "../common/services/familyLabels.js";
-import { quickSetupCopy } from "../common/services/quickSetupCopy.js";
+import { quickSetupApplied } from "../services/quickSetupApplied.js";
 import { llmUiCapabilities } from "../installLlmUi.js";
 import UiButton from "../common/components/UiButton.vue";
 import UiSelect from "../common/components/UiSelect.vue";
@@ -52,7 +52,7 @@ const emit = defineEmits(["changed", "closed"]);
 // Default (unset) keeps the full titled strip for other mounts.
 const props = defineProps({ inline: { type: Boolean, default: false } });
 
-// LOCAL_RUNNER_ID (modelApply) + FIT_LABEL / FIT_RUNNABLE (modelPick) come from the shared kit
+// LOCAL_RUNNER_ID (modelApply) + fitLabel / FIT_RUNNABLE (modelPick) come from the shared kit
 // — ONE source, no drift.
 
 // ── modal + wizard state ────────────────────────────────────────────────────
@@ -61,10 +61,13 @@ const step = ref("detect"); // detect | confirm | apply | done
 const loading = ref(true);
 const error = ref("");
 
-// Canon words (live labels store) + this app's VOICE (quickSetupCopy) + what the
-// host's stack can do — the surgery seams (2026-08-04) that let the fork die.
-const L = familyLabels.quickSetup;
-const QC = quickSetupCopy;
+// The kit's words (kit.quickSetup.*) in the app's language — an app rewords its voice (band
+// captions, the model hint, roles, the done line) with its own kit.quickSetup.* keys — plus what
+// the host's stack can do: the surgery seams (2026-08-04) that let the fork die.
+const { t, te } = useI18n();
+// The line after setup is an app's own (JustVoice's); the kit has none, so it shows only when
+// the app's catalog sets kit.quickSetup.doneBody.
+const doneBody = computed(() => (te("kit.quickSetup.doneBody") || te("kit.quickSetup.doneBody", "en") ? t("kit.quickSetup.doneBody") : ""));
 const embedsOn = llmUiCapabilities().embeddings !== false;
 
 // ── The configured-state truth (decision A1190, restored + built 2026-08-04):
@@ -74,7 +77,7 @@ const embedsOn = llmUiCapabilities().embeddings !== false;
 // The manual door stays — it just tells the truth about the state.
 const configured = computed(() => !!currentDefaultProviderId.value);
 const configuredBandLine = computed(() =>
-  L.configuredBand.replace("{model}", currentDefaultId.value || "a model"));
+  t("kit.quickSetup.configuredBand", { model: currentDefaultId.value || t("kit.quickSetup.aModel") }));
 onMounted(() => { refreshApplied().catch(() => {}); });
 
 // ── THE CACHE QUESTION (family behavior, ported from the docgen fork 2026-08-04 —
@@ -116,10 +119,10 @@ function fmtCacheBytes(n) {
 const cacheOptions = computed(() => {
   const o = cacheOffer.value;
   if (!o) return [];
-  const who = o.product || "another app";
+  const who = o.product || t("kit.quickSetup.cache.anotherApp");
   return [
-    { label: `Share ${who}'s AI files (${fmtCacheBytes(o.bytes || 0)} already downloaded)`, value: o.root },
-    { label: "Keep a separate copy for this app", value: cacheState.value?.ownRoot || "" },
+    { label: t("kit.quickSetup.cache.share", { who, size: fmtCacheBytes(o.bytes || 0) }), value: o.root },
+    { label: t("kit.quickSetup.cache.keepSeparate"), value: cacheState.value?.ownRoot || "" },
   ];
 });
 // Applied the moment it is chosen (switching re-points the idle engine so the model
@@ -144,12 +147,12 @@ async function applyCacheChoice(root) {
   try {
     const res = await request("/v1/ai/engine-cache", { method: "PUT", body: { root } });
     if (res?.restartRequired && !inUse) {
-      cacheNote.value = res.detail || "This applies the next time the app starts.";
+      cacheNote.value = res.detail || t("kit.quickSetup.cache.nextStart");
     }
     await Promise.all([loadAll(), refreshCatalogMeta()]);
     cacheState.value = await request("/v1/ai/engine-cache").catch(() => cacheState.value);
   } catch (e) {
-    cacheNote.value = `Couldn't switch the AI files: ${e?.message || e}`;
+    cacheNote.value = t("kit.quickSetup.cache.switchFailed", { error: e?.message || e });
   }
 }
 
@@ -210,7 +213,7 @@ const modelOptions = computed(() =>
     .filter((m) => !isEmbed(m))
     .map((m) => ({
       value: m.id,
-      label: `${m.name} · ${FIT_LABEL[m.fit] || "—"}${m.params ? ` · ${m.params}` : ""}`,
+      label: `${m.name} · ${fitLabel(m.fit)}${m.params ? ` · ${m.params}` : ""}`,
     })),
 );
 // The editable embedding dropdown lists EVERY embed — the fit veto came out of
@@ -221,7 +224,7 @@ const modelOptions = computed(() =>
 const embedOptions = computed(() =>
   models.value.filter((m) => isEmbed(m)).map((m) => ({
     value: m.id,
-    label: `${m.name}${m.params ? ` · ${m.params}` : ""}${FIT_RUNNABLE.has(m.fit) ? "" : ` · ${FIT_LABEL[m.fit] || "—"}`}`,
+    label: `${m.name}${m.params ? ` · ${m.params}` : ""}${FIT_RUNNABLE.has(m.fit) ? "" : ` · ${fitLabel(m.fit)}`}`,
   })),
 );
 // The DEFAULT embed pick (#274, the user's confirmed rule): the most capable embedding
@@ -251,8 +254,8 @@ const embedPlaceLine = computed(() => {
   const gpuOk = cardMb > 0 && tierById.value[id] !== "cpu"
     && (minVramById.value[id] || 0) > 0 && minVramById.value[id] <= wizardLeftoverMb();
   return gpuOk
-    ? "It will run on your GPU alongside the writing model."
-    : "It runs on the CPU on this PC — the GPU stays with your writing model.";
+    ? t("kit.quickSetup.embed.onGpu")
+    : t("kit.quickSetup.embed.onCpu");
 });
 
 const embedName = computed(() => {
@@ -264,10 +267,10 @@ const hwLine = computed(() => {
   const h = hw.value;
   if (!h) return "";
   const g = mainGpu.value;
-  const vram = g?.vramMb ? ` · ${Math.round(g.vramMb / 1024)} GB VRAM` : "";
-  const ram = h.ramMb ? ` · ${Math.round(h.ramMb / 1024)} GB RAM` : "";
+  const vram = g?.vramMb ? ` · ${t("kit.quickSetup.hw.vram", { gb: Math.round(g.vramMb / 1024) })}` : "";
+  const ram = h.ramMb ? ` · ${t("kit.quickSetup.hw.ram", { gb: Math.round(h.ramMb / 1024) })}` : "";
   const os = h.platform ? ` · ${h.platform}` : "";
-  return `${g ? g.name : "CPU only"}${vram}${ram}${os}`;
+  return `${g ? g.name : t("kit.quickSetup.hw.cpuOnly")}${vram}${ram}${os}`;
 });
 function fitOf(id) {
   return modelById.value[id]?.fit || "unknown";
@@ -318,8 +321,8 @@ const catState = computed(() => catalogState(models.value, { isEmbed }));
 const fitVerdict = computed(() => {
   if (!fitting.value.length || !pick.value.default) return "";
   const f = fitOf(pick.value.default);
-  if (f === "ok") return "This machine runs the full local setup.";
-  if (f === "tight") return "This machine runs the setup — a tight fit, but it works.";
+  if (f === "ok") return t("kit.quickSetup.verdict.ok");
+  if (f === "tight") return t("kit.quickSetup.verdict.tight");
   return "";
 });
 // Only surface the QAT "good to know" when the PICK is actually a QAT model (the description
@@ -341,7 +344,7 @@ async function loadAll() {
     speedFloor.value = speedFloorOf(m);
     prefillPick();
   } catch (e) {
-    error.value = `Couldn't read hardware / catalog: ${e.message}`;
+    error.value = t("kit.quickSetup.err.readHardware", { error: e.message });
   } finally {
     loading.value = false;
   }
@@ -423,7 +426,7 @@ async function openWizard() {
         applyPreview().then((p) => { previewState.value = p; }).catch(() => { previewState.value = null; }),
       ]),
       new Promise((_, reject) => setTimeout(
-        () => reject(new Error(`the server didn't answer within ${Math.round(DETECT_TIMEOUT_MS / 1000)}s`)),
+        () => reject(new Error(t("kit.quickSetup.err.serverSilent", { s: Math.round(DETECT_TIMEOUT_MS / 1000) }))),
         DETECT_TIMEOUT_MS,
       )),
     ]);
@@ -459,7 +462,7 @@ async function openWizard() {
     cacheChoice.value = cacheOffer.value?.root || cacheState.value?.root || "";
   } catch (e) {
     // Don't overwrite a more specific message a loader already recorded.
-    if (!error.value) error.value = `Couldn't finish reading your setup — ${e.message}`;
+    if (!error.value) error.value = t("kit.quickSetup.err.readSetup", { error: e.message });
   } finally {
     // A configured box lands on the truth screen, not the pitch; everything else
     // (including errors) lands on confirm, which renders the empty-state — unless
@@ -485,8 +488,8 @@ const calState = ref(null); // the GET /v1/llm-runner/calibrate payload
 let calTimer = null;
 let embedAutoFilled = false; // openWizard filled the embed itself (not routing)
 const calRunning = computed(() => calState.value?.status === "running");
-const calBody = computed(() => QC.checkBody.replace("{size}", fmtBytes(calState.value?.sizeBytes || 0)));
-const calProgressLabel = computed(() => calState.value?.detail || "Starting…");
+const calBody = computed(() => t("kit.quickSetup.checkBody", { size: fmtBytes(calState.value?.sizeBytes || 0) }));
+const calProgressLabel = computed(() => calState.value?.detail || t("kit.quickSetup.check.starting"));
 
 function isCuratedBox() {
   return !!pickByClassConfig(classTuneRefs.value, myClassKey.value, fitting.value, {
@@ -511,7 +514,7 @@ async function runSpeedCheck() {
   try {
     calState.value = { ...(calState.value || {}), ...(await request("/v1/llm-runner/calibrate", { method: "POST" })) };
   } catch (e) {
-    calState.value = { ...(calState.value || {}), status: "error", error: e.message || "Couldn't start the check." };
+    calState.value = { ...(calState.value || {}), status: "error", error: e.message || t("kit.quickSetup.check.startFailed") };
     return;
   }
   startCalPoll();
@@ -572,10 +575,10 @@ watch(open, (v, prev) => {
 async function attemptClose() {
   if (optRunning.value) {
     const ok = await confirmDialog({
-      title: "Optimization is still running",
-      message: "Auto-tuning is still measuring the fastest launch settings for this machine, and it holds the GPU so other AI features are paused. Close now and stop it? No tuned settings will be saved.",
-      confirmLabel: "Close and stop",
-      cancelLabel: "Keep optimizing",
+      title: t("kit.quickSetup.opt.stillRunning"),
+      message: t("kit.quickSetup.opt.closeBody"),
+      confirmLabel: t("kit.quickSetup.opt.closeAndStop"),
+      cancelLabel: t("kit.quickSetup.opt.keepOptimizing"),
     });
     if (!ok) return;
     await skipOptimize();
@@ -631,8 +634,8 @@ const embedTask = createDownloadTask(modelDownloadChannel(() => pick.value.embed
 watch(() => engineTask.state, (s) => {
   if (step.value !== "apply") return;
   if (s === "done" && pick.value.default && chatTask.state !== "done") chatTask.start();
-  else if (s === "cancelled") chatTask.fail("The engine install was cancelled — install it above, then this continues.");
-  else if (s === "error") chatTask.fail("The engine didn't install — retry it above, then this continues.");
+  else if (s === "cancelled") chatTask.fail(t("kit.quickSetup.apply.engineCancelled"));
+  else if (s === "error") chatTask.fail(t("kit.quickSetup.apply.engineFailed"));
 });
 // The wizard advances only when the CHAT model is genuinely live; a successful chat retry
 // advances too (the watch fires again). The embed never gates the step (it self-downloads on
@@ -655,10 +658,10 @@ const applyStopped = computed(() => step.value === "apply" && !applying.value
 // note only when a model downloads at all.
 const applyDownloads = ref({ chat: false, embed: false });
 const applyLine = computed(() => {
-  const what = chatTask.state && embedTask.state ? "your models" : "your model";
-  if (engineTask.state) return `Setting up ${what} — installing the engine first, then your model.`;
-  if (applyDownloads.value.chat && applyDownloads.value.embed) return `Setting up ${what} — both download at once.`;
-  return `Setting up ${what}.`;
+  const two = !!(chatTask.state && embedTask.state);
+  if (engineTask.state) return t(two ? "kit.quickSetup.apply.engineFirstModels" : "kit.quickSetup.apply.engineFirstModel");
+  if (applyDownloads.value.chat && applyDownloads.value.embed) return t("kit.quickSetup.apply.bothDownload");
+  return t(two ? "kit.quickSetup.apply.settingUpModels" : "kit.quickSetup.apply.settingUpModel");
 });
 
 // The completion tail — EXTRACTED so a Retry (via the chat watch) reaches it too. It records
@@ -682,7 +685,7 @@ async function finishApply() {
   emit("changed");
   // The host's follow-up seam (surgery 2026-08-04) — docgen needs nothing today
   // (setAsDefault already repoints its presets); future apps hook here.
-  try { QC.onApplied?.({ modelId: target }); } catch { /* host's problem, not the wizard's */ }
+  quickSetupApplied({ modelId: target });
   if (target) measureAfterApply(target); // never awaited — setup is already done
 }
 
@@ -720,10 +723,10 @@ async function apply() {
     const tune = await request("/v1/llm-runner/auto-tune").catch(() => null);
     if (tune?.status === "running") {
       const ok = await confirmDialog({
-        title: "Optimization is still running",
-        message: "An optimize sweep is still measuring launch settings and holds the GPU. Applying now stops it — no tuned settings will be saved.",
-        confirmLabel: "Stop it and apply",
-        cancelLabel: "Keep optimizing",
+        title: t("kit.quickSetup.opt.stillRunning"),
+        message: t("kit.quickSetup.opt.applyBody"),
+        confirmLabel: t("kit.quickSetup.opt.stopAndApply"),
+        cancelLabel: t("kit.quickSetup.opt.keepOptimizing"),
       });
       if (!ok) return;
       await request("/v1/llm-runner/auto-tune/cancel", { method: "POST" }).catch(() => {});
@@ -771,13 +774,13 @@ async function apply() {
     if (!target) {
       await finishApply();
     } else if (engineNeeded.value) {
-      chatTask.waiting("Waiting for the engine…");
+      chatTask.waiting(t("kit.quickSetup.apply.waitingEngine"));
       engineTask.start();
     } else {
       chatTask.start();
     }
   } catch (e) {
-    error.value = `Apply failed: ${e.message}`;
+    error.value = t("kit.quickSetup.err.apply", { error: e.message });
     step.value = "confirm";
   } finally {
     applying.value = false;
@@ -820,7 +823,7 @@ const optElapsedLabel = computed(() => {
   const s = optElapsed.value;
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 });
-const optRunLabel = computed(() => optState.value?.detail || "measuring…");
+const optRunLabel = computed(() => optState.value?.detail || t("kit.quickSetup.opt.measuring"));
 function startOptTick() {
   optStartedAt = Date.now();
   optElapsed.value = 0;
@@ -864,14 +867,14 @@ async function startOptimize(budgetSeconds = 0) {
         startOptTick();
         return;
       }
-      throw new Error(st.error || "Couldn't start optimizing.");
+      throw new Error(st.error || t("kit.quickSetup.opt.startFailed"));
     }
     optState.value = st;
     stopOptPoll();
     optTimer = setInterval(pollOptimize, 2000);
     startOptTick();
   } catch (e) {
-    optState.value = { status: "error", error: e.message || "Couldn't start optimizing." };
+    optState.value = { status: "error", error: e.message || t("kit.quickSetup.opt.startFailed") };
   }
 }
 // Skip = cancel, PROMPT (2026-07-07): the backend aborts the trial in flight (the
@@ -890,9 +893,9 @@ async function skipOptimize() {
 // actually replaces them when a strictly faster config is measured).
 async function reOptimize() {
   const ok = await confirmDialog({
-    title: "Overwrite this machine's tuned settings?",
-    message: "This machine already has a measured launch config for this model. Re-optimizing runs a new sweep and replaces the saved settings only if a strictly faster configuration is found.",
-    confirmLabel: "Re-optimize",
+    title: t("kit.quickSetup.opt.overwriteTitle"),
+    message: t("kit.quickSetup.opt.overwriteBody"),
+    confirmLabel: t("kit.quickSetup.opt.reoptimize"),
   });
   if (ok) startOptimize();
 }
@@ -911,53 +914,53 @@ defineExpose({ openWizard });
            the QC-42 scope line STAYS (user QC ruling 2026-08-04: the configured
            band keeps "built-in provider only"; it was dropped once, on my own). -->
       <template v-if="configured">
-        <UiButton intent="secondary" @click="openWizard">{{ L.rerunButton }}</UiButton>
+        <UiButton intent="secondary" @click="openWizard">{{ t('kit.quickSetup.rerunButton') }}</UiButton>
         <span class="lu-qs-barefor">{{ configuredBandLine }}</span>
-        <span class="lu-muted lu-qs-baresub">{{ L.bandScope }}</span>
+        <span class="lu-muted lu-qs-baresub">{{ t('kit.quickSetup.bandScope') }}</span>
       </template>
       <template v-else>
-        <UiButton intent="primary" @click="openWizard">{{ L.runButton }}</UiButton>
+        <UiButton intent="primary" @click="openWizard">{{ t('kit.quickSetup.runButton') }}</UiButton>
         <!-- QC-42: the wizard is built-in-only — say so right of the button, bigger
              than the description, so nobody expects it to configure an online
              provider. Since 2026-07-19 this band sits at the top of the Local tab
              rather than inside the built-in provider's card, so these WORDS are the
              only thing carrying the scope — hence naming llama.cpp outright. -->
-        <span class="lu-qs-barefor">{{ L.bandScope }}</span>
-        <span class="lu-muted lu-qs-baresub">{{ QC.bandSub }}</span>
+        <span class="lu-qs-barefor">{{ t('kit.quickSetup.bandScope') }}</span>
+        <span class="lu-muted lu-qs-baresub">{{ t('kit.quickSetup.bandSub') }}</span>
       </template>
     </template>
     <div v-else class="lu-qs-head">
       <div>
-        <b class="lu-qs-title">Quick Setup</b>
-        <span class="lu-muted lu-qs-sub">{{ configured ? configuredBandLine : QC.headSub }}</span>
+        <b class="lu-qs-title">{{ t('kit.quickSetup.title') }}</b>
+        <span class="lu-muted lu-qs-sub">{{ configured ? configuredBandLine : t('kit.quickSetup.headSub') }}</span>
       </div>
-      <UiButton :intent="configured ? 'secondary' : 'primary'" size="small" @click="openWizard">{{ configured ? L.rerunButton : L.runButton }}</UiButton>
+      <UiButton :intent="configured ? 'secondary' : 'primary'" size="small" @click="openWizard">{{ configured ? t('kit.quickSetup.rerunButton') : t('kit.quickSetup.runButton') }}</UiButton>
     </div>
 
     <AppModal
       v-if="open"
-      :title="step === 'detect' ? 'Probing your hardware…' : step === 'configured' ? L.alreadyTitle : step === 'calibrate' ? L.checkTitle : step === 'apply' ? (applyStopped ? 'Setup stopped' : 'Setting up…') : step === 'done' ? 'All set' : QC.confirmTitle"
+      :title="step === 'detect' ? t('kit.quickSetup.step.probing') : step === 'configured' ? t('kit.quickSetup.alreadyTitle') : step === 'calibrate' ? t('kit.quickSetup.checkTitle') : step === 'apply' ? (applyStopped ? t('kit.quickSetup.step.stopped') : t('kit.quickSetup.step.settingUp')) : step === 'done' ? t('kit.quickSetup.step.allSet') : t('kit.quickSetup.confirmTitle')"
       :max-width="'640px'"
       :closable="!optRunning && !calRunning && engineTask.state !== 'running' && chatTask.state !== 'running' && embedTask.state !== 'running'"
       @close="onModalClose"
     >
       <!-- DETECT -->
-      <div v-if="step === 'detect'" class="lu-muted lu-qs-loading">Reading GPU + model catalog…</div>
+      <div v-if="step === 'detect'" class="lu-muted lu-qs-loading">{{ t('kit.quickSetup.step.reading') }}</div>
 
       <!-- ALREADY SET UP (the configured-state truth, A1190). The scope sentence
            is the QC-42 canon line with the feature named (ruling 2026-08-04: this
            screen's words must carry the built-in-only scope too). -->
       <template v-else-if="step === 'configured'">
-        <p style="margin: 0"><b>{{ currentDefaultId || pick.default }}</b> is the default local model — everything is set up.</p>
-        <p class="lu-muted lu-qs-hint">Quick Setup sets up the built-in llama.cpp provider only. Change the model to walk the setup again with a different pick; nothing changes until you apply.</p>
+        <i18n-t keypath="kit.quickSetup.configured.line" tag="p" style="margin: 0" scope="global"><template #model><b>{{ currentDefaultId || pick.default }}</b></template></i18n-t>
+        <p class="lu-muted lu-qs-hint">{{ t('kit.quickSetup.configured.hint') }}</p>
       </template>
 
       <!-- THE ONE-MINUTE SPEED CHECK (speed-truth plan 2026-09-19 §6) — offered
            only on hardware with no curated preset; always skippable. -->
       <template v-else-if="step === 'calibrate'">
         <p style="margin: 0">{{ calBody }}</p>
-        <p class="lu-muted lu-qs-hint">{{ QC.checkSkipNote }}</p>
-        <DownloadBar v-if="engineTask.state && engineTask.state !== 'done'" :title="L.engineBarTitle" :role="L.engineBarRole" :task="engineTask" />
+        <p class="lu-muted lu-qs-hint">{{ t('kit.quickSetup.checkSkipNote') }}</p>
+        <DownloadBar v-if="engineTask.state && engineTask.state !== 'done'" :title="t('kit.quickSetup.engineBarTitle')" :role="t('kit.quickSetup.engineBarRole')" :task="engineTask" />
         <template v-if="calRunning">
           <UiProgress
             v-if="calState.phase === 'download'"
@@ -965,10 +968,10 @@ defineExpose({ openWizard });
           <UiProgress v-else :label="calProgressLabel" />
         </template>
         <p v-else-if="calState?.status === 'done'" class="lu-qs-opt-ok" style="margin: 0">
-          {{ QC.checkDoneNote }}
+          {{ t('kit.quickSetup.checkDoneNote') }}
         </p>
         <p v-else-if="calState?.status === 'error'" class="lu-error" style="margin: 0">{{ calState.error }}</p>
-        <p v-else-if="calState?.status === 'cancelled'" class="lu-muted" style="margin: 0">Check cancelled.</p>
+        <p v-else-if="calState?.status === 'cancelled'" class="lu-muted" style="margin: 0">{{ t('kit.quickSetup.check.cancelled') }}</p>
       </template>
 
       <!-- CONFIRM (editable) -->
@@ -979,85 +982,78 @@ defineExpose({ openWizard });
              2026-08-04): the answer changes what the model choice below costs —
              a model already in a sibling app's cache downloads in 0 s. -->
         <section v-if="cacheOffer" class="lu-qs-sec lu-qs-cache">
-          <p style="margin: 0">
-            <b>{{ cacheOffer.product || "Another app" }}</b> on this PC already has
-            {{ cacheOffer.models?.length || 0 }} AI model{{ cacheOffer.models?.length === 1 ? "" : "s" }}
-            and the engine — {{ fmtCacheBytes(cacheOffer.bytes || 0) }} downloaded.
-          </p>
+          <i18n-t keypath="kit.quickSetup.cache.offer" tag="p" style="margin: 0" scope="global" :plural="cacheOffer.models?.length || 0">
+            <template #app><b>{{ cacheOffer.product || t('kit.quickSetup.cache.anotherAppCap') }}</b></template>
+            <template #n>{{ cacheOffer.models?.length || 0 }}</template>
+            <template #size>{{ fmtCacheBytes(cacheOffer.bytes || 0) }}</template>
+          </i18n-t>
           <UiSelect
             :model-value="cacheChoice" :options="cacheOptions" width="prose"
             @update:model-value="onCacheChoice"
           />
-          <p class="lu-muted lu-qs-hint">
-            Sharing means a model you already have downloads again in no time and
-            takes no extra disk. Nothing is moved or deleted either way, and you can
-            change this later under Settings.
-          </p>
+          <p class="lu-muted lu-qs-hint">{{ t('kit.quickSetup.cache.sharingHint') }}</p>
           <p v-if="cacheNote" class="lu-muted lu-qs-hint">{{ cacheNote }}</p>
         </section>
 
         <p v-if="fitVerdict" class="lu-qs-verdict">{{ fitVerdict }}</p>
         <!-- Hardware requirements only make sense when there ARE curated models
              to run (an empty catalog has no floor to state). -->
-        <p v-if="catState !== 'empty'" class="lu-muted lu-qs-req">Requirements: a video card with at least 8 GB VRAM and 32 GB of system RAM.</p>
+        <p v-if="catState !== 'empty'" class="lu-muted lu-qs-req">{{ t('kit.quickSetup.confirm.requirements') }}</p>
 
         <section class="lu-qs-sec">
-          <div class="lu-qs-k">Detected</div>
+          <div class="lu-qs-k">{{ t('kit.quickSetup.confirm.detected') }}</div>
           <div class="lu-qs-detected"><b>{{ hwLine }}</b></div>
         </section>
 
-        <div v-if="loading" class="lu-muted">Reading the catalog…</div>
+        <div v-if="loading" class="lu-muted">{{ t('kit.quickSetup.confirm.readingCatalog') }}</div>
         <template v-else-if="fitting.length">
           <!-- The one good model — a single editable pick that runs every task. -->
           <section class="lu-qs-sec">
             <div class="lu-qs-k">
-              Default model
-              <span class="lu-fit lu-qs-fit" :class="`lu-fit--${fitOf(pick.default)}`">{{ FIT_LABEL[fitOf(pick.default)] }}</span>
+              {{ t('kit.quickSetup.confirm.defaultModel') }}
+              <span class="lu-fit lu-qs-fit" :class="`lu-fit--${fitOf(pick.default)}`">{{ fitLabel(fitOf(pick.default)) }}</span>
             </div>
             <UiSelect v-model="pick.default" :options="modelOptions" />
-            <p class="lu-muted lu-qs-hint">{{ QC.modelHint }}</p>
+            <p class="lu-muted lu-qs-hint">{{ t('kit.quickSetup.modelHint') }}</p>
             <p v-if="descriptionOf(pick.default)" class="lu-qs-why">
-              <b>About this model:</b> {{ descriptionOf(pick.default) }}
+              <b>{{ t('kit.quickSetup.confirm.aboutModel') }}</b> {{ descriptionOf(pick.default) }}
             </p>
           </section>
           <p v-if="isQatPick" class="lu-qs-goodtoknow">
-            <b>Good to know:</b> these are QAT (quantization-aware trained) models — about
-            3–4× lighter on memory than full precision while keeping close to the original
-            quality. That's how a capable model fits your card.
+            <b>{{ t('kit.quickSetup.confirm.goodToKnow') }}</b> {{ t('kit.quickSetup.confirm.qatNote') }}
           </p>
         </template>
         <!-- TWO distinct no-model states (decision ④): an EMPTY catalog is this
              app's seed choice, not the machine's fault — say so. -->
         <div v-else-if="catState === 'empty'" class="lu-qs-empty">
-          No curated models — add one or connect a provider. This app ships no
-          ready-made model list: add a model to the catalog (<b>Edit</b> the
-          built-in provider → <b>Add a model</b> — any Hugging Face GGUF link
-          works), or connect an <b>online provider</b>. Every AI feature works
-          either way.
+          <i18n-t keypath="kit.quickSetup.confirm.emptyCatalog" scope="global">
+            <template #edit><b>{{ t('kit.quickSetup.confirm.edit') }}</b></template>
+            <template #add><b>{{ t('kit.quickSetup.confirm.addModel') }}</b></template>
+            <template #online><b>{{ t('kit.quickSetup.confirm.onlineProvider') }}</b></template>
+          </i18n-t>
         </div>
         <div v-else class="lu-qs-empty">
-          No local model can run well on this machine — generating on the CPU alone is too slow
-          for writing. You can still use every AI feature by connecting an <b>online provider</b>
-          below: your work stays on your disk, and only the text a feature needs is sent. Local
-          search still runs on your CPU.
+          <i18n-t keypath="kit.quickSetup.confirm.noLocal" scope="global">
+            <template #online><b>{{ t('kit.quickSetup.confirm.onlineProvider') }}</b></template>
+          </i18n-t>
         </div>
 
         <!-- The embedding — always LOCAL (the RAG index). Hidden when no chat model fits:
              that state routes OUT to an online provider (no local Apply happens), so the
              local embed picker + the Apply changelist below would be contradictory UI. -->
         <section v-if="embedsOn && fitting.length && embedOptions.length" class="lu-qs-sec">
-          <div class="lu-qs-k">Embedding</div>
+          <div class="lu-qs-k">{{ t('kit.quickSetup.confirm.embedding') }}</div>
           <UiSelect v-model="pick.embeddingModel" :options="embedOptions" @update:model-value="onEmbedChange" />
-          <p class="lu-muted lu-qs-hint">Powers semantic search + grounded chat. {{ embedPlaceLine || "Runs on the bundled runner alongside your chat model; a smaller embed is fine." }}</p>
+          <p class="lu-muted lu-qs-hint">{{ t('kit.quickSetup.embed.powers') }} {{ embedPlaceLine || t('kit.quickSetup.embed.bundled') }}</p>
         </section>
 
         <!-- What will happen on Apply. -->
         <section v-if="fitting.length" class="lu-qs-sec lu-qs-routing">
-          <div class="lu-qs-k">What happens when you click Apply</div>
+          <div class="lu-qs-k">{{ t('kit.quickSetup.confirm.whatHappens') }}</div>
           <ul class="lu-qs-rlist">
-            <li v-if="modelById[pick.default]"><b>{{ modelById[pick.default].name }}</b> <span class="lu-muted">— becomes the model for every preset, except any you've changed yourself under Routing by feature.</span></li>
-            <li v-if="pick.default">It <b>downloads now</b> if it isn't already on disk, then loads as the active model.</li>
-            <li v-if="pick.embeddingModel">Search model set to <code>{{ embedName }}</code> — it <b>downloads now</b> too (it powers search + Ask the book) and runs alongside your main model.</li>
+            <li v-if="modelById[pick.default]"><b>{{ modelById[pick.default].name }}</b> <span class="lu-muted">— {{ t('kit.quickSetup.confirm.becomesDefault') }}</span></li>
+            <li v-if="pick.default"><i18n-t keypath="kit.quickSetup.confirm.downloadsNow" scope="global"><template #now><b>{{ t('kit.quickSetup.confirm.downloadsNowWords') }}</b></template></i18n-t></li>
+            <li v-if="pick.embeddingModel"><i18n-t keypath="kit.quickSetup.confirm.searchModel" scope="global"><template #name><code>{{ embedName }}</code></template><template #now><b>{{ t('kit.quickSetup.confirm.downloadsNowWords') }}</b></template></i18n-t></li>
           </ul>
         </section>
 
@@ -1066,57 +1062,52 @@ defineExpose({ openWizard });
              anything writes — the lists come from the SAME dominant-model logic the Apply
              writer uses. A fresh box renders nothing here and stays one-click. -->
         <section v-if="fitting.length && previewState?.configured" class="lu-qs-sec lu-qs-changes">
-          <div class="lu-qs-k">This machine is already set up — what Apply will change</div>
+          <div class="lu-qs-k">{{ t('kit.quickSetup.confirm.alreadyTitle') }}</div>
           <template v-if="repointedPresets.length">
             <ul class="lu-qs-rlist">
               <li v-for="p in repointedPresets" :key="p.id">
-                <b>{{ p.name }}</b> <span class="lu-muted">re-points from <code>{{ p.model }}</code> to <code>{{ pick.default }}</code></span>
+                <b>{{ p.name }}</b> <i18n-t keypath="kit.quickSetup.confirm.repoints" tag="span" class="lu-muted" scope="global"><template #from><code>{{ p.model }}</code></template><template #to><code>{{ pick.default }}</code></template></i18n-t>
               </li>
             </ul>
           </template>
-          <p v-else class="lu-muted">All tasks already use this model — Apply changes no task routing.</p>
+          <p v-else class="lu-muted">{{ t('kit.quickSetup.confirm.noRouting') }}</p>
           <p v-if="keptPresets.length" class="lu-muted lu-qs-hint">
-            Kept as you set them: {{ keptPresets.map((p) => p.name).join(", ") }}.
+            {{ t('kit.quickSetup.confirm.kept', { names: keptPresets.map((p) => p.name).join(", ") }) }}
           </p>
-          <p class="lu-muted lu-qs-hint">Your saved machine tunes are never touched by Apply.</p>
+          <p class="lu-muted lu-qs-hint">{{ t('kit.quickSetup.confirm.tunesKept') }}</p>
         </section>
       </template>
 
       <!-- APPLY -->
       <template v-else-if="step === 'apply'">
         <template v-if="applyStopped">
-          <p class="lu-qs-applying"><b>Setup stopped — nothing downloaded.</b></p>
-          <p class="lu-muted lu-qs-applynote">
-            Back returns to your choices — Apply there starts the downloads again. Close leaves
-            the setup; Re-run LLM engine setup opens it again any time.
-          </p>
+          <p class="lu-qs-applying"><b>{{ t('kit.quickSetup.apply.stopped') }}</b></p>
+          <p class="lu-muted lu-qs-applynote">{{ t('kit.quickSetup.apply.stoppedNote', { rerun: t('kit.quickSetup.rerunButton') }) }}</p>
         </template>
         <p v-else class="lu-qs-applying">{{ applyLine }}</p>
 
         <!-- ONE bar per download (the SHARED DownloadBar over the SHARED createDownloadTask):
              the engine (only when it isn't installed yet), the chat model, and the search
              model. Each carries its own Cancel / Retry. -->
-        <DownloadBar v-if="engineTask.state" :title="L.engineBarTitle" :role="L.engineBarRole" :task="engineTask" />
-        <DownloadBar v-if="chatTask.state" :title="modelById[pick.default]?.name || pick.default" :role="QC.chatRole" :task="chatTask" />
-        <DownloadBar v-if="embedTask.state" :title="embedName" :role="QC.embedRole" :task="embedTask" />
+        <DownloadBar v-if="engineTask.state" :title="t('kit.quickSetup.engineBarTitle')" :role="t('kit.quickSetup.engineBarRole')" :task="engineTask" />
+        <DownloadBar v-if="chatTask.state" :title="modelById[pick.default]?.name || pick.default" :role="t('kit.quickSetup.chatRole')" :task="chatTask" />
+        <DownloadBar v-if="embedTask.state" :title="embedName" :role="t('kit.quickSetup.embedRole')" :task="embedTask" />
 
         <p v-if="!applyStopped && (applyDownloads.chat || applyDownloads.embed)" class="lu-muted lu-qs-applynote">
-          A model is several gigabytes, so a first run can take a few minutes — each only
-          downloads once. Cancel stops a download; Retry starts it again.
+          {{ t('kit.quickSetup.apply.sizeNote') }}
         </p>
       </template>
 
       <!-- DONE -->
       <template v-else-if="step === 'done'">
-        <p><b>Setup applied.</b></p>
+        <p><b>{{ t('kit.quickSetup.done.applied') }}</b></p>
         <ul class="lu-qs-summary">
-          <li>Default model · <code>{{ modelById[pick.default]?.name || pick.default }}</code></li>
-          <li v-if="pick.embeddingModel">Embedding · <code>{{ embedName }}</code></li>
+          <li>{{ t('kit.quickSetup.confirm.defaultModel') }} · <code>{{ modelById[pick.default]?.name || pick.default }}</code></li>
+          <li v-if="pick.embeddingModel">{{ t('kit.quickSetup.confirm.embedding') }} · <code>{{ embedName }}</code></li>
         </ul>
-        <p v-if="QC.doneBody" class="lu-muted">{{ QC.doneBody }}</p>
+        <p v-if="doneBody" class="lu-muted">{{ doneBody }}</p>
         <p v-if="embedTask.state && embedTask.state !== 'done'" class="lu-muted lu-qs-applynote">
-          The search model didn't finish downloading — it downloads itself on your first
-          search, or you can grab it any time from the model catalog.
+          {{ t('kit.quickSetup.done.searchPending') }}
         </p>
 
         <!-- C8 integration: the wizard is local-only, so the old `isBundled` guard is gone —
@@ -1131,48 +1122,43 @@ defineExpose({ openWizard });
                the model's Tune dialog. -->
           <template v-if="!optState">
             <template v-if="tunedAlready">
-              <UiButton intent="secondary" size="small" @click="reOptimize">Re-optimize</UiButton>
-              <span class="lu-muted">This machine already has measured launch settings for this model — re-run the sweep only if your hardware changed.</span>
+              <UiButton intent="secondary" size="small" @click="reOptimize">{{ t('kit.quickSetup.opt.reoptimize') }}</UiButton>
+              <span class="lu-muted">{{ t('kit.quickSetup.opt.tunedAlready') }}</span>
             </template>
             <template v-else-if="classTuned">
-              <span class="lu-qs-opt-ok">Tuned settings for your hardware were applied ✓</span>
-              <span class="lu-muted">PCs with this much video memory and RAM come pre-measured, so no sweep is needed. Optional: a full measured sweep can still fine-tune this exact machine — it can take 10 minutes or more; other AI features pause while it runs.</span>
-              <UiButton intent="secondary" size="small" @click="startOptimize()">Optimize for this PC</UiButton>
+              <span class="lu-qs-opt-ok">{{ t('kit.quickSetup.opt.classApplied') }}</span>
+              <span class="lu-muted">{{ t('kit.quickSetup.opt.classNote') }}</span>
+              <UiButton intent="secondary" size="small" @click="startOptimize()">{{ t('kit.quickSetup.opt.optimizePc') }}</UiButton>
             </template>
             <template v-else>
-              <span class="lu-muted">No measured settings for this PC yet — it runs on the engine's automatic memory fitting, which works but may not be the fastest.</span>
+              <span class="lu-muted">{{ t('kit.quickSetup.opt.untuned') }}</span>
               <div class="lu-qs-opt-btns">
-                <UiButton intent="secondary" size="small" @click="startOptimize(QUICK_TUNE_SECONDS)">2-minute optimize</UiButton>
-                <UiButton intent="secondary" size="small" @click="startOptimize()">Full optimize</UiButton>
+                <UiButton intent="secondary" size="small" @click="startOptimize(QUICK_TUNE_SECONDS)">{{ t('kit.quickSetup.opt.quick') }}</UiButton>
+                <UiButton intent="secondary" size="small" @click="startOptimize()">{{ t('kit.quickSetup.opt.full') }}</UiButton>
               </div>
-              <span class="lu-muted">The 2-minute pass tries the most likely settings and keeps the best; Full keeps measuring (10 minutes or more) and is often several times faster to first token. Both are the same measured sweep as the model's Tune &amp; measure, with the winner saved automatically. Other AI features pause while a sweep runs.</span>
+              <span class="lu-muted">{{ t('kit.quickSetup.opt.quickVsFull') }}</span>
             </template>
           </template>
           <template v-else-if="optRunning">
             <div class="lu-qs-opt-run">
               <div class="lu-qs-opt-line">
-                <b class="lu-qs-opt-title">{{ optQuick ? "2-minute optimize — measuring…" : "Optimizing for this PC…" }}</b>
-                <span class="lu-qs-opt-elapsed">{{ optElapsedLabel }} elapsed</span>
+                <b class="lu-qs-opt-title">{{ optQuick ? t('kit.quickSetup.opt.quickRunning') : t('kit.quickSetup.opt.fullRunning') }}</b>
+                <span class="lu-qs-opt-elapsed">{{ t('kit.quickSetup.opt.elapsed', { time: optElapsedLabel }) }}</span>
               </div>
               <UiProgress :label="optRunLabel" />
               <p class="lu-muted lu-qs-opt-eta">
-                <template v-if="optQuick">This pass is time-boxed to about 2 minutes — it
-                  tries the most likely settings and keeps the best one found. Your GPU is busy
-                  while it runs, so other AI features pause until it finishes or you stop it.</template>
-                <template v-else>This runs a sequence of load-and-measure trials and can take 10
-                  minutes or more — longer for larger models. Your GPU is busy while it runs, so
-                  other AI features pause until it finishes or you stop it.</template>
+                {{ optQuick ? t('kit.quickSetup.opt.quickEta') : t('kit.quickSetup.opt.fullEta') }}
               </p>
               <ul v-if="optTrialsDone.length" class="lu-qs-opt-trials">
-                <li v-for="(t, i) in optTrialsDone" :key="i" :class="{ 'is-fail': !t.ok }">
-                  <span class="lu-qs-opt-tl">{{ t.label }}</span>
-                  <span v-if="t.ok" class="lu-qs-opt-tv">{{ fmtTps(t.tokensPerSec) }}</span>
-                  <span v-else class="lu-qs-opt-tx">{{ t.error && t.error.startsWith("skipped") ? "skipped" : "failed" }}</span>
+                <li v-for="(trial, i) in optTrialsDone" :key="i" :class="{ 'is-fail': !trial.ok }">
+                  <span class="lu-qs-opt-tl">{{ trial.label }}</span>
+                  <span v-if="trial.ok" class="lu-qs-opt-tv">{{ fmtTps(trial.tokensPerSec) }}</span>
+                  <span v-else class="lu-qs-opt-tx">{{ trial.error && trial.error.startsWith("skipped") ? t('kit.quickSetup.opt.trialSkipped') : t('kit.quickSetup.opt.trialFailed') }}</span>
                 </li>
               </ul>
               <div class="lu-qs-opt-act">
-                <UiButton intent="secondary" @click="skipOptimize">Skip</UiButton>
-                <span class="lu-muted lu-qs-opt-skiphint">Skipping keeps everything set up; you can optimize later from the model's Tune dialog.</span>
+                <UiButton intent="secondary" @click="skipOptimize">{{ t('kit.quickSetup.opt.skip') }}</UiButton>
+                <span class="lu-muted lu-qs-opt-skiphint">{{ t('kit.quickSetup.opt.skipHint') }}</span>
               </div>
             </div>
           </template>
@@ -1180,59 +1166,57 @@ defineExpose({ openWizard });
             <!-- Self-diagnosing 2-minute pass (ROUND 8): a capped run that saved nothing
                  routes the user deeper (the full sweep / the Tune dialog) instead of
                  reading like a verdict — 2 minutes is a probe, not proof. -->
-            <span class="lu-qs-opt-ok">Optimized ✓ {{ fmtTps(optState.best.tokensPerSec) }} —
+            <span class="lu-qs-opt-ok">{{ t('kit.quickSetup.opt.optimized', { speed: fmtTps(optState.best.tokensPerSec) }) }} —
               {{ optState.saved
-                ? "saved for this machine."
+                ? t('kit.quickSetup.opt.saved')
                 : (optState.best.label === "baseline"
-                    ? (optQuick
-                        ? "the 2-minute pass found nothing faster — Full optimize or the model's Tune dialog can search deeper."
-                        : "your current launch is already the fastest — nothing needed saving.")
-                    : "save failed — open Tune & measure to save it.") }}</span>
+                    ? (optQuick ? t('kit.quickSetup.opt.quickNothing') : t('kit.quickSetup.opt.alreadyFastest'))
+                    : t('kit.quickSetup.opt.saveFailed')) }}</span>
           </template>
           <template v-else-if="optState.status === 'cancelled'">
-            <span class="lu-muted">Optimize cancelled.</span>
-            <UiButton intent="ghost" size="small" @click="startOptimize()">Try again</UiButton>
+            <span class="lu-muted">{{ t('kit.quickSetup.opt.cancelled') }}</span>
+            <UiButton intent="ghost" size="small" @click="startOptimize()">{{ t('kit.quickSetup.checkRetryButton') }}</UiButton>
           </template>
           <template v-else>
-            <span class="lu-error">{{ optState.error || "Optimize failed." }}</span>
-            <UiButton intent="ghost" size="small" @click="startOptimize()">Try again</UiButton>
+            <span class="lu-error">{{ optState.error || t('kit.quickSetup.opt.failed') }}</span>
+            <UiButton intent="ghost" size="small" @click="startOptimize()">{{ t('kit.quickSetup.checkRetryButton') }}</UiButton>
           </template>
         </div>
       </template>
 
       <template #footer>
         <template v-if="step === 'configured'">
-          <UiButton intent="ghost" @click="onModalClose">{{ L.closeButton }}</UiButton>
+          <UiButton intent="ghost" @click="onModalClose">{{ t('kit.quickSetup.closeButton') }}</UiButton>
           <span class="lu-qs-spacer" />
-          <UiButton intent="primary" @click="step = 'confirm'">{{ L.changeModelButton }}</UiButton>
+          <UiButton intent="primary" @click="step = 'confirm'">{{ t('kit.quickSetup.changeModelButton') }}</UiButton>
         </template>
         <template v-else-if="step === 'calibrate'">
-          <UiButton intent="ghost" @click="skipSpeedCheck">{{ L.checkSkipButton }}</UiButton>
+          <UiButton intent="ghost" @click="skipSpeedCheck">{{ t('kit.quickSetup.checkSkipButton') }}</UiButton>
           <span class="lu-qs-spacer" />
-          <UiButton v-if="calState?.status === 'done'" intent="primary" @click="step = 'confirm'">{{ L.checkContinueButton }}</UiButton>
+          <UiButton v-if="calState?.status === 'done'" intent="primary" @click="step = 'confirm'">{{ t('kit.quickSetup.checkContinueButton') }}</UiButton>
           <UiButton v-else intent="primary" :loading="calRunning" :disabled="calRunning" @click="runSpeedCheck">
-            {{ calState?.status === 'error' || calState?.status === 'cancelled' ? L.checkRetryButton : L.checkRunButton }}
+            {{ calState?.status === 'error' || calState?.status === 'cancelled' ? t('kit.quickSetup.checkRetryButton') : t('kit.quickSetup.checkRunButton') }}
           </UiButton>
         </template>
         <template v-else-if="step === 'confirm'">
-          <UiButton intent="ghost" @click="onModalClose">{{ L.cancelButton }}</UiButton>
+          <UiButton intent="ghost" @click="onModalClose">{{ t('kit.quickSetup.cancelButton') }}</UiButton>
           <span class="lu-qs-spacer" />
           <!-- Nothing fits locally: the primary action routes OUT to the provider list (this
                wizard sits inside the Providers & models tab, so closing lands there). C8 holds
                — no provider-connect INSIDE the wizard; it just hands off. -->
-          <UiButton v-if="!fitting.length" intent="primary" @click="onModalClose">Set up an online provider</UiButton>
+          <UiButton v-if="!fitting.length" intent="primary" @click="onModalClose">{{ t('kit.quickSetup.confirm.setUpOnline') }}</UiButton>
           <UiButton v-else intent="primary" :disabled="applyDisabled" :loading="applying" @click="apply">
-            {{ L.applyButton }}
+            {{ t('kit.quickSetup.applyButton') }}
           </UiButton>
         </template>
         <template v-else-if="step === 'apply' && applyStopped">
-          <UiButton intent="ghost" @click="step = 'confirm'">Back</UiButton>
+          <UiButton intent="ghost" @click="step = 'confirm'">{{ t('kit.quickSetup.apply.back') }}</UiButton>
           <span class="lu-qs-spacer" />
-          <UiButton intent="primary" @click="attemptClose">{{ L.closeButton }}</UiButton>
+          <UiButton intent="primary" @click="attemptClose">{{ t('kit.quickSetup.closeButton') }}</UiButton>
         </template>
         <template v-else-if="step === 'done'">
           <span class="lu-qs-spacer" />
-          <UiButton intent="primary" @click="attemptClose">{{ L.closeButton }}</UiButton>
+          <UiButton intent="primary" @click="attemptClose">{{ t('kit.quickSetup.closeButton') }}</UiButton>
         </template>
       </template>
     </AppModal>

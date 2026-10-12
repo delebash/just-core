@@ -5,9 +5,7 @@
 // the cursor stays sane); on blur it's parsed, clamped to min/max, and
 // reformatted. Up/Down arrows step by `step`. Supersedes JwNumber.
 //
-// Locale: the `locale` prop pins one input; otherwise it follows the shared
-// uiLocale (set by the host via setUiLocale), then the runtime default. The kit
-// stays i18n-library-agnostic — no vue-i18n import here.
+// Locale: the `locale` prop pins one input; otherwise it follows the app's vue-i18n language.
 //
 // Wears the shared .ui-input visual (one input style app-wide); .ui-number only
 // adds tabular figures on top.
@@ -18,8 +16,8 @@
 
 import { QInput } from "quasar";
 import { computed, ref, useAttrs, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { useNativeEvents, withoutListeners } from "../composables/useNativeEvents.js";
-import { uiLocale } from "../services/locale.js";
 
 defineOptions({ inheritAttrs: false });
 
@@ -30,7 +28,7 @@ const props = defineProps({
   step:       { type: Number, default: 1 },
   // When false, render plain digits (1200) instead of grouped (1,200).
   useGrouping:{ type: Boolean, default: true },
-  // null = follow uiLocale / runtime default; pass e.g. "de-DE" to pin one input.
+  // null = follow the app's language; pass e.g. "de-DE" to pin one input.
   locale:     { type: String, default: null },
   placeholder:{ type: String, default: "" },
   disabled:   { type: Boolean, default: false },
@@ -47,7 +45,8 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "blur", "focus", "keydown"]);
 const attrs = useAttrs();
 
-const fmt = computed(() => new Intl.NumberFormat(props.locale || uiLocale.value || undefined, {
+const { locale: appLocale } = useI18n();
+const fmt = computed(() => new Intl.NumberFormat(props.locale || appLocale.value || undefined, {
   useGrouping: props.useGrouping,
   maximumFractionDigits: 20,
 }));

@@ -9,6 +9,17 @@
 // engine stays app-agnostic. Catalogs (fonts/tints/ink/presets/button options)
 // are exported so each app's Settings UI renders the same curated options.
 // Supersedes the per-app services/appearance.js engines (JV minimal; JW full).
+//
+// The catalogs' display words are the kit's (kit.appearance.*): each entry's `label` / `name`
+// is read in the app's language whenever it is shown (kitT), while the values a setting stores
+// (ids, hues, scales) never change with the language. Font names are names, not words, and are
+// also the stored value — they stay as written.
+import { kitT } from "./kitI18n.js";
+
+/** `entry` with `field` read from the kit's catalog at kit.appearance.<key>. */
+function worded(key, entry, field = "label") {
+  return Object.defineProperty(entry, field, { get: () => kitT(`kit.appearance.${key}`), enumerable: true });
+}
 
 const mql = typeof window !== "undefined" && window.matchMedia
   ? window.matchMedia("(prefers-color-scheme: dark)")
@@ -56,21 +67,21 @@ export function displayStack(label) {
 
 // ── Font pairings (UI + display together) ────────────────────────────
 export const PAIRINGS = [
-  { id: "fine-press", name: "Fine Press",  ui: "Spline Sans",    display: "Fraunces" },
-  { id: "calm",       name: "Calm Modern", ui: "Geist",          display: "Source Serif 4" },
-  { id: "editorial",  name: "Editorial",   ui: "Hanken Grotesk", display: "Newsreader" },
-  { id: "classic",    name: "Classic",     ui: "Albert Sans",    display: "Libre Caslon Text" },
+  worded("pairing.finePress", { id: "fine-press", ui: "Spline Sans",    display: "Fraunces" }, "name"),
+  worded("pairing.calm",      { id: "calm",       ui: "Geist",          display: "Source Serif 4" }, "name"),
+  worded("pairing.editorial", { id: "editorial",  ui: "Hanken Grotesk", display: "Newsreader" }, "name"),
+  worded("pairing.classic",   { id: "classic",    ui: "Albert Sans",    display: "Libre Caslon Text" }, "name"),
 ];
 
 // ── Surface tints (app + sidebar backgrounds) ────────────────────────
 // `neutral` defers to the theme's own --surface-2 so the default is a no-op and
 // stays mode-aware; the rest are explicit per-mode colours.
 export const SURFACE_TINTS = {
-  neutral:    { label: "Neutral",     var: "var(--surface-2)" },
-  ivory:      { label: "Ivory",       light: "#f1ead9", dark: "#211d16" },
-  paperwhite: { label: "Paper white", light: "#ffffff", dark: "#262320" },
-  cool:       { label: "Cool grey",   light: "#eceef1", dark: "#191b1f" },
-  slate:      { label: "Slate",       light: "#e8e9ec", dark: "#16181d" },
+  neutral:    worded("tint.neutral",    { var: "var(--surface-2)" }),
+  ivory:      worded("tint.ivory",      { light: "#f1ead9", dark: "#211d16" }),
+  paperwhite: worded("tint.paperwhite", { light: "#ffffff", dark: "#262320" }),
+  cool:       worded("tint.cool",       { light: "#eceef1", dark: "#191b1f" }),
+  slate:      worded("tint.slate",      { light: "#e8e9ec", dark: "#16181d" }),
 };
 
 // Resolve a tint *value* — a key into `table` OR a literal `#hex` custom colour —
@@ -87,70 +98,72 @@ export function resolveTint(value, table, mode) {
 // "auto" leaves the tokens.css defaults; every other palette sets --ink/--ink-2/
 // --muted/--subtle together so the four text shades stay a consistent family.
 export const INK_PALETTES = {
-  auto:    { label: "Auto",    auto: true },
-  warm:    { label: "Warm",    light: ["#221f18","#534c3d","#8c8369","#aaa089"], dark: ["#f0e9d8","#c9c0aa","#988e74","#6f6753"] },
-  neutral: { label: "Neutral", light: ["#1c1c1f","#4a4a4f","#828286","#a8a8ad"], dark: ["#ededed","#c5c5c8","#8c8c92","#66666b"] },
-  cool:    { label: "Cool",    light: ["#1a1d22","#474c54","#7d8590","#a5acb6"], dark: ["#e8eef2","#c3cbd3","#8893a0","#5e6976"] },
-  sepia:   { label: "Sepia",   light: ["#3a2c20","#685440","#9a8267","#b69e83"], dark: ["#efe2ce","#c7b696","#9a8b6a","#6b5d40"] },
-  soft:    { label: "Soft",    light: ["#3a3a3a","#6a6a6a","#9a9a9a","#b8b8b8"], dark: ["#dcdcdc","#b5b5b5","#8a8a8a","#666666"] },
+  auto:    worded("ink.auto",    { auto: true }),
+  warm:    worded("ink.warm",    { light: ["#221f18","#534c3d","#8c8369","#aaa089"], dark: ["#f0e9d8","#c9c0aa","#988e74","#6f6753"] }),
+  neutral: worded("ink.neutral", { light: ["#1c1c1f","#4a4a4f","#828286","#a8a8ad"], dark: ["#ededed","#c5c5c8","#8c8c92","#66666b"] }),
+  cool:    worded("ink.cool",    { light: ["#1a1d22","#474c54","#7d8590","#a5acb6"], dark: ["#e8eef2","#c3cbd3","#8893a0","#5e6976"] }),
+  sepia:   worded("ink.sepia",   { light: ["#3a2c20","#685440","#9a8267","#b69e83"], dark: ["#efe2ce","#c7b696","#9a8b6a","#6b5d40"] }),
+  soft:    worded("ink.soft",    { light: ["#3a3a3a","#6a6a6a","#9a9a9a","#b8b8b8"], dark: ["#dcdcdc","#b5b5b5","#8a8a8a","#666666"] }),
 };
 
 // ── UI size scale ────────────────────────────────────────────────────
 // Applied as CSS `zoom` on <html> (Chromium / Tauri webview), scaling every
 // px/em together.
 export const UI_SCALES = [
-  { value: 0.9,  label: "Compact" },
-  { value: 0.95, label: "Snug" },
-  { value: 1,    label: "Normal" },
-  { value: 1.05, label: "Comfortable" },
-  { value: 1.1,  label: "Large" },
+  worded("scale.compact",     { value: 0.9 }),
+  worded("scale.snug",        { value: 0.95 }),
+  worded("scale.normal",      { value: 1 }),
+  worded("scale.comfortable", { value: 1.05 }),
+  worded("scale.large",       { value: 1.1 }),
 ];
 
 // ── Sidebar section heading typography ───────────────────────────────
 export const SIDEBAR_HEADING_STYLES = {
-  eyebrow: { label: "Eyebrow",   font: "var(--font-ui)",    weight: 600, italic: "normal", transform: "uppercase", spacing: "0.1em" },
-  mono:    { label: "Mono",      font: "var(--font-mono)",  weight: 500, italic: "normal", transform: "uppercase", spacing: "0.18em" },
-  display: { label: "Editorial", font: "var(--font-serif)", weight: 500, italic: "italic", transform: "none",      spacing: "0" },
-  plain:   { label: "Plain",     font: "var(--font-ui)",    weight: 600, italic: "normal", transform: "none",      spacing: "0" },
+  eyebrow: worded("style.eyebrow",   { font: "var(--font-ui)",    weight: 600, italic: "normal", transform: "uppercase", spacing: "0.1em" }),
+  mono:    worded("style.mono",      { font: "var(--font-mono)",  weight: 500, italic: "normal", transform: "uppercase", spacing: "0.18em" }),
+  display: worded("style.editorial", { font: "var(--font-serif)", weight: 500, italic: "italic", transform: "none",      spacing: "0" }),
+  plain:   worded("style.plain",     { font: "var(--font-ui)",    weight: 600, italic: "normal", transform: "none",      spacing: "0" }),
 };
 
 export const SIDEBAR_HEADING_SIZES = [
-  { value: "xs", label: "XS", px: "9px" },
-  { value: "s",  label: "S",  px: "10px" },
-  { value: "m",  label: "M",  px: "12px" },
-  { value: "l",  label: "L",  px: "14px" },
+  worded("size.xs", { value: "xs", px: "9px" }),
+  worded("size.s",  { value: "s",  px: "10px" }),
+  worded("size.m",  { value: "m",  px: "12px" }),
+  worded("size.l",  { value: "l",  px: "14px" }),
 ];
 
 // ── Sidebar menu items ───────────────────────────────────────────────
 export const NAV_ITEM_STYLES = {
-  standard:  { label: "Standard",  font: "var(--font-ui)",    weight: 400, activeWeight: 500, italic: "normal", spacing: "0" },
-  bold:      { label: "Bold",      font: "var(--font-ui)",    weight: 600, activeWeight: 700, italic: "normal", spacing: "0" },
-  editorial: { label: "Editorial", font: "var(--font-serif)", weight: 400, activeWeight: 500, italic: "normal", spacing: "0" },
-  mono:      { label: "Mono",      font: "var(--font-mono)",  weight: 400, activeWeight: 500, italic: "normal", spacing: "0.02em" },
+  standard:  worded("style.standard",  { font: "var(--font-ui)",    weight: 400, activeWeight: 500, italic: "normal", spacing: "0" }),
+  bold:      worded("style.bold",      { font: "var(--font-ui)",    weight: 600, activeWeight: 700, italic: "normal", spacing: "0" }),
+  editorial: worded("style.editorial", { font: "var(--font-serif)", weight: 400, activeWeight: 500, italic: "normal", spacing: "0" }),
+  mono:      worded("style.mono",      { font: "var(--font-mono)",  weight: 400, activeWeight: 500, italic: "normal", spacing: "0.02em" }),
 };
 
 export const NAV_ITEM_SIZES = [
-  { value: "xs", label: "XS", px: "11.5px" },
-  { value: "s",  label: "S",  px: "12.5px" },
-  { value: "m",  label: "M",  px: "14px" },
-  { value: "l",  label: "L",  px: "15.5px" },
+  worded("size.xs", { value: "xs", px: "11.5px" }),
+  worded("size.s",  { value: "s",  px: "12.5px" }),
+  worded("size.m",  { value: "m",  px: "14px" }),
+  worded("size.l",  { value: "l",  px: "15.5px" }),
 ];
 
 // ── Accent / gold / functional hue presets ───────────────────────────
+// A hue preset: its colour name at kit.appearance.color.<name>.
+const hue = (h, name) => worded(`color.${name}`, { hue: h }, "name");
 export const ACCENT_PRESETS = [
-  { hue: 14,  name: "Oxblood" }, { hue: 200, name: "Teal" }, { hue: 25,  name: "Rose" },
-  { hue: 75,  name: "Amber" },   { hue: 120, name: "Olive" }, { hue: 270, name: "Indigo" },
-  { hue: 320, name: "Plum" }, { hue: 155, name: "Green" },
+  hue(14, "oxblood"), hue(200, "teal"), hue(25, "rose"),
+  hue(75, "amber"), hue(120, "olive"), hue(270, "indigo"),
+  hue(320, "plum"), hue(155, "green"),
 ];
 export const GOLD_PRESETS = [
-  { hue: 80,  name: "Gold" },  { hue: 55,  name: "Brass" }, { hue: 45,  name: "Bronze" },
-  { hue: 35,  name: "Copper" }, { hue: 155, name: "Sage" }, { hue: 140, name: "Verdigris" },
-  { hue: 235, name: "Slate" }, { hue: 340, name: "Mauve" },
+  hue(80, "gold"), hue(55, "brass"), hue(45, "bronze"),
+  hue(35, "copper"), hue(155, "sage"), hue(140, "verdigris"),
+  hue(235, "slate"), hue(340, "mauve"),
 ];
 export const FUNCTIONAL_PRESETS = {
-  success: [{ hue: 150, name: "Green" }, { hue: 165, name: "Emerald" }, { hue: 130, name: "Moss" }, { hue: 185, name: "Teal" }],
-  danger:  [{ hue: 35, name: "Red" }, { hue: 20, name: "Crimson" }, { hue: 45, name: "Rust" }, { hue: 10, name: "Ruby" }],
-  info:    [{ hue: 220, name: "Blue" }, { hue: 235, name: "Sky" }, { hue: 260, name: "Indigo" }, { hue: 200, name: "Cyan" }],
+  success: [hue(150, "green"), hue(165, "emerald"), hue(130, "moss"), hue(185, "teal")],
+  danger:  [hue(35, "red"), hue(20, "crimson"), hue(45, "rust"), hue(10, "ruby")],
+  info:    [hue(220, "blue"), hue(235, "sky"), hue(260, "indigo"), hue(200, "cyan")],
 };
 
 // ── Button knobs ─────────────────────────────────────────────────────
@@ -159,16 +172,12 @@ const BUTTON_DENSITY = {
   compact: { padY: "5px", padX: "12px", padYSm: "3px", padXSm: "8px",  fontSize: "13px", fontSizeSm: "11.5px" },
   comfy:   { padY: "8px", padX: "16px", padYSm: "4px", padXSm: "11px", fontSize: "14px", fontSizeSm: "12px"   },
 };
-export const BUTTON_RADIUS_OPTIONS = [
-  { value: "sharp", label: "Sharp" }, { value: "standard", label: "Standard" },
-  { value: "rounded", label: "Rounded" }, { value: "pill", label: "Pill" },
-];
-export const BUTTON_DENSITY_OPTIONS = [
-  { value: "compact", label: "Compact" }, { value: "comfy", label: "Comfy" },
-];
-export const BUTTON_LABEL_CASE_OPTIONS = [
-  { value: "default", label: "Sentence" }, { value: "uppercase", label: "UPPERCASE" },
-];
+export const BUTTON_RADIUS_OPTIONS = ["sharp", "standard", "rounded", "pill"]
+  .map((value) => worded(`radius.${value}`, { value }));
+export const BUTTON_DENSITY_OPTIONS = ["compact", "comfy"]
+  .map((value) => worded(`density.${value}`, { value }));
+export const BUTTON_LABEL_CASE_OPTIONS = ["default", "uppercase"]
+  .map((value) => worded(`labelCase.${value}`, { value }));
 
 // Generic defaults — each app spreads its own brand values + extras on top.
 export const DEFAULT_APPEARANCE = {

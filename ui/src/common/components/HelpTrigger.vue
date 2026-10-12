@@ -16,6 +16,7 @@
 -->
 <script setup>
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import Icon from "./Icon.vue";
 import { toggleHelp, helpConfig } from "../services/help.js";
 
@@ -24,9 +25,10 @@ const props = defineProps({
   label: { type: String, default: "" },
 });
 
+const { t } = useI18n();
 const slugOnly = computed(() => String(props.slug || "").split("#")[0]);
 const tooltipText = computed(
-  () => `Help — ${props.label || helpConfig.titleForSlug(slugOnly.value)}`,
+  () => t("kit.help.tooltip", { title: props.label || helpConfig.titleForSlug(slugOnly.value) }),
 );
 
 function open() {

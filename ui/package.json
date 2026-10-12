@@ -9,7 +9,9 @@
   "scripts": {
     "check:pickers": "node scripts/check-shared-pickers.js",
     "dup": "npx --yes jscpd@5",
-    "lint": "biome check src"
+    "lint": "biome check src",
+    "i18n:lint": "eslint -c eslint.i18n.config.js \"src/**/*.vue\"",
+    "i18n:report": "vue-i18n-extract report --vueFiles \"src/**/*.?(js|vue)\" --languageFiles \"src/i18n/locales/*.json\""
   },
   "files": [
     "src"
@@ -29,5 +31,11 @@
     "qrcode": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "@intlify/eslint-plugin-vue-i18n": "^4.5.1",
+    "eslint": "^10.12.0",
+    "vue-eslint-parser": "^10.4.1",
+    "vue-i18n-extract": "^2.0.7"
   }
 }

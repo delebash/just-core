@@ -4,20 +4,10 @@
 // hosts' RAG/chat services) wraps its failures with
 // friendlyAiError(err, provider) so modals and inline AI surfaces never
 // show verbose "Chat stream error 500: …" to the user.
+import { kitT, kitTe } from "../common/services/kitI18n.js";
 
-const PROVIDER_HINTS = {
-  401: "Authentication failed — check the provider's API key on the AI page.",
-  402: "Payment required — your provider says you're out of credit.",
-  403: "Access denied — the API key may not have permission for this model.",
-  404: "Endpoint not found — the Base URL or model name may be wrong.",
-  408: "Timed out before the model responded.",
-  413: "The prompt is too large for this model.",
-  429: "Rate-limited — wait a moment and try again.",
-  500: "The provider returned an error. Try a different model.",
-  502: "Bad gateway — the provider's upstream is unreachable.",
-  503: "Service unavailable — the provider's server may be restarting.",
-  504: "Gateway timed out — model took too long to start.",
-};
+// The status codes with a hint of their own: kit.aiError.status.<code>.
+const statusHint = (status) => (kitTe(`kit.aiError.status.${status}`) ? kitT(`kit.aiError.status.${status}`) : null);
 
 function pickHint(msg, status) {
   // The SPECIFIC transport cause beats the generic status text (2026-07-26). A dead
@@ -27,14 +17,14 @@ function pickHint(msg, status) {
   // Windows' own refused-connection code and does not contain the word "refused" in
   // every locale, so it is matched explicitly.
   if (/connection.*refused|ECONNREFUSED|10061/i.test(msg))
-    return "The local AI engine isn't running — pick your models in AI Settings, or press Load now.";
-  if (status && PROVIDER_HINTS[status]) return PROVIDER_HINTS[status];
+    return kitT("kit.aiError.refused");
+  if (status && statusHint(status)) return statusHint(status);
   if (/ENOTFOUND|getaddrinfo|DNS/i.test(msg))
-    return "Couldn't resolve the host — check the Base URL.";
+    return kitT("kit.aiError.dns");
   if (/timed out|timeout/i.test(msg))
-    return "Timed out — local models often need to load before the first call.";
+    return kitT("kit.aiError.timeout");
   if (/cors|preflight|origin/i.test(msg))
-    return "Browser blocked the request — in dev mode the provider needs CORS enabled, or run in the Tauri app.";
+    return kitT("kit.aiError.cors");
   return null;
 }
 
@@ -57,8 +47,8 @@ export function friendlyAiError(err, provider) {
   const status = m ? parseInt(m[1], 10) : null;
   const host = urlHostname(provider);
   const hint = pickHint(msg, status);
-  const lead = host ? `Couldn't reach ${host}` : "Couldn't reach the LLM";
-  const friendly = hint ? `${lead} — ${hint}` : `${lead}. ${msg.slice(0, 160)}`;
+  const lead = host ? kitT("kit.aiError.reachHost", { host }) : kitT("kit.aiError.reachLlm");
+  const friendly = hint ? kitT("kit.aiError.withHint", { lead, hint }) : kitT("kit.aiError.withRaw", { lead, raw: msg.slice(0, 160) });
   const out = new Error(friendly);
   out.cause = err;
   out.statusCode = status;

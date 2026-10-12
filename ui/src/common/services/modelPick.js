@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // The §10 speed-floor auto-pick — "the most capable model that still streams faster than
-// you read" (design 2026-07-03 §10, LOCKED; refined 2026-07-04 §15). PURE logic, NO Vue
-// imports, so the kit's has-no-JS-test-runner gap is covered by a Node truth-table
-// (scripts/verify-model-pick.js). This module is the ONE source of the runnable-set + the
+// you read" (design 2026-07-03 §10, LOCKED; refined 2026-07-04 §15). Pure logic apart from
+// its words, which are the kit's (kit.fit.*, kit.speedBand.* through kitT — English until the
+// app hands over its language); JustWrite's vitest covers it. This module is the ONE source of the runnable-set + the
 // fit-rank + the pick; QuickSetup imports them (never redefines) so "runnable" can't drift.
 // The only auto-picker is QuickSetup; the per-task LuModelPicker is a manual override and
 // does not use this.
@@ -22,6 +22,8 @@
 //   is empty, pick the lowest quality_rank among ALL runnable (a `tight` dense, or a `cpu`
 //   model on a CPU-only box).
 
+import { kitT } from "./kitI18n.js";
+
 // Fit bands a model can run under (from /v1/llm-runner/models; runner/fit.py). The picker's
 // single source — QuickSetup imports this for its `fitting` list too.
 export const FIT_RUNNABLE = new Set(["ok", "tight", "cpu"]);
@@ -31,14 +33,17 @@ export const FIT_RUNNABLE = new Set(["ok", "tight", "cpu"]);
 export const FIT_GPU = new Set(["ok", "tight"]);
 // Tie-break when quality_rank is equal: prefer the better fit (lower = better).
 export const FIT_RANK = { ok: 0, tight: 1, cpu: 2, no: 3, unknown: 4 };
-// The fit-band display vocabulary — ONE source (was duplicated in useRunnerModels + QuickSetup).
-export const FIT_LABEL = { ok: "Fits", tight: "Tight", cpu: "CPU", no: "Won't fit", unknown: "—" };
+// The fit-band display word — ONE source (was duplicated in useRunnerModels + QuickSetup):
+// kit.fit.<band>, "—" for a band without one (unknown).
+const FIT_WORDS = new Set(["ok", "tight", "cpu", "no"]);
+export function fitLabel(fit) {
+  return FIT_WORDS.has(fit) ? kitT(`kit.fit.${fit}`) : "—";
+}
 
-// The band display vocabulary — the wire value stays the §8.14 set
-// (fast/fine/slow/painful, the FIT_LABEL precedent: value ≠ label); the
-// bottom band DISPLAYS as "very slow" (user 2026-08-13, at the Phase 3 chip
-// review: "change painful to very slow on model catalog chip").
-export const SPEED_BAND_LABEL = { fast: "fast", fine: "fine", slow: "slow", painful: "very slow" };
+// The band display words — the wire value stays the §8.14 set (fast/fine/slow/painful, the
+// fit-label precedent: value ≠ label); the bottom band DISPLAYS as "very slow" (user
+// 2026-08-13, at the Phase 3 chip review: "change painful to very slow on model catalog chip").
+const SPEED_BANDS = new Set(["fast", "fine", "slow", "painful"]);
 
 /**
  * The SPEED half of the chip label (fit-redesign §5.4/§8.3: feasibility × band
@@ -52,8 +57,8 @@ export const SPEED_BAND_LABEL = { fast: "fast", fine: "fine", slow: "slow", pain
  */
 export function speedBandLabel(m) {
   if (!m) return "";
-  if (!m.speedBand) return !m.measuredTokS && m.predTokS > 0 ? `~${m.predTokS} tok/s` : "";
-  const label = SPEED_BAND_LABEL[m.speedBand] || m.speedBand;
+  if (!m.speedBand) return !m.measuredTokS && m.predTokS > 0 ? kitT("kit.speedBand.predicted", { n: m.predTokS }) : "";
+  const label = SPEED_BANDS.has(m.speedBand) ? kitT(`kit.speedBand.${m.speedBand}`) : m.speedBand;
   return m.measuredTokS ? label : `~${label}`;
 }
 
@@ -64,8 +69,7 @@ export function speedBandLabel(m) {
  */
 export function fitWarning(m) {
   if (!m || m.fit !== "no") return "";
-  return "The estimate says this PC doesn't have the memory for it. You can still "
-    + "load it — the engine will try, and backs off if the load fails.";
+  return kitT("kit.fit.warning");
 }
 
 /**
@@ -88,11 +92,11 @@ export function buildSlotOptions(models, { kind, recommendedId, embeddingOf, use
       const band = speedBandLabel(m);
       // Embeds show their placement story elsewhere; chat rows annotate the
       // fit + band so a non-fitting pick is informed at the point of choice.
-      const fitBit = kind ? "" : ` · ${FIT_LABEL[m.fit] || "—"}${band ? ` · ${band}` : ""}`;
+      const fitBit = kind ? "" : ` · ${fitLabel(m.fit)}${band ? ` · ${band}` : ""}`;
       return {
         value: m.id,
         label: `${m.name || m.id}${useLimitedOf(m) ? " ⚠" : ""}`
-          + `${m.id === recommendedId ? " · Recommended" : ""}${fitBit}`,
+          + `${m.id === recommendedId ? ` · ${kitT("kit.fit.recommended")}` : ""}${fitBit}`,
       };
     });
 }

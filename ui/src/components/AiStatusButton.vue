@@ -11,9 +11,12 @@
 // title-bar button styling owns that (JW: .titlebar-* button rules).
 
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useAiTasksStore } from "../stores/aiTasks.js";
 import Icon from "../common/components/Icon.vue";
 import AiStatusPanel from "./AiStatusPanel.vue";
+
+const { t } = useI18n();
 
 const tasks = useAiTasksStore();
 const count = computed(() => tasks.runningCount);
@@ -32,8 +35,8 @@ function toggle() { tasks.togglePanel(); }
       data-panel-toggle
       @click="toggle"
       v-tooltip.bottom="errors
-        ? `${errors} AI ${errors === 1 ? 'task' : 'tasks'} failed — open the queue`
-        : active ? `${count} AI ${count === 1 ? 'task' : 'tasks'} running` : 'AI tasks'">
+        ? t('kit.aiTasks.button.failed', { n: errors }, errors)
+        : active ? t('kit.aiTasks.button.running', { n: count }, count) : t('kit.aiTasks.button.idle')">
       <Icon name="Sparkle" :size="13" />
       <span v-if="active" class="ai-status-pulse" />
       <span v-if="active" class="ai-status-count">{{ count }}</span>

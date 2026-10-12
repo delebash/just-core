@@ -15,6 +15,7 @@ import { computed, reactive } from "vue";
 import { request } from "../client.js";
 import { createRateTracker, progressCaption, rateSuffix } from "../common/services/downloadRate.js";
 import { friendlyPhase } from "../common/services/loadPhases.js";
+import { kitT } from "../common/services/kitI18n.js";
 import { friendlyEnginePhase } from "./useEngine.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -53,20 +54,20 @@ export function createDownloadTask(channel) {
     statusUrl,
     read,
     cancel: doCancel,
-    friendly = (detail) => detail || "Working",
+    friendly = (detail) => detail || kitT("kit.phase.working"),
     fetch = request,
     pollMs = 1200,
     maxPolls = 1000,
-    // The caption while start() is in flight, before the first status reading.
-    // "Getting ready" is right for a download that is about to report bytes;
+    // The caption while start() is in flight, before the first status reading
+    // (unset → "Getting ready", kit.phase.gettingReady). That is right for a download that is about to report bytes;
     // an operation whose start() IS the whole work (a model load — no status
     // endpoint to poll) should say what it is doing, since that caption is the
     // only one the bar will ever show.
-    armPhase = "Getting ready",
-    // …and the caption once it finishes. Same reason: an operation that LOADS
+    armPhase,
+    // …and the caption once it finishes (unset → "Ready"). Same reason: an operation that LOADS
     // something reads "Loaded", so the caption agrees with the bar's finished
     // badge instead of contradicting it.
-    donePhase = "Ready",
+    donePhase,
   } = channel;
 
   const rate = createRateTracker();
@@ -86,12 +87,12 @@ export function createDownloadTask(channel) {
     // teardown isn't done — Retry is still disabled); "Cancelled" only once it's confirmed.
     // Otherwise the ONE shared formatter off the live fields.
     label: computed(() => {
-      if (task.state === "cancelled") return task.finalizing ? "Cancelling…" : "Cancelled";
+      if (task.state === "cancelled") return task.finalizing ? kitT("kit.phase.cancelling") : kitT("kit.phase.cancelled");
       // An errored task keeps whatever phase it died in, so the caption used to read e.g.
       // "Getting ready" directly above a failure message (2026-07-24, the user's screenshot).
       // The error line below carries the detail; the caption just states the outcome.
-      if (task.state === "error") return "Failed";
-      return progressCaption(task.phase || "Working", task.done, task.total, task.rateText);
+      if (task.state === "error") return kitT("kit.phase.failed");
+      return progressCaption(task.phase || kitT("kit.phase.working"), task.done, task.total, task.rateText);
     }),
   });
 
@@ -115,20 +116,20 @@ export function createDownloadTask(channel) {
     const r = reading || {};
     if (r.terminal === "error") {
       task.state = "error";
-      task.error = r.error || "It failed.";
+      task.error = r.error || kitT("kit.phase.itFailed");
       return;
     }
     if (r.terminal === "cancelled") {
       // The channel itself reports the cancel terminal (idle-after-cancel). cancel()
       // usually flips our state first, so this is the belt-and-braces path.
       task.state = "cancelled";
-      task.phase = "Cancelled";
+      task.phase = kitT("kit.phase.cancelled");
       task.rateText = "";
       return;
     }
     if (r.terminal === "done") {
       task.state = "done";
-      task.phase = donePhase;
+      task.phase = donePhase ?? kitT("kit.phase.ready");
       task.rateText = "";
       return;
     }
@@ -154,12 +155,12 @@ export function createDownloadTask(channel) {
   }
 
   async function start() {
-    _arm(armPhase);
+    _arm(armPhase ?? kitT("kit.phase.gettingReady"));
     try {
       await doStart();
     } catch (e) {
       task.state = "error";
-      task.error = e?.message || "Couldn't start.";
+      task.error = e?.message || kitT("kit.phase.couldntStart");
       return;
     }
     await _poll();
@@ -170,7 +171,7 @@ export function createDownloadTask(channel) {
     // cancel is truthful about the SETUP even if the in-flight fetch runs on server-side.
     if (task.state !== "running") return;
     task.state = "cancelled";
-    task.phase = "Cancelled";
+    task.phase = kitT("kit.phase.cancelled");
     task.rateText = "";
     try {
       await doCancel();
@@ -201,14 +202,14 @@ export function createDownloadTask(channel) {
   // Held display: running-but-not-polling, an indeterminate bar, for a task blocked on a
   // prerequisite (QuickSetup's chat waiting on the engine). No server call is made.
   function waiting(phase) {
-    _arm(phase || "Waiting…");
+    _arm(phase || kitT("kit.phase.waiting"));
   }
 
   // Force an error display without a start attempt (QuickSetup: the engine failed, so the
   // chat load must not even try). `retry()` still re-runs start() if the user clicks Retry.
   function fail(message) {
     task.state = "error";
-    task.error = message || "It failed.";
+    task.error = message || kitT("kit.phase.itFailed");
     task.rateText = "";
   }
 
@@ -253,7 +254,7 @@ export function readLoadStatus(st) {
   if (st.status === "running") return { terminal: "done" };
   if (st.status === "error") {
     const err = st.error === "engine-not-installed"
-      ? "The engine isn't installed — install it first (the engine bar above)."
+      ? kitT("kit.phase.engineMissing")
       : st.error;
     return { terminal: "error", error: err };
   }

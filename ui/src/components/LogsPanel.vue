@@ -9,6 +9,7 @@
 // remove stored files (kit confirmDialog — never native). Same panel in every
 // same-stack app; the host mounts make_logs_router + installs ring + file log.
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { request, llmUiUrl } from "../client.js";
 import UiButton from "../common/components/UiButton.vue";
 import UiSelect from "../common/components/UiSelect.vue";
@@ -24,9 +25,10 @@ const err = ref("");
 const days = ref([]); // [{day, sizeKb, live}]
 const selected = ref(LIVE);
 const level = ref("all"); // all | warn | error
+const { t } = useI18n();
 
 const dayOptions = computed(() => [
-  { value: LIVE, label: "Live tail" },
+  { value: LIVE, label: t("kit.logs.live") },
   ...days.value.map((d) => ({
     value: d.day,
     // LABEL is localised (the reader's date format); `value` above stays the ISO
@@ -35,11 +37,11 @@ const dayOptions = computed(() => [
     label: `${formatLogDay(d.day)}${d.live ? " (today)" : ""} · ${d.sizeKb} KB`,
   })),
 ]);
-const LEVEL_OPTIONS = [
-  { value: "all", label: "All levels" },
-  { value: "warn", label: "Warnings & errors" },
-  { value: "error", label: "Errors only" },
-];
+const LEVEL_OPTIONS = computed(() => [
+  { value: "all", label: t("kit.logs.level.all") },
+  { value: "warn", label: t("kit.logs.level.warn") },
+  { value: "error", label: t("kit.logs.level.error") },
+]);
 
 // Group-aware rows come from the shared parser (a line WITH a level token starts
 // a group; continuation lines inherit it — so "Errors only" keeps the whole
@@ -72,7 +74,7 @@ async function refresh() {
     }
   } catch (e) {
     text.value = "";
-    err.value = `Couldn't load logs: ${e.message}`;
+    err.value = t("kit.logs.err.load", { error: e.message });
   } finally {
     loading.value = false;
   }
@@ -104,11 +106,11 @@ async function deleteDay() {
   const day = selected.value === LIVE ? days.value.find((d) => d.live)?.day : selected.value;
   if (!day) return;
   const ok = await confirmDialog({
-    title: "Delete this day's log?",
+    title: t("kit.logs.delDay.title"),
     // reader-facing prose → localised, matching the picker label it was chosen
     // from; the raw ISO `day` still goes on the wire at the DELETE below.
-    message: `The stored log for ${formatLogDay(day)} will be removed from disk. This can't be undone.`,
-    confirmLabel: "Delete day",
+    message: t("kit.logs.delDay.body", { day: formatLogDay(day) }),
+    confirmLabel: t("kit.logs.delDay.confirm"),
     danger: true,
   });
   if (!ok) return;
@@ -118,14 +120,14 @@ async function deleteDay() {
     days.value = r.days || [];
     if (selected.value !== LIVE && !days.value.some((d) => d.day === selected.value)) selected.value = LIVE;
     await refresh();
-  } catch (e) { err.value = e.message || "Couldn't delete the day."; }
+  } catch (e) { err.value = e.message || t("kit.logs.err.deleteDay"); }
   finally { busy.value = ""; }
 }
 async function deleteAll() {
   const ok = await confirmDialog({
-    title: "Delete ALL logs?",
-    message: "Every stored day is removed from disk and the live tail is cleared. This can't be undone.",
-    confirmLabel: "Delete all logs",
+    title: t("kit.logs.delAll.title"),
+    message: t("kit.logs.delAll.body"),
+    confirmLabel: t("kit.logs.delAll.confirm"),
     danger: true,
   });
   if (!ok) return;
@@ -135,7 +137,7 @@ async function deleteAll() {
     days.value = r.days || [];
     selected.value = LIVE;
     await refresh();
-  } catch (e) { err.value = e.message || "Couldn't delete the logs."; }
+  } catch (e) { err.value = e.message || t("kit.logs.err.deleteAll"); }
   finally { busy.value = ""; }
 }
 
@@ -148,28 +150,28 @@ onMounted(() => {
 <template>
   <div class="lu-logs">
     <div class="lu-logs-head">
-      <span class="lu-pcard-title">Server logs</span>
-      <span class="lu-muted lu-logs-sub">Stored one file per day — pick a day, or watch the live tail.</span>
+      <span class="lu-pcard-title">{{ t('kit.storage.serverLogs') }}</span>
+      <span class="lu-muted lu-logs-sub">{{ t('kit.logs.sub') }}</span>
       <span class="lu-logs-spacer" />
       <UiSelect :model-value="selected" :options="dayOptions" @update:model-value="onPickDay" />
       <UiSelect v-model="level" :options="LEVEL_OPTIONS" />
-      <UiButton intent="secondary" size="small" :loading="loading" @click="refresh">↻ Refresh</UiButton>
+      <UiButton intent="secondary" size="small" :loading="loading" @click="refresh">↻ {{ t('kit.aiArea.refresh') }}</UiButton>
     </div>
     <div class="lu-logs-head lu-logs-actions">
-      <span class="lu-muted lu-logs-sub"><b>Clear</b> empties the on-screen tail; <b>Delete</b> removes stored files.</span>
+      <i18n-t keypath="kit.logs.clearVsDelete" tag="span" class="lu-muted lu-logs-sub" scope="global"><template #clear><b>{{ t('kit.logs.clear') }}</b></template><template #delete><b>{{ t('kit.common.delete') }}</b></template></i18n-t>
       <span class="lu-logs-spacer" />
-      <UiButton intent="ghost" size="small" @click="copyLogs">{{ copied ? "Copied" : "Copy" }}</UiButton>
-      <a v-if="selected === LIVE" class="lu-logs-dl" :href="llmUiUrl('/v1/logs/download')" download>Download</a>
-      <UiButton v-if="selected === LIVE" intent="ghost" size="small" :loading="busy === 'clear'" @click="clearTail">Clear</UiButton>
-      <UiButton intent="danger" size="small" :loading="busy === 'delete'" title="Remove this day's stored log file" @click="deleteDay">Delete day</UiButton>
-      <UiButton intent="danger" size="small" :loading="busy === 'deleteAll'" title="Remove every stored log file + clear the tail" @click="deleteAll">Delete all logs</UiButton>
+      <UiButton intent="ghost" size="small" @click="copyLogs">{{ copied ? t('kit.logs.copied') : t('kit.common.copy') }}</UiButton>
+      <a v-if="selected === LIVE" class="lu-logs-dl" :href="llmUiUrl('/v1/logs/download')" download>{{ t('kit.modelCatalog.btn.download') }}</a>
+      <UiButton v-if="selected === LIVE" intent="ghost" size="small" :loading="busy === 'clear'" @click="clearTail">{{ t('kit.logs.clear') }}</UiButton>
+      <UiButton intent="danger" size="small" :loading="busy === 'delete'" :title="t('kit.logs.delDay.buttonTitle')" @click="deleteDay">{{ t('kit.logs.delDay.confirm') }}</UiButton>
+      <UiButton intent="danger" size="small" :loading="busy === 'deleteAll'" :title="t('kit.logs.delAll.buttonTitle')" @click="deleteAll">{{ t('kit.logs.delAll.confirm') }}</UiButton>
     </div>
     <div v-if="err" class="lu-error">{{ err }}</div>
     <div class="lu-logs-pre lu-logbox" role="log">
       <template v-if="rows.length && text">
         <div v-for="(r, i) in rows" :key="i" class="lu-logline" :class="logLineClass(r.level)">{{ r.line }}</div>
       </template>
-      <div v-else class="lu-muted">{{ text ? "No lines match this filter." : "No log lines yet." }}</div>
+      <div v-else class="lu-muted">{{ text ? t('kit.logs.noMatch') : t('kit.logs.none') }}</div>
     </div>
   </div>
 </template>

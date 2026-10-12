@@ -16,13 +16,15 @@
 // earlier session, which were holding the GPU memory the model needed. Slot props:
 // { task, modelId }; `task.retry()` is the bar's own Retry.
 import { computed, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import DownloadBar from "../common/components/DownloadBar.vue";
 import { useRunnerModels } from "../composables/useRunnerModels.js";
 import { warmModelId } from "../services/warmBoot.js";
 
+const { t } = useI18n();
 defineProps({
-  engineTitle: { type: String, default: "Setting up the AI engine" },
-  continueLabel: { type: String, default: "Continue without waiting" },
+  engineTitle: { type: String, default: "" },   // "" → the kit's words
+  continueLabel: { type: String, default: "" }, // "" → the kit's words
 });
 
 const rm = useRunnerModels();
@@ -46,10 +48,10 @@ function dismiss() {
 
 <template>
   <div v-if="engineTask || (warmTask && warmTask.state)" class="lu-bootload">
-    <DownloadBar v-if="engineTask" class="lu-bootload__bar" :task="engineTask" :title="engineTitle" />
+    <DownloadBar v-if="engineTask" class="lu-bootload__bar" :task="engineTask" :title="engineTitle || t('kit.bootLoad.engineTitle')" />
     <DownloadBar v-else class="lu-bootload__bar" :task="warmTask" :title="warmModelId" />
     <slot v-if="shownTask?.state === 'error'" name="failed" :task="shownTask" :model-id="warmModelId" />
-    <button type="button" class="lu-bootload__skip" @click="dismiss">{{ continueLabel }}</button>
+    <button type="button" class="lu-bootload__skip" @click="dismiss">{{ continueLabel || t('kit.bootLoad.continue') }}</button>
   </div>
 </template>
 

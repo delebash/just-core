@@ -18,21 +18,22 @@
 -->
 <script setup>
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import UiButton from "../common/components/UiButton.vue";
 import { useEngine } from "../composables/useEngine.js";
 
 const { updateInfo, updateToLatest, busy } = useEngine();
+const { t } = useI18n();
 
 const tooltip = computed(() => {
   const u = updateInfo.value;
-  const kind = u?.latestKind === "tested"
-    ? "the build this app is tested with"
-    : `llama.cpp's official release${u?.latestStable ? ` ${u.latestStable}` : ""}`;
-  return `Update the engine to ${u?.latest}, ${kind} (you have ${u?.current}) — the new build is checked before it replaces yours, and the old build folder is removed only once it installs`;
+  const vals = { latest: u?.latest, current: u?.current, stable: u?.latestStable };
+  if (u?.latestKind === "tested") return t("kit.engine.update.tipTested", vals);
+  return u?.latestStable ? t("kit.engine.update.tipStable", vals) : t("kit.engine.update.tipOfficial", vals);
 });
 </script>
 
 <template>
   <UiButton intent="info" size="small" :loading="busy" :title="tooltip"
-    @click="updateToLatest">Update to {{ updateInfo?.latest }}</UiButton>
+    @click="updateToLatest">{{ t('kit.engine.update.button', { latest: updateInfo?.latest }) }}</UiButton>
 </template>

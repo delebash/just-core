@@ -9,14 +9,12 @@
 // embed · QuickSetup · boot · the catalog rows) — ONE component, ONE look, sized by its container;
 // there is deliberately NO compact/variant fork (that was the "why does every download look
 // different" complaint).
+import { useI18n } from "vue-i18n";
 import UiButton from "./UiButton.vue";
 import UiProgress from "./UiProgress.vue";
-import { familyLabels } from "../services/familyLabels.js";
 
-// Canon words via the ONE reactive store — capturing the group ref is safe: the
-// door deep-assigns in place (the invariant in familyLabels.js), so a host's
-// locale re-feed reaches this mounted bar live.
-const L = familyLabels.downloadBar;
+// The kit's words (kit.downloadBar.*) in the app's language.
+const { t } = useI18n();
 
 defineProps({
   title: { type: String, default: "" },
@@ -39,15 +37,15 @@ defineProps({
       <b class="lu-dlbar-title">{{ title }}</b>
       <span v-if="role" class="lu-muted lu-dlbar-role">{{ role }}</span>
       <span class="lu-dlbar-spacer" />
-      <UiButton v-if="task.state === 'running' && task.cancel" intent="secondary" size="small" @click="task.cancel()">{{ L.cancel }}</UiButton>
+      <UiButton v-if="task.state === 'running' && task.cancel" intent="secondary" size="small" @click="task.cancel()">{{ t('kit.downloadBar.cancel') }}</UiButton>
       <!-- Retry stays DISABLED while the cancel is still finalizing (the model is tearing down) —
            clicking it mid-teardown re-races the load. It enables once the teardown completes. -->
-      <UiButton v-else-if="task.state === 'cancelled' || task.state === 'error'" intent="secondary" size="small" :disabled="task.finalizing" @click="task.retry()">{{ L.retry }}</UiButton>
+      <UiButton v-else-if="task.state === 'cancelled' || task.state === 'error'" intent="secondary" size="small" :disabled="task.finalizing" @click="task.retry()">{{ t('kit.downloadBar.retry') }}</UiButton>
       <!-- …and a way OUT of a terminal state. Without this a failed download was permanent:
            Retry was the only action, and the server kept the errored row so the bar came
            back on every poll (user, 2026-07-24: "no way to cancel"). -->
-      <UiButton v-if="(task.state === 'cancelled' || task.state === 'error') && task.dismiss" intent="ghost" size="small" :disabled="task.finalizing" @click="task.dismiss()">{{ L.dismiss }}</UiButton>
-      <span v-else-if="task.state === 'done'" class="lu-dlbar-ok">{{ doneLabel || L.ready }}</span>
+      <UiButton v-if="(task.state === 'cancelled' || task.state === 'error') && task.dismiss" intent="ghost" size="small" :disabled="task.finalizing" @click="task.dismiss()">{{ t('kit.downloadBar.dismiss') }}</UiButton>
+      <span v-else-if="task.state === 'done'" class="lu-dlbar-ok">{{ doneLabel || t('kit.downloadBar.ready') }}</span>
     </div>
 
     <UiProgress :value="task.done" :max="task.total" :label="task.label" />

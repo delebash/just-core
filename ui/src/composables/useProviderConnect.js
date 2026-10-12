@@ -10,10 +10,16 @@
 // was pruned 2026-07-06 when the QuickSetup connect flow, its only consumer, was removed;
 // the server endpoint remains for a future ProviderForm affordance.)
 import { request } from "../client.js";
+import { kitT } from "../common/services/kitI18n.js";
 
 // Known providers, as start-from-a-preset chips: [label, baseUrl, providerType, isLocal].
+// The labels are product names, except the local engine's, which is a word in the kit's catalog.
+const LOCAL_ENGINE_PRESET = Object.defineProperty(
+  ["", "http://localhost:8080/v1", "openai-compat", true], 0,
+  { get: () => kitT("kit.provider.presetLocalEngine"), enumerable: true },
+);
 export const PROVIDER_PRESETS = [
-  ["Local engine", "http://localhost:8080/v1", "openai-compat", true],
+  LOCAL_ENGINE_PRESET,
   ["Ollama", "http://localhost:11434", "ollama", true],
   ["LM Studio", "http://localhost:1234/v1", "openai-compat", true],
   // Unsloth Studio speaks OpenAI-compatible; port from its own docs' curl example

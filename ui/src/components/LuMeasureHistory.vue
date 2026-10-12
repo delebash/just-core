@@ -10,6 +10,7 @@
 // the modal calls the exposed reload() after recording a new measurement so an
 // open drawer stays live.
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import Icon from "../common/components/Icon.vue";
 import UiButton from "../common/components/UiButton.vue";
@@ -21,15 +22,16 @@ import { clearMeasurements, listMeasurements } from "../measurements.js";
 // The shared UiTable's column config (2026-07-24 migration off a hand-rolled <table>).
 // Deliberately NOT sortable: this table never had sorting and the migration is meant to be
 // behaviour-preserving — sorting can be switched on per column later by adding `sortable`.
-const HISTORY_COLUMNS = [
-  { id: "when", accessorKey: "startedAt", header: "When" },
-  { id: "run", accessorKey: "label", header: "Run" },
-  { id: "settings", accessorKey: "id", header: "Settings" },
-  { id: "tps", accessorKey: "tokensPerSec", header: "tok/s",
+const { t, d } = useI18n();
+const historyColumns = computed(() => [
+  { id: "when", accessorKey: "startedAt", header: t("kit.history.col.when") },
+  { id: "run", accessorKey: "label", header: t("kit.history.col.run") },
+  { id: "settings", accessorKey: "id", header: t("kit.history.col.settings") },
+  { id: "tps", accessorKey: "tokensPerSec", header: t("kit.history.col.tps"),
     headerStyle: { textAlign: "right" }, cellStyle: { textAlign: "right", whiteSpace: "nowrap" } },
-  { id: "vram", accessorKey: "vramTotalMb", header: "VRAM",
+  { id: "vram", accessorKey: "vramTotalMb", header: t("kit.history.col.vram"),
     headerStyle: { textAlign: "right" }, cellStyle: { textAlign: "right", whiteSpace: "nowrap" } },
-];
+]);
 
 const props = defineProps({
   modelId: { type: String, required: true },
@@ -48,7 +50,7 @@ async function reload() {
     rows.value = (await listMeasurements(props.modelId)).measurements || [];
     loaded.value = true;
   } catch (e) {
-    error.value = e.message || "Couldn't load the measurement history.";
+    error.value = e.message || t("kit.history.err.load");
   } finally {
     loading.value = false;
   }
@@ -61,17 +63,20 @@ function onToggle(e) {
 defineExpose({ reload: () => (loaded.value ? reload() : undefined) });
 
 const hasRows = computed(() => rows.value.length > 0);
-const whenOf = (m) => (m.at ? new Date(m.at).toLocaleString() : "");
+// Date and time in the app's language — the fields toLocaleString() shows by default.
+const whenOf = (m) => (m.at
+  ? d(new Date(m.at), { year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" })
+  : "");
 const settingsOf = (m) =>
   (m.switches || []).map((s) => `${s.flagName}=${s.flagValue}`).join(" · ") ||
-  "engine automatic settings";
+  t("kit.history.automatic");
 const gb = (mb) => (mb / 1024).toFixed(1);
 
 async function clearHistory() {
   const ok = await confirmDialog({
-    title: "Clear measurement history?",
-    message: "Delete every recorded measurement for this model? Saved tunes and PC class configs are not touched. This clears the measured speeds AND the app's remembered memory footprints for it — the estimates take over again and re-learn on the next load.",
-    confirmLabel: "Clear history",
+    title: t("kit.history.clear.title"),
+    message: t("kit.history.clear.body"),
+    confirmLabel: t("kit.history.clear.button"),
   });
   if (!ok) return;
   error.value = "";
@@ -79,7 +84,7 @@ async function clearHistory() {
   try {
     rows.value = (await clearMeasurements(props.modelId)).measurements || [];
   } catch (e) {
-    error.value = e.message || "Couldn't clear the history.";
+    error.value = e.message || t("kit.history.err.clear");
   } finally {
     clearing.value = false;
   }
@@ -92,40 +97,39 @@ async function clearHistory() {
       <Icon name="ChevRight" :size="15" class="lu-mh-caret" />
       <span class="lu-mh-text">
         <span class="lu-mh-title">
-          Measurement history
+          {{ t('kit.history.title') }}
           <span v-if="loaded && hasRows" class="lu-mh-count">{{ rows.length }}</span>
         </span>
-        <span class="lu-muted">every measured speed for this model, saved across restarts</span>
+        <span class="lu-muted">{{ t('kit.history.summary') }}</span>
       </span>
     </summary>
 
     <div class="lu-mh-body">
       <div v-if="error" class="lu-error">{{ error }}</div>
-      <div v-if="loading" class="lu-muted">Loading…</div>
+      <div v-if="loading" class="lu-muted">{{ t('kit.common.loading') }}</div>
 
       <template v-else-if="loaded">
-        <UiTable v-if="hasRows" class="lu-mh-tbl" :data="rows" :columns="HISTORY_COLUMNS" data-key="id">
+        <UiTable v-if="hasRows" class="lu-mh-tbl" :data="rows" :columns="historyColumns" data-key="id">
           <template #when="{ row }"><span class="lu-mh-when">{{ whenOf(row) }}</span></template>
           <template #run="{ row }">
             <span class="lu-mh-run">
-              <UiTag v-if="row.source === 'autotune'" intent="info">Auto-tune</UiTag>
+              <UiTag v-if="row.source === 'autotune'" intent="info">{{ t('kit.history.autotune') }}</UiTag>
               <span v-if="row.label">{{ row.label }}</span>
-              <span v-else-if="row.source !== 'autotune'">measured</span>
+              <span v-else-if="row.source !== 'autotune'">{{ t('kit.history.measured') }}</span>
             </span>
           </template>
           <template #settings="{ row }"><span class="lu-mh-sum">{{ settingsOf(row) }}</span></template>
           <template #tps="{ row }"><b class="lu-mh-tps">{{ row.tokensPerSec }}</b></template>
-          <template #vram="{ row }">{{ row.vramTotalMb ? `${gb(row.vramTotalMb)} GB` : "—" }}</template>
+          <template #vram="{ row }">{{ row.vramTotalMb ? t('kit.history.gb', { gb: gb(row.vramTotalMb) }) : "—" }}</template>
         </UiTable>
         <p v-else class="lu-muted lu-mh-empty">
-          Nothing measured yet — every “Load &amp; measure” result and auto-tune trial is
-          recorded here automatically.
+          {{ t('kit.history.empty') }}
         </p>
 
         <div v-if="hasRows" class="lu-mh-bar">
           <UiButton intent="ghost" size="small" :loading="clearing"
-            title="Delete this model's recorded measurements — saved tunes and PC class configs are kept"
-            @click="clearHistory">Clear history</UiButton>
+            :title="t('kit.history.clear.tip')"
+            @click="clearHistory">{{ t('kit.history.clear.button') }}</UiButton>
         </div>
       </template>
     </div>

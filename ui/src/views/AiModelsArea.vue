@@ -9,6 +9,7 @@
 // own line, model + key on the next, status + Test + Edit). The Features routing
 // table + the per-provider local-model/Fit section are the next chunks.
 import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 import AppModal from "../common/components/AppModal.vue";
 import UiButton from "../common/components/UiButton.vue";
@@ -16,9 +17,10 @@ import UiCheckbox from "../common/components/UiCheckbox.vue";
 import UiSegmented from "../common/components/UiSegmented.vue";
 import UiTable from "../common/components/UiTable.vue";
 import FeatureWorkbench from "./FeatureWorkbench.vue";
-import { familyLabels } from "../common/services/familyLabels.js";
 
-const TAB_LABELS = familyLabels.aiTabs; // reactive canon — group capture is safe, the door assigns in place
+const { t, n: fmtNum } = useI18n();
+// An example address, not a word — never translated.
+const LOCAL_URL_EXAMPLE = "http://localhost:…";
 import ProviderForm from "./ProviderForm.vue";
 import QuickSetup from "./QuickSetup.vue";
 import PricingEditor from "./PricingEditor.vue";
@@ -125,9 +127,9 @@ const tab = ref("providers");
 // behind the named id; entries without it take the legacy single-tab slot
 // (after Routing) so `appTabLabel` hosts render exactly as before.
 const tabDefs = computed(() => {
-  const defs = [{ id: "providers", label: TAB_LABELS.providers, kit: true }];
-  if (props.modelsTab) defs.push({ id: "models", label: TAB_LABELS.models, kit: true });
-  defs.push({ id: "features", label: TAB_LABELS.routing, kit: true });
+  const defs = [{ id: "providers", label: t('kit.aiTabs.providers'), kit: true }];
+  if (props.modelsTab) defs.push({ id: "models", label: t('kit.aiTabs.models'), kit: true });
+  defs.push({ id: "features", label: t('kit.aiTabs.routing'), kit: true });
   const legacy = props.appTabLabel ? [{ id: "app", label: props.appTabLabel, slot: "app-tab" }] : [];
   const anchored = [];
   const floating = [...legacy];
@@ -137,8 +139,8 @@ const tabDefs = computed(() => {
     (t.after ? anchored : floating).push({ ...def, after: t.after });
   }
   defs.push(...floating);
-  defs.push({ id: "usage", label: TAB_LABELS.usage, kit: true });
-  if (localOn) defs.push({ id: "console", label: TAB_LABELS.console, kit: true });
+  defs.push({ id: "usage", label: t('kit.aiTabs.usage'), kit: true });
+  if (localOn) defs.push({ id: "console", label: t('kit.aiTabs.console'), kit: true });
   for (const t of anchored) {
     const at = defs.findIndex((d) => d.id === t.after);
     // An unknown anchor falls back to the legacy slot's neighborhood (before
@@ -212,12 +214,12 @@ const hwLabel = computed(() => {
     .sort((a, b) => rank(a) - rank(b));
   const active = rts[0] || "";
   const accel = rts
-    .map((k) => (k === active ? `${k.toUpperCase()} (in use)` : `${k.toUpperCase()} (supported)`))
+    .map((k) => (k === active ? t("kit.aiArea.hw.inUse", { rt: k.toUpperCase() }) : t("kit.aiArea.hw.supported", { rt: k.toUpperCase() })))
     .join(" · ");
   return {
     os: h.os || "—",
-    cpu: h.cpuCores ? `${h.cpuCores} threads` : "—",
-    gpu: gpu ? gpu.name : "CPU only",
+    cpu: h.cpuCores ? t("kit.aiArea.hw.threads", { n: h.cpuCores }) : "—",
+    gpu: gpu ? gpu.name : t("kit.aiArea.hw.cpuOnly"),
     vram: gpu?.vramMb ? `${(gpu.vramMb / 1024).toFixed(0)} GB` : null,
     ram: h.ramMb ? `${(h.ramMb / 1024).toFixed(0)} GB` : "—",
     accel: accel || "—",
@@ -271,7 +273,7 @@ async function loadGpuApps(fresh = false) {
   } catch (e) {
     // A failed fetch is NOT "nothing is using the GPU" — say so in the same
     // shape the server uses for an unmeasurable box.
-    gpuApps.value = { available: false, reason: `Couldn't read the process list: ${e?.message || e}`, processes: [] };
+    gpuApps.value = { available: false, reason: t("kit.aiArea.gpuApps.readFailed", { error: e?.message || e }), processes: [] };
   } finally {
     gpuAppsBusy.value = false;
   }
@@ -293,17 +295,17 @@ function toggleGpuApps() {
 const memCells = computed(() => {
   const r = resident.value;
   if (!r?.vramTotalMb) return []; // no detectable GPU VRAM → no memory cells
-  const word = r.memArch && r.memArch !== "discrete" ? "Memory" : "VRAM";
+  const unified = !!r.memArch && r.memArch !== "discrete";
   const total = gb1(r.vramTotalMb);
   const cells = [];
   if (r.usedMb == null) {
-    cells.push({ key: "used", label: `${word} reserved`, value: `${gb1(r.committedMb || 0)} of ${total} GB`,
-      title: "This box has no per-process memory probe — these are the ledger's bookings, not a measurement" });
-    cells.push({ key: "free", label: "Free", value: `${gb1(r.remainingMb || 0)} GB` });
+    cells.push({ key: "used", label: t(unified ? "kit.aiArea.mem.memoryReserved" : "kit.aiArea.mem.vramReserved"), value: t("kit.aiArea.mem.ofTotal", { gb: gb1(r.committedMb || 0), total }),
+      title: t("kit.aiArea.mem.reservedTitle") });
+    cells.push({ key: "free", label: t("kit.aiArea.mem.free"), value: t("kit.aiArea.mem.gb", { gb: gb1(r.remainingMb || 0) }) });
   } else {
-    cells.push({ key: "used", label: `${word} used`, value: `${gb1(r.usedMb)} of ${total} GB`,
-      title: "Measured occupancy — what the card actually holds right now" });
-    cells.push({ key: "free", label: "Free", value: `${gb1(Math.max(0, r.vramTotalMb - r.usedMb))} GB` });
+    cells.push({ key: "used", label: t(unified ? "kit.aiArea.mem.memoryUsed" : "kit.aiArea.mem.vramUsed"), value: t("kit.aiArea.mem.ofTotal", { gb: gb1(r.usedMb), total }),
+      title: t("kit.aiArea.mem.usedTitle") });
+    cells.push({ key: "free", label: t("kit.aiArea.mem.free"), value: t("kit.aiArea.mem.gb", { gb: gb1(Math.max(0, r.vramTotalMb - r.usedMb)) }) });
   }
   // The LLM cell: loaded model name + the runner's booked take. Summed from
   // the per-model reservations, NOT committedMb — the arbiter ledger is
@@ -318,16 +320,14 @@ const memCells = computed(() => {
   if (models.length) {
     const awake = models.filter((m) => m.status !== "sleeping");
     const take = awake.reduce((n, m) => n + (m.vramMb || 0), 0);
-    cells.push({ key: "llm", label: "LLM",
-      value: take ? `${gb1(take)} GB` : (awake.length ? "loaded" : "asleep"),
+    cells.push({ key: "llm", label: t("kit.aiArea.mem.llm"),
+      value: take ? t("kit.aiArea.mem.gb", { gb: gb1(take) }) : (awake.length ? t("kit.aiArea.mem.loaded") : t("kit.aiArea.mem.asleep")),
       sub: models.map((m) => m.id).join(" · "),
-      title: awake.length
-        ? "The AI runner's booked take for its loaded models"
-        : "Idle, so its memory has been released — it reloads on the next request" });
+      title: awake.length ? t("kit.aiArea.mem.llmTitle") : t("kit.aiArea.mem.asleepTitle") });
   } else if (props.llmClaim?.text) {
-    cells.push({ key: "llm", label: "LLM", value: props.llmClaim.text, title: props.llmClaim.title || "" });
+    cells.push({ key: "llm", label: t("kit.aiArea.mem.llm"), value: props.llmClaim.text, title: props.llmClaim.title || "" });
   } else {
-    cells.push({ key: "llm", label: "LLM", value: "—" });
+    cells.push({ key: "llm", label: t("kit.aiArea.mem.llm"), value: "—" });
   }
   // "Other apps" — measured occupancy minus what the arbiter has booked, i.e.
   // the slice of the card our ledger cannot account for. KIT-side since
@@ -340,9 +340,9 @@ const memCells = computed(() => {
   const otherMb = r.usedMb == null ? 0 : Math.max(0, r.usedMb - (r.committedMb || 0));
   if (otherMb > 256) {
     cells.push({
-      key: "other", label: "Other apps", value: mem1(otherMb),
-      title: "Memory held by processes this app doesn't manage (browser, desktop compositor, games)",
-      action: { label: gpuAppsOpen.value ? "hide" : "show apps", on: toggleGpuApps },
+      key: "other", label: t("kit.aiArea.mem.otherApps"), value: mem1(otherMb),
+      title: t("kit.aiArea.mem.otherAppsTitle"),
+      action: { label: gpuAppsOpen.value ? t("kit.aiArea.mem.hide") : t("kit.aiArea.mem.showApps"), on: toggleGpuApps },
     });
   }
   return cells;
@@ -351,7 +351,8 @@ const stripCells = computed(() => [...memCells.value, ...props.hwCells]);
 
 // "Copy debug info" — the whole box picture as ONE pasteable text block (hardware +
 // tuning keys + engine build + the live resident set). Beats more UI: a bug report
-// or a support chat gets the machine's true state in one paste.
+// or a support chat gets the machine's true state in one paste. The block is diagnostic
+// data for whoever reads the report, like the logs, so it stays English in every language.
 const debugCopied = ref(false);
 function debugInfoText() {
   const h = hardware.value || {};
@@ -384,7 +385,7 @@ async function copyDebugInfo() {
     debugCopied.value = true;
     setTimeout(() => { debugCopied.value = false; }, 1500);
   } catch {
-    pushToast({ message: "Couldn't reach the clipboard — select and copy from the console instead.", kind: "error" });
+    pushToast({ message: t("kit.aiArea.clipboardFailed"), kind: "error" });
   }
 }
 
@@ -394,10 +395,10 @@ const fmtUsd = (n) => (n ? `$${Number(n).toFixed(n < 1 ? 4 : 2)}` : "$0");
 // Every column sorts: the panel exists to answer "what is costing me the most".
 const usageColumns = (firstLabel) => [
   { id: "key", accessorKey: "key", header: firstLabel, sortable: true },
-  { id: "calls", accessorKey: "calls", header: "Calls", sortable: true },
-  { id: "prompt", accessorKey: "prompt", header: "Prompt", sortable: true },
-  { id: "completion", accessorKey: "completion", header: "Completion", sortable: true },
-  { id: "cost", accessorKey: "cost", header: "Cost", sortable: true },
+  { id: "calls", accessorKey: "calls", header: t("kit.aiArea.usage.colCalls"), sortable: true },
+  { id: "prompt", accessorKey: "prompt", header: t("kit.aiArea.usage.colPrompt"), sortable: true },
+  { id: "completion", accessorKey: "completion", header: t("kit.aiArea.usage.colCompletion"), sortable: true },
+  { id: "cost", accessorKey: "cost", header: t("kit.aiArea.usage.colCost"), sortable: true },
 ];
 // The full ledger view (rollup + by-feature + by-provider) from /v1/ai-usage —
 // cost is server-computed (the host sink prices each row), so this renders
@@ -444,7 +445,7 @@ async function loadAll() {
 }
 
 function capList(p) {
-  return p.embeddingModel ? ["LLM", "EMBED"] : ["LLM"];
+  return p.embeddingModel ? [t("kit.aiArea.cap.llm"), t("kit.aiArea.cap.embed")] : [t("kit.aiArea.cap.llm")];
 }
 async function testProvider(p) {
   status.value = { ...status.value, [p.id]: "checking" };
@@ -455,9 +456,9 @@ async function testProvider(p) {
     status.value = { ...status.value, [p.id]: "fail" };
   }
 }
-const STATUS_LABEL = { checking: "Checking…", ok: "Connected", fail: "Failed" };
+const STATUS_KEYS = new Set(["checking", "ok", "fail"]);
 const STATUS_COLOR = { checking: "var(--gold, #b08a3e)", ok: "var(--success, #3a7d63)", fail: "var(--danger)" };
-const statusLabel = (id) => STATUS_LABEL[status.value[id]] || "Not checked";
+const statusLabel = (id) => t(STATUS_KEYS.has(status.value[id]) ? `kit.aiArea.status.${status.value[id]}` : "kit.aiArea.status.unchecked");
 const statusColor = (id) => STATUS_COLOR[status.value[id]] || "var(--border-strong)";
 
 function onSaved() { editingId.value = null; loadProviders(); }
@@ -533,10 +534,10 @@ async function applySetDefault() {
     // write would rewrite the identical value, so it is skipped (the dialog line
     // says "already runs here — unchanged"). Online rows still repoint it.
     if (sdEmbedModel.value && !sdIsBuiltin.value) await setAsEmbedding(pid, sdEmbedModel.value);
-    pushToast({ message: `${p.name || p.id} is now the default provider — tasks run on ${sdModel.value}.` });
+    pushToast({ message: t("kit.aiArea.setDefault.done", { name: p.name || p.id, model: sdModel.value }) });
     setDefaultFor.value = null;
   } catch (e) {
-    pushToast({ message: `Set as default failed: ${e?.message || e}` });
+    pushToast({ message: t("kit.aiArea.setDefault.failed", { error: e?.message || e }) });
   } finally {
     settingDefault.value = false;
   }
@@ -573,11 +574,11 @@ async function checkHardwareChange() {
     await request("/v1/ai/engine-config", { method: "PUT", body: { ackHwFingerprint: fp } });
     if (!stored) return; // baseline seeded — never toast a first sight
     pushToast({
-      title: "Your graphics hardware changed",
-      message: "A different model may now fit this PC — run Quick Setup to re-check, or re-tune your current model from its Tune dialog (Edit the built-in server).",
+      title: t("kit.aiArea.hwChanged.title"),
+      message: t("kit.aiArea.hwChanged.body"),
       kind: "info",
       duration: 30000,
-      action: { label: "Run Quick Setup", fn: () => qsRef.value?.openWizard?.() },
+      action: { label: t("kit.quickSetup.runButton"), fn: () => qsRef.value?.openWizard?.() },
     });
   } catch { /* detection is best-effort — never block the page */ }
 }
@@ -605,7 +606,7 @@ onMounted(() => {
 
 <template>
   <div class="lu-area">
-    <p class="lu-muted lu-lede">Connect AI providers — free local or metered cloud — and manage which models power each feature.</p>
+    <p class="lu-muted lu-lede">{{ t('kit.aiArea.lede') }}</p>
 
     <!-- The machine strip (OS · CPU · Memory · GPU · Acceleration, then the live
          memory cells). A COLUMN GRID, not a greedy flex row (2026-08-15): with
@@ -615,18 +616,18 @@ onMounted(() => {
          second row of the same columns at any window size. -->
     <div v-if="localOn && hwLabel" class="lu-hwstrip">
       <div class="lu-hwstats">
-        <div class="lu-hwstat"><span class="lu-hwstat-k">OS</span><span class="lu-hwstat-v">{{ hwLabel.os }}</span></div>
-        <div class="lu-hwstat"><span class="lu-hwstat-k">CPU</span><span class="lu-hwstat-v">{{ hwLabel.cpu }}</span></div>
-        <div class="lu-hwstat"><span class="lu-hwstat-k">Memory</span><span class="lu-hwstat-v">{{ hwLabel.ram }}</span></div>
+        <div class="lu-hwstat"><span class="lu-hwstat-k">{{ t('kit.aiArea.hw.os') }}</span><span class="lu-hwstat-v">{{ hwLabel.os }}</span></div>
+        <div class="lu-hwstat"><span class="lu-hwstat-k">{{ t('kit.aiArea.hw.cpu') }}</span><span class="lu-hwstat-v">{{ hwLabel.cpu }}</span></div>
+        <div class="lu-hwstat"><span class="lu-hwstat-k">{{ t('kit.aiArea.hw.memory') }}</span><span class="lu-hwstat-v">{{ hwLabel.ram }}</span></div>
         <!-- The sub is its OWN line, never a "· tail" on the value: the tail is
              what made the GPU / LLM / TTS cells three times the width of the
              rest and drove the ugly wrap. Label · number · quiet detail. -->
         <div class="lu-hwstat">
-          <span class="lu-hwstat-k">GPU</span>
+          <span class="lu-hwstat-k">{{ t('kit.aiArea.hw.gpu') }}</span>
           <span class="lu-hwstat-v">{{ hwLabel.gpu }}</span>
-          <span v-if="hwLabel.vram" class="lu-hwstat-sub">{{ hwLabel.vram }} VRAM</span>
+          <span v-if="hwLabel.vram" class="lu-hwstat-sub">{{ t('kit.aiArea.hw.vram', { size: hwLabel.vram }) }}</span>
         </div>
-        <div class="lu-hwstat"><span class="lu-hwstat-k">Acceleration</span><span class="lu-hwstat-v">{{ hwLabel.accel }}</span></div>
+        <div class="lu-hwstat"><span class="lu-hwstat-k">{{ t('kit.aiArea.hw.acceleration') }}</span><span class="lu-hwstat-v">{{ hwLabel.accel }}</span></div>
         <!-- Live measured memory as CELLS (the one-strip consolidation, 2026-08-15):
              kit cells (used · free · LLM) then the host's own (JV: TTS · STT ·
              Other apps · Busy). Hidden on a no-GPU box. The Copy button snapshots
@@ -645,8 +646,8 @@ onMounted(() => {
         </div>
       </div>
       <UiButton intent="ghost" size="small" class="lu-hwcopy"
-        title="Copy this machine's AI state — hardware, driver, engine build, tuning keys, VRAM, loaded models — for a bug report"
-        @click="copyDebugInfo">{{ debugCopied ? "Copied ✓" : "Copy debug info" }}</UiButton>
+        :title="t('kit.aiArea.debug.title')"
+        @click="copyDebugInfo">{{ debugCopied ? t('kit.aiArea.debug.copied') : t('kit.aiArea.debug.copy') }}</UiButton>
     </div>
 
     <!-- Which processes hold GPU memory. Opened from the "Other apps" cell,
@@ -655,44 +656,36 @@ onMounted(() => {
          desktop, and it reads next to the number it explains. -->
     <div v-if="gpuAppsOpen" class="lu-gpuapps">
       <div class="lu-gpuapps-head">
-        <b>Using the GPU right now</b>
-        <UiButton intent="ghost" size="small" :loading="gpuAppsBusy" @click="loadGpuApps(true)">Refresh</UiButton>
-        <UiButton intent="ghost" size="small" @click="toggleGpuApps">Close</UiButton>
+        <b>{{ t('kit.aiArea.gpuApps.title') }}</b>
+        <UiButton intent="ghost" size="small" :loading="gpuAppsBusy" @click="loadGpuApps(true)">{{ t('kit.aiArea.refresh') }}</UiButton>
+        <UiButton intent="ghost" size="small" @click="toggleGpuApps">{{ t('kit.dialog.close') }}</UiButton>
       </div>
-      <div v-if="gpuAppsBusy && !gpuApps" class="lu-muted">Reading the system's GPU counters…</div>
+      <div v-if="gpuAppsBusy && !gpuApps" class="lu-muted">{{ t('kit.aiArea.gpuApps.reading') }}</div>
       <!-- Unavailable is its OWN state. Rendering an empty table here would
            claim the GPU is idle, which is a different (and wrong) sentence. -->
       <div v-else-if="gpuApps && !gpuApps.available" class="lu-muted">{{ gpuApps.reason }}</div>
-      <div v-else-if="gpuApps && !gpuApps.processes.length" class="lu-muted">
-        No process is holding GPU memory right now.
-      </div>
+      <div v-else-if="gpuApps && !gpuApps.processes.length" class="lu-muted">{{ t('kit.aiArea.gpuApps.none') }}</div>
       <template v-else-if="gpuApps">
         <div class="lu-gpuapps-rows">
           <div v-for="p in gpuApps.processes" :key="p.pid" class="lu-gpuapp" :class="{ 'is-own': p.own }">
-            <span class="lu-gpuapp-n">{{ p.name || `pid ${p.pid}` }}<span v-if="p.own" class="lu-gpuapp-tag">this app</span></span>
-            <span class="lu-gpuapp-p">pid {{ p.pid }}</span>
+            <span class="lu-gpuapp-n">{{ p.name || t('kit.aiArea.gpuApps.pid', { pid: p.pid }) }}<span v-if="p.own" class="lu-gpuapp-tag">{{ t('kit.aiArea.gpuApps.thisApp') }}</span></span>
+            <span class="lu-gpuapp-p">{{ t('kit.aiArea.gpuApps.pid', { pid: p.pid }) }}</span>
             <span class="lu-gpuapp-m">{{ mem1(p.memMb) }}</span>
           </div>
         </div>
         <!-- The honesty line, keyed to the arm that answered. Neither list is a
              complete partition of the card, and the two differ in COVERAGE: the
              Windows counters see graphics work, nvidia-smi sees only compute. -->
-        <p v-if="gpuApps.source === 'nvidia-smi'" class="lu-gpuapps-note">
-          Reported by nvidia-smi, which sees compute workloads only — apps using the
-          GPU purely for graphics won't appear here.
-        </p>
-        <p v-else class="lu-gpuapps-note">
-          These add up to a little less than the total above: driver and desktop
-          overhead isn't charged to any one process.
-        </p>
+        <p v-if="gpuApps.source === 'nvidia-smi'" class="lu-gpuapps-note">{{ t('kit.aiArea.gpuApps.nvidiaNote') }}</p>
+        <p v-else class="lu-gpuapps-note">{{ t('kit.aiArea.gpuApps.sumNote') }}</p>
       </template>
     </div>
 
-    <!-- ONE strip from tabDefs: kit tab words come from the FAMILY CONTRACT (one
-         canon, every app — an app relabels via its labels feed); host tabs carry
-         the app's own words. The strip WRAPS (the fit rule) — labels never clip. -->
+    <!-- ONE strip from tabDefs: kit tab words are the kit's keys (kit.aiTabs.*, one word every
+         app — an app rewords one by setting the key in its own catalog); host tabs carry the
+         app's own words. The strip WRAPS (the fit rule) — labels never clip. -->
     <nav class="lu-subnav">
-      <a v-for="t in tabDefs" :key="t.id" :class="{ on: tab === t.id }" @click="tab = t.id">{{ t.label }}</a>
+      <a v-for="tb in tabDefs" :key="tb.id" :class="{ on: tab === tb.id }" @click="tab = tb.id">{{ tb.label }}</a>
     </nav>
 
     <div v-if="error" class="lu-error" style="margin-top:14px">{{ error }}</div>
@@ -717,10 +710,10 @@ onMounted(() => {
 
       <div class="lu-providers">
         <div class="lu-pcard-head">
-          <span class="lu-pcard-title">Providers</span>
-          <span class="lu-muted lu-pcard-count">{{ providers.length }} configured</span>
+          <span class="lu-pcard-title">{{ t('kit.aiArea.providers.title') }}</span>
+          <span class="lu-muted lu-pcard-count">{{ t('kit.aiArea.providers.configured', { n: providers.length }) }}</span>
           <UiButton intent="primary" size="small" @click="editingId = editingId === 'new' ? null : 'new'">
-            <template #icon><span class="lu-plus">＋</span></template>Add provider
+            <template #icon><span class="lu-plus">＋</span></template>{{ t('kit.aiArea.providers.add') }}
           </UiButton>
         </div>
 
@@ -731,8 +724,8 @@ onMounted(() => {
              two near-duplicate lists that used to drift are gone. -->
         <UiSegmented v-if="localOn" v-model="providerScope" variant="connected" class="lu-scope"
           :options="[
-            { value: 'local', label: 'Local · free', sublabel: 'Runs on your machine — no API key, no per-token cost' },
-            { value: 'online', label: 'Online · metered', sublabel: 'Your account — API key + URL; pay per token' },
+            { value: 'local', label: t('kit.aiArea.scope.local'), sublabel: t('kit.aiArea.scope.localSub') },
+            { value: 'online', label: t('kit.aiArea.scope.online'), sublabel: t('kit.aiArea.scope.onlineSub') },
           ]" />
         <template v-for="p in shownProviders" :key="p.id">
           <ProviderForm v-if="editingId === p.id" :provider="p" @saved="onSaved" @deleted="onSaved" @cancel="editingId = null" />
@@ -748,7 +741,7 @@ onMounted(() => {
                 <b>{{ p.name || p.id }}</b><span v-for="c in capList(p)" :key="c" class="lu-cap">{{ c }}</span>
                 <!-- 2026-07-19: the built-in is a normal row now, so the ONE thing that
                      still marks it out is this tag (same .lu-cap badge, no new style). -->
-                <span v-if="isBuiltin(p)" class="lu-cap">Built-in</span>
+                <span v-if="isBuiltin(p)" class="lu-cap">{{ t('kit.aiArea.providers.builtin') }}</span>
                 <!-- 2026-07-21 (user): the built-in provider is collapsed to a row, so an
                      available engine update was only visible after Edit. Surface it here too,
                      next to the tag — the SAME control the panel uses (LuEngineUpdateButton,
@@ -785,72 +778,72 @@ onMounted(() => {
                    clause (not trail), so dropping any one clause can't strand a dangling
                    "·" and a new clause is added in exactly one place. -->
               <div class="lu-prow-meta">
-                <template v-if="p.defaultModel">chat: <b>{{ p.defaultModel }}</b></template>
-                <template v-if="p.embeddingModel"><template v-if="p.defaultModel"> · </template>embed: <b>{{ p.embeddingModel }}</b></template>
-                <template v-if="!isBuiltin(p)"><template v-if="p.defaultModel || p.embeddingModel"> · </template>{{ p.hasApiKey ? "API key set" : "no key" }}</template>
+                <template v-if="p.defaultModel">{{ t('kit.aiArea.providers.chat') }} <b>{{ p.defaultModel }}</b></template>
+                <template v-if="p.embeddingModel"><template v-if="p.defaultModel"> · </template>{{ t('kit.aiArea.providers.embed') }} <b>{{ p.embeddingModel }}</b></template>
+                <template v-if="!isBuiltin(p)"><template v-if="p.defaultModel || p.embeddingModel"> · </template>{{ p.hasApiKey ? t('kit.aiArea.providers.keySet') : t('kit.aiArea.providers.noKey') }}</template>
               </div>
             </div>
             <span class="lu-prow-status"><span class="lu-sdot" :style="{ background: statusColor(p.id) }" />{{ statusLabel(p.id) }}</span>
             <!-- ONE actions cell (the row is a grid — loose buttons would wrap to a new
                  grid row, which is exactly the misplacement the user screenshotted). -->
             <div class="lu-prow-actions">
-              <UiButton intent="secondary" size="small" @click="testProvider(p)">Test</UiButton>
-              <UiButton intent="primary" size="small" @click="editingId = p.id">Edit</UiButton>
+              <UiButton intent="secondary" size="small" @click="testProvider(p)">{{ t('kit.aiArea.providers.test') }}</UiButton>
+              <UiButton intent="primary" size="small" @click="editingId = p.id">{{ t('kit.aiArea.providers.edit') }}</UiButton>
               <!-- Default/Set-as-default is the RIGHTMOST action (2026-07-17) — matches the
                    model catalog's "Default ✓" position + the built-in header, so the default
                    indicator is far-right on every surface. -->
               <UiButton :intent="isDefaultProvider(p) ? 'success' : 'secondary'" size="small"
-                @click="openSetDefault(p)">{{ isDefaultProvider(p) ? "Default ✓" : "Set as default" }}</UiButton>
+                @click="openSetDefault(p)">{{ isDefaultProvider(p) ? t('kit.modelCatalog.btn.isDefault') : t('kit.modelCatalog.btn.setDefault') }}</UiButton>
             </div>
           </div>
         </template>
         <div v-if="!loading && !shownProviders.length" class="lu-pempty">
-          <template v-if="providerScope === 'local'">No local providers yet. Click “Add provider” and point at <span class="lu-mono">http://localhost:…</span></template>
-          <template v-else>No cloud providers. Click “Add provider” and paste a key from OpenAI / Anthropic / OpenRouter.</template>
+          <i18n-t v-if="providerScope === 'local'" keypath="kit.aiArea.providers.noLocal" scope="global"><template #add>{{ t('kit.aiArea.providers.add') }}</template><template #url><span class="lu-mono">{{ LOCAL_URL_EXAMPLE }}</span></template></i18n-t>
+          <template v-else>{{ t('kit.aiArea.providers.noCloud', { add: t('kit.aiArea.providers.add') }) }}</template>
         </div>
 
         <!-- B2-9 (§7.2): the set-as-default confirm — ONE flow for every provider.
              Apply branch when the row has a chat model; else the guard branch
              (built-in: "pick manually or run Quick Setup" — the user's recorded
              offer; other rows: set the Default model in Edit first). -->
-        <AppModal v-if="setDefaultFor" title="Set as default provider" :max-width="'480px'" @close="setDefaultFor = null">
+        <AppModal v-if="setDefaultFor" :title="t('kit.aiArea.setDefault.title')" :max-width="'480px'" @close="setDefaultFor = null">
           <template v-if="sdModel">
-            <p class="lu-sd-line"><b>{{ setDefaultFor.name || setDefaultFor.id }}</b> becomes the default for your AI tasks — they run on <b>{{ sdModel }}</b>.</p>
+            <i18n-t keypath="kit.aiArea.setDefault.becomes" tag="p" class="lu-sd-line" scope="global"><template #name><b>{{ setDefaultFor.name || setDefaultFor.id }}</b></template><template #model><b>{{ sdModel }}</b></template></i18n-t>
             <!-- QC-21: the built-in's embedding lives in the routing default already —
                  say so instead of the false "no embedding model set". The WHOLE embed
                  block hides in a no-embeddings host (llmUiCapabilities — the docgen
                  "we dont use embedding" report, gated 2026-08-04). -->
             <template v-if="embedsOn">
-              <p v-if="sdEmbedModel && sdIsBuiltin" class="lu-sd-line lu-muted">Your embedding (<b>{{ sdEmbedModel }}</b>) already runs here — unchanged.</p>
-              <p v-else-if="sdEmbedModel" class="lu-sd-line lu-muted">Also becomes the embeddings (search) provider: <b>{{ sdEmbedModel }}</b>.</p>
+              <i18n-t v-if="sdEmbedModel && sdIsBuiltin" keypath="kit.aiArea.setDefault.embedUnchanged" tag="p" class="lu-sd-line lu-muted" scope="global"><template #model><b>{{ sdEmbedModel }}</b></template></i18n-t>
+              <i18n-t v-else-if="sdEmbedModel" keypath="kit.aiArea.setDefault.embedAlso" tag="p" class="lu-sd-line lu-muted" scope="global"><template #model><b>{{ sdEmbedModel }}</b></template></i18n-t>
               <!-- ONLINE row with no embedding of its own → the Book-search section
                    (2026-07-18): truthful "unchanged" line when an embedding already
                    routes; otherwise recommend the local setup (engine + embed model,
                    shared DownloadBars, cancel free) / a configured Ollama / skip —
                    skipping is passive, Apply never blocks, chat runs bible-only. -->
               <LuBookSearchSetup v-else-if="!sdIsBuiltin" :providers="providers" />
-              <p v-else class="lu-sd-line lu-muted">Search embeddings keep their current provider — this provider has no embedding model set.</p>
+              <p v-else class="lu-sd-line lu-muted">{{ t('kit.aiArea.setDefault.embedKept') }}</p>
             </template>
-            <UiCheckbox v-model="overwriteTasks">Also overwrite presets I customized</UiCheckbox>
+            <UiCheckbox v-model="overwriteTasks">{{ t('kit.aiArea.setDefault.overwrite') }}</UiCheckbox>
           </template>
           <template v-else-if="sdIsBuiltin">
-            <p class="lu-sd-line">Assign a chat model first — pick one in the Model Catalog (Edit this provider), or run Quick Setup.</p>
+            <p class="lu-sd-line">{{ t('kit.aiArea.setDefault.assignFirst') }}</p>
           </template>
           <template v-else>
-            <p class="lu-sd-line">Set this provider's chat model first — open Edit and fill <b>Default model</b>.</p>
+            <i18n-t keypath="kit.aiArea.setDefault.fillFirst" tag="p" class="lu-sd-line" scope="global"><template #field><b>{{ t('kit.aiArea.setDefault.defaultModelField') }}</b></template></i18n-t>
           </template>
           <template #footer>
             <template v-if="sdModel">
-              <UiButton intent="secondary" @click="setDefaultFor = null">Cancel</UiButton>
-              <UiButton intent="primary" :loading="settingDefault" @click="applySetDefault">Set as default</UiButton>
+              <UiButton intent="secondary" @click="setDefaultFor = null">{{ t('kit.dialog.cancel') }}</UiButton>
+              <UiButton intent="primary" :loading="settingDefault" @click="applySetDefault">{{ t('kit.modelCatalog.btn.setDefault') }}</UiButton>
             </template>
             <template v-else-if="sdIsBuiltin">
-              <UiButton intent="secondary" @click="setDefaultFor = null">Close</UiButton>
-              <UiButton intent="primary" @click="sdRunQuickSetup">Run Quick Setup</UiButton>
+              <UiButton intent="secondary" @click="setDefaultFor = null">{{ t('kit.dialog.close') }}</UiButton>
+              <UiButton intent="primary" @click="sdRunQuickSetup">{{ t('kit.quickSetup.runButton') }}</UiButton>
             </template>
             <template v-else>
-              <UiButton intent="secondary" @click="setDefaultFor = null">Close</UiButton>
-              <UiButton intent="primary" @click="sdEditProvider">Edit provider</UiButton>
+              <UiButton intent="secondary" @click="setDefaultFor = null">{{ t('kit.dialog.close') }}</UiButton>
+              <UiButton intent="primary" @click="sdEditProvider">{{ t('kit.aiArea.setDefault.editProvider') }}</UiButton>
             </template>
           </template>
         </AppModal>
@@ -876,43 +869,43 @@ onMounted(() => {
     <section v-show="tab === 'usage'" class="lu-tab">
       <template v-if="usageView">
         <div class="lu-usagehead">
-          <span class="lu-pcard-title">Usage</span>
-          <span class="lu-muted lu-usagesub">Tokens + estimated cost across every AI call. Local providers are recorded at $0.</span>
-          <UiButton intent="ghost" size="small" @click="clearUsage">Reset ledger</UiButton>
+          <span class="lu-pcard-title">{{ t('kit.aiTabs.usage') }}</span>
+          <span class="lu-muted lu-usagesub">{{ t('kit.aiArea.usage.sub') }}</span>
+          <UiButton intent="ghost" size="small" @click="clearUsage">{{ t('kit.aiArea.usage.reset') }}</UiButton>
         </div>
         <div class="lu-usage">
-          <div class="lu-card lu-ucard"><div class="lu-uval">{{ usageView.calls.toLocaleString() }}</div><div class="lu-ulabel">calls</div></div>
-          <div class="lu-card lu-ucard"><div class="lu-uval">{{ usageView.tokens.toLocaleString() }}</div><div class="lu-ulabel">tokens</div></div>
-          <div class="lu-card lu-ucard"><div class="lu-uval">{{ usageView.prompt.toLocaleString() }}</div><div class="lu-ulabel">prompt</div></div>
-          <div class="lu-card lu-ucard"><div class="lu-uval">{{ usageView.completion.toLocaleString() }}</div><div class="lu-ulabel">completion</div></div>
-          <div class="lu-card lu-ucard"><div class="lu-uval">{{ fmtUsd(usageView.cost) }}</div><div class="lu-ulabel">est. cost</div></div>
+          <div class="lu-card lu-ucard"><div class="lu-uval">{{ fmtNum(usageView.calls) }}</div><div class="lu-ulabel">{{ t('kit.aiArea.usage.calls') }}</div></div>
+          <div class="lu-card lu-ucard"><div class="lu-uval">{{ fmtNum(usageView.tokens) }}</div><div class="lu-ulabel">{{ t('kit.aiArea.usage.tokens') }}</div></div>
+          <div class="lu-card lu-ucard"><div class="lu-uval">{{ fmtNum(usageView.prompt) }}</div><div class="lu-ulabel">{{ t('kit.aiArea.usage.prompt') }}</div></div>
+          <div class="lu-card lu-ucard"><div class="lu-uval">{{ fmtNum(usageView.completion) }}</div><div class="lu-ulabel">{{ t('kit.aiArea.usage.completion') }}</div></div>
+          <div class="lu-card lu-ucard"><div class="lu-uval">{{ fmtUsd(usageView.cost) }}</div><div class="lu-ulabel">{{ t('kit.aiArea.usage.cost') }}</div></div>
         </div>
         <!-- Both breakdowns are the SAME table with a different first-column label, so they
              share one column config (usageColumns) on the shared UiTable rather than being
              two hand-rolled copies. Sorting comes with it — "which feature costs the most"
              is the question this panel exists to answer, and it used to need a spreadsheet. -->
         <div class="lu-usage-section">
-          <div class="lu-usage-h">By feature</div>
-          <UiTable class="lu-utable" :data="usageView.feat" :columns="usageColumns('Feature')"
+          <div class="lu-usage-h">{{ t('kit.aiArea.usage.byFeature') }}</div>
+          <UiTable class="lu-utable" :data="usageView.feat" :columns="usageColumns(t('kit.aiArea.usage.colFeature'))"
             data-key="key" :default-sort="{ id: 'calls', desc: true }">
-            <template #calls="{ row }">{{ row.calls.toLocaleString() }}</template>
-            <template #prompt="{ row }">{{ row.prompt.toLocaleString() }}</template>
-            <template #completion="{ row }">{{ row.completion.toLocaleString() }}</template>
+            <template #calls="{ row }">{{ fmtNum(row.calls) }}</template>
+            <template #prompt="{ row }">{{ fmtNum(row.prompt) }}</template>
+            <template #completion="{ row }">{{ fmtNum(row.completion) }}</template>
             <template #cost="{ row }">{{ fmtUsd(row.cost) }}</template>
           </UiTable>
         </div>
         <div class="lu-usage-section">
-          <div class="lu-usage-h">By provider</div>
-          <UiTable class="lu-utable" :data="usageView.prov" :columns="usageColumns('Provider')"
+          <div class="lu-usage-h">{{ t('kit.aiArea.usage.byProvider') }}</div>
+          <UiTable class="lu-utable" :data="usageView.prov" :columns="usageColumns(t('kit.aiArea.usage.colProvider'))"
             data-key="key" :default-sort="{ id: 'calls', desc: true }">
-            <template #calls="{ row }">{{ row.calls.toLocaleString() }}</template>
-            <template #prompt="{ row }">{{ row.prompt.toLocaleString() }}</template>
-            <template #completion="{ row }">{{ row.completion.toLocaleString() }}</template>
+            <template #calls="{ row }">{{ fmtNum(row.calls) }}</template>
+            <template #prompt="{ row }">{{ fmtNum(row.prompt) }}</template>
+            <template #completion="{ row }">{{ fmtNum(row.completion) }}</template>
             <template #cost="{ row }">{{ fmtUsd(row.cost) }}</template>
           </UiTable>
         </div>
       </template>
-      <div v-else class="lu-card lu-usage-empty lu-muted">No usage recorded yet.</div>
+      <div v-else class="lu-card lu-usage-empty lu-muted">{{ t('kit.aiArea.usage.none') }}</div>
       <PricingEditor v-if="tab === 'usage'" />
     </section>
 
@@ -926,8 +919,8 @@ onMounted(() => {
     <!-- ── App-contributed tabs (host fills #app-tab / #app-tab-<id>; e.g. JW
          "Writing AI", JV "Speech engines"). Lazy: mounted on first visit, kept
          mounted after so tab state (an in-flight install, a scroll) survives. ── -->
-    <section v-for="t in appTabDefs" :key="t.id" v-show="tab === t.id" class="lu-tab">
-      <slot v-if="visitedTabs.has(t.id)" :name="t.slot" />
+    <section v-for="tb in appTabDefs" :key="tb.id" v-show="tab === tb.id" class="lu-tab">
+      <slot v-if="visitedTabs.has(tb.id)" :name="tb.slot" />
     </section>
   </div>
 </template>

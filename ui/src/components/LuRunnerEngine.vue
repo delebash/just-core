@@ -11,6 +11,7 @@
 // bottom — the binary download URLs belong to the engine you install, so they
 // live UNDER this panel (user, 2026-07-02), not as a separate card by the catalog.
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import UiButton from "../common/components/UiButton.vue";
 import UiInput from "../common/components/UiInput.vue";
@@ -59,23 +60,25 @@ const cudaRuntimeMissing = computed(
 // (a detected runtime WITH a real binary) come from engine_status.offerBackends; the
 // pin (preferredGpu) + what's installed/active drive the labels. Shown only when there's
 // a genuine choice (>1 offerable), so a single-backend box stays uncluttered.
-const FAM_LABEL = { cuda: "NVIDIA CUDA", vulkan: "Vulkan", rocm: "AMD ROCm", metal: "Apple Metal" };
+const { t, n: fmtNum } = useI18n();
+const FAMILIES = new Set(["cuda", "vulkan", "rocm", "metal"]);
+const famLabel = (f) => (FAMILIES.has(f) ? t(`kit.engine.family.${f}`) : f);
 const familyOf = (g) => (g && g.startsWith("cuda") ? "cuda" : g || "");
 const backendOptions = computed(() => {
   const fams = st.value?.offerBackends || [];
   const inst = new Set((st.value?.installedGpus || []).map(familyOf));
   return [
-    { value: "", label: "Auto (recommended)" },
+    { value: "", label: t("kit.engine.autoBackend") },
     ...fams.map((f) => ({
       value: f,
-      label: inst.has(f) ? (FAM_LABEL[f] || f) : `${FAM_LABEL[f] || f} — will download`,
+      label: inst.has(f) ? famLabel(f) : t("kit.engine.willDownload", { backend: famLabel(f) }),
     })),
   ];
 });
 const showBackendPicker = computed(() => (st.value?.offerBackends?.length || 0) > 1);
 const activeBackendLabel = computed(() => {
   const a = st.value?.activeGpu;
-  return a ? (FAM_LABEL[familyOf(a)] || a) : "";
+  return a ? (FAMILIES.has(familyOf(a)) ? famLabel(familyOf(a)) : a) : "";
 });
 function onPickBackend(v) {
   setBackend(v);
@@ -156,8 +159,8 @@ const vramBudget = computed(() => {
   if (!r?.vramTotalMb) return ""; // no measurable budget pool → hide the line
   // Phase 4: the budget is ARCH-AWARE — on a one-pool box (iGPU / Apple) the
   // numbers are the shared pool, so the label says Memory, not VRAM.
-  const word = r.memArch && r.memArch !== "discrete" ? "Memory" : "VRAM";
-  return `${word} ${r.committedMb} / ${r.vramTotalMb} MB · ${r.remainingMb} MB free`;
+  const unified = !!r.memArch && r.memArch !== "discrete";
+  return t(unified ? "kit.engine.budgetMemory" : "kit.engine.budgetVram", { used: r.committedMb, total: r.vramTotalMb, free: r.remainingMb });
 });
 // Every status the endpoint can emit gets a tone; unknown → treated as busy, never hidden.
 function statusClass(s) {
@@ -172,9 +175,9 @@ async function toggleLog() {
   if (showLog.value) {
     try {
       const r = await request("/v1/llm-runner/engine/log?tail=200");
-      logText.value = r?.text || "(no engine log yet — it is written when a model spawns)";
+      logText.value = r?.text || t("kit.engine.log.none");
     } catch {
-      logText.value = "(couldn't read the log)";
+      logText.value = t("kit.engine.log.failed");
     }
   }
 }
@@ -227,7 +230,7 @@ async function saveKnobs() {
     // The user's 2026-08-13 checkpoint ask: Save must SAY it saved (the
     // fields re-syncing silently read as nothing happening). After the await
     // → success-only (the FeatureLab precedent).
-    pushToast({ message: "Engine settings saved.", kind: "success" });
+    pushToast({ message: t("kit.engine.saved"), kind: "success" });
     await refreshResident();
   } catch (e) {
     knobErr.value = e.message || "Couldn't save.";
@@ -249,18 +252,18 @@ onMounted(() => {
   <div class="lu-eng">
     <div class="lu-eng-row">
       <div class="lu-eng-info">
-        <div class="lu-eng-title">Local engine</div>
+        <div class="lu-eng-title">{{ t('kit.engine.title') }}</div>
         <div class="lu-eng-sub">
-          <template v-if="installing">Installing the llama.cpp engine…</template>
+          <template v-if="installing">{{ t('kit.engine.installing') }}</template>
           <template v-else-if="installed">
-            Installed<span v-if="st.build"> · {{ st.build }}</span><span v-if="st.gpu"> · {{ st.gpu }}</span>
-            <span v-if="cudaRuntimeMissing" class="lu-eng-warn"> · CUDA runtime DLLs missing</span>
+            {{ t('kit.engine.installed') }}<span v-if="st.build"> · {{ st.build }}</span><span v-if="st.gpu"> · {{ st.gpu }}</span>
+            <span v-if="cudaRuntimeMissing" class="lu-eng-warn"> · {{ t('kit.engine.cudaMissing') }}</span>
           </template>
           <!-- QC-13: never claim "Not installed" before the status has actually been
                fetched — the false claim (with an Install button) rendered during the
                pre-fetch window, and stuck when the first fetch failed. -->
-          <template v-else-if="!statusKnown">Checking the engine…</template>
-          <template v-else>Not installed — install it before you load a model.</template>
+          <template v-else-if="!statusKnown">{{ t('kit.engine.checking') }}</template>
+          <template v-else>{{ t('kit.engine.notInstalled') }}</template>
         </div>
       </div>
       <div class="lu-eng-actions">
@@ -276,15 +279,15 @@ onMounted(() => {
         <LuEngineInstallButton v-if="statusKnown && !installed && !installing" />
         <template v-if="installed && !installing">
           <UiButton intent="ghost" size="small"
-            :loading="engBusy" title="Delete the engine binaries — models are kept"
-            @click="engUninstall">Uninstall engine</UiButton>
+            :loading="engBusy" :title="t('kit.engine.uninstallTitle')"
+            @click="engUninstall">{{ t('kit.engine.uninstall') }}</UiButton>
           <LuEngineUpdateButton v-if="updateInfo?.updateAvailable" />
           <UiButton v-else intent="secondary" size="small"
-            :loading="engBusy" title="Re-download the pinned engine build"
-            @click="engInstall(true)">Reinstall</UiButton>
+            :loading="engBusy" :title="t('kit.engine.reinstallTitle')"
+            @click="engInstall(true)">{{ t('kit.engine.reinstall') }}</UiButton>
         </template>
         <UiButton intent="ghost" size="small" @click="showDetails = !showDetails">
-          {{ showDetails ? "Hide details ▴" : "Details ▾" }}
+          {{ showDetails ? t('kit.engine.hideDetails') : t('kit.engine.details') }}
         </UiButton>
       </div>
     </div>
@@ -297,23 +300,23 @@ onMounted(() => {
          (AiModelsArea → LuWarmStartupToggle) — it's a global engine-config knob, not a
          per-provider one (user, 2026-07-21: "its buried in edit put it on main local"). -->
     <div v-if="showBackendPicker" class="lu-eng-backend">
-      <span class="lu-eng-backend-cap">Acceleration backend</span>
+      <span class="lu-eng-backend-cap">{{ t('kit.engine.backend') }}</span>
       <UiSelect :model-value="st.preferredGpu || ''" width="name"
         :options="backendOptions" :disabled="engBusy || installing"
         @update:model-value="onPickBackend" />
-      <span v-if="activeBackendLabel" class="lu-eng-backend-active">running on {{ activeBackendLabel }}</span>
+      <span v-if="activeBackendLabel" class="lu-eng-backend-active">{{ t('kit.engine.runningOn', { backend: activeBackendLabel }) }}</span>
     </div>
 
     <!-- Progress + errors live OUTSIDE the collapse: an in-flight install or a failure
          must stay visible while the panel is folded (user, 2026-07-06). -->
     <DownloadBar v-if="installing" class="lu-eng-installing"
-      :task="engineTask" title="The engine" role="the program that runs models" />
+      :task="engineTask" :title="t('kit.quickSetup.engineBarTitle')" :role="t('kit.quickSetup.engineBarRole')" />
 
     <p v-if="error" class="lu-eng-err">{{ error }}</p>
 
     <template v-if="showDetails">
       <div class="lu-eng-logrow">
-        <UiButton intent="ghost" size="small" @click="toggleLog">{{ showLog ? "Hide log" : "View log" }}</UiButton>
+        <UiButton intent="ghost" size="small" @click="toggleLog">{{ showLog ? t('kit.engine.log.hide') : t('kit.engine.log.view') }}</UiButton>
       </div>
       <pre v-if="showLog" class="lu-eng-log">{{ logText }}</pre>
 
@@ -324,7 +327,7 @@ onMounted(() => {
       <div class="lu-eng-res">
         <template v-if="installed">
           <div class="lu-eng-res-head">
-            <span class="lu-eng-res-title">Loaded models</span>
+            <span class="lu-eng-res-title">{{ t('kit.engine.loaded') }}</span>
             <span v-if="vramBudget" class="lu-eng-res-vram">{{ vramBudget }}</span>
           </div>
 
@@ -332,72 +335,72 @@ onMounted(() => {
             <li v-for="m in residentModels" :key="m.id" class="lu-eng-res-item">
               <span class="lu-eng-res-id">{{ m.id }}</span>
               <span class="lu-eng-res-status" :class="statusClass(m.status)">{{ m.status }}</span>
-              <span v-if="m.nCtx" class="lu-eng-res-meta">ctx {{ m.nCtx.toLocaleString() }}</span>
-              <span v-if="m.vramMb" class="lu-eng-res-meta">{{ m.vramMb }} MB</span>
+              <span v-if="m.nCtx" class="lu-eng-res-meta">{{ t('kit.engine.ctx', { n: fmtNum(m.nCtx) }) }}</span>
+              <span v-if="m.vramMb" class="lu-eng-res-meta">{{ t('kit.engine.mb', { n: m.vramMb }) }}</span>
             </li>
           </ul>
           <p v-else class="lu-eng-res-empty">
-            {{ resident?.router ? "No models loaded right now." : "The engine loads models on first use — nothing loaded yet." }}
+            {{ resident?.router ? t('kit.engine.noneLoaded') : t('kit.engine.loadsOnFirstUse') }}
           </p>
         </template>
 
         <div class="lu-eng-knobs">
           <label class="lu-eng-knob">
-            <span class="lu-eng-knob-cap">Models kept loaded at once</span>
+            <span class="lu-eng-knob-cap">{{ t('kit.engine.knob.maxModels') }}</span>
             <UiInput v-model="modelsMax" type="number" width="token" />
           </label>
           <label class="lu-eng-knob">
-            <span class="lu-eng-knob-cap">Unload an idle model after (seconds · 0 = never)</span>
+            <span class="lu-eng-knob-cap">{{ t('kit.engine.knob.idleUnload') }}</span>
             <UiInput v-model="sleepIdleSeconds" type="number" width="token" />
           </label>
           <!-- Memory + speed knobs — HERE, with the loaded-models knobs, by the
                user's ruling at the Phase 3 go ("move the margin and cap nd the new
                fields under loaded models…, not under engine binaries"). -->
-          <label class="lu-eng-knob" title="VRAM held back when computing how much of a model goes on the GPU — headroom for the display and other apps.">
-            <span class="lu-eng-knob-cap">VRAM safety margin (MB)</span>
+          <label class="lu-eng-knob" :title="t('kit.engine.knob.vramMarginTitle')">
+            <span class="lu-eng-knob-cap">{{ t('kit.engine.knob.vramMargin') }}</span>
             <UiInput v-model="safetyMarginMb" type="number" width="token" />
           </label>
-          <label class="lu-eng-knob" title="The most context an untuned model gets automatically; a tune's explicit context always overrides. 0 = no cap.">
-            <span class="lu-eng-knob-cap">Default context cap (tokens)</span>
+          <label class="lu-eng-knob" :title="t('kit.engine.knob.ctxCapTitle')">
+            <span class="lu-eng-knob-cap">{{ t('kit.engine.knob.ctxCap') }}</span>
             <UiInput v-model="ctxCapTokens" type="number" width="token" />
           </label>
-          <label class="lu-eng-knob" title="System RAM held back when computing a model's RAM requirement — room for the OS and your other programs.">
-            <span class="lu-eng-knob-cap">RAM headroom (MB)</span>
+          <label class="lu-eng-knob" :title="t('kit.engine.knob.ramHeadroomTitle')">
+            <span class="lu-eng-knob-cap">{{ t('kit.engine.knob.ramHeadroom') }}</span>
             <UiInput v-model="ramHeadroomMb" type="number" width="token" />
           </label>
           <!-- The speed-band lines (§8.14): where the catalog's fast/fine/slow/painful
                labels switch over, in tokens per second. ~8 is reading speed. -->
           <div class="lu-eng-dlgroup">
             <div class="lu-eng-dlgroup-head">
-              <span class="lu-eng-dlgroup-title">Speed bands (tokens/second)</span>
+              <span class="lu-eng-dlgroup-title">{{ t('kit.engine.band.title') }}</span>
             </div>
             <div class="lu-eng-dlgroup-fields">
-              <label class="lu-eng-knob" title="At or above this many tokens per second a model is labeled “fast”.">
-                <span class="lu-eng-knob-cap">Fast at ≥</span>
+              <label class="lu-eng-knob" :title="t('kit.engine.band.fastTitle')">
+                <span class="lu-eng-knob-cap">{{ t('kit.engine.band.fast') }}</span>
                 <UiInput v-model="bandFastToks" type="number" width="token" />
               </label>
-              <label class="lu-eng-knob" title="Comfortable reading speed — at or above this the label is “fine”.">
-                <span class="lu-eng-knob-cap">Fine at ≥</span>
+              <label class="lu-eng-knob" :title="t('kit.engine.band.fineTitle')">
+                <span class="lu-eng-knob-cap">{{ t('kit.engine.band.fine') }}</span>
                 <UiInput v-model="bandFineToks" type="number" width="token" />
               </label>
-              <label class="lu-eng-knob" title="Below “fine” but at or above this the label is “slow”; anything under is “very slow”.">
-                <span class="lu-eng-knob-cap">Slow at ≥</span>
+              <label class="lu-eng-knob" :title="t('kit.engine.band.slowTitle')">
+                <span class="lu-eng-knob-cap">{{ t('kit.engine.band.slow') }}</span>
                 <UiInput v-model="bandSlowToks" type="number" width="token" />
               </label>
-              <label class="lu-eng-knob" title="When an estimated speed lands this close to one of the lines above, the catalog shows the estimate itself (for example “~7.9 tok/s”) instead of a label a small difference could flip. A measured speed always keeps its label. 0 turns this off.">
-                <span class="lu-eng-knob-cap">Show the number within (%)</span>
+              <label class="lu-eng-knob" :title="t('kit.engine.band.deadZoneTitle')">
+                <span class="lu-eng-knob-cap">{{ t('kit.engine.band.deadZone') }}</span>
                 <UiInput v-model="bandDeadzonePct" type="number" width="token" />
               </label>
-              <label class="lu-eng-knob" title="On a PC with no hardware preset, Quick Setup won't recommend a model whose speed falls more than this far below the “fine” line (20 % with “fine” at 8 → nothing under 6.4 tokens per second). The margin stops a model that lands just under the line from being swapped for a much weaker one. 0 = the “fine” line itself.">
-                <span class="lu-eng-knob-cap">Recommend down to (% under Fine)</span>
+              <label class="lu-eng-knob" :title="t('kit.engine.band.floorTitle')">
+                <span class="lu-eng-knob-cap">{{ t('kit.engine.band.floor') }}</span>
                 <UiInput v-model="speedFloorGracePct" type="number" width="token" />
               </label>
             </div>
           </div>
           <label class="lu-eng-knob">
-            <span class="lu-eng-knob-cap">Engine updates</span>
+            <span class="lu-eng-knob-cap">{{ t('kit.engine.updates') }}</span>
             <UiSelect :model-value="updatePolicy" width="token"
-              :options="[{ value: 'notify', label: 'Notify' }, { value: 'off', label: 'Off' }]"
+              :options="[{ value: 'notify', label: t('kit.engine.updateNotify') }, { value: 'off', label: t('kit.engine.updateOff') }]"
               @update:model-value="setUpdatePolicy" />
           </label>
           <!-- Segmented downloads (DL-2; #9 2026-07-17): its own sub-group so the
@@ -407,25 +410,25 @@ onMounted(() => {
                Save. Ranges in the captions mirror the server clamp (#10). -->
           <div class="lu-eng-dlgroup">
             <div class="lu-eng-dlgroup-head">
-              <span class="lu-eng-dlgroup-title">Faster downloads (parallel connections)</span>
+              <span class="lu-eng-dlgroup-title">{{ t('kit.engine.dl.title') }}</span>
               <UiToggle :model-value="!!dlSegmentsEnabled" @update:model-value="setDlSegmentsEnabled" />
             </div>
             <div v-if="dlSegmentsEnabled" class="lu-eng-dlgroup-fields">
               <label class="lu-eng-knob">
-                <span class="lu-eng-knob-cap">Connections per download (1–16)</span>
+                <span class="lu-eng-knob-cap">{{ t('kit.engine.dl.connections') }}</span>
                 <UiInput v-model="dlSegmentCount" type="number" width="token" />
               </label>
               <label class="lu-eng-knob">
-                <span class="lu-eng-knob-cap">Split files larger than (MB)</span>
+                <span class="lu-eng-knob-cap">{{ t('kit.engine.dl.split') }}</span>
                 <UiInput v-model="dlSegmentMinMb" type="number" width="token" />
               </label>
               <label class="lu-eng-knob">
-                <span class="lu-eng-knob-cap">Retries per connection (0–10)</span>
+                <span class="lu-eng-knob-cap">{{ t('kit.engine.dl.retries') }}</span>
                 <UiInput v-model="dlSegmentRetries" type="number" width="token" />
               </label>
             </div>
           </div>
-          <UiButton intent="primary" size="small" :loading="savingKnobs" @click="saveKnobs">Save</UiButton>
+          <UiButton intent="primary" size="small" :loading="savingKnobs" @click="saveKnobs">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
         </div>
         <p v-if="knobErr" class="lu-eng-err">{{ knobErr }}</p>
       </div>

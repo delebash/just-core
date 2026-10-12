@@ -17,11 +17,16 @@
 //                       unmatched case. Saving with it selected writes the truthful
 //                       pair {think: true, level: ""} — byte-identical to the stored
 //                       state it displays, so a save never silently changes thinking.
+import { kitT } from "./common/services/kitI18n.js";
+
 export const THINKING_CUSTOM = "__custom";
 
 // The level vocabulary, ascending — ONE source for every surface's option list.
 export const LEVEL_ORDER = ["low", "medium", "high", "xhigh", "max"];
-export const LEVEL_WORD = { low: "Low", medium: "Medium", high: "High", xhigh: "XHigh", max: "Max" };
+// Each level's word, read from the kit catalog (kit.thinking.level.*) when shown.
+export const LEVEL_WORD = Object.defineProperties({}, Object.fromEntries(
+  ["low","medium","high","xhigh","max"].map((k) => [k, { get: () => kitT(`kit.thinking.level.${k}`), enumerable: true }]),
+));
 
 // Stored preset pair → the control value. Think on with an empty level MUST read as
 // THINKING_CUSTOM, never collapse to "" (Off) — the collapse wrote think=false back
@@ -66,11 +71,11 @@ export function thinkingOptionsFor({ levelRows, current, customValue }) {
     if (levelRows?.length && !row) continue; // the provider genuinely lacks this level
     opts.push({
       value: lvl,
-      label: row?.tokens != null ? `${LEVEL_WORD[lvl]} (${row.tokens})` : LEVEL_WORD[lvl],
+      label: row?.tokens != null ? kitT("kit.thinking.withTokens", { level: LEVEL_WORD[lvl], tokens: row.tokens }) : LEVEL_WORD[lvl],
     });
   }
   if (current === THINKING_CUSTOM) {
-    opts.push({ value: THINKING_CUSTOM, label: customValue != null ? `Custom (${customValue})` : "Custom" });
+    opts.push({ value: THINKING_CUSTOM, label: customValue != null ? kitT("kit.thinking.customValue", { value: customValue }) : kitT("kit.thinking.custom") });
   }
   return opts;
 }

@@ -1177,8 +1177,12 @@ English".
 - **Only JustWrite renders through vue-i18n.** JustWrite: 2,084 `$t(` calls in 79 files, 2,156
   keys in `en.json` and `es.json`. JustVoice: vue-i18n `^11.4.13` installed and booted
   (`src/boot/i18n.js`), a 46-key `en.json`, no `$t(` call. docgen: no vue-i18n. The kit: no
-  `$t(` or `useI18n`. — *code, 2026-10-12*.
-- **The kit's words reach an app's language only through the labels feed:** the reactive store
+  `$t(` or `useI18n`. — *code, 2026-10-12, before Task 1*. Since Task 1 (steps B and C, 2026-10-12)
+  docgen and JustVoice boot vue-i18n from the kit's catalog and the kit renders through it.
+- **Since step C (2026-10-12) the kit's words are vue-i18n messages:** `ui/src/i18n/locales/en.json`,
+  1,440 `kit.*` keys; components call `useI18n()`, kit code outside a component `kitT()`
+  (`common/services/kitI18n.js`, the app's instance). An app rewords a key by setting it in its own
+  catalog. — *code, 2026-10-12*. Before step C, **the kit's words reached an app's language only through the labels feed:** the reactive store
   `ui/src/common/services/familyLabels.js` over `FAMILY_LABELS` (`common/familyContract.js:26`,
   about 64 words), filled by JustWrite's `src/i18n/familyLabelsFeed.js` on every language change
   and by JustVoice's `src/boot/jv.js:150`; app wording also comes in through `catalogCopy` and
@@ -1213,8 +1217,26 @@ English".
   `catalogCopyConfig()` into a module-level constant, and the kit's index exports `AiModelsArea`
   (which imports the catalog) statically, so the constant is built when an app first imports the
   kit — before `installLlmUi` passes `catalogCopy`. docgen's and JustVoice's catalog wording
-  therefore never showed. Step C of the i18n plan translates those words at render. — *code,
-  2026-10-12*, not run in a window.
+  therefore never showed. Step C replaced the copy object: the catalog's words are `kit.modelCatalog.*`
+  keys read at render, and docgen's wording is its own `kit.*` keys. — *code, 2026-10-12*, not run in
+  a window.
+- **The template lint misses literals inside bound attributes and directives:** `no-raw-text` reads
+  template text and plain attributes, not `:title="x ? 'A' : 'B'"`, `v-tooltip="'…'"` or a template
+  literal in `:aria-label`. With the kit's lint at zero, a scratch sweep of bound values still found 13
+  (TitleBar's back/forward, AiStatusButton's tooltip, UiTable's pager tooltips, UiColorPicker,
+  UiMultiSelect, UiTag, AppModal, CompareStrip, LuModelPicker). — *measured 2026-10-12*, scratch sweep.
+- **`vue-i18n-extract` sees `t(`-style calls and `<i18n-t keypath>` only:** keys reached through
+  `kitT(` or a key built at run time (`kit.phase.<phase>`) are listed as unused, so its unused list is not a
+  dead-key list for the kit — 253 listed, every one reached (a scratch check over the kit and the
+  three apps). Its one key missing in English is `kit.quickSetup.doneBody`, which an app supplies and
+  QuickSetup shows only when `te()` finds it. — *measured 2026-10-12*.
+- **An emoji with a variation selector is "raw text" to the lint:** the family config's
+  `ignorePattern` (`^[\\d\\s\\p{P}\\p{S}]*$`) covers `⚠` (So) but not `⚠️`, whose U+FE0F is a mark
+  (Mn); ConnectionError's icon is the kit lint's one hit. — *measured 2026-10-12*.
+- **vue-i18n details the kit relies on** (11.4): numeric keys resolve (`kit.aiError.status.401`);
+  `d(date, intlOptions)` with no format key formats through `Intl.DateTimeFormat` in the app's
+  locale (`@intlify/core-base` `datetime()`, the empty-key path), so no `datetimeFormats` table is
+  needed for one-off formats. — *measured 2026-10-12*.
 - **Four other checkouts load the kit from source** (`JustVioce-round3`, `justvoice-quasar`,
   `justwrite-quasar`, `docgen-quasar`): a change to the kit's API reaches them too. —
   *code, 2026-10-12*.

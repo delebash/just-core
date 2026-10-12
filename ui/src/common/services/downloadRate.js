@@ -6,7 +6,9 @@
 // byte delta across a sliding sample window (smoothing), ETA = remaining ÷ speed.
 // A byte REGRESSION (a new file/phase started — engine installs download several
 // files back to back) resets the window instead of producing a negative rate.
-// PURE logic, no Vue imports (the modelPick.js precedent), so vitest covers it.
+// PURE logic, no Vue components (the modelPick.js precedent), so vitest covers it; the ETA
+// words come from the kit catalog (kit.eta.*).
+import { kitT } from "./kitI18n.js";
 
 export function createRateTracker({ windowMs = 6000, now = () => Date.now() } = {}) {
   let samples = []; // [{t, bytes}] within the window, oldest first
@@ -61,11 +63,11 @@ export function fmtSpeed(bytesPerSec) {
 
 export function fmtEta(seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return "";
-  if (seconds < 5) return "a few seconds left";
-  if (seconds < 90) return `~${Math.max(5, Math.round(seconds / 5) * 5)}s left`;
+  if (seconds < 5) return kitT("kit.eta.fewSeconds");
+  if (seconds < 90) return kitT("kit.eta.seconds", { n: Math.max(5, Math.round(seconds / 5) * 5) });
   const minutes = Math.round(seconds / 60);
-  if (minutes < 90) return `~${minutes}m left`;
-  return `~${(minutes / 60).toFixed(1)}h left`;
+  if (minutes < 90) return kitT("kit.eta.minutes", { n: minutes });
+  return kitT("kit.eta.hours", { n: (minutes / 60).toFixed(1) });
 }
 
 /** The suffix both progress labels append: " · 38 MB/s · ~2m left".

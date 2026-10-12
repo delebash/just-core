@@ -82,7 +82,7 @@ recorded in `ui/src/installLlmUi.js`'s header).
    installLlmUi(app, {
      devPorts: [1430],            // your vite dev port(s) → origin-aware resolver
      fallbackBase: "http://127.0.0.1:17494",  // the Tauri-webview fallback — REQUIRED
-     catalogCopy, quickSetupCopy, // your app's voice (optional)
+     i18n,                        // your vue-i18n instance — REQUIRED; your voice is kit.* keys in its catalog
      capabilities: { embeddings: true },
      labAdapters, sectionedFeatures, featurePanels,  // Lab wiring (optional)
    });

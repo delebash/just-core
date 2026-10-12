@@ -12,16 +12,19 @@
   (false for confirm, null for prompt).
 
   Field types: text (default) · textarea · select (the union of both forks).
-  Labels fall back to dialogLabels (configurable via configureDialog for i18n).
+  Words a call omits fall back to the kit's (kit.dialog.*), in the app's language.
 -->
 <script setup>
 import { computed, nextTick, ref, watch } from "vue";
-import { dialogState, _resolveDialog, dialogLabels } from "../services/dialog.js";
+import { useI18n } from "vue-i18n";
+import { dialogState, _resolveDialog } from "../services/dialog.js";
 import AppModal from "./AppModal.vue";
 import UiButton from "./UiButton.vue";
 import UiInput from "./UiInput.vue";
 import UiTextarea from "./UiTextarea.vue";
 import UiSelect from "./UiSelect.vue";
+
+const { t } = useI18n();
 
 // Normalize the active dialog into a single shape the template reads. A
 // single-field prompt becomes a one-element `fields` list so the template
@@ -32,10 +35,10 @@ const dialog = computed(() => {
   if (dialogState.kind === "confirm") {
     return {
       kind: "confirm",
-      title: opts.title || dialogLabels.defaultTitle,
+      title: opts.title || t("kit.dialog.defaultTitle"),
       message: opts.message || "",
-      confirmLabel: opts.confirmLabel || dialogLabels.confirmLabel,
-      cancelLabel: opts.cancelLabel || dialogLabels.cancelLabel,
+      confirmLabel: opts.confirmLabel || t("kit.dialog.confirm"),
+      cancelLabel: opts.cancelLabel || t("kit.dialog.cancel"),
       danger: !!opts.danger,
     };
   }
@@ -53,8 +56,8 @@ const dialog = computed(() => {
     kind: "prompt",
     title: opts.title || "",
     message: opts.message || "",
-    confirmLabel: opts.confirmLabel || dialogLabels.okLabel,
-    cancelLabel: opts.cancelLabel || dialogLabels.cancelLabel,
+    confirmLabel: opts.confirmLabel || t("kit.dialog.ok"),
+    cancelLabel: opts.cancelLabel || t("kit.dialog.cancel"),
     danger: !!opts.danger,
     fields,
     isSingle: !Array.isArray(opts.fields),
@@ -162,7 +165,7 @@ function onEnter(e, isLastField) {
     v-if="hostOpen"
     ref="modalRef"
     :title="dialog?.title || ''"
-    :close-label="dialog?.cancelLabel || dialogLabels.closeLabel"
+    :close-label="dialog?.cancelLabel || t('kit.dialog.close')"
     :max-width="'440px'"
     dismissable
     @close="onClosed"
@@ -209,10 +212,10 @@ function onEnter(e, isLastField) {
     </div>
 
     <template #footer>
-      <UiButton intent="ghost" :label="dialog?.cancelLabel || dialogLabels.cancelLabel" @click="cancel" />
+      <UiButton intent="ghost" :label="dialog?.cancelLabel || t('kit.dialog.cancel')" @click="cancel" />
       <UiButton
         :intent="dialog?.danger ? 'danger' : 'primary'"
-        :label="dialog?.confirmLabel || dialogLabels.okLabel"
+        :label="dialog?.confirmLabel || t('kit.dialog.ok')"
         :disabled="!canSubmit"
         @click="submit"
       />

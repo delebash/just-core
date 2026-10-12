@@ -65,8 +65,9 @@ WHY:    the July design (every app and the kit on vue-i18n, docgen the translato
         in JustWrite; the kit grew a side door instead, and JustVoice and docgen never converted.
 DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translation: what still
         shows in English".
-OPEN:   building — Task 1 in the order A (the kit, additive), B (the apps; JustVoice's session from
-        one message), C (the kit, after JustVoice's word). D3 awaits its own word.
+OPEN:   building — Task 1: A, B and C done 2026-10-12 (each ticked in the plan with its commit).
+        Open in Task 1: the kit lint's one hit (ConnectionError's ⚠️ icon — awaits the user's word).
+        Next: Task 2 (template, app-structure §Q, guard). D3 awaits its own word.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 

@@ -9,8 +9,10 @@
 // single-sourced. `fmtCost` matches the wrapper's usage/cost pass-through in aiFeature.js.
 
 /** Wall time as seconds, 1dp: 24823 (ms) → "24.8s". Pass MILLISECONDS. */
+import { kitT } from "./kitI18n.js";
+
 export function fmtSeconds(ms) {
-  return `${((Number(ms) || 0) / 1000).toFixed(1)}s`;
+  return kitT("kit.aiTasks.secs", { s: ((Number(ms) || 0) / 1000).toFixed(1) });
 }
 
 /** Token count. Output tokens are the yardstick (tok/s is output/second); the prompt is
@@ -18,12 +20,12 @@ export function fmtSeconds(ms) {
 export function fmtTokens({ promptTokens = 0, outputTokens = 0 } = {}) {
   const inp = Number(promptTokens) || 0;
   const out = Number(outputTokens) || 0;
-  return inp ? `${inp}→${out} tok` : `${out} tok`;
+  return inp ? kitT("kit.stats.tokensInOut", { inp, out }) : kitT("kit.stats.tokens", { n: out });
 }
 
 /** Decode speed, 1dp. Accepts a number or a numeric string. */
 export function fmtTps(tps) {
-  return `${(Number(tps) || 0).toFixed(1)} tok/s`;
+  return kitT("kit.stats.tps", { n: (Number(tps) || 0).toFixed(1) });
 }
 
 /**
@@ -52,7 +54,7 @@ export function taskTps(task, endMs) {
 
 /** Output word count. */
 export function fmtWords(n) {
-  return `${Number(n) || 0} words`;
+  return kitT("kit.stats.words", { n: Number(n) || 0 }, Number(n) || 0);
 }
 
 /** Money: "$0", sub-cent to 4dp, else 2dp. */

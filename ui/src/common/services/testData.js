@@ -16,7 +16,7 @@
 // Every field is optional; an UNDECLARED action gets no pickers and no compose
 // button, and Sample cycles the whole action's samples — the freeform default and the
 // fallback for hosts that haven't declared. Boot-config seam like
-// configureHelp/configureDialog/configureExternal.
+// configureHelp/configureExternal.
 
 let _sources = [];
 let _actions = {};

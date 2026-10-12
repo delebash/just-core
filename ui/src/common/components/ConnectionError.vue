@@ -13,20 +13,23 @@
 -->
 <script setup>
 import { computed, onBeforeUnmount, onMounted } from "vue";
-import { familyLabels } from "../services/familyLabels.js";
+import { useI18n } from "vue-i18n";
 import { checkServer } from "../services/serverApi.js";
 
+// The words are the kit's (kit.connectionError.*) in the app's language; the app passes its own
+// translated name, need and dev hint.
 const props = defineProps({
-  appName: { type: String, default: "the app" },
+  appName: { type: String, default: "" },
   serverUrl: { type: String, default: "" },
   // The clause after "{appName} needs its server to ___".
-  need: { type: String, default: "load and save your work" },
+  need: { type: String, default: "" },
   // Dev-only hint (shown only when import.meta.env.DEV); plain text.
   devHint: { type: String, default: "" },
 });
 const isDev = import.meta.env.DEV;
-const L = familyLabels.connectionError; // reactive canon — group capture is safe, the door assigns in place
-const title = computed(() => L.title.replace("{appName}", props.appName));
+const { t } = useI18n();
+const name = computed(() => props.appName || t("kit.connectionError.theApp"));
+const title = computed(() => t("kit.connectionError.title", { appName: name.value }));
 function retry() { location.reload(); }
 
 // Keep asking (one probe each time) and boot when the server answers.
@@ -47,12 +50,13 @@ onBeforeUnmount(() => { stopped = true; clearTimeout(timer); });
     <div class="conn-err__card">
       <div class="conn-err__icon">⚠️</div>
       <h1>{{ title }}</h1>
-      <p>
-        {{ appName }} needs its server to {{ need }}. It isn't responding at
-        <code>{{ serverUrl }}</code>.
-      </p>
+      <i18n-t keypath="kit.connectionError.body" tag="p" scope="global">
+        <template #appName>{{ name }}</template>
+        <template #need>{{ need || t("kit.connectionError.need") }}</template>
+        <template #url><code>{{ serverUrl }}</code></template>
+      </i18n-t>
       <p v-if="isDev && devHint" class="conn-err__hint">{{ devHint }}</p>
-      <button class="conn-err__btn" type="button" @click="retry">{{ L.retry }}</button>
+      <button class="conn-err__btn" type="button" @click="retry">{{ t("kit.connectionError.retry") }}</button>
     </div>
   </div>
 </template>

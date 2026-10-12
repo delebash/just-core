@@ -18,7 +18,7 @@
 
 import { computed } from "vue";
 
-import { uiLocale } from "./locale.js";
+import { kitLocale } from "./kitI18n.js";
 
 /** Per-locale memo — a grid asks for the same handful of codes on every row. */
 const _cache = new Map();
@@ -53,7 +53,7 @@ function _formatter(locale) {
 export function languageName(code) {
   const raw = String(code || "").trim();
   if (!raw) return "";
-  const { dn, names } = _formatter(uiLocale.value);
+  const { dn, names } = _formatter(kitLocale());
   if (names.has(raw)) return names.get(raw);
   let out = raw;
   if (dn) {
@@ -98,7 +98,7 @@ export function languageOptionsFrom(codes, opts = {}) {
       const name = languageName(value);
       return { value, name, label: n === undefined ? name : `${name} (${n})` };
     })
-    .sort((a, b) => a.name.localeCompare(b.name, uiLocale.value || undefined));
+    .sort((a, b) => a.name.localeCompare(b.name, kitLocale() || undefined));
 
   const out = rows.map(({ label, value }) => ({ label, value }));
   if (allLabel !== undefined) out.unshift({ label: allLabel, value: allValue });
@@ -107,9 +107,9 @@ export function languageOptionsFrom(codes, opts = {}) {
 
 /**
  * Reactive wrapper for a component that renders names and must re-render when
- * the host switches UI locale (setUiLocale). Plain `languageName` is fine for
+ * the app switches language. Plain `languageName` is fine for
  * one-shot formatting; this is for computed properties.
  */
 export function useLanguageNames() {
-  return computed(() => ({ languageName, locale: uiLocale.value }));
+  return computed(() => ({ languageName, locale: kitLocale() }));
 }

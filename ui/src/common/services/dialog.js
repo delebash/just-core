@@ -20,34 +20,8 @@ export const dialogState = reactive({
   _resolve: null,
 });
 
-// Default labels the host AppDialog falls back to when a call omits them. The
-// words live in the ONE reactive family store (familyLabels.dialog) — folded
-// 2026-08-04; two stores with one meaning is how the drift started. This export
-// is a read-through VIEW keeping the property names AppDialog reads (template
-// reads stay reactive: the getters read the reactive store), and configureDialog
-// stays as a thin alias over the one door so existing hosts keep working.
-import { configureFamilyLabels, familyLabels } from "./familyLabels.js";
-
-export const dialogLabels = {
-  get defaultTitle() { return familyLabels.dialog.defaultTitle; },
-  get confirmLabel() { return familyLabels.dialog.confirm; },
-  get okLabel() { return familyLabels.dialog.ok; },
-  get cancelLabel() { return familyLabels.dialog.cancel; },
-  get closeLabel() { return familyLabels.dialog.close; },
-};
-
-export function configureDialog({ labels } = {}) {
-  if (!labels) return;
-  configureFamilyLabels({
-    dialog: {
-      defaultTitle: labels.defaultTitle,
-      confirm: labels.confirmLabel,
-      ok: labels.okLabel,
-      cancel: labels.cancelLabel,
-      close: labels.closeLabel,
-    },
-  });
-}
+// A call that omits its title or button words gets the kit's (kit.dialog.*), in the app's
+// language — the host AppDialog reads them through vue-i18n.
 
 function openDialog(kind, options) {
   // If something is already open, cancel it first so the new prompt wins.

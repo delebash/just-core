@@ -47,11 +47,7 @@ export { default as SettingsShell } from "./components/SettingsShell.vue";
 // SettingsShell's strip, on its own — for a view that owns its own scroller and
 // would inherit a second one by taking the whole shell.
 export { default as UiTabStrip } from "./components/UiTabStrip.vue";
-export { promptDialog, confirmDialog, dialogState, _resolveDialog, configureDialog, dialogLabels } from "./services/dialog.js";
-// THE one reactive labels store behind kit chrome (dialog verbs, AI tabs, download-bar
-// actions, connection-error copy) + its ONE door. An i18n'd host re-feeds it at boot
-// and on every locale switch; single-locale hosts never call it (English canon).
-export { familyLabels, configureFamilyLabels } from "./services/familyLabels.js";
+export { promptDialog, confirmDialog, dialogState, _resolveDialog } from "./services/dialog.js";
 export { tooltipDirective } from "./services/tooltip.js";
 
 // shared in-app Help system — drawer + "?" trigger + open-state/config + the
@@ -102,13 +98,10 @@ export { answerWorkerCalls, inAppServer, serverFetch, setServerTransport, worker
 // shared appearance/theming engine + catalogs (host calls applyAppearance at boot)
 export * from "./services/appearance.js";
 
-// shared UI locale (BCP-47 tag for UiNumber's Intl formatting; host drives it)
-export { uiLocale, setUiLocale } from "./services/locale.js";
-
 // The kit's words in the app's vue-i18n language, for kit code outside a component.
 export { kitLocale, kitT } from "./services/kitI18n.js";
 
-// shared language CODE → readable NAME (Intl.DisplayNames, follows uiLocale).
+// shared language CODE → readable NAME (Intl.DisplayNames, in the app's vue-i18n language).
 // Every app shows language somewhere and each was about to grow its own map;
 // `en-US` reads as "American English", not as a code (2026-08-21).
 export { languageName, languageOptionsFrom, useLanguageNames } from "./services/languageNames.js";

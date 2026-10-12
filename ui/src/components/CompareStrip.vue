@@ -12,12 +12,14 @@
 // — true co-residency / router-swap is the GPU-gated residency planner #27/#29).
 // Columns with no explicit pin (inherit) join the parallel group best-effort.
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import ConfigColumn from "./ConfigColumn.vue";
 import UiButton from "../common/components/UiButton.vue";
 import { fmtCost, fmtTps } from "../common/services/runStats.js";
 import { presetToThinkingControl } from "../thinkingControl.js";
 
+const { t } = useI18n();
 const props = defineProps({
   action: { type: String, default: "" },
   baseConfig: { type: Object, default: () => ({}) }, // seed each new column from this
@@ -144,11 +146,11 @@ onMounted(() => {
   <section class="lu-cmp">
     <!-- Shared controls + ranking -->
     <div class="lu-cmp-bar">
-      <UiButton intent="primary" size="small" :loading="runningAll" @click="runAll">▶ Run all</UiButton>
-      <UiButton intent="secondary" size="small" @click="addColumn()">＋ Add column</UiButton>
-      <span class="lu-cmp-hint lu-muted">one action across every column · same test input · cloud parallel, local serial</span>
+      <UiButton intent="primary" size="small" :loading="runningAll" @click="runAll">{{ t('kit.compare.runAll') }}</UiButton>
+      <UiButton intent="secondary" size="small" @click="addColumn()">{{ t('kit.compare.addColumn') }}</UiButton>
+      <span class="lu-cmp-hint lu-muted">{{ t('kit.compare.hint') }}</span>
       <span v-if="ranked.length" class="lu-cmp-rank">
-        <span class="lu-cmp-rank-h">Fastest</span>
+        <span class="lu-cmp-rank-h">{{ t('kit.compare.fastest') }}</span>
         <span v-for="(x, i) in ranked" :key="x.col.id" class="lu-cmp-rank-item" :class="{ win: i === 0 }">
           <b>{{ colModelLabel(x.col.config) }}</b> · {{ fmtTps(x.res.tps) }}<template v-if="x.res.cost"> · {{ fmtCost(x.res.cost) }}</template>
         </span>
@@ -166,7 +168,7 @@ onMounted(() => {
           :json-toggle="jsonToggle"
           :production-preset-id="productionPresetId"
           :run-stream="null" :busy="runningAll" :removable="columns.length > 1"
-          :label="`Config ${i + 1}`" inherit-label="— pick a model —"
+          :label="t('kit.compare.column', { n: i + 1 })" :inherit-label="t('kit.compare.pickModel')"
           @result="onResult(col.id, $event)"
           @remove="removeColumn(col.id)"
           @apply-preset="applyPresetTo(col, $event)"

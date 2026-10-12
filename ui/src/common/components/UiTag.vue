@@ -11,7 +11,9 @@
 // QBadge marks itself role="status" (a live region); a tag is not one, so the role is dropped.
 import { QBadge } from "quasar";
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
+const { t } = useI18n();
 const props = defineProps({
   intent: { type: String, default: "primary" }, // primary | secondary | success | info | accent2 | danger | solid | ghost
   value: { type: [String, Number], default: "" },
@@ -27,7 +29,7 @@ const classes = computed(() => ["ui-tag", `ui-tag--${props.intent}`]);
     <slot>{{ value }}</slot>
     <button
       v-if="removable" type="button" class="ui-tag__x"
-      :aria-label="`Remove ${value || 'tag'}`" @click.stop="emit('remove')"
+      :aria-label="t('kit.common.removeItem', { item: value || t('kit.common.tag') })" @click.stop="emit('remove')"
     >✕</button>
   </QBadge>
 </template>

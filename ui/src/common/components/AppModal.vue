@@ -22,6 +22,7 @@
 -->
 <script setup>
 import { computed, ref, useSlots, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { useDraggable } from "@vueuse/core";
 import { QCard, QDialog } from "quasar";
 import Icon from "./Icon.vue";
@@ -29,6 +30,7 @@ import { wrapTab } from "../composables/useTabWrap.js";
 
 let uid = 0;
 
+const { t } = useI18n();
 const props = defineProps({
   eyebrow: { type: String, default: "" },
   title: { type: String, default: "" },
@@ -36,7 +38,7 @@ const props = defineProps({
   wide: { type: Boolean, default: false },
   noPadding: { type: Boolean, default: false },
   closable: { type: Boolean, default: true },
-  closeLabel: { type: String, default: "Close" }, // host may pass an i18n string
+  closeLabel: { type: String, default: "" }, // "" → the kit's "Close"
   // When true, a backdrop click closes the modal. Default false (locked) — the
   // JustWrite default that prevents accidental data loss. JustVoice's lighter
   // pickers/cheatsheets opt in to preserve their click-outside-to-close UX.
@@ -159,7 +161,7 @@ const contentStyle = computed(() => {
     transition-hide="ui-modal"
     :transition-duration="TRANSITION_MS"
     :aria-labelledby="slots.header ? undefined : titleId"
-    :aria-label="slots.header ? title || 'Dialog' : undefined"
+    :aria-label="slots.header ? title || t('kit.modal.dialog') : undefined"
     @mousedown="onOverlayMousedown"
     @keydown="(e) => wrapTab(e, dragTarget)"
     @hide="emit('close')"
@@ -187,7 +189,7 @@ const contentStyle = computed(() => {
                keeps the eyebrow/title props + their styling. -->
           <slot name="header-extra" />
         </div>
-        <button v-if="closable" type="button" class="ui-modal__close" :aria-label="closeLabel" @click="close">
+        <button v-if="closable" type="button" class="ui-modal__close" :aria-label="closeLabel || t('kit.modal.close')" @click="close">
           <Icon name="Close" :size="14" />
         </button>
       </header>

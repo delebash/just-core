@@ -12,13 +12,13 @@
 // feature's ref on use-production. NO LAUNCH SWITCHES
 // here (§7.1): those live on the model — the column's "Engine switches" link opens Tune.
 import { computed, onActivated, reactive, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 import CompareStrip from "./CompareStrip.vue";
 import UiButton from "../common/components/UiButton.vue";
 import UiSelect from "../common/components/UiSelect.vue";
 import UiTextarea from "../common/components/UiTextarea.vue";
 import { request } from "../client.js";
-import { familyLabels } from "../common/services/familyLabels.js";
 import { labAdapterFor } from "../services/labAdapters.js";
 import { mergeVariables, testDataAction, testDataSources } from "../common/services/testData.js";
 import { pushToast } from "../common/services/toastBridge.js";
@@ -54,7 +54,7 @@ const previewEpoch = ref(0);       // re-keys the strip so columns re-seed on Re
 // The promptless words come from the ONE labels store (decision 2026-08-04: no new
 // hardcoded kit English — JW feeds Spanish; the capture is live via the in-place
 // deep-assign invariant).
-const L = familyLabels.lab;
+const { t, n: fmtNum } = useI18n();
 
 const draft = ref(null);       // editable copy of the prompt (ephemeral test edits)
 const vars = reactive({});
@@ -82,7 +82,7 @@ function varCfg(k) {
 function counterText(v) {
   const s = String(v || "");
   const words = (s.trim().match(/\S+/g) || []).length;
-  return `${words.toLocaleString()} words · ${s.length.toLocaleString()} chars · ~${Math.round(s.length / 4).toLocaleString()} tokens`;
+  return t("kit.lab.counter", { words: fmtNum(words), chars: fmtNum(s.length), tokens: fmtNum(Math.round(s.length / 4)) });
 }
 
 // Save-as / delete / update a tested column as an ENGINE preset. FeatureLab owns the
@@ -104,7 +104,7 @@ async function saveAs(name, cfg) {
   if (!name || !cfg) return;
   const r = await request("/v1/ai/engine-presets", { method: "POST", body: cfgToEnginePreset(name, cfg) });
   emit("presets-changed", r.presets || []);
-  pushToast({ message: "Preset saved.", kind: "success" }); // after the await → success-only
+  pushToast({ message: t("kit.lab.presetSaved"), kind: "success" }); // after the await → success-only
 }
 async function delPreset(id) {
   if (!id) return;
@@ -118,7 +118,7 @@ async function updatePreset(id, cfg) {
   if (!p) return;  // preset not in the list (e.g. just deleted) → no-op, never silently rename
   const r = await request(`/v1/ai/engine-presets/${id}`, { method: "PUT", body: cfgToEnginePreset(p.name, cfg) });
   emit("presets-changed", r.presets || []);
-  pushToast({ message: "Preset saved.", kind: "success" }); // after the await → success-only
+  pushToast({ message: t("kit.lab.presetSaved"), kind: "success" }); // after the await → success-only
 }
 
 // Persist the action's JSON-output setting to its prompt row (user-restored 2026-07-16 —
@@ -147,9 +147,9 @@ async function saveJson(v) {
     const on = !!(r?.jsonMode ?? v);
     if (draft.value) draft.value = { ...draft.value, jsonMode: on };
     emit("prompt-changed", { key: props.action, jsonMode: on });
-    pushToast({ message: on ? "JSON output on for this feature." : "JSON output off for this feature." });
+    pushToast({ message: on ? t("kit.lab.jsonOn") : t("kit.lab.jsonOff") });
   } catch (e) {
-    pushToast({ message: e?.message || "Couldn't save the JSON-output setting." });
+    pushToast({ message: e?.message || t("kit.lab.err.json") });
   }
 }
 
@@ -226,13 +226,13 @@ function loadSource(sourceId) {
   // Seed the placeholder row so the control renders IMMEDIATELY rather than
   // popping into existence when the fetch lands.
   if (!sourceOptions[sourceId]) {
-    sourceOptions[sourceId] = [{ value: "", label: `Insert from ${src.label}…` }];
+    sourceOptions[sourceId] = [{ value: "", label: t("kit.lab.insertFrom", { source: src.label }) }];
   }
   Promise.resolve()
     .then(() => src.list())
     .then((items) => {
       sourceOptions[sourceId] = [
-        { value: "", label: `Insert from ${src.label}…` },
+        { value: "", label: t("kit.lab.insertFrom", { source: src.label }) },
         ...(items || []).map((it) => ({ value: String(it.id), label: it.label })),
       ];
     })
@@ -251,7 +251,7 @@ function fillSample() {
   const s = rows[sampleIx.value % rows.length];
   sampleIx.value += 1;
   const set = mergeVariables(vars, s.variables);
-  if (!set) pushToast({ message: "That sample's fields don't match this prompt's variables." });
+  if (!set) pushToast({ message: t("kit.lab.sampleMismatch") });
 }
 async function insertFrom(picker, id) {
   // The list's first row is the placeholder — picking it clears the label.
@@ -261,10 +261,10 @@ async function insertFrom(picker, id) {
   try {
     const payload = await picker.fill(id);
     const set = mergeVariables(vars, payload || {});
-    if (!set) pushToast({ message: `That ${sourceById[picker.source]?.kind || "item"}'s fields don't match this prompt's variables.` });
+    if (!set) pushToast({ message: t("kit.lab.itemMismatch", { kind: sourceById[picker.source]?.kind || t("kit.lab.item") }) });
   } catch (e) {
     pickerValue[picker.source] = prev; // nothing was inserted — don't claim it was
-    pushToast({ message: e?.message || "Couldn't load that item." });
+    pushToast({ message: e?.message || t("kit.lab.err.item") });
   }
 }
 async function composeFromBook() {
@@ -274,9 +274,9 @@ async function composeFromBook() {
   try {
     const payload = await c.run();
     const set = mergeVariables(vars, payload || {});
-    if (!set) pushToast({ message: "The composed input doesn't match this prompt's variables." });
+    if (!set) pushToast({ message: t("kit.lab.composedMismatch") });
   } catch (e) {
-    pushToast({ message: e?.message || "Couldn't compose from this book." });
+    pushToast({ message: e?.message || t("kit.lab.err.compose") });
   } finally {
     composing.value = false;
   }
@@ -308,42 +308,40 @@ const columnConfig = computed(() => {
 
 <template>
   <div class="lu-fw-tune">
-    <div class="lu-fw-tune-h"><b>Tune presets</b><span class="lu-muted">{{ promptless
-      ? "run this feature's REAL generated prompt · Save a column as a preset (it appears in the dropdowns)"
-      : "run this feature's prompt on a test input · Save a column as a preset (it appears in the dropdowns)" }}</span></div>
+    <div class="lu-fw-tune-h"><b>{{ t('kit.lab.tuneTitle') }}</b><span class="lu-muted">{{ promptless
+      ? t('kit.lab.tuneSubGenerated')
+      : t('kit.lab.tuneSub') }}</span></div>
 
     <!-- Promptless: the ONE truth — the prompt the app built for a live sample. -->
     <div v-if="promptless" class="lu-fw-testin lu-fw-genprompt">
       <div class="lu-fw-testin-h">
-        <b>{{ L.generatedPrompt }}</b>
-        <span class="lu-muted">{{ L.generatedNote }}</span>
+        <b>{{ t('kit.lab.generatedPrompt') }}</b>
+        <span class="lu-muted">{{ t('kit.lab.generatedNote') }}</span>
         <span class="lu-fw-gen-spacer" />
         <span v-if="builtMeta" class="lu-muted">{{ builtMeta }}</span>
         <UiButton intent="secondary" size="small"
-          title="Rebuild the prompt from the project's current data (context · glossary · notes)"
-          @click="emit('refresh-preview')">{{ L.refresh }}</UiButton>
+          :title="t('kit.lab.refreshTitle')"
+          @click="emit('refresh-preview')">{{ t('kit.lab.refresh') }}</UiButton>
         <UiButton v-if="promptUnlocked" intent="ghost" size="small"
-          title="Re-seed the test columns from this generated prompt — discards the columns' test edits, no refetch"
-          @click="previewEpoch += 1">{{ L.restoreGenerated }}</UiButton>
+          :title="t('kit.lab.restoreTitle')"
+          @click="previewEpoch += 1">{{ t('kit.lab.restoreGenerated') }}</UiButton>
         <UiButton intent="ghost" size="small"
-          :title="promptUnlocked
-            ? 'Hide the editable copies in the columns'
-            : 'Reveal editable prompt copies in the columns — they run once and are never saved; every real run rebuilds its own prompt'"
-          @click="promptUnlocked = !promptUnlocked">{{ promptUnlocked ? L.lockCopies : L.editCopies }}</UiButton>
+          :title="promptUnlocked ? t('kit.lab.lockTitle') : t('kit.lab.editTitle')"
+          @click="promptUnlocked = !promptUnlocked">{{ promptUnlocked ? t('kit.lab.lockCopies') : t('kit.lab.editCopies') }}</UiButton>
       </div>
-      <div class="lu-field"><label>System — generated</label>
+      <div class="lu-field"><label>{{ t('kit.lab.systemGenerated') }}</label>
         <UiTextarea :model-value="draft?.system || ''" readonly auto-resize :max-height-px="240" :rows="3" /></div>
-      <div class="lu-field"><label>User — generated</label>
+      <div class="lu-field"><label>{{ t('kit.lab.userGenerated') }}</label>
         <UiTextarea :model-value="draft?.userTemplate || ''" readonly auto-resize :max-height-px="240" :rows="3" /></div>
       <!-- The real home for "I want the prompt to say X": the app's data doors. -->
       <div v-if="dataLinks.length" class="lu-fw-datalinks lu-muted">
-        {{ L.changeData }}
+        {{ t('kit.lab.changeData') }}
         <a v-for="l in dataLinks" :key="l.label" :href="l.href">{{ l.label }}</a>
       </div>
     </div>
 
     <div v-else class="lu-fw-testin">
-      <div class="lu-fw-testin-h"><b>Test input</b><span class="lu-muted">the {{ varHint }} the prompt fills — shared across columns</span></div>
+      <div class="lu-fw-testin-h"><b>{{ t('kit.lab.testInput') }}</b><span class="lu-muted">{{ t('kit.lab.testInputHint', { hint: varHint }) }}</span></div>
       <div v-if="pickers.length || decl?.compose || actionSamples.length" class="lu-fw-testin-fill">
         <template v-for="p in pickers" :key="p.source">
           <!-- Visible while its list loads (disabled, showing its own label) so the
@@ -356,11 +354,11 @@ const columnConfig = computed(() => {
         </template>
         <UiButton v-if="decl?.compose" intent="secondary" size="small"
           :disabled="composing"
-          title="Build this feature's real input from your book — the same composition a live run uses"
-          @click="composeFromBook">{{ decl.compose.label || "From this book" }}</UiButton>
+          :title="t('kit.lab.composeTitle')"
+          @click="composeFromBook">{{ decl.compose.label || t('kit.lab.fromBook') }}</UiButton>
         <UiButton v-if="actionSamples.length" intent="secondary" size="small"
-          :title="actionSamples.length > 1 ? 'Fill with a sample from the app — click again for the next one' : 'Fill with the app\'s sample data'"
-          @click="fillSample">Sample</UiButton>
+          :title="actionSamples.length > 1 ? t('kit.lab.sampleNextTitle') : t('kit.lab.sampleTitle')"
+          @click="fillSample">{{ t('kit.lab.sample') }}</UiButton>
       </div>
       <template v-for="(_, k) in vars" :key="k">
         <div v-if="!varCfg(k).hidden" class="lu-field">

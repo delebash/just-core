@@ -29,13 +29,14 @@
 // Self-contained (loads its own knob catalog); mount behind v-if with a :model
 // ({id, name}) and listen for @close.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import { request } from "../client.js";
 import { classKeyLabel, listClassTunes, putClassTune } from "../classTunes.js";
 import { fetchKnobCatalog, plane1SwitchCatalog } from "../knobCatalog.js";
 import { recordMeasurement } from "../measurements.js";
 import { resolveModelDefaults } from "../modelDefaults.js";
-import { CLASS_LAYER_LABEL, TUNE_BADGES } from "../tuneState.js";
+import { classLayerLabel, TUNE_BADGES } from "../tuneState.js";
 import { confirmDialog } from "../common/services/dialog.js";
 import { pushToast } from "../common/services/toastBridge.js";
 import { fmtSeconds, fmtTokens, fmtTps } from "../common/services/runStats.js";
@@ -86,15 +87,16 @@ const tuneBusy = computed(() => tunePhase.value === "loading" || tunePhase.value
 // group, which after this reorder is the class section — the B6-window probe
 // caught new rows rendering at the top), so "＋ Add switch" appends at the
 // visual bottom (KnobGrid's add() already appends within a section).
-const TUNE_GROUPS = [
-  // The layer's words come from the ONE source (tuneState.js CLASS_LAYER_LABEL) — this
+const { t } = useI18n();
+const TUNE_GROUPS = computed(() => [
+  // The layer's words come from the ONE source (tuneState.js classLayerLabel) — this
   // grid heading, the catalog badge and the budget line all name the same layer, and
   // two of them had already drifted before the 2026-07-26 rename converged them.
-  { key: "class", label: CLASS_LAYER_LABEL },
-  { key: "global", label: "Global launch defaults" },
-  { key: "computed", label: "Computed for this PC" },
-  { key: "applied", label: "Your applied config" },
-];
+  { key: "class", label: classLayerLabel() },
+  { key: "global", label: t("kit.tuneModal.group.global") },
+  { key: "computed", label: t("kit.tuneModal.group.computed") },
+  { key: "applied", label: t("kit.tuneModal.group.applied") },
+]);
 const GROUP_OF = {
   tune: "applied", autotune: "applied",
   class: "class",
@@ -127,13 +129,13 @@ const headerBadge = computed(() => {
     const fam = TUNE_BADGES[savedTune.value.source] || null;
     return {
       intent: "success",
-      label: fam ? `${fam.label} on this PC ✓` : "Applied on this PC ✓",
+      label: fam ? t("kit.tuneModal.badge.onThisPc", { label: t(fam.labelKey) }) : t("kit.tuneModal.badge.applied"),
     };
   }
   // Same five-state vocabulary as the catalog row (2026-07-26, the user: "should be
   // consistent") — the label comes from the shared family, never a local literal, so
   // the two surfaces cannot drift into two words for one state.
-  return { intent: TUNE_BADGES.untuned.intent, label: `${TUNE_BADGES.untuned.label} — using the layered defaults` };
+  return { intent: TUNE_BADGES.untuned.intent, label: t("kit.tuneModal.badge.untuned", { label: t(TUNE_BADGES.untuned.labelKey) }) };
 });
 const driftCount = computed(() => savedTune.value?.driftCount || 0);
 
@@ -145,9 +147,9 @@ async function refreshFromDefaults() {
   applyMsg.value = "";
   try {
     fillFromResolved(await resolveModelDefaults(props.model.id, { excludeTune: true }));
-    pushToast({ message: "Loaded today's defaults into the grid — review, then Apply to commit." });
+    pushToast({ message: t("kit.tuneModal.refreshed") });
   } catch (e) {
-    tuneErr.value = e.message || "Couldn't load today's defaults.";
+    tuneErr.value = e.message || t("kit.tuneModal.err.defaults");
   }
 }
 
@@ -206,7 +208,7 @@ async function reloadIfRunning() {
   const st = await request("/v1/llm-runner/status").catch(() => null);
   if (!(st?.status === "running" && st?.modelId === props.model.id)) return false;
   tunePhase.value = "loading";
-  tuneDetail.value = "applying — reloading the model with the new config";
+  tuneDetail.value = t("kit.tuneModal.applying");
   await request("/v1/llm-runner/stop", { method: "POST" }).catch(() => {});
   await request("/v1/llm-runner/load", { method: "POST", body: { modelId: props.model.id } });
   await pollUntilSettled();
@@ -222,17 +224,17 @@ async function applyTune() {
   const affected = await affectedPresets();
   const names = (affected || []).map((x) => (x.count ? `${x.name} (${x.count})` : x.name));
   const capped = names.length > 3
-    ? `${names.slice(0, 3).join(", ")} +${names.length - 3} more`
+    ? t("kit.tuneModal.apply.more", { names: names.slice(0, 3).join(", "), n: names.length - 3 })
     : names.join(", ");
   const scope = affected == null
-    ? "Every preset that uses this model on this PC will run these switches."
+    ? t("kit.tuneModal.apply.everyPreset")
     : names.length
-      ? `Every preset that uses this model on this PC will run these switches: ${capped}.`
-      : "No preset currently uses this model — the config takes effect whenever it loads.";
+      ? t("kit.tuneModal.apply.presets", { names: capped })
+      : t("kit.tuneModal.apply.noPreset");
   const ok = await confirmDialog({
-    title: `Apply to ${props.model.name || props.model.id}?`,
-    message: `${scope} The model reloads now if it's running. (Temperature, tokens, and thinking stay per-preset — unchanged.)`,
-    confirmLabel: "Apply",
+    title: t("kit.tuneModal.apply.title", { model: props.model.name || props.model.id }),
+    message: t("kit.tuneModal.apply.body", { scope }),
+    confirmLabel: t("kit.tuneModal.apply.button"),
   });
   if (!ok) return;
   saveState.value = "saving";
@@ -250,10 +252,10 @@ async function applyTune() {
     // the `applyMsg` note right under the grid (lu-tune-applied) — the toast
     // duplicated a message already visible where the user is looking.
     applyMsg.value = reloaded
-      ? "Applied ✓ — the model reloaded; every preset using it runs this config now."
-      : "Applied ✓ — every preset using this model runs this config from its next load.";
+      ? t("kit.tuneModal.apply.doneReloaded")
+      : t("kit.tuneModal.apply.doneNextLoad");
   } catch (e) {
-    saveErr.value = e.message || "Couldn't apply the config.";
+    saveErr.value = e.message || t("kit.tuneModal.err.apply");
     tunePhase.value = "";
   } finally {
     saveState.value = "";
@@ -270,10 +272,10 @@ async function removeTune() {
     const reloaded = await reloadIfRunning(); // removal applies now too (active = resolved)
     // QC-37: the inline note is the visible surface (no toast duplicate).
     applyMsg.value = reloaded
-      ? "Removed — the model reloaded on its layered defaults."
-      : "Removed ✓ — the model uses its layered defaults from its next load.";
+      ? t("kit.tuneModal.remove.doneReloaded")
+      : t("kit.tuneModal.remove.doneNextLoad");
   } catch (e) {
-    saveErr.value = e.message || "Couldn't remove the applied config.";
+    saveErr.value = e.message || t("kit.tuneModal.err.remove");
     tunePhase.value = "";
   } finally {
     saveState.value = "";
@@ -310,7 +312,7 @@ async function resetTuneSwitches() {
   try {
     fillFromResolved(await fetchResolved(props.model.id));
   } catch (e) {
-    tuneErr.value = e.message || "Couldn't reset to defaults.";
+    tuneErr.value = e.message || t("kit.tuneModal.err.reset");
   }
 }
 
@@ -342,12 +344,12 @@ async function saveForClass() {
   classSaveState.value = "saving";
   try {
     const switches = rowsToSwitches(tuneRows.value);
-    if (!Object.keys(switches).length) throw new Error("Add at least one switch first.");
+    if (!Object.keys(switches).length) throw new Error(t("kit.tuneModal.err.oneSwitch"));
     await putClassTune(props.model.id, switches);
     classSaveState.value = "saved";
     classTunesRef.value?.reload?.();
   } catch (e) {
-    classSaveErr.value = e.message || "Couldn't save the PC class config.";
+    classSaveErr.value = e.message || t("kit.tuneModal.err.saveClass");
     classSaveState.value = "";
   }
 }
@@ -364,9 +366,9 @@ async function pollUntilSettled(maxMs = 180000) {
   for (;;) {
     const st = await request("/v1/llm-runner/status");
     if (st.status === "running") return st;
-    if (st.status === "error") throw new Error(st.error || "Load failed.");
+    if (st.status === "error") throw new Error(st.error || t("kit.tuneModal.err.load"));
     tuneDetail.value = st.detail || st.status || "";
-    if (Date.now() - start > maxMs) throw new Error("Timed out waiting for the model to load.");
+    if (Date.now() - start > maxMs) throw new Error(t("kit.tuneModal.err.loadTimeout"));
     await new Promise((r) => setTimeout(r, 1200));
   }
 }
@@ -401,12 +403,12 @@ async function runMeasure() {
     await pollUntilSettled();
     tunePhase.value = "measuring";
     const res = await request("/v1/llm-runner/measure", { method: "POST" });
-    if (!res.ok) throw new Error(res.error || "Measurement failed.");
+    if (!res.ok) throw new Error(res.error || t("kit.tuneModal.err.measure"));
     tuneResult.value = res;
     tunePhase.value = "done";
     recordTuneResult(res, switches);
   } catch (e) {
-    tuneErr.value = e.message || "Measurement failed.";
+    tuneErr.value = e.message || t("kit.tuneModal.err.measure");
     tunePhase.value = "error";
   }
 }
@@ -448,21 +450,21 @@ async function pollAutoTune() {
       };
       tunePhase.value = "done";
     } else if (st.status === "error") {
-      tuneErr.value = st.error || "Auto-tune failed.";
+      tuneErr.value = st.error || t("kit.tuneModal.err.autoTune");
       tunePhase.value = "error";
     }
   } catch (e) {
     stopAutoPoll();
     autoState.value = null;
-    tuneErr.value = e.message || "Auto-tune polling failed.";
+    tuneErr.value = e.message || t("kit.tuneModal.err.autoTunePoll");
   }
 }
 async function runAutoTune() {
   // #18: an explicit OK/Cancel before committing the box to a long sweep.
   const ok = await confirmDialog({
-    title: "Run auto-tune?",
-    message: "This can take a long time — 4 to 30 minutes depending on your hardware — while it loads and measures real configurations. It usually gives the best results for a model that hasn't been tuned yet. You can cancel after any trial.",
-    confirmLabel: "Auto-tune",
+    title: t("kit.tuneModal.auto.confirmTitle"),
+    message: t("kit.tuneModal.auto.confirmBody"),
+    confirmLabel: t("kit.tuneModal.auto.button"),
   });
   if (!ok) return;
   tuneErr.value = "";
@@ -472,12 +474,12 @@ async function runAutoTune() {
       method: "POST",
       body: { modelId: props.model.id },
     });
-    if (st.ok === false) throw new Error(st.error || "Auto-tune is busy.");
+    if (st.ok === false) throw new Error(st.error || t("kit.tuneModal.err.autoTuneBusy"));
     autoState.value = st;
     stopAutoPoll();
     autoTimer = setInterval(pollAutoTune, 2000);
   } catch (e) {
-    tuneErr.value = e.message || "Couldn't start auto-tune.";
+    tuneErr.value = e.message || t("kit.tuneModal.err.autoTuneStart");
   }
 }
 async function cancelAutoTune() {
@@ -496,14 +498,14 @@ onBeforeUnmount(stopAutoPoll);
 </script>
 
 <template>
-  <AppModal :title="`Tune & measure — ${model.name || model.id}`" :max-width="'560px'" @close="emit('close')">
+  <AppModal :title="t('kit.tuneModal.title', { model: model.name || model.id })" :max-width="'560px'" @close="emit('close')">
     <div class="lu-tune">
       <!-- QC-6 (2026-07-08) + QC-12 (2026-07-08, the user's exact copy: "replace
            (how tasks ask the model …) with new line below Apply, Samplers like
            temperature are set on the Tasks or Routing by feature tabs"). -->
       <p class="lu-muted lu-tune-lede">
-        Each section shows where its switches come from — tweak, measure, then <b>Apply</b>.
-        <br />Samplers like temperature are set on the Tasks or Routing by feature tabs.
+        <i18n-t keypath="kit.tuneModal.lede" scope="global"><template #apply><b>{{ t('kit.tuneModal.apply.button') }}</b></template></i18n-t>
+        <br />{{ t('kit.tuneModal.ledeSamplers') }}
       </p>
 
       <!-- #16 + B3-4: the tune state reads BIG — the §7.6 badge family (Auto-tuned /
@@ -515,11 +517,10 @@ onBeforeUnmount(stopAutoPoll);
       <!-- §7.6 drift: defaults changed SINCE this config was applied (vs the baseline
            stored at apply time) — refresh fills the GRID only; Apply commits. -->
       <div v-if="driftCount > 0" class="lu-tune-drift">
-        <span>Defaults have changed since you applied this config —
-          {{ driftCount }} value{{ driftCount === 1 ? "" : "s" }} differ{{ driftCount === 1 ? "s" : "" }}.</span>
+        <span>{{ t('kit.tuneModal.drift', { n: driftCount }, driftCount) }}</span>
         <UiButton intent="secondary" size="small"
-          title="Load today's defaults into the grid — your applied config stays until you hit Apply"
-          @click="refreshFromDefaults">Refresh from defaults</UiButton>
+          :title="t('kit.tuneModal.refreshTitle')"
+          @click="refreshFromDefaults">{{ t('kit.tuneModal.refresh') }}</UiButton>
       </div>
 
       <!-- #21: ONLY the switch grid scrolls — everything after this block (status,
@@ -531,25 +532,24 @@ onBeforeUnmount(stopAutoPoll);
         <KnobGrid v-model="tuneRows" :catalog="switchCatalog"
           :groups="TUNE_GROUPS" :row-groups="rowGroups" fallback-group="applied" />
         <div v-if="unknownNames.size" class="lu-tune-unk lu-muted">
-          <UiTag intent="danger">Unrecognized</UiTag>
-          <span>{{ [...unknownNames].join(", ") }} — not a known engine flag (mistyped, or dropped
-            by an engine update). Remove or fix it, or prefix with “--” for a raw flag.</span>
+          <UiTag intent="danger">{{ t('kit.tuneModal.unknown.tag') }}</UiTag>
+          <span>{{ t('kit.tuneModal.unknown.body', { names: [...unknownNames].join(", ") }) }}</span>
         </div>
       </div>
 
       <!-- #19: the shared launch-config libraries open as popups — links, not
            embedded editors. -->
       <div class="lu-tune-tools">
-        <UiButton intent="ghost" size="small" @click="resetTuneSwitches">Reset to model default</UiButton>
+        <UiButton intent="ghost" size="small" @click="resetTuneSwitches">{{ t('kit.tuneModal.resetDefault') }}</UiButton>
         <!-- the two library links wrap TOGETHER (a grouped flex child), never one
              stranded on each line -->
         <span class="lu-tune-libs">
           <UiButton intent="secondary" size="small"
-            title="This model's PC class configs — the shared starting points a machine without its own applied config uses"
-            @click="showClassLib = true">PC class configs ↗</UiButton>
+            :title="t('kit.tuneModal.classLibTitle')"
+            @click="showClassLib = true">{{ t('kit.tuneModal.classLib') }}</UiButton>
           <UiButton intent="secondary" size="small"
-            title="The always-on switch bundles (all models · MoE · dense · speculative decode) underneath every tune"
-            @click="showGlobalLib = true">Global launch defaults ↗</UiButton>
+            :title="t('kit.tuneModal.globalLibTitle')"
+            @click="showGlobalLib = true">{{ t('kit.tuneModal.globalLib') }}</UiButton>
         </span>
       </div>
 
@@ -557,20 +557,20 @@ onBeforeUnmount(stopAutoPoll);
       <div v-if="applyMsg" class="lu-tune-applied">{{ applyMsg }}</div>
       <div v-if="saveErr" class="lu-error">{{ saveErr }}</div>
 
-      <div v-if="tunePhase === 'loading'" class="lu-tune-status">Loading… {{ tuneDetail }}</div>
-      <div v-else-if="tunePhase === 'measuring'" class="lu-tune-status">Measuring decode speed…</div>
+      <div v-if="tunePhase === 'loading'" class="lu-tune-status">{{ t('kit.common.loading') }} {{ tuneDetail }}</div>
+      <div v-else-if="tunePhase === 'measuring'" class="lu-tune-status">{{ t('kit.tuneModal.measuring') }}</div>
 
       <div v-if="autoRunning || (autoTrials.length && autoState?.status !== 'done')" class="lu-tune-status">
-        Auto-tuning — {{ autoState?.detail || "working…" }}
+        {{ t('kit.tuneModal.auto.running', { detail: autoState?.detail || t('kit.tuneModal.auto.working') }) }}
       </div>
       <div v-if="autoTrials.length" class="lu-tune-trials lu-muted">
-        <span v-for="t in autoTrials" :key="t.label" class="lu-tune-trial"
-          :class="{ 'lu-tune-trial-bad': !t.ok }"
-          :title="t.ok ? fmtTps(t.tokensPerSec) : t.error">
-          {{ t.label }}: {{ t.ok ? fmtTps(t.tokensPerSec) : "✗" }}
+        <span v-for="trial in autoTrials" :key="trial.label" class="lu-tune-trial"
+          :class="{ 'lu-tune-trial-bad': !trial.ok }"
+          :title="trial.ok ? fmtTps(trial.tokensPerSec) : trial.error">
+          {{ trial.label }}: {{ trial.ok ? fmtTps(trial.tokensPerSec) : "✗" }}
         </span>
         <span v-if="autoState?.status === 'done' && autoState?.best" class="lu-tune-trial lu-tune-trial-win">
-          winner → grid (review, then Apply)
+          {{ t('kit.tuneModal.auto.winner') }}
         </span>
       </div>
 
@@ -578,22 +578,21 @@ onBeforeUnmount(stopAutoPoll);
         <div class="lu-tune-tps"><b>{{ fmtTps(tuneResult.tokensPerSec) }}</b></div>
         <div class="lu-tune-meta">
           {{ fmtTokens({ outputTokens: tuneResult.completionTokens }) }} · {{ fmtSeconds(tuneResult.ms) }}<template
-            v-if="tuneResult.vramTotalMb"> · VRAM {{ gb(tuneResult.vramTotalMb) }} GB</template><template
-            v-if="tuneResult.ramTotalMb"> · RAM {{ gb(tuneResult.ramTotalMb) }} GB</template>
+            v-if="tuneResult.vramTotalMb"> · {{ t('kit.tuneModal.result.vram', { gb: gb(tuneResult.vramTotalMb) }) }}</template><template
+            v-if="tuneResult.ramTotalMb"> · {{ t('kit.tuneModal.result.ram', { gb: gb(tuneResult.ramTotalMb) }) }}</template>
         </div>
-        <div v-if="!tuneResult.vramTotalMb" class="lu-muted lu-tune-cpu">No GPU detected — measured on CPU.</div>
+        <div v-if="!tuneResult.vramTotalMb" class="lu-muted lu-tune-cpu">{{ t('kit.tuneModal.result.cpu') }}</div>
         <!-- Apply keeps this config for THIS machine; this keeps it as the shared
              starting point for every PC of the same class (ROUND 8 Task C — "on a
              result": you share what you measured, not a blind grid). -->
         <div v-if="myClassKey" class="lu-tune-clsrow">
           <template v-if="classSaveState === 'saved'">
-            <span class="lu-muted">Saved as the PC class config for PCs like this one ({{ myClassLabel }}) ✓</span>
+            <span class="lu-muted">{{ t('kit.tuneModal.result.classSaved', { name: myClassLabel }) }}</span>
           </template>
           <template v-else>
-            <span class="lu-muted">Works well? Make it the starting point for every PC like
-              this one ({{ myClassLabel }}) — machines with their own saved tune keep it.</span>
+            <span class="lu-muted">{{ t('kit.tuneModal.result.offerClass', { name: myClassLabel }) }}</span>
             <UiButton intent="secondary" size="small" :loading="classSaveState === 'saving'"
-              @click="saveForClass">Save for PC class</UiButton>
+              @click="saveForClass">{{ t('kit.tuneModal.result.saveClass') }}</UiButton>
           </template>
         </div>
         <div v-if="classSaveErr" class="lu-error">{{ classSaveErr }}</div>
@@ -604,32 +603,32 @@ onBeforeUnmount(stopAutoPoll);
 
     <!-- #19: the library popups — the SAME shared components the Edit view's
          buttons open (B2-4), here scoped to this model where it applies. -->
-    <AppModal v-if="showClassLib" :title="`PC class configs — ${model.name || model.id}`"
+    <AppModal v-if="showClassLib" :title="t('kit.tuneModal.classLibModal', { model: model.name || model.id })"
       :max-width="'700px'" @close="showClassLib = false">
       <LuClassTunes ref="classTunesRef" expanded :model-id="model.id" :catalog="switchCatalog" />
     </AppModal>
-    <AppModal v-if="showGlobalLib" title="Global launch defaults"
+    <AppModal v-if="showGlobalLib" :title="t('kit.tuneModal.group.global')"
       :max-width="'760px'" @close="showGlobalLib = false">
       <LuGlobalSwitches expanded />
     </AppModal>
 
     <template #footer>
-      <UiButton intent="ghost" @click="emit('close')">Close</UiButton>
+      <UiButton intent="ghost" @click="emit('close')">{{ t('kit.dialog.close') }}</UiButton>
       <span class="lu-tmm-spacer" />
       <UiButton v-if="savedTune" intent="secondary" :loading="saveState === 'removing'" :disabled="autoRunning"
-        title="Delete this PC's applied config — the model returns to its layered defaults (reloads now if running)"
-        @click="removeTune">Remove applied config</UiButton>
+        :title="t('kit.tuneModal.remove.title')"
+        @click="removeTune">{{ t('kit.tuneModal.remove.button') }}</UiButton>
       <UiButton v-if="!autoRunning" intent="secondary" :disabled="tuneBusy"
-        title="Run a measured sweep (4–30 minutes depending on hardware) and fill the grid with the fastest config — review, then Apply"
-        @click="runAutoTune">Auto-tune</UiButton>
+        :title="t('kit.tuneModal.auto.title')"
+        @click="runAutoTune">{{ t('kit.tuneModal.auto.button') }}</UiButton>
       <UiButton v-else intent="danger"
-        title="Stop after the current trial finishes"
-        @click="cancelAutoTune">Cancel auto-tune</UiButton>
+        :title="t('kit.tuneModal.auto.cancelTitle')"
+        @click="cancelAutoTune">{{ t('kit.tuneModal.auto.cancel') }}</UiButton>
       <UiButton intent="success" :loading="saveState === 'saving'" :disabled="autoRunning"
-        title="Set this model's engine switches for every task that uses it on this PC — the model reloads now if it's running"
-        @click="applyTune">Apply</UiButton>
+        :title="t('kit.tuneModal.apply.buttonTitle')"
+        @click="applyTune">{{ t('kit.tuneModal.apply.button') }}</UiButton>
       <UiButton intent="primary" :loading="tuneBusy" :disabled="autoRunning" @click="runMeasure">
-        {{ tuneResult ? "Measure again" : "Load & measure" }}
+        {{ tuneResult ? t('kit.tuneModal.measureAgain') : t('kit.tuneModal.loadMeasure') }}
       </UiButton>
     </template>
   </AppModal>

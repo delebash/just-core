@@ -21,6 +21,7 @@
 //     stats' look.
 
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useAiTasksStore } from "../stores/aiTasks.js";
 import Icon from "../common/components/Icon.vue";
 import UiButton from "../common/components/UiButton.vue";
@@ -36,6 +37,7 @@ const props = defineProps({
 });
 
 const tasks = useAiTasksStore();
+const { t } = useI18n();
 
 // A FINISHED task measures to its own finishedAt, never the live clock. The ticker
 // stops when nothing is RUNNING, so a task lingering after completion would otherwise
@@ -52,9 +54,9 @@ const canRetry = computed(() => isDone.value && !!props.task?._onRetry);
 // and a failed one showed no error and no colour, which defeated the entire point of
 // letting failures stay on screen until read.
 const STATUS = {
-  done:      { badge: "✓", label: "done",      cls: "sts--ok" },
-  error:     { badge: "⚠", label: "failed",    cls: "sts--fail" },
-  cancelled: { badge: "⊘", label: "cancelled", cls: "sts--cancel" },
+  done:      { badge: "✓", labelKey: "kit.aiTasks.strip.done",      cls: "sts--ok" },
+  error:     { badge: "⚠", labelKey: "kit.aiTasks.strip.failed",    cls: "sts--fail" },
+  cancelled: { badge: "⊘", labelKey: "kit.aiTasks.strip.cancelled", cls: "sts--cancel" },
 };
 const status = computed(() => (props.task ? STATUS[props.task.status] || null : null));
 
@@ -109,7 +111,7 @@ function openPanel() { tasks.openPanel(); }
 
     <!-- QC-31: a batch task (one entry per USER ACTION) reports n/m here. -->
     <span v-if="task.progress" class="sts-stat sts-progress"
-      v-tooltip.bottom="task.progress.hint || 'Batch progress — Cancel stops the whole run'">
+      v-tooltip.bottom="task.progress.hint || t('kit.aiTasks.batchTip')">
       {{ task.progress.text || `${task.progress.done}/${task.progress.total}` }}
     </span>
     <!-- …and as a real bar while running. -->
@@ -119,23 +121,23 @@ function openPanel() { tasks.openPanel(); }
     <!-- §7.4 B6-2: real prompt-eval progress (builtin engine) — fills the
          dead time before the first token; cleared when generation starts. -->
     <span v-if="task.prefill != null" class="sts-stat"
-      v-tooltip.bottom="'The model is reading your prompt'">
-      reading prompt {{ Math.round(task.prefill * 100) }}%
+      v-tooltip.bottom="t('kit.aiTasks.prefillTip')">
+      {{ t('kit.aiTasks.prefill', { pct: Math.round(task.prefill * 100) }) }}
     </span>
     <!-- A thinking model before its answer (2026-10-06): its tokens count below. -->
     <span v-if="task.thinking && !isDone" class="sts-stat"
-      v-tooltip.bottom="'The model is thinking before it answers — its thinking counts in the tokens'">
-      thinking…
+      v-tooltip.bottom="t('kit.aiTasks.strip.thinkingTip')">
+      {{ t('kit.aiTasks.strip.thinking') }}
     </span>
-    <span class="sts-stat">{{ elapsedSeconds }}s</span>
-    <span v-if="firstTokenSeconds" class="sts-stat">first token in {{ firstTokenSeconds }}s</span>
+    <span class="sts-stat">{{ t('kit.aiTasks.secs', { s: elapsedSeconds }) }}</span>
+    <span v-if="firstTokenSeconds" class="sts-stat">{{ t('kit.aiTasks.strip.firstToken', { s: firstTokenSeconds }) }}</span>
     <span v-if="tokensLabel" class="sts-stat">{{ tokensLabel }}</span>
     <span v-if="tokensPerSecond" class="sts-stat">{{ fmtTps(tokensPerSecond) }}</span>
     <span v-if="freshness" class="sts-stat" :data-fresh="freshness">
       <span class="sts-dot" />
-      <template v-if="freshness === 'fresh'">live</template>
-      <template v-else-if="freshness === 'stalling'">stalling</template>
-      <template v-else>stuck</template>
+      <template v-if="freshness === 'fresh'">{{ t('kit.aiTasks.live') }}</template>
+      <template v-else-if="freshness === 'stalling'">{{ t('kit.aiTasks.strip.stalling') }}</template>
+      <template v-else>{{ t('kit.aiTasks.strip.stuck') }}</template>
     </span>
 
     <!-- The app's OWN numbers, as plain strings it pushed with setStats — a render's
@@ -147,15 +149,15 @@ function openPanel() { tasks.openPanel(); }
     <!-- Outcome, once there is one: the word + (for failures) the reason. The error
          must be READABLE here — a failure lingers until dismissed precisely so the
          user can read it. -->
-    <span v-if="isDone" class="sts-finish-tag">{{ status?.label }}</span>
+    <span v-if="isDone && status" class="sts-finish-tag">{{ t(status.labelKey) }}</span>
     <span v-if="task.error" class="sts-error" :title="task.error">— {{ task.error }}</span>
 
     <!-- Feature-specific extras (e.g. a words count + usage breakdown). -->
     <slot name="extra-stats" :task="task" />
 
     <span class="sts-spacer" />
-    <UiButton intent="ghost" size="small" data-panel-toggle @click="openPanel" v-tooltip.bottom="'Open full status panel'">
-      Details
+    <UiButton intent="ghost" size="small" data-panel-toggle @click="openPanel" v-tooltip.bottom="t('kit.aiTasks.strip.detailsTip')">
+      {{ t('kit.aiTasks.strip.details') }}
     </UiButton>
     <!-- Cancel while it runs; Retry / dismiss once it has stopped. A strip only shows
          a finished task when the host asked for a linger (`lingerMs`), and offering
@@ -164,15 +166,15 @@ function openPanel() { tasks.openPanel(); }
          JustVoice's rule, which this store had no answer for until now. -->
     <UiButton v-if="!isDone" intent="danger" size="small" @click="onCancel">
       <template #icon><Icon name="Close" :size="11" /></template>
-      Cancel
+      {{ t('kit.dialog.cancel') }}
     </UiButton>
     <template v-else>
       <UiButton v-if="canRetry" intent="ghost" size="small" @click="onRetry"
-        v-tooltip.bottom="'Run it again'">
+        v-tooltip.bottom="t('kit.aiTasks.again')">
         <template #icon><Icon name="Refresh" :size="11" /></template>
-        Retry
+        {{ t('kit.downloadBar.retry') }}
       </UiButton>
-      <UiButton intent="ghost" size="icon" @click="onDismiss" v-tooltip.bottom="'Dismiss'">
+      <UiButton intent="ghost" size="icon" @click="onDismiss" v-tooltip.bottom="t('kit.downloadBar.dismiss')">
         <template #icon><Icon name="Close" :size="11" /></template>
       </UiButton>
     </template>

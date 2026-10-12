@@ -4,7 +4,8 @@
 // SQLite DB via the shared /v1/data/* router (llm_runner.platform.make_data_router).
 // Identical in every same-stack app; the host only passes its appName for the
 // download filename + copy.
-import { reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { request, requestBlob, postForm } from "../client.js";
 import UiButton from "../common/components/UiButton.vue";
 import UiCheckbox from "../common/components/UiCheckbox.vue";
@@ -12,8 +13,12 @@ import { confirmDialog, promptDialog } from "../common/services/dialog.js";
 import { saveBlob } from "../common/services/fileSave.js";
 import { pushToast } from "../common/services/toastBridge.js";
 
+const { t } = useI18n();
+// The word the reset prompt asks for — the same in every language, since the code compares it.
+const RESET_WORD = "RESET";
+
 const props = defineProps({
-  appName: { type: String, default: "Workspace" },
+  appName: { type: String, default: "" },
   // NOTE: the old `save-file` prop was REMOVED 2026-08-15. Where a backup lands
   // is decided by `common/services/fileSave.js` — the host wires its native
   // saver once with configureFileSave() and every export inherits it. Passing it
@@ -28,6 +33,7 @@ const props = defineProps({
   // out). Apps that pass nothing look exactly as before.
   options: { type: Array, default: () => [] },
 });
+const app = computed(() => props.appName || t("kit.data.defaultApp"));
 const busy = ref("");
 // The options' live checked-state, seeded from each entry's default (on unless
 // the app says otherwise).
@@ -51,7 +57,7 @@ async function exportBackup() {
   busy.value = "backup";
   try {
     const blob = await requestBlob(`/v1/data/backup${backupQuery()}`);
-    const filename = `${props.appName.toLowerCase().replace(/\s+/g, "-")}-backup-${stamp()}.zip`;
+    const filename = `${app.value.toLowerCase().replace(/\s+/g, "-")}-backup-${stamp()}.zip`;
     // THE one save door (2026-08-15) — native dialog where the host wired one,
     // Downloads otherwise. The `save-file` PROP is gone: a host wires its saver
     // ONCE via configureFileSave and every export in the app inherits it, rather
@@ -59,17 +65,17 @@ async function exportBackup() {
     // JustVoice + docgen did not, which is exactly how one act ended up with two
     // behaviours across the family.
     const res = await saveBlob(blob, filename, {
-      title: `Save ${props.appName} backup`,
-      filterName: `${props.appName} backup`,
+      title: t("kit.data.saveTitle", { app: app.value }),
+      filterName: t("kit.data.filterName", { app: app.value }),
       filterExt: "zip",
     });
     if (res.cancelled) return;
     pushToast({
-      message: res.downloaded ? "Backup downloaded." : "Backup saved.",
+      message: res.downloaded ? t("kit.data.downloaded") : t("kit.data.saved"),
       kind: "success",
     });
   } catch (e) {
-    pushToast({ message: `Backup failed: ${e.message}`, kind: "error" });
+    pushToast({ message: t("kit.data.err.backup", { error: e.message }), kind: "error" });
   } finally {
     busy.value = "";
   }
@@ -80,9 +86,9 @@ async function onImport(e) {
   e.target.value = "";
   if (!file) return;
   const ok = await confirmDialog({
-    title: "Restore from backup?",
-    message: "This replaces ALL current data with the backup's contents. Anything not in the backup is lost.",
-    confirmLabel: "Restore",
+    title: t("kit.data.restore.title"),
+    message: t("kit.data.restore.body"),
+    confirmLabel: t("kit.data.restore.confirm"),
     danger: true,
   });
   if (!ok) return;
@@ -91,32 +97,32 @@ async function onImport(e) {
     const fd = new FormData();
     fd.append("file", file);
     await postForm("/v1/data/restore", fd);
-    pushToast({ message: "Restored — reloading…", kind: "success" });
+    pushToast({ message: t("kit.data.restore.done"), kind: "success" });
     setTimeout(() => window.location.reload(), 700);
   } catch (err) {
-    pushToast({ message: `Restore failed: ${err.message}`, kind: "error" });
+    pushToast({ message: t("kit.data.err.restore", { error: err.message }), kind: "error" });
     busy.value = "";
   }
 }
 
 async function reset() {
   const typed = await promptDialog({
-    title: `Reset ${props.appName}?`,
-    label: "Wipes ALL data — projects, settings, AI providers — and reloads with the demo seed. Type RESET to confirm.",
-    confirmLabel: "Reset",
+    title: t("kit.data.reset.title", { app: app.value }),
+    label: t("kit.data.reset.label", { word: RESET_WORD }),
+    confirmLabel: t("kit.data.reset.confirm"),
     danger: true,
   });
-  if (typed !== "RESET") {
-    if (typed != null) pushToast({ message: "Confirmation didn't match — not reset." });
+  if (typed !== RESET_WORD) {
+    if (typed != null) pushToast({ message: t("kit.data.reset.mismatch") });
     return;
   }
   busy.value = "reset";
   try {
     await request("/v1/data/reset", { method: "POST" });
-    pushToast({ message: "Reset — reloading…", kind: "success" });
+    pushToast({ message: t("kit.data.reset.done"), kind: "success" });
     setTimeout(() => window.location.reload(), 700);
   } catch (e) {
-    pushToast({ message: `Reset failed: ${e.message}`, kind: "error" });
+    pushToast({ message: t("kit.data.err.reset", { error: e.message }), kind: "error" });
     busy.value = "";
   }
 }
@@ -126,8 +132,8 @@ async function reset() {
   <div class="lu-data">
     <div class="lu-data-row">
       <div class="lu-data-info">
-        <b>Backup &amp; restore</b>
-        <span class="lu-muted">Download a full snapshot (database + assets) as a ZIP, or restore one — to move between machines or keep an off-device copy.</span>
+        <b>{{ t('kit.data.title') }}</b>
+        <span class="lu-muted">{{ t('kit.data.hint') }}</span>
         <!-- The app's per-backup choices (the options seam). A backup made with a
              box unchecked simply leaves that content out; restoring such a backup
              leaves the live copy of that content untouched. -->
@@ -136,20 +142,20 @@ async function reset() {
         </label>
       </div>
       <div class="lu-data-actions">
-        <UiButton intent="primary" size="small" :loading="busy === 'backup'" @click="exportBackup">Export backup…</UiButton>
+        <UiButton intent="primary" size="small" :loading="busy === 'backup'" @click="exportBackup">{{ t('kit.data.export') }}</UiButton>
         <UiButton as="label" intent="secondary" size="small">
-          Import backup…
+          {{ t('kit.data.import') }}
           <input type="file" accept=".zip,application/zip" style="display:none" @change="onImport" />
         </UiButton>
       </div>
     </div>
     <div class="lu-data-row lu-data-danger">
       <div class="lu-data-info">
-        <b>Reset {{ appName.toLowerCase() }}</b>
-        <span class="lu-muted">Wipes the entire database and reloads with the demo seed. Take a backup first.</span>
+        <b>{{ t('kit.data.reset.heading', { app: app.toLowerCase() }) }}</b>
+        <span class="lu-muted">{{ t('kit.data.reset.hint') }}</span>
       </div>
       <div class="lu-data-actions">
-        <UiButton intent="danger" size="small" :loading="busy === 'reset'" @click="reset">Reset…</UiButton>
+        <UiButton intent="danger" size="small" :loading="busy === 'reset'" @click="reset">{{ t('kit.data.reset.button') }}</UiButton>
       </div>
     </div>
   </div>

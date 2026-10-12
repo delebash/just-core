@@ -39,7 +39,7 @@
 import { reactive } from "vue";
 
 import { onRequestWrite, request } from "../client.js";
-import { CLASS_LAYER_LABEL } from "../tuneState.js";
+import { kitT } from "../common/services/kitI18n.js";
 
 // THE source-label map (2026-07-16): a resolved-route `valueSource` → the user
 // language every thinking-budget surface says it in — the feature chip's popover
@@ -50,18 +50,13 @@ import { CLASS_LAYER_LABEL } from "../tuneState.js";
 // words are imported from tuneState.js (CLASS_LAYER_LABEL), the badge family's home,
 // because this map and the catalog badge had silently drifted into two spellings of
 // the same layer. Change the words there, not here.
-export const RESOLVED_SOURCE_LABELS = {
-  preset: "this preset", // the feature's own ask (2026-07-16 preset tier)
-  tune: "your applied config",
-  class: CLASS_LAYER_LABEL,
-  base: "global default",
-  default: "built-in default",
-  invalid: "invalid value",
-};
+// kit.source.<valueSource>: preset — the feature's own ask (2026-07-16 preset tier); class — links
+// to the class layer's one name (kit.tune.classLayer).
+const SOURCES = new Set(["preset", "tune", "class", "base", "default", "invalid"]);
 
 /** A resolved-route `valueSource` → its user-facing label ("" when it has none). */
 export function resolvedSourceLabel(source) {
-  return RESOLVED_SOURCE_LABELS[source] || "";
+  return SOURCES.has(source) ? kitT(`kit.source.${source}`) : "";
 }
 
 const cache = reactive({}); // key → resolved-route row

@@ -21,6 +21,7 @@
 import { request, requestStream } from "../client.js";
 import { useAiTasksStore } from "../stores/aiTasks.js";
 import { friendlyAiError } from "./aiErrors.js";
+import { kitT } from "../common/services/kitI18n.js";
 
 // Task-panel registration shared by both wrappers: `task` = true | { label,
 // meta } registers in the global AI task panel; a caller-supplied `signal` is
@@ -111,13 +112,9 @@ function shouldFallBack(err, framesSeen, signal) {
 // latter, measured 2026-09-28). Treated as a failure, never as an answer: a caller
 // parsing JSON would otherwise read a cut-off reply as "nothing found". The partial
 // text rides on `.content` for a caller that wants it.
-export const CUT_OFF_MESSAGE =
-  "The answer was cut off: the model ran out of room before it finished. If this "
-  + "feature's preset has a Max tok cap, raise or clear it; otherwise the text sent "
-  + "was too long for the model's context.";
 
 function cutOffError(content) {
-  const e = new Error(CUT_OFF_MESSAGE);
+  const e = new Error(kitT("kit.aiError.cutOff"));
   e.cutOff = true;
   e.content = content;
   return e;

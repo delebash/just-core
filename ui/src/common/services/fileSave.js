@@ -27,6 +27,7 @@
 // no shell) passes its own (2026-10-08, the kit's docs/plans/2026-10-08-the-phone.md).
 
 import { isDesktopShell } from "./external.js";
+import { kitT } from "./kitI18n.js";
 
 const config = { save: null, available: () => isDesktopShell() };
 
@@ -57,7 +58,7 @@ export async function saveBlob(blob, filename, opts = {}) {
   if (canSaveNatively()) {
     const res = await config.save(blob, { filename, ...opts });
     if (!res || res.cancelled) return { ok: false, cancelled: true };
-    if (res.ok === false) throw new Error(res.error || "save failed");
+    if (res.ok === false) throw new Error(res.error || kitT("kit.fileSave.failed"));
     return { ok: true, path: res.path };
   }
   downloadBlob(blob, filename);

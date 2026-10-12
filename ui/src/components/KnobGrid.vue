@@ -37,6 +37,7 @@
 //   default" placeholders — was REMOVED 2026-07-09 with QC-17: the app no longer
 //   claims to know the engine's defaults; unset switches simply don't render.)
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import UiButton from "../common/components/UiButton.vue";
 import UiCheckbox from "../common/components/UiCheckbox.vue";
@@ -46,9 +47,10 @@ import UiSelect from "../common/components/UiSelect.vue";
 const props = defineProps({
   modelValue: { type: Array, default: () => [] }, // [{ name, value }]
   catalog: { type: Object, default: () => ({}) }, // name -> { help, kind, perRequest }  (add-row mode)
-  namePlaceholder: { type: String, default: "flag (e.g. ctx_len)" },
-  valuePlaceholder: { type: String, default: "value" },
-  addLabel: { type: String, default: "＋ Add switch" },
+  // The wording props default to the kit's words (kit.knobs.*) when the host passes none.
+  namePlaceholder: { type: String, default: "" },
+  valuePlaceholder: { type: String, default: "" },
+  addLabel: { type: String, default: "" },
   // Grouped add-row mode (QC-10/17, 2026-07-09): section headings over the SAME
   // rows/helpers. `groups` = ordered [{ key, label }]; `rowGroups` maps a flag
   // name to its group key. Unmapped/new rows land in `fallbackGroup` (a group
@@ -177,7 +179,11 @@ function resetAll() {
   );
 }
 
-const BOOL_OPTIONS = [{ value: "true", label: "On" }, { value: "false", label: "Off" }];
+const { t } = useI18n();
+const nameHint = computed(() => props.namePlaceholder || t("kit.knobs.namePlaceholder"));
+const valueHint = computed(() => props.valuePlaceholder || t("kit.knobs.valuePlaceholder"));
+const addText = computed(() => props.addLabel || t("kit.knobs.add"));
+const BOOL_OPTIONS = computed(() => [{ value: "true", label: t("kit.knobs.on") }, { value: "false", label: t("kit.knobs.off") }]);
 
 // Multi-column (samplers): ONE flat list — all knobs visible at once, flowing
 // row-major into the next column (user decision 2026-06-30: no Common/Advanced
@@ -206,14 +212,14 @@ const displayRows = computed(() => {
     <div class="ui-kg-scroll" :style="scrollMax ? { maxHeight: scrollMax } : null">
       <template v-for="row in displayRows" :key="row.expander ? '__adv' : row.m.flagName">
         <button v-if="row.expander" type="button" class="ui-kg-advtoggle" @click="advancedOpen = !advancedOpen">
-          {{ advancedOpen ? "▾" : "▸" }} Advanced <span class="ui-kg-advcount">({{ advancedRows.length }})</span>
+          {{ advancedOpen ? "▾" : "▸" }} {{ t('kit.knobs.advanced') }} <span class="ui-kg-advcount">({{ advancedRows.length }})</span>
         </button>
         <div v-else class="ui-kg-crow" :class="{ 'is-on': isOn(row.m.flagName) }">
           <UiCheckbox :model-value="isOn(row.m.flagName)" @update:model-value="(on) => toggle(row.m, on)" />
           <div class="ui-kg-metacell" :title="row.m.help || ''">
             <code class="ui-kg-flag">{{ row.m.flagName }}</code>
             <span v-if="origins[row.m.flagName]" class="ui-kg-origin"
-              title="Where this value comes from">{{ origins[row.m.flagName] }}</span>
+              :title="t('kit.knobs.originTip')">{{ origins[row.m.flagName] }}</span>
           </div>
           <UiSelect
             v-if="row.m.kind === 'bool'"
@@ -237,10 +243,10 @@ const displayRows = computed(() => {
             :model-value="valOf(row.m.flagName) ?? ''"
             :type="row.m.kind === 'int' || row.m.kind === 'float' ? 'number' : 'text'"
             :disabled="!isOn(row.m.flagName)"
-            :placeholder="row.m.default || 'value'"
+            :placeholder="row.m.default || valueHint"
             @update:model-value="setVal(row.m.flagName, $event)"
           />
-          <UiButton v-if="isChanged(row.m)" intent="ghost" size="small" title="Reset to default" @click="resetOne(row.m)">↺</UiButton>
+          <UiButton v-if="isChanged(row.m)" intent="ghost" size="small" :title="t('kit.knobs.resetOne')" @click="resetOne(row.m)">↺</UiButton>
           <span v-else class="ui-kg-resetspace" />
         </div>
       </template>
@@ -248,19 +254,19 @@ const displayRows = computed(() => {
       <!-- Keys not in the list above: a custom key, or one set here while also
            edited elsewhere. Raw name/value so nothing is hidden from the user. -->
       <template v-if="extraRows.length">
-        <div class="ui-kg-extras-h lu-muted">Other keys</div>
+        <div class="ui-kg-extras-h lu-muted">{{ t('kit.knobs.otherKeys') }}</div>
         <div v-for="({ r, i }) in extraRows" :key="`x${i}`" class="ui-kg-crow ui-kg-extra">
-          <UiInput :model-value="r.name" :placeholder="namePlaceholder" class="ui-kg-name" @update:model-value="patch(i, 'name', $event)" />
-          <UiInput :model-value="r.value" :placeholder="valuePlaceholder" class="ui-kg-val" @update:model-value="patch(i, 'value', $event)" />
-          <UiButton intent="ghost" size="small" title="Remove" @click="remove(i)">✕</UiButton>
+          <UiInput :model-value="r.name" :placeholder="nameHint" class="ui-kg-name" @update:model-value="patch(i, 'name', $event)" />
+          <UiInput :model-value="r.value" :placeholder="valueHint" class="ui-kg-val" @update:model-value="patch(i, 'value', $event)" />
+          <UiButton intent="ghost" size="small" :title="t('kit.knobs.remove')" @click="remove(i)">✕</UiButton>
         </div>
       </template>
     </div>
 
     <div class="ui-kg-foot">
-      <UiButton intent="ghost" size="small" @click="add">{{ addLabel }}</UiButton>
+      <UiButton intent="ghost" size="small" @click="add">{{ addText }}</UiButton>
       <span class="ui-kg-footspace" />
-      <UiButton v-if="showFooterReset" intent="ghost" size="small" title="Reset the listed knobs to their defaults" @click="resetAll">Reset to defaults</UiButton>
+      <UiButton v-if="showFooterReset" intent="ghost" size="small" :title="t('kit.knobs.resetAllTip')" @click="resetAll">{{ t('kit.switches.reset.button') }}</UiButton>
     </div>
   </div>
 
@@ -280,12 +286,12 @@ const displayRows = computed(() => {
           <div class="ui-kg-namecell">
             <UiInput
               :model-value="r.name"
-              :placeholder="namePlaceholder"
+              :placeholder="nameHint"
               class="ui-kg-name"
               :title="meta(r.name)?.help || ''"
               @update:model-value="patch(i, 'name', $event)"
             />
-            <span v-if="!groups.length && origins[r.name]" class="ui-kg-origin" title="Where this value comes from">{{ origins[r.name] }}</span>
+            <span v-if="!groups.length && origins[r.name]" class="ui-kg-origin" :title="t('kit.knobs.originTip')">{{ origins[r.name] }}</span>
           </div>
           <UiSelect
             v-if="valueOptions(r.name)"
@@ -297,12 +303,12 @@ const displayRows = computed(() => {
           <UiInput
             v-else
             :model-value="r.value"
-            :placeholder="valuePlaceholder"
+            :placeholder="valueHint"
             :type="valueType(r.name)"
             :title="meta(r.name)?.help || ''"
             @update:model-value="patch(i, 'value', $event)"
           />
-          <UiButton intent="ghost" size="small" title="Remove" @click="remove(i)">✕</UiButton>
+          <UiButton intent="ghost" size="small" :title="t('kit.knobs.remove')" @click="remove(i)">✕</UiButton>
         </div>
         <!-- The labeling law (user, 2026-07-16): a row in a switches surface must be a
              real engine switch or SAY it isn't. THE one note site — it rides the catalog
@@ -310,11 +316,11 @@ const displayRows = computed(() => {
              bundles) get it from here; no per-grid copy. Full-width (not in the namecell)
              so the sentence stays one legible line. -->
         <div v-if="meta(r.name)?.perRequest" class="ui-kg-perreq">
-          per-request — sent with every request as JSON, not a launch flag; applies without reload
+          {{ t('kit.knobs.perRequest') }}
         </div>
       </template>
     </template>
-    <UiButton intent="ghost" size="small" class="ui-kg-add" @click="add">{{ addLabel }}</UiButton>
+    <UiButton intent="ghost" size="small" class="ui-kg-add" @click="add">{{ addText }}</UiButton>
   </div>
 </template>
 

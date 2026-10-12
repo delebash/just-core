@@ -34,6 +34,7 @@
  * @param {{webBase?: string}} [opts]  public docs base URL, if the app has one
  * @returns {{loadDoc, hasDoc, titleForSlug, webUrlFor}}
  */
+import { kitT } from "./kitI18n.js";
 export function makeDocsHelpAdapter(loaders, toc, { webBase = "" } = {}) {
   // slug → () => Promise<rawMarkdown>
   const docLoaders = {};
@@ -61,7 +62,7 @@ export function makeDocsHelpAdapter(loaders, toc, { webBase = "" } = {}) {
   }
 
   function titleForSlug(slug) {
-    if (!slug || slug === "index") return "Help";
+    if (!slug || slug === "index") return kitT("kit.help.title");
     for (const group of toc) {
       const hit = group.items.find((i) => i.slug === slug);
       if (hit) return hit.title;

@@ -21,13 +21,14 @@
 // the filter box stays, and keeps its focus.
 import { QSelect } from "quasar";
 import { computed, nextTick, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },
   options:    { type: Array, default: () => [] },
   optionLabel:{ type: String, default: "label" },
   optionValue:{ type: String, default: "value" },
-  placeholder:{ type: String, default: "Select…" },
+  placeholder:{ type: String, default: "" }, // "" → the kit's "Select…"
   disabled:   { type: Boolean, default: false },
   filterable: { type: Boolean, default: true },
   id:         { type: String, default: undefined },
@@ -39,7 +40,10 @@ const open = ref(false);
 const query = ref("");
 const field = ref(null);
 const filterEl = ref(null);
-const NO_MATCH = { label: "No matches", value: Symbol("no-match"), disable: true, empty: true };
+const { t } = useI18n();
+// One stable row object (its Symbol value is its identity); the label is read when shown.
+const NO_MATCH = Object.defineProperty({ value: Symbol("no-match"), disable: true, empty: true }, "label",
+  { get: () => t("kit.select.noMatches"), enumerable: true });
 
 // Accept plain strings/numbers OR { [optionLabel]: …, [optionValue]: … }.
 const normalized = computed(() =>
@@ -168,13 +172,13 @@ function itemAttrs(p, opt) {
     @popup-hide="onHide"
   >
     <template #selected>
-      <span v-if="!chips.length" class="ui-mselect-placeholder">{{ placeholder }}</span>
+      <span v-if="!chips.length" class="ui-mselect-placeholder">{{ placeholder || t('kit.select.placeholder') }}</span>
       <span v-else class="ui-mselect-chips">
         <span v-for="c in chips" :key="String(c.value)" class="ui-mselect-chip">
           {{ c.label }}
           <span
             class="ui-mselect-chip-x" role="button" tabindex="-1"
-            :aria-label="`Remove ${c.label}`"
+            :aria-label="t('kit.common.removeItem', { item: c.label })"
             @click="remove(c.value, $event)" @pointerdown.stop @mousedown.stop
           >
             <svg viewBox="0 0 16 16" width="10" height="10" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -186,7 +190,7 @@ function itemAttrs(p, opt) {
       <span class="ui-select-icons">
         <button
           v-if="chips.length" type="button" class="ui-select-clear" tabindex="-1"
-          aria-label="Clear all" @click.stop="clearAll" @pointerdown.stop @mousedown.stop
+          :aria-label="t('kit.select.clearAll')" @click.stop="clearAll" @pointerdown.stop @mousedown.stop
         >
           <svg viewBox="0 0 16 16" width="11" height="11" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
@@ -199,7 +203,7 @@ function itemAttrs(p, opt) {
       <!-- the bar stays at the top of the scrolling list, as the filter did above the old list -->
       <div class="ui-mselect-filterbar">
         <input
-          ref="filterEl" v-model="query" class="ui-mselect-filter" placeholder="Filter…"
+          ref="filterEl" v-model="query" class="ui-mselect-filter" :placeholder="t('kit.select.filter')"
           autocomplete="off" @keydown="onFilterKeydown" @click.stop @mousedown.stop
         />
       </div>

@@ -15,6 +15,7 @@
 // uses to surface "Undo".
 
 import { Notify } from "quasar";
+import { kitT } from "./kitI18n.js";
 
 // sonner's icons for the four kinds (Heroicons, MIT License, Copyright (c) Tailwind Labs,
 // Inc.), copied from vue-sonner 2.0.9, in QIcon's "path@@style|viewBox" form, under its licence:
@@ -105,7 +106,7 @@ export function pushToast({ message, title, description, kind, action, duration 
     classes: `ui-toast ui-toast--${k || "normal"}`,
     attrs: { role: "status", "data-kind": k || "normal", onMouseenter: onEnter, onMouseleave: onLeave },
     actions: [
-      { icon: CLOSE_ICON, class: "ui-toast__close", "aria-label": "Close toast", round: true, dense: true, ripple: false },
+      { icon: CLOSE_ICON, class: "ui-toast__close", "aria-label": kitT("kit.toast.close"), round: true, dense: true, ripple: false },
       ...(action ? [{ label: action.label, handler: action.fn, class: "ui-toast__action", noCaps: true, ripple: false }] : []),
     ],
     onDismiss: () => {

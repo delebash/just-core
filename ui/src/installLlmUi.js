@@ -23,8 +23,8 @@
 import { configureExternal, isDesktopShell } from "./common/services/external.js";
 import { configureServerApi, makeOriginAwareResolver } from "./common/services/serverApi.js";
 import { configureLlmUi } from "./client.js";
-import { configureQuickSetupCopy } from "./common/services/quickSetupCopy.js";
-import { catalogCopyFrom, fillKitWords, setKitI18n } from "./common/services/kitI18n.js";
+import { setKitI18n } from "./common/services/kitI18n.js";
+import { setQuickSetupApplied } from "./services/quickSetupApplied.js";
 import { registerFeaturePanels, registerLabAdapters, registerSectionedFeatures } from "./services/labAdapters.js";
 import LlmUiHosts from "./components/LlmUiHosts.vue";
 import { installQuasarTheme } from "./quasar/install.js";
@@ -33,7 +33,7 @@ import { installQuasarTheme } from "./quasar/install.js";
 // that has no embedding features, or no local engine, says so ONCE here, instead of
 // switching off each surface that would have shown one.
 //   embeddings: false  — no embedding features (docgen; JustWrite's phone): the catalog's
-//                        embedding slot (`_copyFor`), the Set-as-default dialog's embed
+//                        embedding slot, the Set-as-default dialog's embed
 //                        block and Quick Setup's embed step hide.
 //   localEngine: false — online providers only (JustWrite's phone, whose in-app server has
 //                        no llama.cpp runner): the AI page's Local scope, its Quick Setup,
@@ -68,21 +68,17 @@ function warnNoOpener() {
  * Wire the shared LLM UI into `app`.
  *
  * @param app                Vue application instance
- * @param opts.i18n          the app's vue-i18n instance, created from the kit's catalog
- *                           (`kitMessages`) with the app's own merged after it — the
- *                           kit's words come from its `kit.*` keys in the app's
- *                           language, an app's own `kit.*` key rewording one
+ * @param opts.i18n          REQUIRED — the app's vue-i18n instance, created from the kit's
+ *                           catalog (`kitMessages()`) with the app's own merged after it:
+ *                           the kit's words are its `kit.*` keys in the app's language,
+ *                           and an app rewords one (its model catalog's or Quick Setup's
+ *                           voice) by setting the same key in its own catalog
  * @param opts.onQuickSetupApplied called when Quick Setup finishes (`{ modelId }`)
  * @param opts.devPorts      Vite dev ports that must NOT be treated as same-origin
  * @param opts.fallbackBase  loopback base for dev + the Tauri webview
  * @param opts.serverOverrideKey localStorage key that, when set, points the app at
  *                           a remote server and beats the origin-aware default
  * @param opts.resolveBase   supply a resolver instead of devPorts/fallbackBase
- * @param opts.catalogCopy   this app's words on the shared model-catalog surface
- * @param opts.quickSetupCopy this app's VOICE on the shared Quick Setup wizard
- *                           (band caption · confirm title · model hint · bar roles ·
- *                           done body · onApplied hook) — canon words stay in the
- *                           labels store, never here
  * @param opts.capabilities  e.g. `{ embeddings: false, localEngine: false }` (above)
  * @param opts.labAdapters   per-FEATURE Lab adapters `{ featureKey: { run, render,
  *                           configExtra } }` — the app's real pipeline behind that
@@ -110,14 +106,16 @@ export function installLlmUi(app, {
   fallbackBase = "",
   serverOverrideKey = "",
   resolveBase,
-  catalogCopy,
-  quickSetupCopy,
   capabilities,
   labAdapters,
   sectionedFeatures,
   featurePanels,
   external = true,
 } = {}) {
+  if (!i18n?.global) {
+    throw new Error("installLlmUi needs the app's vue-i18n instance: installLlmUi(app, { i18n }) — see app-structure §Q.");
+  }
+  setKitI18n(i18n);
   const resolve = resolveBase
     || makeOriginAwareResolver({ devPorts, fallback: fallbackBase, overrideKey: serverOverrideKey });
 
@@ -134,13 +132,8 @@ export function installLlmUi(app, {
       "(e.g. http://127.0.0.1:<your server port>) or every /v1 call will 404 into an empty view.",
     );
   }
-  if (i18n) {
-    setKitI18n(i18n);
-    fillKitWords(i18n);
-  }
-  configureLlmUi({ baseUrl: base, catalogCopy: _copyFor(catalogCopy ?? (i18n ? catalogCopyFrom(i18n) : undefined), capabilities) });
-  if (quickSetupCopy) configureQuickSetupCopy(quickSetupCopy);
-  if (onQuickSetupApplied) configureQuickSetupCopy({ onApplied: onQuickSetupApplied });
+  configureLlmUi({ baseUrl: base });
+  setQuickSetupApplied(onQuickSetupApplied);
 
   if (capabilities) Object.assign(_capabilities, capabilities);
   if (labAdapters) registerLabAdapters(labAdapters);
@@ -165,15 +158,4 @@ export function installLlmUi(app, {
   // one thing missing rather than three, and that one thing is named after the job.
   app.component("LlmUiHosts", LlmUiHosts);
   return { resolveBase: resolve, base };
-}
-
-/** Capabilities are the host's vocabulary; `catalogCopy` flags are the kit's. Declaring
- *  `embeddings: false` should not ALSO require knowing that the catalog calls it
- *  `showEmbedding` — an explicit copy flag still wins if a host sets both.
- *  NOTE (2026-08-04): this covers the catalog's embedding slot. Model rows still ship
- *  `embedPlacement`/`embedLeftoverMb` regardless; honouring the capability all the way
- *  down is the rest of that job. */
-function _copyFor(catalogCopy, capabilities) {
-  if (!capabilities || capabilities.embeddings !== false) return catalogCopy;
-  return { showEmbedding: false, ...(catalogCopy || {}) };
 }

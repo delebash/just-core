@@ -72,10 +72,12 @@
 //   exist beside it.
 
 import { computed, onMounted, onUpdated, ref, watch, useSlots } from "vue";
+import { useI18n } from "vue-i18n";
 import { QTable } from "quasar";
 import Icon from "./Icon.vue";
 import { canGlobalFilter, firstSortDir, nextSortingOrder, sortRows } from "./tableRows.js";
 
+const { t } = useI18n();
 const props = defineProps({
   data:               { type: Array, default: () => [] },
   columns:            { type: Array, required: true },
@@ -284,7 +286,7 @@ onUpdated(adoptTable);
       <template #top-row>
         <tr v-if="!visibleRows.length" class="ui-table-empty-row">
           <td :colspan="props.columns.length">
-            <slot name="empty"><span>No results.</span></slot>
+            <slot name="empty"><span>{{ t('kit.table.noResults') }}</span></slot>
           </td>
         </tr>
       </template>
@@ -306,24 +308,24 @@ onUpdated(adoptTable);
     </QTable>
 
     <div v-if="paginationCfg" class="ui-table-pager">
-      <span class="ui-table-pager-count">{{ pageStart }}–{{ pageEnd }} of {{ totalRows }}</span>
+      <span class="ui-table-pager-count">{{ t('kit.table.range', { start: pageStart, end: pageEnd, total: totalRows }) }}</span>
       <span class="ui-table-pager-controls">
-        <button class="ui-table-pager-btn ui-table-pager-edge" :disabled="!canPrev" @click="goTo(0)" v-tooltip.bottom="'First page'">
+        <button class="ui-table-pager-btn ui-table-pager-edge" :disabled="!canPrev" @click="goTo(0)" v-tooltip.bottom="t('kit.table.first')">
           <Icon name="ChevLeft" :size="12" /><Icon name="ChevLeft" :size="12" />
         </button>
-        <button class="ui-table-pager-btn" :disabled="!canPrev" @click="goTo(pageIndex - 1)" v-tooltip.bottom="'Previous page'">
+        <button class="ui-table-pager-btn" :disabled="!canPrev" @click="goTo(pageIndex - 1)" v-tooltip.bottom="t('kit.table.prev')">
           <Icon name="ChevLeft" :size="12" />
         </button>
-        <span class="ui-table-pager-page">Page {{ pageIndex + 1 }} / {{ Math.max(1, pageCount) }}</span>
-        <button class="ui-table-pager-btn" :disabled="!canNext" @click="goTo(pageIndex + 1)" v-tooltip.bottom="'Next page'">
+        <span class="ui-table-pager-page">{{ t('kit.table.page', { page: pageIndex + 1, pages: Math.max(1, pageCount) }) }}</span>
+        <button class="ui-table-pager-btn" :disabled="!canNext" @click="goTo(pageIndex + 1)" v-tooltip.bottom="t('kit.table.next')">
           <Icon name="ChevRight" :size="12" />
         </button>
-        <button class="ui-table-pager-btn ui-table-pager-edge" :disabled="!canNext" @click="goTo(pageCount - 1)" v-tooltip.bottom="'Last page'">
+        <button class="ui-table-pager-btn ui-table-pager-edge" :disabled="!canNext" @click="goTo(pageCount - 1)" v-tooltip.bottom="t('kit.table.last')">
           <Icon name="ChevRight" :size="12" /><Icon name="ChevRight" :size="12" />
         </button>
-        <label class="ui-table-pager-size-label" for="ui-table-pager-size">Rows per page</label>
+        <label class="ui-table-pager-size-label" for="ui-table-pager-size">{{ t('kit.table.rowsPerPage') }}</label>
         <select id="ui-table-pager-size" class="ui-table-pager-size" :value="paginationState.pageSize" @change="setPageSize($event.target.value)">
-          <option v-for="n in paginationCfg.pageSizeOptions" :key="n" :value="n">{{ n }} / page</option>
+          <option v-for="n in paginationCfg.pageSizeOptions" :key="n" :value="n">{{ t('kit.table.perPage', { n }) }}</option>
         </select>
       </span>
     </div>

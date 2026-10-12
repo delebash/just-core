@@ -19,6 +19,7 @@
 // resolve breaks it. An app with sync imports it by path:
 //   import SyncPanel from "@delebash/llm-ui/components/SyncPanel.vue";
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import QRCode from "qrcode";
 import { llmUiUrl, request } from "../client.js";
 import UiButton from "../common/components/UiButton.vue";
@@ -33,9 +34,11 @@ import { pushToast } from "../common/services/toastBridge.js";
 import { serverFetch } from "../common/services/transport.js";
 
 const props = defineProps({
-  appName: { type: String, default: "the app" },
+  // The app's name and its unit nouns, in the app's language (JustWrite: "book" / "books");
+  // the kit's own words stand in when an app passes none.
+  appName: { type: String, default: "" },
   // What one unit of sync is called, and its plural ("book" / "books").
-  unitNoun: { type: Object, default: () => ({ one: "item", many: "items" }) },
+  unitNoun: { type: Object, default: null },
   // The app's units, for the export picker: [{ id, title, updatedAt }] — updatedAt (ISO) ticks
   // the ones changed since the last export.
   units: { type: Array, default: () => [] },
@@ -72,19 +75,24 @@ const latest = computed(() => (status.value?.peers ?? []).find((p) => p.lastSync
 const canSyncNow = computed(() => !!settings.value.folder || (settings.value.peers ?? []).length > 0);
 const pickedIds = computed(() => props.units.filter((u) => picked[u.id]).map((u) => u.id));
 
+const { t, d } = useI18n();
+const app = computed(() => props.appName || t("kit.sync.theApp"));
+const noun = computed(() => props.unitNoun || { one: t("kit.sync.item"), many: t("kit.sync.items") });
+
 function ago(iso) {
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return "";
-  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
-  if (s < 60) return "just now";
+  const ts = Date.parse(iso);
+  if (!Number.isFinite(ts)) return "";
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return t("kit.sync.ago.justNow");
   const m = Math.round(s / 60);
-  if (m < 60) return `${m} min ago`;
+  if (m < 60) return t("kit.sync.ago.min", { n: m });
   const h = Math.round(m / 60);
-  if (h < 24) return `${h} h ago`;
-  return new Date(t).toLocaleDateString();
+  if (h < 24) return t("kit.sync.ago.h", { n: h });
+  return d(new Date(ts));
 }
 
-const KIND = { file: "by hand", folder: "cloud folder", http: "network" };
+const KINDS = new Set(["file", "folder", "http"]);
+const kindLabel = (kind) => (KINDS.has(kind) ? t(`kit.sync.kind.${kind}`) : kind || "");
 
 async function load() {
   try {
@@ -135,15 +143,15 @@ async function syncNow() {
   await run("sync", async () => {
     const r = await request("/v1/sync/run", { method: "POST", body: {} });
     const failed = [r.folder, ...(r.peers ?? [])].filter((x) => x && !x.ok);
-    if (failed.length) pushToast({ message: `Sync didn't finish: ${failed.map((f) => f.error).join("; ")}`, kind: "error" });
-    else pushToast({ message: "Synced.", kind: "success" });
+    if (failed.length) pushToast({ message: t("kit.sync.toast.unfinished", { errors: failed.map((f) => f.error).join("; ") }), kind: "error" });
+    else pushToast({ message: t("kit.sync.toast.synced"), kind: "success" });
   });
 }
 
 async function setListening(on) {
   await run("listen", async () => {
     const r = await saveSettings({ listenOnNetwork: on });
-    if (r?.restartRequired) pushToast({ message: `Restart ${props.appName} for this to take effect.`, kind: "info" });
+    if (r?.restartRequired) pushToast({ message: t("kit.sync.toast.restart", { app: app.value }), kind: "info" });
   });
 }
 
@@ -152,16 +160,16 @@ async function showPairingCode() {
     const r = await request("/v1/sync/pair", { method: "POST", body: {} });
     const text = JSON.stringify(r.code);
     pairing.value = { text, qr: await QRCode.toDataURL(text, { margin: 1, width: 220 }) };
-    if (r.restartRequired) pushToast({ message: `Restart ${props.appName} so your other devices can reach it.`, kind: "info" });
+    if (r.restartRequired) pushToast({ message: t("kit.sync.toast.restartReach", { app: app.value }), kind: "info" });
   });
 }
 
 async function copyPairingCode() {
   try {
     await navigator.clipboard.writeText(pairing.value.text);
-    pushToast({ message: "Pairing code copied.", kind: "success" });
+    pushToast({ message: t("kit.sync.toast.codeCopied"), kind: "success" });
   } catch {
-    pushToast({ message: "Couldn't copy — select the code and copy it.", kind: "error" });
+    pushToast({ message: t("kit.sync.toast.copyFailed"), kind: "error" });
   }
 }
 
@@ -176,9 +184,9 @@ async function pairWithCode() {
   await run("join", async () => {
     const r = await request("/v1/sync/pair/join", { method: "POST", body: { code: joinCode.value.trim() } });
     joinCode.value = "";
-    const who = r.peer?.name || "the other device";
+    const who = r.peer?.name || t("kit.sync.otherDevice");
     pushToast({
-      message: r.url ? `Paired with ${who}.` : `Joined ${who}'s library. ${who} didn't answer — changes arrive through the cloud folder, or when it can be reached.`,
+      message: r.url ? t("kit.sync.toast.paired", { who }) : t("kit.sync.toast.joined", { who }),
       kind: "success",
     });
   });
@@ -192,7 +200,7 @@ async function setFolder(folder) {
       const others = libraries.filter((l) => l.library !== status.value?.library);
       if (others.length && !libraries.some((l) => l.library === status.value?.library)) {
         const names = others.flatMap((l) => l.devices.map((d) => d.name || d.id)).join(", ");
-        folderNote.value = `This folder already holds another library (${names}). To join it, pair with a code from one of those devices first — otherwise your ${props.unitNoun.many} start a second library in this folder.`;
+        folderNote.value = t("kit.sync.folderOther", { names, units: noun.value.many });
       }
     }
     await saveSettings({ folder: folder || null });
@@ -211,16 +219,16 @@ async function exportFile() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ projectIds: pickedIds.value, encrypt: encrypt.value }),
     });
-    if (!res.ok) throw new Error(`Export failed (HTTP ${res.status}).`);
+    if (!res.ok) throw new Error(t("kit.sync.err.export", { status: res.status }));
     const disposition = res.headers.get("content-disposition") || "";
     const named = /filename="([^"]+)"/.exec(disposition);
-    const filename = named ? decodeURIComponent(named[1]) : `${props.appName} ${new Date().toISOString().slice(0, 10)}.${props.fileExtension}`;
+    const filename = named ? decodeURIComponent(named[1]) : `${app.value} ${new Date().toISOString().slice(0, 10)}.${props.fileExtension}`;
     const saved = await saveBlob(await res.blob(), filename, {
-      title: `Save ${props.unitNoun.many} for another device`,
-      filterName: `${props.appName} sync file`,
+      title: t("kit.sync.save.title", { units: noun.value.many }),
+      filterName: t("kit.sync.save.filterName", { app: app.value }),
       filterExt: props.fileExtension,
     });
-    if (!saved.cancelled) pushToast({ message: saved.downloaded ? "Sync file downloaded." : "Sync file saved.", kind: "success" });
+    if (!saved.cancelled) pushToast({ message: saved.downloaded ? t("kit.sync.toast.downloaded") : t("kit.sync.toast.saved"), kind: "success" });
   });
 }
 
@@ -242,17 +250,18 @@ async function onImport(e) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     let r = await postImport(bytes, false);
     if (r.status === 409 && r.body?.error === "library-mismatch") {
-      const from = r.body.fromName ? ` (${r.body.fromName})` : "";
       const ok = await confirmDialog({
-        title: "Join another library?",
-        message: `This file is from another library${from}. Join it? Your ${props.unitNoun.many} merge into that library from now on.`,
-        confirmLabel: "Join and import",
+        title: t("kit.sync.join.title"),
+        message: r.body.fromName
+          ? t("kit.sync.join.bodyFrom", { from: r.body.fromName, units: noun.value.many })
+          : t("kit.sync.join.body", { units: noun.value.many }),
+        confirmLabel: t("kit.sync.join.confirm"),
       });
       if (!ok) return;
       r = await postImport(bytes, true);
     }
-    if (r.status !== 200) throw new Error(r.body?.detail || `Import failed (HTTP ${r.status}).`);
-    pushToast({ message: `Imported from ${r.body.from || "the file"}: ${r.body.rows} change${r.body.rows === 1 ? "" : "s"}.`, kind: "success" });
+    if (r.status !== 200) throw new Error(r.body?.detail || t("kit.sync.err.import", { status: r.status }));
+    pushToast({ message: t("kit.sync.toast.imported", { from: r.body.from || t("kit.sync.theFile"), n: r.body.rows }, r.body.rows), kind: "success" });
   });
 }
 
@@ -275,79 +284,79 @@ onBeforeUnmount(() => clearInterval(timer));
     <!-- the status -->
     <div class="lu-card lu-sync-row">
       <div class="lu-sync-info">
-        <b v-if="latest">Synced {{ ago(latest.lastSync) }} · from {{ latest.name || latest.id }}</b>
-        <b v-else>Not synced with another device yet</b>
-        <span class="lu-muted">This device: {{ status?.deviceName || "…" }}.</span>
+        <b v-if="latest">{{ t('kit.sync.status.synced', { ago: ago(latest.lastSync), from: latest.name || latest.id }) }}</b>
+        <b v-else>{{ t('kit.sync.status.never') }}</b>
+        <span class="lu-muted">{{ t('kit.sync.status.thisDevice', { name: status?.deviceName || "…" }) }}</span>
       </div>
       <div class="lu-sync-actions">
-        <UiButton intent="primary" size="small" :loading="busy === 'sync'" :disabled="!canSyncNow" :title="canSyncNow ? '' : 'Choose a cloud folder or pair a device first.'" @click="syncNow">Sync now</UiButton>
+        <UiButton intent="primary" size="small" :loading="busy === 'sync'" :disabled="!canSyncNow" :title="canSyncNow ? '' : t('kit.sync.syncNowNeeds')" @click="syncNow">{{ t('kit.sync.syncNow') }}</UiButton>
       </div>
     </div>
 
     <!-- this device -->
     <div class="lu-card lu-sync-block">
-      <b>This device</b>
+      <b>{{ t('kit.sync.device.title') }}</b>
       <label class="lu-sync-field">
-        <span>Name</span>
+        <span>{{ t('kit.sync.device.name') }}</span>
         <UiInput v-model="nameDraft" size="small" width="name" @blur="saveName" @keydown.enter="saveName" />
       </label>
-      <span class="lu-muted">Your other devices see this name.</span>
+      <span class="lu-muted">{{ t('kit.sync.device.nameHint') }}</span>
       <label class="lu-sync-field">
-        <span>Sync automatically every</span>
+        <span>{{ t('kit.sync.device.every') }}</span>
         <UiNumber v-model="minutesDraft" :min="0" size="small" width="token" @blur="saveMinutes" />
-        <span>minutes</span>
+        <span>{{ t('kit.sync.device.minutes') }}</span>
       </label>
-      <span class="lu-muted">0 syncs only when you press Sync now.</span>
+      <span class="lu-muted">{{ t('kit.sync.device.zero') }}</span>
     </div>
 
     <!-- other devices on the network: pairing -->
     <div class="lu-card lu-sync-block">
-      <b>Other devices</b>
+      <b>{{ t('kit.sync.others.title') }}</b>
       <template v-if="reachable">
       <label class="lu-sync-toggle">
         <UiToggle :model-value="!!settings.listenOnNetwork" :disabled="busy === 'listen'" @update:model-value="setListening" />
-        <span>Let my other devices connect</span>
+        <span>{{ t('kit.sync.others.allow') }}</span>
       </label>
-      <span class="lu-muted">This computer accepts {{ appName }} on your other devices — on the same Wi-Fi, or over Tailscale or ZeroTier. Takes effect when {{ appName }} restarts.</span>
+      <span class="lu-muted">{{ t('kit.sync.others.allowHint', { app }) }}</span>
       <div class="lu-sync-actions">
-        <UiButton intent="secondary" size="small" :loading="busy === 'pair'" @click="showPairingCode">Show pairing code</UiButton>
+        <UiButton intent="secondary" size="small" :loading="busy === 'pair'" @click="showPairingCode">{{ t('kit.sync.others.showCode') }}</UiButton>
       </div>
       <div v-if="pairing" class="lu-sync-pair">
-        <img :src="pairing.qr" alt="Pairing code" width="220" height="220" />
+        <img :src="pairing.qr" :alt="t('kit.sync.others.codeAlt')" width="220" height="220" />
         <div class="lu-sync-info">
-          <span class="lu-muted">On the other device: Settings → Sync → Pair with a code, and paste or scan this. It carries this library's key — share it only with your own devices.</span>
+          <span class="lu-muted">{{ t('kit.sync.others.codeHint') }}</span>
           <code class="lu-sync-code">{{ pairing.text }}</code>
           <div class="lu-sync-actions">
-            <UiButton intent="secondary" size="small" @click="copyPairingCode">Copy code</UiButton>
-            <UiButton intent="ghost" size="small" @click="pairing = null">Hide</UiButton>
+            <UiButton intent="secondary" size="small" @click="copyPairingCode">{{ t('kit.sync.others.copyCode') }}</UiButton>
+            <UiButton intent="ghost" size="small" @click="pairing = null">{{ t('kit.sync.others.hide') }}</UiButton>
           </div>
         </div>
       </div>
       </template>
-      <span v-else class="lu-muted">Pair this device with a computer: on the computer, Settings → Sync → Other devices → Show pairing code; then scan it or paste it here.</span>
-      <b class="lu-sync-sub">Pair with a code</b>
-      <UiTextarea v-model="joinCode" :rows="3" size="small" width="prose" placeholder="Paste the pairing code from your other device" />
+      <span v-else class="lu-muted">{{ t('kit.sync.others.phoneHint') }}</span>
+      <b class="lu-sync-sub">{{ t('kit.sync.others.pairTitle') }}</b>
+      <UiTextarea v-model="joinCode" :rows="3" size="small" width="prose" :placeholder="t('kit.sync.others.pastePh')" />
       <div class="lu-sync-actions">
-        <UiButton intent="primary" size="small" :loading="busy === 'join'" :disabled="!joinCode.trim()" @click="pairWithCode">Pair</UiButton>
-        <UiButton v-if="scanCode" intent="secondary" size="small" :disabled="busy === 'join'" @click="scanAndPair">Scan code…</UiButton>
+        <UiButton intent="primary" size="small" :loading="busy === 'join'" :disabled="!joinCode.trim()" @click="pairWithCode">{{ t('kit.sync.others.pair') }}</UiButton>
+        <UiButton v-if="scanCode" intent="secondary" size="small" :disabled="busy === 'join'" @click="scanAndPair">{{ t('kit.sync.others.scan') }}</UiButton>
       </div>
     </div>
 
     <!-- the cloud folder -->
     <div class="lu-card lu-sync-block">
-      <b>Cloud folder</b>
-      <span class="lu-muted">A folder that Dropbox, OneDrive or another sync app keeps the same on every device. Each device writes its own encrypted files there.</span>
-      <span v-if="!cloudFolder" class="lu-muted"><em>Not on this device yet — it needs signing in to OneDrive or Dropbox. Pair with a computer, or carry a file by hand.</em></span>
+      <b>{{ t('kit.sync.folder.title') }}</b>
+      <span class="lu-muted">{{ t('kit.sync.folder.hint') }}</span>
+      <span v-if="!cloudFolder" class="lu-muted"><em>{{ t('kit.sync.folder.notHere') }}</em></span>
       <template v-else>
       <code v-if="settings.folder" class="lu-sync-code">{{ settings.folder }}</code>
-      <span v-else class="lu-muted"><em>No folder chosen.</em></span>
+      <span v-else class="lu-muted"><em>{{ t('kit.sync.folder.none') }}</em></span>
       <div v-if="!pickFolder" class="lu-sync-actions">
-        <UiInput v-model="folderDraft" size="small" width="path" placeholder="The folder's full path" />
-        <UiButton intent="secondary" size="small" :loading="busy === 'folder'" :disabled="!folderDraft.trim() || folderDraft.trim() === settings.folder" @click="setFolder(folderDraft.trim())">Use this folder</UiButton>
+        <UiInput v-model="folderDraft" size="small" width="path" :placeholder="t('kit.sync.folder.pathPh')" />
+        <UiButton intent="secondary" size="small" :loading="busy === 'folder'" :disabled="!folderDraft.trim() || folderDraft.trim() === settings.folder" @click="setFolder(folderDraft.trim())">{{ t('kit.sync.folder.use') }}</UiButton>
       </div>
       <div class="lu-sync-actions">
-        <UiButton v-if="pickFolder" intent="secondary" size="small" :loading="busy === 'folder'" @click="chooseFolder">{{ settings.folder ? "Change folder…" : "Choose folder…" }}</UiButton>
-        <UiButton v-if="settings.folder" intent="ghost" size="small" @click="setFolder(null)">Stop using it</UiButton>
+        <UiButton v-if="pickFolder" intent="secondary" size="small" :loading="busy === 'folder'" @click="chooseFolder">{{ settings.folder ? t('kit.sync.folder.change') : t('kit.sync.folder.choose') }}</UiButton>
+        <UiButton v-if="settings.folder" intent="ghost" size="small" @click="setFolder(null)">{{ t('kit.sync.folder.stop') }}</UiButton>
       </div>
       <div v-if="folderNote" class="lu-error">{{ folderNote }}</div>
       </template>
@@ -355,22 +364,22 @@ onBeforeUnmount(() => clearInterval(timer));
 
     <!-- by hand -->
     <div class="lu-card lu-sync-block">
-      <b>By hand</b>
-      <span class="lu-muted">No network or account: export a file, take it to the other device any way you like, and import it there. Importing merges — the same file twice changes nothing.</span>
+      <b>{{ t('kit.sync.hand.title') }}</b>
+      <span class="lu-muted">{{ t('kit.sync.hand.hint') }}</span>
       <div v-if="units.length" class="lu-sync-units">
         <label v-for="u in units" :key="u.id" class="lu-sync-unit">
           <UiCheckbox v-model="picked[u.id]" /><span>{{ u.title || u.id }}</span>
         </label>
       </div>
-      <span v-else class="lu-muted"><em>No {{ unitNoun.many }} yet.</em></span>
-      <span class="lu-muted">Ticked: the {{ unitNoun.many }} changed since your last export.</span>
+      <span v-else class="lu-muted"><em>{{ t('kit.sync.hand.none', { units: noun.many }) }}</em></span>
+      <span class="lu-muted">{{ t('kit.sync.hand.ticked', { units: noun.many }) }}</span>
       <label class="lu-sync-toggle">
-        <UiCheckbox v-model="encrypt" /><span>Encrypt the file with this library's key</span>
+        <UiCheckbox v-model="encrypt" /><span>{{ t('kit.sync.hand.encrypt') }}</span>
       </label>
       <div class="lu-sync-actions">
-        <UiButton intent="primary" size="small" :loading="busy === 'export'" :disabled="!pickedIds.length" @click="exportFile">Export…</UiButton>
+        <UiButton intent="primary" size="small" :loading="busy === 'export'" :disabled="!pickedIds.length" @click="exportFile">{{ t('kit.sync.hand.export') }}</UiButton>
         <UiButton as="label" intent="secondary" size="small" :loading="busy === 'import'">
-          Import…
+          {{ t('kit.sync.hand.import') }}
           <input type="file" :accept="`.${fileExtension}`" style="display:none" @change="onImport" />
         </UiButton>
       </div>
@@ -378,16 +387,16 @@ onBeforeUnmount(() => clearInterval(timer));
 
     <!-- the devices -->
     <div class="lu-card lu-sync-block">
-      <b>Devices</b>
-      <span v-if="!(status?.peers ?? []).length" class="lu-muted"><em>None yet.</em></span>
+      <b>{{ t('kit.sync.devices.title') }}</b>
+      <span v-if="!(status?.peers ?? []).length" class="lu-muted"><em>{{ t('kit.sync.devices.none') }}</em></span>
       <div v-for="p in status?.peers ?? []" :key="p.id" class="lu-sync-device">
-        <span><b>{{ p.name || p.id }}</b> <span class="lu-muted">· {{ KIND[p.kind] || p.kind || "" }} · {{ ago(p.lastSync) }}</span></span>
+        <span><b>{{ p.name || p.id }}</b> <span class="lu-muted">· {{ kindLabel(p.kind) }} · {{ ago(p.lastSync) }}</span></span>
       </div>
       <template v-if="(settings.peers ?? []).length">
-        <b class="lu-sync-sub">Synced over the network</b>
+        <b class="lu-sync-sub">{{ t('kit.sync.devices.network') }}</b>
         <div v-for="p in settings.peers" :key="p.url" class="lu-sync-device">
           <span>{{ p.name || p.url }} <span class="lu-muted">· {{ p.url }}</span></span>
-          <UiButton intent="ghost" size="small" :loading="busy === 'remove'" @click="removePeer(p.url)">Remove</UiButton>
+          <UiButton intent="ghost" size="small" :loading="busy === 'remove'" @click="removePeer(p.url)">{{ t('kit.sync.devices.remove') }}</UiButton>
         </div>
       </template>
     </div>

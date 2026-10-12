@@ -5,12 +5,14 @@
 // the provider form (mirrors the mock's cb() / JustWrite's Combobox). Visual
 // rules in styles.css (.lu-cb*).
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
+const { t } = useI18n();
 const props = defineProps({
   modelValue: { type: String, default: "" },
   // items: array of "id" strings OR { id, label } objects
   items: { type: Array, default: () => [] },
-  placeholder: { type: String, default: "Fetch or type a model id" },
+  placeholder: { type: String, default: "" }, // "" → the kit's words
   loading: { type: Boolean, default: false },
   // Show the inline Fetch/Refresh button. Off when the host already fetches the
   // list itself (e.g. LuModelPicker auto-fetches on provider change).
@@ -57,7 +59,7 @@ function openList(v) {
       <input
         class="lu-cb-in"
         :value="modelValue"
-        :placeholder="placeholder"
+        :placeholder="placeholder || t('kit.combobox.placeholder')"
         :disabled="disabled"
         @input="onInput"
         @focus="openList(!disabled && norm.length > 0)"
@@ -66,7 +68,7 @@ function openList(v) {
       <span v-if="!disabled" class="lu-cb-chev" role="button" tabindex="-1" @mousedown.prevent="openList(!open)">▾</span>
       <div v-if="open" class="lu-cb-list">
         <div v-for="m in filtered" :key="m.id" @mousedown.prevent="pick(m.id)">{{ m.label }}</div>
-        <div v-if="!filtered.length" class="lu-cb-empty">{{ items.length ? "No match" : (showFetch ? "No models yet — Fetch first" : "No models listed — type one") }}</div>
+        <div v-if="!filtered.length" class="lu-cb-empty">{{ items.length ? t('kit.combobox.noMatch') : (showFetch ? t('kit.combobox.fetchFirst') : t('kit.combobox.typeOne')) }}</div>
       </div>
     </div>
     <button v-if="showFetch" class="lu-btn lu-btn--secondary lu-btn--small" type="button" :disabled="loading" @click="$emit('fetch')">

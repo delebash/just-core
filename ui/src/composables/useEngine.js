@@ -13,6 +13,7 @@ import { computed, ref } from "vue";
 
 import { request } from "../client.js";
 import { confirmDialog } from "../common/services/dialog.js";
+import { kitT } from "../common/services/kitI18n.js";
 import { createRateTracker, progressCaption, rateSuffix } from "../common/services/downloadRate.js";
 import { applyBuildToUrl, planBinaries, shouldRollback } from "../common/services/engineUrl.js";
 
@@ -39,10 +40,10 @@ const installing = computed(() => st.value?.status === "installing");
 // source — the ONE-DOWNLOADER consolidation, 2026-07-15).
 export function friendlyEnginePhase(detail) {
   const d = String(detail || "").trim();
-  if (!d || d === "llama.cpp engine" || /engine build/i.test(d)) return "Downloading the engine";
+  if (!d || d === "llama.cpp engine" || /engine build/i.test(d)) return kitT("kit.engine.phase.downloading");
   if (d === "removing old builds" || d === "carrying models.ini over" || /^removing old build/.test(d))
-    return "Setting it up";
-  if (d === "cancelling…") return "Cancelling";
+    return kitT("kit.engine.phase.settingUp");
+  if (d === "cancelling…") return kitT("kit.engine.phase.cancelling");
   return d;
 }
 const progressLabel = computed(() => {
@@ -85,7 +86,7 @@ async function refreshEngine() {
       rateText.value = "";
     }
   } catch (e) {
-    error.value = e.message || "Couldn't read engine status.";
+    error.value = e.message || kitT("kit.engine.err.status");
     // QC-13: with NO snapshot at all (the first fetch failed — server still
     // booting, transient net) retry until one lands, so the UI never sits on
     // "Checking…" forever. Quieter than the panel's existing 2.5 s resident
@@ -105,7 +106,7 @@ async function install(force) {
     await request("/v1/llm-runner/engine/install", { method: "POST", body: { force: !!force } });
     await refreshEngine();
   } catch (e) {
-    error.value = e.message || "Install failed.";
+    error.value = e.message || kitT("kit.engine.err.install");
   } finally {
     busy.value = false;
   }
@@ -120,15 +121,15 @@ async function cancel() {
     await request("/v1/llm-runner/engine/install/cancel", { method: "POST" });
     await refreshEngine();
   } catch (e) {
-    error.value = e.message || "Couldn't cancel the install.";
+    error.value = e.message || kitT("kit.engine.err.cancel");
   }
 }
 
 async function uninstall() {
   const ok = await confirmDialog({
-    title: "Remove the engine?",
-    message: "Deletes the installed llama.cpp binaries. Your downloaded models are kept — reinstall the engine any time to use them again.",
-    confirmLabel: "Uninstall",
+    title: kitT("kit.engine.removeTitle"),
+    message: kitT("kit.engine.removeBody"),
+    confirmLabel: kitT("kit.engine.removeConfirm"),
   });
   if (!ok) return;
   busy.value = true;
@@ -138,7 +139,7 @@ async function uninstall() {
     if (r?.error) error.value = r.error;
     await refreshEngine();
   } catch (e) {
-    error.value = e.message || "Uninstall failed.";
+    error.value = e.message || kitT("kit.engine.err.uninstall");
   } finally {
     busy.value = false;
   }
@@ -173,7 +174,7 @@ async function setBackend(family) {
       await refreshEngine();
       await _awaitInstall();
     } catch (e) {
-      error.value = e.message || "Couldn't install that backend.";
+      error.value = e.message || kitT("kit.engine.err.backend");
       busy.value = false;
       return;
     }
@@ -184,7 +185,7 @@ async function setBackend(family) {
   try {
     await request("/v1/ai/engine-config", { method: "PUT", body: { preferredGpu: fam } });
   } catch (e) {
-    error.value = e.message || "Couldn't save the backend choice.";
+    error.value = e.message || kitT("kit.engine.err.backendSave");
     return;
   }
   await refreshEngine();
@@ -192,9 +193,9 @@ async function setBackend(family) {
   // now (a full teardown — a loaded model unloads, a running generation stops), or leave
   // it to apply lazily at the next model load.
   const restart = await confirmDialog({
-    title: "Restart the engine to apply?",
-    message: "The new acceleration backend takes effect the next time the engine starts. Restart now to switch immediately — any loaded model unloads and a running generation stops — or leave it and it applies on the next model load.",
-    confirmLabel: "Restart engine",
+    title: kitT("kit.engine.restartTitle"),
+    message: kitT("kit.engine.restartBody"),
+    confirmLabel: kitT("kit.engine.restartConfirm"),
   });
   if (restart) {
     try {
@@ -236,7 +237,7 @@ async function setWarmDefaultOnStartup(v) {
   try {
     await request("/v1/ai/engine-config", { method: "PUT", body: { warmDefaultOnStartup: !!v } });
   } catch (e) {
-    error.value = e.message || "Couldn't save the warm-on-startup setting.";
+    error.value = e.message || kitT("kit.engine.err.warm");
   }
 }
 
@@ -259,7 +260,7 @@ async function setUpdatePolicy(v) {
   try {
     await request("/v1/ai/engine-config", { method: "PUT", body: { updatePolicy: v } });
   } catch (e) {
-    error.value = e.message || "Couldn't save the update policy.";
+    error.value = e.message || kitT("kit.engine.err.policy");
   }
   if (v === "off") updateInfo.value = null;
   else checkForUpdate();
@@ -276,7 +277,7 @@ async function rollbackPendingUpdate() {
       method: "PUT",
       body: { pinnedBuild: previous.pinnedBuild, binaries: previous.binaries },
     });
-    error.value = `${error.value || "The engine update didn't complete."} Your engine was left on ${previous.pinnedBuild}.`;
+    error.value = kitT("kit.engine.rolledBack", { error: error.value || kitT("kit.engine.err.update"), build: previous.pinnedBuild });
   } catch {
     // the PUT itself failed — the message above would be a lie, so say nothing more
   }
@@ -306,7 +307,7 @@ async function updateToLatest() {
     }
     // Nothing for THIS machine's graphics type at that build → refuse before writing anything.
     if (plan?.selected && plan.selected.resolved === false) {
-      error.value = `${latest} has no download for this computer's graphics type (${plan.selected.gpu}). Nothing was changed.`;
+      error.value = kitT("kit.engine.noDownload", { build: latest, gpu: plan.selected.gpu });
       return;
     }
     const cfg = await request("/v1/ai/engine-config");
@@ -326,7 +327,7 @@ async function updateToLatest() {
       else pendingUpdate = null;
     }
   } catch (e) {
-    const msg = e.message || "Update failed.";
+    const msg = e.message || kitT("kit.engine.err.updateFailed");
     error.value = msg;
     if (pendingUpdate) await rollbackPendingUpdate();
   } finally {

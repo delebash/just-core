@@ -8,6 +8,7 @@
 // client; emits "saved"/"deleted" so the parent reloads its list. The built-in
 // provider also mounts the Local engine panel (which hosts the binaries editor) + model catalog.
 import { computed, reactive, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 import AppModal from "../common/components/AppModal.vue";
 import UiButton from "../common/components/UiButton.vue";
@@ -80,18 +81,16 @@ const local = ref(props.provider ? !!props.provider.local : props.initialLocal);
 const lockedOnline = computed(() => ONLINE_ONLY_TYPES.has(draft.providerType));
 const isLocal = computed(() => (lockedOnline.value ? false : local.value));
 
-const PROVIDER_TYPES = [
-  { value: "openai-compat", label: "OpenAI-compatible" },
-  { value: "anthropic", label: "Anthropic (Claude)" },
-  { value: "gemini", label: "Gemini (Google)" },
-  { value: "ollama", label: "Ollama (native)" },
-  { value: "openai", label: "OpenAI" },
-  { value: "deepseek", label: "DeepSeek" },
-  { value: "openrouter", label: "OpenRouter" },
-  { value: "xai", label: "xAI (Grok)" },
-  { value: "mistral", label: "Mistral" },
-];
-const WHERE = [{ value: true, label: "Local · free" }, { value: false, label: "Online · metered" }];
+const { t } = useI18n();
+// An example address, not a word — never translated.
+const BASE_URL_EXAMPLE = "http://localhost:11434/v1";
+const PROVIDER_TYPES = computed(() =>
+  ["openai-compat", "anthropic", "gemini", "ollama", "openai", "deepseek", "openrouter", "xai", "mistral"]
+    .map((value) => ({ value, label: t(`kit.provider.type.${value}`) })));
+const WHERE = computed(() => [
+  { value: true, label: t("kit.aiArea.scope.local") },
+  { value: false, label: t("kit.aiArea.scope.online") },
+]);
 
 // presets — fill URL + type + where-it-runs from a known provider (shared with QuickSetup
 // via useProviderConnect — one source, no drift).
@@ -140,9 +139,9 @@ async function fetchModels(all = false) {
     const r = await probeModels({ providerType: draft.providerType, baseUrl: draft.baseUrl, apiKey: draft.apiKey, defaultModel: draft.defaultModel, all });
     // An explicit Fetch overrides the shared cache with the full split.
     probed.value = { models: r.models || [], embeddings: r.embeddings || [], hiddenCount: r.hiddenCount || 0 };
-    if (!r.models?.length && !r.embeddings?.length) probeMsg.value = r.error || "No models returned — check the URL / key / that a model is loaded.";
+    if (!r.models?.length && !r.embeddings?.length) probeMsg.value = r.error || t("kit.provider.noModels");
   } catch (e) {
-    probeMsg.value = e.message || "Fetch failed.";
+    probeMsg.value = e.message || t("kit.provider.fetchFailed");
   } finally {
     fetching.value = false;
   }
@@ -175,7 +174,7 @@ autoLoadSavedModels();
 
 const testMsg = ref("");
 async function testConnection() {
-  testMsg.value = "Testing…";
+  testMsg.value = t("kit.provider.test.testing");
   try {
     const r = await probeModels({ providerType: draft.providerType, baseUrl: draft.baseUrl, apiKey: draft.apiKey });
     // The built-in engine returns a composed health line (#139 — probing its lazy
@@ -186,10 +185,10 @@ async function testConnection() {
       return;
     }
     testMsg.value = (r.models && r.models.length)
-      ? `✓ connected — ${r.models.length} models`
-      : `✗ ${r.error || "reachable, but no models listed"}`;
+      ? t("kit.provider.test.connected", { n: r.models.length }, r.models.length)
+      : `✗ ${r.error || t("kit.provider.test.noModels")}`;
   } catch (e) {
-    testMsg.value = `✗ ${e.message || "failed"}`;
+    testMsg.value = `✗ ${e.message || t("kit.provider.test.failed")}`;
   }
 }
 
@@ -203,7 +202,7 @@ const showGlobalSwitches = ref(false);
 const saving = ref(false);
 const saveErr = ref("");
 async function save() {
-  if (!draft.name.trim()) { saveErr.value = "Name is required."; return; }
+  if (!draft.name.trim()) { saveErr.value = t("kit.provider.err.name"); return; }
   saving.value = true; saveErr.value = "";
   // The id is derived server-side from the name on create; on edit the path param
   // identifies the row, so the body carries no id. apiKey contract: "" preserves the
@@ -238,14 +237,14 @@ async function save() {
           // applySetDefault (AiModelsArea) so both paths repoint identically (R3).
           if (modelChanged) await setAsDefault(props.provider.id, draft.defaultModel, { overwrite: false });
           if (embedChanged) await setAsEmbedding(props.provider.id, draft.embeddingModel);
-          if (modelChanged) pushToast({ message: `Tasks now run on ${draft.defaultModel}.` });
-          else if (embedChanged) pushToast({ message: `Embedding now runs on ${draft.embeddingModel}.` });
+          if (modelChanged) pushToast({ message: t("kit.provider.tasksNowRun", { model: draft.defaultModel }) });
+          else if (embedChanged) pushToast({ message: t("kit.provider.embedNowRuns", { model: draft.embeddingModel }) });
         }
       }
     }
     emit("saved");
   } catch (e) {
-    saveErr.value = e.message || "Save failed.";
+    saveErr.value = e.message || t("kit.provider.err.save");
   } finally {
     saving.value = false;
   }
@@ -256,7 +255,7 @@ async function remove() {
     await request(`/v1/llm-providers/${encodeURIComponent(props.provider.id)}`, { method: "DELETE" });
     emit("deleted");
   } catch (e) {
-    saveErr.value = e.message || "Delete failed.";
+    saveErr.value = e.message || t("kit.provider.err.delete");
   }
 }
 
@@ -265,7 +264,8 @@ async function remove() {
 // /v1/ai/reasoning-map/{provider}). Only for a SAVED provider — the map is keyed
 // by provider id, so a brand-new unsaved provider has none yet. Seeded per
 // provider TYPE server-side (fill-if-missing); one PUT per edited row on change.
-const LEVEL_LABELS = { low: "Low", medium: "Medium", high: "High", xhigh: "XHigh", max: "Max" };
+const LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
+const levelLabel = (level) => (LEVELS.has(level) ? t(`kit.provider.level.${level}`) : level);
 const reasoningRows = ref([]);
 const reasoningProvider = computed(() => props.provider?.id || "");
 // POPUP editor, not an inline auto-expanded table (user ruling 2026-07-16: "reasoning
@@ -318,28 +318,28 @@ async function putReasoningRow(row) {
 <template>
   <div class="lu-pform">
     <div v-if="isNew" class="lu-pf-presets">
-      <span class="lu-muted lu-pf-presets-h">Start from a known provider — fills URL · type · where it runs</span>
+      <span class="lu-muted lu-pf-presets-h">{{ t('kit.provider.presetsHead') }}</span>
       <div class="lu-pf-chips">
         <button v-for="p in PRESETS" :key="p[0]" type="button" class="lu-pf-chip" @click="applyPreset(p)">{{ p[0] }}</button>
       </div>
     </div>
 
     <div class="lu-fgrid">
-      <span class="lu-fl">Where it runs</span>
-      <div v-if="isBuiltin"><span class="lu-locked">Local · free · built-in</span></div>
-      <div v-else-if="lockedOnline"><span class="lu-locked">Online · metered</span>
-        <div class="lu-fh">This provider type is a metered cloud API — it always runs online.</div></div>
+      <span class="lu-fl">{{ t('kit.provider.where') }}</span>
+      <div v-if="isBuiltin"><span class="lu-locked">{{ t('kit.provider.whereBuiltin') }}</span></div>
+      <div v-else-if="lockedOnline"><span class="lu-locked">{{ t('kit.aiArea.scope.online') }}</span>
+        <div class="lu-fh">{{ t('kit.provider.lockedOnline') }}</div></div>
       <div v-else><UiSegmented v-model="local" :options="WHERE" />
-        <div class="lu-fh">Local = on this machine, no key. Online = your metered cloud account.</div></div>
+        <div class="lu-fh">{{ t('kit.provider.whereHint') }}</div></div>
 
-      <span class="lu-fl">Name</span>
-      <UiInput v-model="draft.name" placeholder="My provider" />
+      <span class="lu-fl">{{ t('kit.provider.name') }}</span>
+      <UiInput v-model="draft.name" :placeholder="t('kit.provider.namePh')" />
 
-      <span class="lu-fl">Base URL</span>
-      <UiInput v-model="draft.baseUrl" placeholder="http://localhost:11434/v1" />
+      <span class="lu-fl">{{ t('kit.provider.baseUrl') }}</span>
+      <UiInput v-model="draft.baseUrl" :placeholder="BASE_URL_EXAMPLE" />
 
       <template v-if="!isLocal">
-        <span class="lu-fl">API key</span>
+        <span class="lu-fl">{{ t('kit.provider.apiKey') }}</span>
         <div>
           <!-- #12 C6: a normal masked password field with an eye reveal. On a saved
                provider the stored key is revealed INTO it on open (revealLoaded), so it
@@ -348,20 +348,20 @@ async function putReasoningRow(row) {
                other online provider (user, 2026-07-18). The label + a saved-key note
                below carry the meaning; an empty placeholder is provider-neutral. -->
           <UiSecretInput v-model="draft.apiKey"
-            :placeholder="!isNew && provider?.hasApiKey && !revealLoaded ? '••••••••  (a key is saved)' : ''" />
+            :placeholder="!isNew && provider?.hasApiKey && !revealLoaded ? t('kit.provider.keySavedPh') : ''" />
           <!-- Fallback hint ONLY when the reveal has not loaded the key (a brand-new
                provider never shows it; a FAILED reveal falls back to write-only
                ""-keeps semantics). Once revealed, an empty field means CLEAR. -->
           <div v-if="!isNew && provider?.hasApiKey && !revealLoaded && !draft.apiKey" class="lu-fh">
-            🔒 An API key is saved (never shown). Leave blank to keep it — typing replaces it.
+            {{ t('kit.provider.keySaved') }}
           </div>
         </div>
       </template>
 
-      <span class="lu-fl">Provider type</span>
-      <div v-if="isBuiltin"><span class="lu-locked">llama.cpp · built-in engine</span></div>
+      <span class="lu-fl">{{ t('kit.provider.typeLabel') }}</span>
+      <div v-if="isBuiltin"><span class="lu-locked">{{ t('kit.provider.builtinType') }}</span></div>
       <select v-else class="lu-input" :value="draft.providerType" @change="draft.providerType = $event.target.value">
-        <option v-for="t in PROVIDER_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+        <option v-for="pt in PROVIDER_TYPES" :key="pt.value" :value="pt.value">{{ pt.label }}</option>
       </select>
 
       <!-- Model slots are REMOTE-provider-only (user, 2026-07-06: "no default chat model
@@ -370,25 +370,25 @@ async function putReasoningRow(row) {
            strip + Set-as-default / Set-as-embedding), so these fields never render for it.
            No hardcoded model ids anywhere — Fetch pulls the connected provider's list. -->
       <template v-if="!isBuiltin">
-        <span class="lu-fl">Default chat model</span>
+        <span class="lu-fl">{{ t('kit.provider.chatModel') }}</span>
         <div>
           <LuCombobox v-model="draft.defaultModel" :items="chatModels" :loading="fetching"
-            placeholder="Fetch or type a model id" @fetch="fetchModels()" />
+            :placeholder="t('kit.provider.chatModelPh')" @fetch="fetchModels()" />
           <!-- The list is trimmed to chat + embedding models (#8). "show all" refetches the
                provider's RAW list for this session when the user wants the full dump. -->
           <div v-if="hiddenCount > 0" class="lu-fh lu-showall">
-            {{ hiddenCount }} model{{ hiddenCount === 1 ? "" : "s" }} hidden ·
-            <button type="button" class="lu-showall-btn" :disabled="fetching" @click="showAllModels">show all</button>
+            {{ t('kit.provider.hidden', { n: hiddenCount }, hiddenCount) }} ·
+            <button type="button" class="lu-showall-btn" :disabled="fetching" @click="showAllModels">{{ t('kit.provider.showAll') }}</button>
           </div>
           <div v-if="probeMsg" class="lu-fh lu-fh-warn">{{ probeMsg }}</div>
-          <div class="lu-fh">Fetched from the provider once connected — switch it per feature in Features.</div>
+          <div class="lu-fh">{{ t('kit.provider.chatModelHint') }}</div>
         </div>
 
-        <span class="lu-fl">Embedding model <span class="lu-muted">optional</span></span>
+        <span class="lu-fl">{{ t('kit.provider.embedModel') }} <span class="lu-muted">{{ t('kit.provider.optional') }}</span></span>
         <div>
           <LuCombobox v-model="draft.embeddingModel" :items="embedModels" :loading="fetching"
-            placeholder="leave blank if not used" @fetch="fetchModels()" />
-          <div class="lu-fh">Fills the RAG / semantic-search index — fetch the provider's list and pick its embedding model.</div>
+            :placeholder="t('kit.provider.embedModelPh')" @fetch="fetchModels()" />
+          <div class="lu-fh">{{ t('kit.provider.embedModelHint') }}</div>
         </div>
       </template>
     </div>
@@ -397,23 +397,23 @@ async function putReasoningRow(row) {
          launch-config library buttons below. Shown only for a saved provider (the map is
          keyed by id). Edits PUT one row on change. -->
     <div v-if="reasoningProvider" class="lu-pf-libs">
-      <UiButton intent="secondary" size="small" @click="showReasoning = true">Reasoning levels…</UiButton>
-      <span class="lu-muted lu-pf-libs-cap">what each level asks this provider for — words for effort-word providers, token budgets for the local engine</span>
+      <UiButton intent="secondary" size="small" @click="showReasoning = true">{{ t('kit.provider.reasoning.button') }}</UiButton>
+      <span class="lu-muted lu-pf-libs-cap">{{ t('kit.provider.reasoning.cap') }}</span>
     </div>
-    <AppModal v-if="showReasoning" title="Reasoning levels"
+    <AppModal v-if="showReasoning" :title="t('kit.provider.reasoning.title')"
       :max-width="'560px'" @close="showReasoning = false">
       <div v-if="showModelDefault" class="lu-fh">
-        This provider runs thinking at the model's own default — no per-level control.
+        {{ t('kit.provider.reasoning.modelDefault') }}
       </div>
       <template v-else>
         <div class="lu-rtable" :class="{ 'lu-rtable--two': !(showWordCol && showTokensCol) }">
           <div class="lu-rt-row lu-rt-head">
-            <span>Level</span>
-            <span v-if="showWordCol">Word</span>
-            <span v-if="showTokensCol">Tokens</span>
+            <span>{{ t('kit.provider.reasoning.level') }}</span>
+            <span v-if="showWordCol">{{ t('kit.provider.reasoning.word') }}</span>
+            <span v-if="showTokensCol">{{ t('kit.provider.reasoning.tokens') }}</span>
           </div>
           <div v-for="row in reasoningRows" :key="row.level" class="lu-rt-row">
-            <span class="lu-rt-lvl">{{ LEVEL_LABELS[row.level] || row.level }}</span>
+            <span class="lu-rt-lvl">{{ levelLabel(row.level) }}</span>
             <UiInput v-if="showWordCol" :model-value="row.word" placeholder="—"
               @update:model-value="row.word = $event" @blur="putReasoningRow(row)" />
             <UiInput v-if="showTokensCol" type="number" :model-value="row.tokens ?? ''" placeholder="—"
@@ -421,10 +421,10 @@ async function putReasoningRow(row) {
           </div>
         </div>
         <div class="lu-fh">{{ showWordCol && showTokensCol
-          ? "what each level asks this provider for — new models take the word, legacy models the token budget"
+          ? t('kit.provider.reasoning.hintBoth')
           : showTokensCol
-            ? "the thinking-token budget each level asks this provider for"
-            : "the effort word each level asks this provider for" }}</div>
+            ? t('kit.provider.reasoning.hintTokens')
+            : t('kit.provider.reasoning.hintWord') }}</div>
       </template>
     </AppModal>
 
@@ -435,15 +435,15 @@ async function putReasoningRow(row) {
          library (ROUND 15) and the global launch defaults (#140), each the SAME shared
          component the drawers used, opened expanded in a dialog. -->
     <div v-if="isBuiltin" class="lu-pf-libs">
-      <UiButton intent="secondary" size="small" @click="showClassTunes = true">PC class configs…</UiButton>
-      <UiButton intent="secondary" size="small" @click="showGlobalSwitches = true">Global launch defaults…</UiButton>
-      <span class="lu-muted lu-pf-libs-cap">the launch-config libraries — per-PC-class starting points, and the always-on switch bundles under every tune</span>
+      <UiButton intent="secondary" size="small" @click="showClassTunes = true">{{ t('kit.provider.libs.classTunes') }}</UiButton>
+      <UiButton intent="secondary" size="small" @click="showGlobalSwitches = true">{{ t('kit.provider.libs.global') }}</UiButton>
+      <span class="lu-muted lu-pf-libs-cap">{{ t('kit.provider.libs.cap') }}</span>
     </div>
-    <AppModal v-if="showClassTunes" title="PC class configs — the library"
+    <AppModal v-if="showClassTunes" :title="t('kit.provider.libs.classTunesTitle')"
       :max-width="'760px'" @close="showClassTunes = false">
       <LuClassTunes expanded />
     </AppModal>
-    <AppModal v-if="showGlobalSwitches" title="Global launch defaults"
+    <AppModal v-if="showGlobalSwitches" :title="t('kit.tuneModal.group.global')"
       :max-width="'760px'" @close="showGlobalSwitches = false">
       <LuGlobalSwitches expanded />
     </AppModal>
@@ -451,12 +451,12 @@ async function putReasoningRow(row) {
     <div v-if="saveErr" class="lu-error lu-pf-err">{{ saveErr }}</div>
 
     <div class="lu-pf-foot">
-      <UiButton intent="secondary" @click="testConnection">Test connection</UiButton>
+      <UiButton intent="secondary" @click="testConnection">{{ t('kit.provider.test.button') }}</UiButton>
       <span class="lu-muted lu-pf-test">{{ testMsg }}</span>
       <span class="lu-pf-spacer" />
-      <UiButton v-if="!isNew && !isBuiltin" intent="danger" @click="remove">Delete</UiButton>
-      <UiButton intent="ghost" @click="emit('cancel')">Cancel</UiButton>
-      <UiButton intent="primary" :loading="saving" @click="save">{{ saving ? "Saving…" : "Save provider" }}</UiButton>
+      <UiButton v-if="!isNew && !isBuiltin" intent="danger" @click="remove">{{ t('kit.common.delete') }}</UiButton>
+      <UiButton intent="ghost" @click="emit('cancel')">{{ t('kit.dialog.cancel') }}</UiButton>
+      <UiButton intent="primary" :loading="saving" @click="save">{{ saving ? t('kit.provider.saving') : t('kit.provider.save') }}</UiButton>
     </div>
   </div>
 </template>

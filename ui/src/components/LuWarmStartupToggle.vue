@@ -12,9 +12,12 @@
 -->
 <script setup>
 import { onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 import UiToggle from "../common/components/UiToggle.vue";
 import { useEngine } from "../composables/useEngine.js";
+
+const { t } = useI18n();
 
 const { warmDefaultOnStartup, setWarmDefaultOnStartup, refreshWarm } = useEngine();
 
@@ -26,7 +29,7 @@ onMounted(() => {
 <template>
   <label class="lu-warm-toggle">
     <UiToggle :model-value="!!warmDefaultOnStartup" @update:model-value="setWarmDefaultOnStartup" />
-    <span class="lu-warm-cap">Load the default local model into memory on startup</span>
+    <span class="lu-warm-cap">{{ t('kit.warmStartup') }}</span>
   </label>
 </template>
 

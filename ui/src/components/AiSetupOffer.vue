@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: MIT
 // The once-ever "set up AI features" offer — LIFTED from JW's AiSetupDialog
 // (the donor, 2026-07-11) per ruling R3 (2026-08-04): every app uses the one-time
-// modal; permanent setup buttons are retired. Words are the family canon
-// (familyLabels.aiOffer); {appName} fills from the host. Router-free on purpose —
+// modal; permanent setup buttons are retired. Words are the kit's
+// (kit.aiOffer.*, in the app's language); {appName} fills from the host. Router-free on purpose —
 // the host routes on the emits (quick-setup → its AI page with ?quicksetup=1,
 // connect-provider → ?providers=online) and persists its own once-flag on close.
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import AppModal from "../common/components/AppModal.vue";
 import Icon from "../common/components/Icon.vue";
 import UiButton from "../common/components/UiButton.vue";
-import { familyLabels } from "../common/services/familyLabels.js";
 import { llmUiCapabilities } from "../installLlmUi.js";
 
-const props = defineProps({ appName: { type: String, default: "This app" } });
+const props = defineProps({ appName: { type: String, default: "" } });
 const emit = defineEmits(["close", "quick-setup", "connect-provider"]);
-const L = familyLabels.aiOffer;
+const { t } = useI18n();
 // A host with no local engine (installLlmUi's capabilities) offers only the online providers.
 const localOn = llmUiCapabilities().localEngine !== false;
 const modal = ref(null);
 
-const body = () => ((localOn ? L.body : L.bodyOnline) || "").replace("{appName}", props.appName);
+const body = () => t(localOn ? "kit.aiOffer.body" : "kit.aiOffer.bodyOnline", { appName: props.appName || t("kit.aiOffer.thisApp") });
 
 // Close via AppModal so the leave transition plays, then the parent v-if drops us.
 function dismiss() {
@@ -38,15 +38,15 @@ function onConnectProvider() {
 </script>
 
 <template>
-  <AppModal ref="modal" :eyebrow="L.eyebrow" :title="L.title" @close="emit('close')">
+  <AppModal ref="modal" :eyebrow="t('kit.aiOffer.eyebrow')" :title="t('kit.aiOffer.title')" @close="emit('close')">
     <p class="lu-aso-body">{{ body() }}</p>
 
     <div class="lu-aso-options">
       <button v-if="localOn" type="button" class="lu-aso-opt" @click="onQuickSetup">
         <span class="lu-aso-ic"><Icon name="Cpu" :size="20" /></span>
         <span class="lu-aso-txt">
-          <b>{{ L.quickSetup }}</b>
-          <span>{{ L.quickSetupSub }}</span>
+          <b>{{ t('kit.aiOffer.quickSetup') }}</b>
+          <span>{{ t('kit.aiOffer.quickSetupSub') }}</span>
         </span>
         <Icon class="lu-aso-go" name="ChevRight" :size="18" />
       </button>
@@ -54,15 +54,15 @@ function onConnectProvider() {
       <button type="button" class="lu-aso-opt" @click="onConnectProvider">
         <span class="lu-aso-ic"><Icon name="Cloud" :size="20" /></span>
         <span class="lu-aso-txt">
-          <b>{{ L.connectProvider }}</b>
-          <span>{{ L.connectProviderSub }}</span>
+          <b>{{ t('kit.aiOffer.connectProvider') }}</b>
+          <span>{{ t('kit.aiOffer.connectProviderSub') }}</span>
         </span>
         <Icon class="lu-aso-go" name="ChevRight" :size="18" />
       </button>
     </div>
 
     <template #footer>
-      <UiButton intent="ghost" @click="dismiss">{{ L.skip }}</UiButton>
+      <UiButton intent="ghost" @click="dismiss">{{ t('kit.aiOffer.skip') }}</UiButton>
     </template>
   </AppModal>
 </template>

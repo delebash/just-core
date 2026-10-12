@@ -24,7 +24,8 @@ import { computed, reactive, ref } from "vue";
 
 import { request } from "../client.js";
 import { fmtBytes } from "../common/services/downloadRate.js";
-import { FIT_LABEL, speedFloorOf } from "../common/services/modelPick.js";
+import { kitT } from "../common/services/kitI18n.js";
+import { fitLabel, speedFloorOf } from "../common/services/modelPick.js";
 import {
   createDownloadTask, engineInstallChannel, modelDownloadChannel, modelLoadChannel,
   readDownloadStatus, readLoadStatus,
@@ -66,7 +67,7 @@ const loadTask = createDownloadTask(modelLoadChannel(() => activeLoadId.value));
 // singleton then feeds it. (createDownloadTask's NATIVE retry() would self-poll AND skip the
 // engine check — wrong on the catalog's server-fed path, so we override it.)
 loadTask.retry = () => {
-  loadTask.arm("Getting ready");
+  loadTask.arm(kitT("kit.phase.gettingReady"));
   return retryLoad(activeLoadId.value);
 };
 // A cancel keeps Retry DISABLED until the teardown truly completes — set the flag the instant
@@ -86,7 +87,7 @@ function _downloadTaskFor(modelId) {
     const t = createDownloadTask(modelDownloadChannel(() => modelId));
     // Retry re-arms + re-POSTs through the singleton's download() (no self-poll).
     t.retry = () => {
-      t.arm("Getting ready");
+      t.arm(kitT("kit.phase.gettingReady"));
       return download(modelId);
     };
     // Same cancel→finalizing rule as the load task: Retry disabled until the cancel is confirmed
@@ -153,9 +154,9 @@ async function _syncTasks() {
     if (activeLoadId.value !== spawn.id) {
       // A load we weren't tracking (a different model, or server-driven) — follow it fresh.
       activeLoadId.value = spawn.id;
-      loadTask.arm("Getting ready");
+      loadTask.arm(kitT("kit.phase.gettingReady"));
     } else if (loadTask.state === "") {
-      loadTask.arm("Getting ready"); // tracked but never armed (first sight) — safety
+      loadTask.arm(kitT("kit.phase.gettingReady")); // tracked but never armed (first sight) — safety
     }
     if (st) loadTask.apply(readLoadStatus(st)); // no-op unless running — freezes on cancel
   } else if (loadTask.state !== "") {
@@ -165,7 +166,7 @@ async function _syncTasks() {
   // ── standalone downloads (concurrent): a fed follower per downloading model ──
   for (const id of downloadingSet) {
     const t = _downloadTaskFor(id);
-    if (t.state === "") t.arm("Getting ready"); // first sight (download() usually armed it already)
+    if (t.state === "") t.arm(kitT("kit.phase.gettingReady")); // first sight (download() usually armed it already)
     t.apply(readDownloadStatus(downloads[id])); // no-op unless running
   }
   // Reap followers no longer downloading (finished/absent → the row flips to disk/available).
@@ -189,7 +190,7 @@ export async function refresh() {
     if (anyLoading.value) _startPoll();
     else _stopPoll();
   } catch (e) {
-    error.value = e.message || "Couldn't load the model catalog.";
+    error.value = e.message || kitT("kit.phase.err.catalog");
   } finally {
     loading.value = false;
   }
@@ -199,13 +200,13 @@ export async function refresh() {
 // reports on-disk ('disk'); loading happens on use, never from the catalog.
 export async function download(modelId) {
   loadingId.value = modelId;
-  _downloadTaskFor(modelId).arm("Getting ready"); // arm now → the bar shows at once; the poll feeds it
+  _downloadTaskFor(modelId).arm(kitT("kit.phase.gettingReady")); // arm now → the bar shows at once; the poll feeds it
   try {
     await request("/v1/llm-runner/download", { method: "POST", body: { modelId } });
     await refresh();
   } catch (e) {
-    error.value = e.message || "Download failed.";
-    _downloadTaskFor(modelId).fail(e.message || "Download failed.");
+    error.value = e.message || kitT("kit.phase.err.download");
+    _downloadTaskFor(modelId).fail(e.message || kitT("kit.phase.err.download"));
   } finally {
     loadingId.value = "";
   }
@@ -224,7 +225,7 @@ export async function retryLoad(modelId) {
       try {
         await gate.start(); // resolves when the install reaches a terminal state
         if (gate.state !== "done") {
-          error.value = gate.error || "The engine didn't install.";
+          error.value = gate.error || kitT("kit.phase.err.engine");
           return;
         }
       } finally {
@@ -232,12 +233,12 @@ export async function retryLoad(modelId) {
       }
     }
     activeLoadId.value = modelId;
-    loadTask.arm("Getting ready"); // show the bar immediately; the poll feeds the live bytes
+    loadTask.arm(kitT("kit.phase.gettingReady")); // show the bar immediately; the poll feeds the live bytes
     await request("/v1/llm-runner/load", { method: "POST", body: { modelId } });
     await refresh();
   } catch (e) {
-    error.value = e.message || "Couldn't load the model.";
-    loadTask.fail(e.message || "Couldn't load the model.");
+    error.value = e.message || kitT("kit.phase.err.load");
+    loadTask.fail(e.message || kitT("kit.phase.err.load"));
   }
 }
 
@@ -258,7 +259,7 @@ function serverTask(modelId) {
     return {
       ...IDLE, state: "running",
       done: m.opDone || 0, total: m.opTotal || 0,
-      label: m.detail || "Working…",
+      label: m.detail || kitT("kit.phase.workingEllipsis"),
       // Cancel is the same server verb the live task uses — stop THIS model.
       cancel: () => request("/v1/llm-runner/stop", { method: "POST", body: { modelId } }),
     };
@@ -269,8 +270,8 @@ function serverTask(modelId) {
       // The one place that translates the server's code into a sentence, shared with
       // readLoadStatus so both paths say the same thing.
       error: m.error === "engine-not-installed"
-        ? "The engine isn't installed — install it first (the engine bar above)."
-        : (m.error || "The last attempt failed."),
+        ? kitT("kit.phase.engineMissing")
+        : (m.error || kitT("kit.phase.err.lastAttempt")),
       // Retry runs the full workflow: engine check + install-if-missing, then load.
       retry: () => retryLoad(modelId),
     };
@@ -296,7 +297,7 @@ export function useRunnerModels() {
   }
   return {
     models, vramMb, speedFloor, loading, error, loadingId,
-    engineGateTask, anyLoading, fmtBytes, FIT_LABEL,
+    engineGateTask, anyLoading, fmtBytes, fitLabel,
     refresh, download, retryLoad, taskFor,
   };
 }

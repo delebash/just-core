@@ -29,6 +29,7 @@ import { defineStore } from "pinia";
 import { markRaw } from "vue";
 
 import { FAMILY_TASK_LINGER } from "../common/familyContract.js";
+import { kitT } from "../common/services/kitI18n.js";
 
 // 50, not the old 30 — aligned 2026-08-07 with what JustVoice's fork kept, so its
 // conversion doesn't silently shorten the user's history (and costs the siblings
@@ -139,7 +140,7 @@ export const useAiTasksStore = defineStore("aiTasks", {
       this.tasks[id] = {
         id,
         feature: feature || "ai",
-        label: label || feature || "AI call",
+        label: label || feature || kitT("kit.aiTasks.defaultLabel"),
         meta: meta || {},
         stats: Array.isArray(stats) ? [...stats] : [],
         lingerMs: lingerMs === undefined ? FAMILY_TASK_LINGER : lingerMs,
@@ -382,7 +383,7 @@ export const useAiTasksStore = defineStore("aiTasks", {
       // `failed: null` never leave the panel.
       if (!this.isRunning(id)) return;
       this._end(t, "error");
-      t.error = err?.message || String(err || "Unknown error");
+      t.error = err?.message || String(err || kitT("kit.aiTasks.unknownError"));
       this._archiveAfterLinger(id, "failed");
       // QC-37 (the toast law): failures signal DURABLY, not with a toast
       // that disappears — the titlebar chip badges red until the panel is

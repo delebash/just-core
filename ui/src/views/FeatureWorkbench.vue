@@ -18,6 +18,7 @@
 // library /v1/ai/engine-presets; the feature catalog (nav) /v1/ai/routing; the knob
 // catalog /v1/ai/knob-catalog.
 import { computed, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 import FeatureLab from "../components/FeatureLab.vue";
 import Icon from "../common/components/Icon.vue";
@@ -63,8 +64,10 @@ watch(() => props.initialAction, (a) => {
 
 const featMeta = computed(() => Object.fromEntries((routing.value?.features || []).map((f) => [f.key, f])));
 
-const GROUP_FALLBACK = "Other";
+const { t, d } = useI18n();
 const navGroups = computed(() => {
+  // Features without a group of their own land under the kit's word for "other".
+  const GROUP_FALLBACK = t("kit.workbench.otherGroup");
   const order = [];
   const byGroup = {};
   for (const f of routing.value?.features || []) {
@@ -241,24 +244,24 @@ async function setFeaturePreset(key, presetId) {
       method: "PUT", body: { featureKey: key, presetId },
     });
     message.value = presetId
-      ? "This feature now runs that preset."
-      : "Cleared — this feature runs the default preset.";
-  } catch (e) { error.value = `Preset change failed: ${e.message}`; }
+      ? t("kit.workbench.presetSet")
+      : t("kit.workbench.presetCleared");
+  } catch (e) { error.value = t("kit.workbench.err.preset", { error: e.message }); }
 }
 
 // ↺ Reset (relocated from the deleted Presets page): restore the built-in presets +
 // every feature assignment + the default to the shipped seeds. Custom presets survive.
 async function resetPresets() {
   const ok = await confirmDialog({
-    title: "Reset presets to defaults?", danger: true,
-    message: "Restores the built-in presets and every feature assignment to the shipped defaults. Your custom presets are kept.",
+    title: t("kit.workbench.resetPresets.title"), danger: true,
+    message: t("kit.workbench.resetPresets.body"),
   });
   if (!ok) return;
   try {
     await request("/v1/ai/engine-presets/reset", { method: "POST" });
     await load();
-    message.value = "Presets reset to defaults.";
-  } catch (e) { error.value = `Reset failed: ${e.message}`; }
+    message.value = t("kit.workbench.resetPresets.done");
+  } catch (e) { error.value = t("kit.workbench.err.reset", { error: e.message }); }
 }
 
 const selResolvedPreset = computed(() =>
@@ -291,10 +294,10 @@ async function loadPreview(key) {
     builtPrompt.value = { system: r.system || "", user: r.user || "" };
     // Stamp WHEN this sample was built (absolute time on purpose: a relative
     // "2 min ago" goes stale without a ticker — the clock stays true).
-    const at = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    builtMeta.value = r.sample ? `${r.sample} · built ${at}` : "";
+    const at = d(new Date(), { hour: "2-digit", minute: "2-digit" });
+    builtMeta.value = r.sample ? t("kit.workbench.built", { sample: r.sample, at }) : "";
   } catch (e) {
-    previewErr.value = e?.message || "The app's prompt preview is unavailable.";
+    previewErr.value = e?.message || t("kit.workbench.err.preview");
   } finally {
     previewLoading.value = false;
   }
@@ -347,10 +350,10 @@ async function saveSection(row) {
     const next = { ...sectionDrafts.value };
     delete next[row.key];
     sectionDrafts.value = next;
-    message.value = `${row.label || row.key} saved.`;
+    message.value = t("kit.workbench.sectionSaved", { name: row.label || row.key });
     loadPreview(selFeature.value);
   } catch (e) {
-    error.value = `Save failed: ${e.message}`;
+    error.value = t("kit.workbench.err.save", { error: e.message });
   } finally {
     sectionSaving.value = "";
   }
@@ -373,8 +376,8 @@ async function resetFeature() {
   const key = selAction.value;
   if (!key) return;
   const ok = await confirmDialog({
-    title: "Reset this feature to defaults?", danger: true,
-    message: "Restores this feature's preset (model, params, reasoning) and its prompt to the shipped defaults. Any customization for this feature is discarded.",
+    title: t("kit.workbench.resetFeature.title"), danger: true,
+    message: t("kit.workbench.resetFeature.body"),
   });
   if (!ok) return;
   try {
@@ -385,8 +388,8 @@ async function resetFeature() {
     try { await request(`/v1/ai/prompts/${encodeURIComponent(key)}/reset`, { method: "POST" }); } catch { /* no seeded prompt */ }
     await load();          // refresh prompts + assignments so the form reloads from defaults
     labEpoch.value += 1;   // remount <FeatureLab> → the column re-seeds from the restored preset
-    pushToast({ message: "Reset to defaults." });
-  } catch (e) { error.value = `Reset failed: ${e.message}`; }
+    pushToast({ message: t("kit.workbench.resetFeature.done") });
+  } catch (e) { error.value = t("kit.workbench.err.reset", { error: e.message }); }
 }
 
 onMounted(load);
@@ -395,7 +398,7 @@ onMounted(load);
 <template>
   <div class="lu-fw">
     <div v-if="error" class="lu-error" style="margin-bottom:10px">{{ error }}</div>
-    <div v-if="loading" class="lu-muted">Loading…</div>
+    <div v-if="loading" class="lu-muted">{{ t('kit.common.loading') }}</div>
 
     <template v-else-if="routing">
       <div class="lu-fw-body" :class="{ 'nav-collapsed': navCollapsed }">
@@ -412,7 +415,7 @@ onMounted(load);
               :class="{ 'is-active': row.featureKey === selFeature }" @click="selectFeature(row.featureKey)">
               <div class="lu-fw-card-label">{{ featMeta[row.featureKey]?.label || row.label }}</div>
               <div v-if="featMeta[row.featureKey]?.hint" class="lu-fw-card-desc">{{ featMeta[row.featureKey].hint }}</div>
-              <div class="lu-fw-card-model" title="engine preset for this feature">→ {{ featurePresetLabel(row.featureKey) }}</div>
+              <div class="lu-fw-card-model" :title="t('kit.workbench.presetTitle')">→ {{ featurePresetLabel(row.featureKey) }}</div>
             </button>
             <!-- A labeled feature panel's row (the attribution "Auto" row): selects
                  the feature; its pane is the app's mechanism panel, not routing. -->
@@ -426,13 +429,13 @@ onMounted(load);
               @click="selectAction(row.action.key)">
               <div class="lu-fw-card-label">{{ actionLabel(row.action) }}</div>
               <div v-if="actionDesc(row.action)" class="lu-fw-card-desc">{{ actionDesc(row.action) }}</div>
-              <div class="lu-fw-card-model" title="engine preset for this feature">→ {{ featurePresetLabel(row.action.key) }}</div>
+              <div class="lu-fw-card-model" :title="t('kit.workbench.presetTitle')">→ {{ featurePresetLabel(row.action.key) }}</div>
             </button>
           </template>
           <div class="lu-fw-aside-foot">
             <UiButton intent="ghost" size="small"
-              title="Restore the built-in presets + every feature assignment to the shipped defaults — your custom presets are kept"
-              @click="resetPresets">↺ Reset presets to defaults</UiButton>
+              :title="t('kit.workbench.resetPresets.buttonTitle')"
+              @click="resetPresets">↺ {{ t('kit.workbench.resetPresets.button') }}</UiButton>
           </div>
         </aside>
 
@@ -442,11 +445,11 @@ onMounted(load);
             <span class="lu-fw-spacer" />
             <span v-if="message" class="lu-muted lu-fw-msg">{{ message }}</span>
             <UiButton intent="danger" size="small"
-              title="Reset this feature to its own default preset (model · params · reasoning) and prompt"
-              @click="resetFeature">Reset to default</UiButton>
+              :title="t('kit.workbench.resetFeature.buttonTitle')"
+              @click="resetFeature">{{ t('kit.workbench.resetFeature.button') }}</UiButton>
             <UiButton intent="ghost" size="small"
-              v-tooltip.bottom="navCollapsed ? 'Show list' : 'Hide list'"
-              :aria-label="navCollapsed ? 'Show list' : 'Hide list'"
+              v-tooltip.bottom="navCollapsed ? t('kit.workbench.showList') : t('kit.workbench.hideList')"
+              :aria-label="navCollapsed ? t('kit.workbench.showList') : t('kit.workbench.hideList')"
               @click="navCollapsed = !navCollapsed"><Icon name="SidebarToggle" :size="14" /></UiButton>
           </div>
           <FeatureLab :key="`${selAction}:${labEpoch}`"
@@ -493,7 +496,7 @@ onMounted(load);
                 <span class="lu-fw-spacer" />
                 <UiButton size="small" :intent="sectionDirty(row) ? 'primary' : 'ghost'"
                   :disabled="!sectionDirty(row) || sectionSaving === row.key"
-                  :label="sectionSaving === row.key ? 'Saving…' : 'Save'"
+                  :label="sectionSaving === row.key ? t('kit.provider.saving') : t('kit.modelCatalog.btn.save')"
                   @click="saveSection(row)" />
               </div>
               <textarea class="lu-input lu-fw-sectext" :value="sectionText(row)" rows="5"
@@ -517,7 +520,7 @@ onMounted(load);
             @use-production="(id) => setFeaturePreset(selFeature, id)"
             @presets-changed="onPresetsChanged"
             @refresh-preview="loadPreview(selFeature)" />
-          <div v-else-if="previewLoading" class="lu-muted">Building the prompt preview…</div>
+          <div v-else-if="previewLoading" class="lu-muted">{{ t('kit.workbench.building') }}</div>
 
           <!-- No preview from the app → LOUD, the error only. The picker that
                used to sit here is gone (user ruling 2026-08-08: feature pages
@@ -526,7 +529,7 @@ onMounted(load);
           <p v-else class="lu-error" style="font-size:12px;margin:0">{{ previewErr }}</p>
           </template>
         </section>
-        <div v-else class="lu-muted" style="padding:20px">Pick an action on the left.</div>
+        <div v-else class="lu-muted" style="padding:20px">{{ t('kit.workbench.pickAction') }}</div>
       </div>
     </template>
   </div>

@@ -14,6 +14,7 @@
 // likely slow, but nobody has measured one — and the seed principle is that the seed ships
 // FACTS while the machine supplies MEASUREMENTS. Architecture is a fact; speed would be a
 // guess printed as one.
+import { useI18n } from "vue-i18n";
 import UiTag from "../common/components/UiTag.vue";
 import { modelTypeLabel } from "../composables/useCatalogMeta.js";
 
@@ -23,13 +24,9 @@ defineProps({
 	type: { type: String, default: "dense" },
 });
 
-const TYPE_TITLE = {
-	moe: "Mixture of experts — only a fraction of the parameters run on each token, so it needs far less VRAM than its size suggests.",
-	dense:
-		"Dense — every parameter runs on every token, so it needs VRAM in proportion to its size.",
-};
+const { t } = useI18n();
 </script>
 
 <template>
-  <UiTag intent="secondary" :title="TYPE_TITLE[type] || TYPE_TITLE.dense">{{ modelTypeLabel(type) }}</UiTag>
+  <UiTag intent="secondary" :title="type === 'moe' ? t('kit.modelType.moeTip') : t('kit.modelType.denseTip')">{{ modelTypeLabel(type) }}</UiTag>
 </template>

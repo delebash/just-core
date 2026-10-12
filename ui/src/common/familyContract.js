@@ -4,17 +4,10 @@
 // (just_ai_i18n_docgen/docs/plans/2026-08-04-consistency-sweep.md): every drift traced
 // to a surface authored fresh with no canon and no gate.
 //
-// TWO KINDS OF ENTRY, two enforcement paths:
-//   1. Labels for surfaces the KIT renders — kit components read their OWN defaults
-//      from here, so canon and kit cannot disagree (enforced by construction).
-//   2. Labels for app-owned chrome the kit cannot render (the sidebar trio, dialog
-//      verbs an app passes per-call) — enforced by each app's CONTRACT TEST
-//      (docgen: node:test beside its e2e; JW: a vitest twin over this same file).
-//
-// Entries are { id: english } so an i18n'd app (JW) maps ids → locale keys; the
-// contract test compares the app's ENGLISH catalog values against these. App VOICE
-// (domain words) never lives here — it goes through the sanctioned copy objects
-// (catalogCopy, quickSetupCopy, …) and nothing else.
+// The family's shared WORDS are the kit's catalog now (ui/src/i18n/locales/en.json, `kit.*` —
+// the i18n plan, docs/plans/2026-10-12-i18n-standard.md): one key per word, so every app that
+// shows `kit.nav.appSettings` shows the same words by construction. What stays here is what is
+// not a word.
 //
 // SHAPES (asserted by the contract tests' scans, not renderable as strings):
 //   - Settings is a TOP-TAB page (no vertical rail chrome).
@@ -23,147 +16,11 @@
 //     Home-button shape is retired).
 //   - The headless-access + token settings live in a section named `settingsSections.server`.
 
-export const FAMILY_LABELS = {
-  // The nav trio — every app's sidebar carries exactly these words (domain nav
-  // above them is each app's own).
-  nav: {
-    appSettings: "App Settings",
-    aiSettings: "AI Settings",
-    aiTasks: "AI tasks",
-    help: "Help",
-  },
-
-  // Dialog verbs + the host AppDialog's fallback words — the confirm vocabulary
-  // every app passes (or maps via locale). Folded 2026-08-04 from dialog.js's own
-  // defaults: one store for every family word, or the drift disease returns.
-  dialog: {
-    confirm: "Confirm",
-    ok: "OK",
-    cancel: "Cancel",
-    defaultTitle: "Are you sure?",
-    close: "Close",
-  },
-
-  // The AI area's tab strip (host tabs are app voice via the appTabs seam).
-  aiTabs: {
-    providers: "Providers & models",
-    // The OPT-IN split tab (family parity batch 2026-08-05): an app that turns on
-    // `modelsTab` (JustVoice — its area also holds TTS, so "Providers & models"
-    // stopped naming one thing) renders the model catalog as its own tab. Apps on
-    // the combined tab never show this word.
-    models: "Models",
-    routing: "Routing by feature",
-    usage: "Usage",
-    // "AI engine console" (family ruling 2026-08-05): the tab shows the AI
-    // ENGINE's console, and every app also has its own server log — the old
-    // "Server console" was ambiguous everywhere (JV worst: it also runs TTS
-    // engine processes).
-    console: "AI engine console",
-  },
-
-  // The promptless Lab's words (decision 2026-08-04: every NEW kit string rides this
-  // door — JW's i18n gates can't see kit files, so hardcoded English here would leak
-  // into its Spanish routing page; found dropped by the audit, wired same day).
-  lab: {
-    generatedPrompt: "Generated prompt",
-    generatedNote: "built by the app for every real run — test only; nothing here is saved or applied",
-    refresh: "Refresh",
-    editCopies: "Edit copies for this test",
-    lockCopies: "Lock copies",
-    restoreGenerated: "Restore generated",
-    changeData: "Change what this prompt says:",
-  },
-
-  // DownloadBar's state actions — sat hardcoded + untranslatable under JW's keyed
-  // titles until this file existed.
-  downloadBar: {
-    cancel: "Cancel",
-    retry: "Retry",
-    dismiss: "Dismiss",
-    ready: "Ready ✓",
-  },
-
-  // ConnectionError copy (the {appName}/{need} interpolations stay props).
-  connectionError: {
-    title: "Can't reach the {appName} server",
-    retry: "Retry",
-  },
-
-  // Quick Setup — the shared defaults an app's quickSetupCopy may override where the
-  // entry is VOICE (band captions, step titles); the button labels + engine bar title
-  // are canon (ruling 2026-08-04: "The engine", not the binary's name).
-  quickSetup: {
-    runButton: "Run Quick Setup",
-    bandScope: "Sets up the built-in llama.cpp provider only",
-    applyButton: "Apply setup",
-    cancelButton: "Cancel",
-    closeButton: "Close",
-    engineBarTitle: "The engine",
-    engineBarRole: "the program that runs models",
-    // The configured-state truth (decision A1190, restored 2026-08-04): a box with
-    // a default stops being pitched like a first run.
-    configuredBand: "Local AI is set up — {model} is the default",
-    // The feature's name is never dropped (user QC ruling 2026-08-04:
-    // "the name is Quick Setup not just setup").
-    rerunButton: "Re-run Quick Setup",
-    alreadyTitle: "Already set up",
-    changeModelButton: "Change model",
-    // The one-minute speed check (speed-truth plan 2026-09-19 §6) — offered on
-    // hardware with no curated class preset, always skippable (user ruling).
-    checkTitle: "Check this PC's real AI speed?",
-    checkRunButton: "Run the 1-minute check",
-    checkSkipButton: "Skip — use estimates",
-    checkRetryButton: "Try again",
-    checkContinueButton: "Continue",
-  },
-
-  // The once-ever AI offer (ruling R3, built 2026-08-04: JW's one-time modal is the
-  // ONE family shape — permanent setup buttons are retired). {appName} is the host's.
-  aiOffer: {
-    eyebrow: "Optional",
-    title: "Set up AI features",
-    body: "{appName}'s AI runs where you choose — on this PC, private and free, or through an online provider. You can set this up anytime from the AI page.",
-    // the body where the app has no local engine (installLlmUi's capabilities — the phone)
-    bodyOnline: "{appName}'s AI runs through an online provider you choose, with your own key. You can set this up anytime from the AI page.",
-    quickSetup: "Run Quick Setup",
-    quickSetupSub: "Local — uses this PC, private & free",
-    connectProvider: "Connect an online provider",
-    connectProviderSub: "OpenAI-compatible endpoint",
-    skip: "Skip for now",
-  },
-
-  // Settings — canonical section names for concepts the apps share; an app may add
-  // its own sections (Reviewer) but shared concepts share these exact words.
-  // CANON ORDER (family parity batch 2026-08-05): the shared sections keep this
-  // RELATIVE order — General · Appearance · Backups · Storage · Server · Logs ·
-  // Updates · About — while app-own sections may lead or interleave (JW's Project
-  // stays first). Backup/restore lives in Backups (kit DataManagement), never in
-  // Storage (Storage = data location + disk usage only).
-  settingsSections: {
-    appearance: "Appearance",
-    backups: "Backups",
-    storage: "Storage",
-    server: "Server", // ruling 2026-08-04: headless access + tokens live HERE, both apps
-    logs: "Logs",
-    updates: "Updates",
-    about: "About",
-  },
-
-  // Storage-section canon (ruling 2026-08-04: JW's words win; the Total row — docgen's
-  // invention — becomes canon BOTH apps render).
-  storage: {
-    serverLogs: "Server logs",
-    freeSpace: "Free disk space",
-    total: "Total",
-    clearShort: "Clear…",
-  },
-};
-
-// The canon RELATIVE order of the shared settings sections (parity batch slice 11) —
-// derived from the manifest itself so words and order can never disagree. Each app's
-// contract test filters its own section ids down to these and asserts the order holds;
-// app-own sections (Project, General, Reviewer, the voice tail) sit anywhere around them.
-export const SETTINGS_SECTION_ORDER = Object.keys(FAMILY_LABELS.settingsSections);
+// The canon RELATIVE order of the shared settings sections (parity batch slice 11); each id's words
+// are `kit.settingsSections.<id>`. Each app's contract test filters its own section ids down to
+// these and asserts the order holds; app-own sections (Project, General, Reviewer, the voice tail)
+// sit anywhere around them.
+export const SETTINGS_SECTION_ORDER = ["appearance", "backups", "storage", "server", "logs", "updates", "about"];
 
 // THE FAMILY TASK-LINGER POLICY (ruled 2026-08-07, same in every app): how long a
 // finished task's row stays visible before archiving to history. Completed lingers 5 s

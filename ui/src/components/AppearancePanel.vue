@@ -12,10 +12,12 @@
 //
 // The host binds `:appearance` (its ui store's appearance object) and applies
 // the emitted `patch` partials via its store's `setAppearance`.
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import UiSelect from "../common/components/UiSelect.vue";
 import { UI_FONTS, UI_SCALES } from "../common/services/appearance.js";
 
-defineProps({
+const props = defineProps({
   appearance: { type: Object, required: true },
   // oklch chroma for the accent swatch — the app's real palette punch.
   accentChroma: { type: Number, default: 0.1 },
@@ -23,15 +25,17 @@ defineProps({
   accentNote: { type: String, default: "" },
   // Locale options ({ label, value }); empty = no Language row.
   locales: { type: Array, default: () => [] },
-  localeDesc: { type: String, default: "UI language." },
+  localeDesc: { type: String, default: "" },
 });
 const emit = defineEmits(["patch"]);
 
-const MODES = [
-  { label: "Follow system", value: "system" },
-  { label: "Light", value: "light" },
-  { label: "Dark", value: "dark" },
-];
+const { t } = useI18n();
+const localeHint = computed(() => props.localeDesc || t("kit.appearance.panel.localeDesc"));
+const MODES = computed(() => [
+  { label: t("kit.appearance.panel.mode.system"), value: "system" },
+  { label: t("kit.appearance.panel.mode.light"), value: "light" },
+  { label: t("kit.appearance.panel.mode.dark"), value: "dark" },
+]);
 const fontOptions = UI_FONTS.map((f) => f.label);
 </script>
 
@@ -39,8 +43,8 @@ const fontOptions = UI_FONTS.map((f) => f.label);
   <div class="setting-row">
     <div class="setting-row__head">
       <div>
-        <div class="setting-row__title">Theme</div>
-        <div class="setting-row__desc">Light, Dark, or Follow system.</div>
+        <div class="setting-row__title">{{ t('kit.appearance.panel.theme') }}</div>
+        <div class="setting-row__desc">{{ t('kit.appearance.panel.themeDesc') }}</div>
       </div>
       <UiSelect
         :model-value="appearance.mode"
@@ -54,10 +58,8 @@ const fontOptions = UI_FONTS.map((f) => f.label);
   <div class="setting-row">
     <div class="setting-row__head">
       <div>
-        <div class="setting-row__title">Interface size</div>
-        <div class="setting-row__desc">
-          Scales the whole interface — labels, controls, and panels — together.
-        </div>
+        <div class="setting-row__title">{{ t('kit.appearance.panel.size') }}</div>
+        <div class="setting-row__desc">{{ t('kit.appearance.panel.sizeDesc') }}</div>
       </div>
       <UiSelect
         :model-value="appearance.uiScale"
@@ -71,8 +73,8 @@ const fontOptions = UI_FONTS.map((f) => f.label);
   <div class="setting-row">
     <div class="setting-row__head">
       <div>
-        <div class="setting-row__title">UI font</div>
-        <div class="setting-row__desc">The interface typeface.</div>
+        <div class="setting-row__title">{{ t('kit.appearance.panel.font') }}</div>
+        <div class="setting-row__desc">{{ t('kit.appearance.panel.fontDesc') }}</div>
       </div>
       <UiSelect
         :model-value="appearance.uiFont"
@@ -86,9 +88,9 @@ const fontOptions = UI_FONTS.map((f) => f.label);
   <div class="setting-row">
     <div class="setting-row__head">
       <div>
-        <div class="setting-row__title">Accent hue · {{ appearance.accentHue }}°</div>
+        <div class="setting-row__title">{{ t('kit.appearance.panel.accent', { hue: appearance.accentHue }) }}</div>
         <div class="setting-row__desc">
-          Drag to pick a new accent color across the whole app.{{ accentNote ? ` ${accentNote}` : "" }}
+          {{ t('kit.appearance.panel.accentDesc') }}{{ accentNote ? ` ${accentNote}` : "" }}
         </div>
       </div>
       <span class="setting-row__value">
@@ -107,8 +109,8 @@ const fontOptions = UI_FONTS.map((f) => f.label);
   <div v-if="locales.length" class="setting-row">
     <div class="setting-row__head">
       <div>
-        <div class="setting-row__title">Language</div>
-        <div class="setting-row__desc">{{ localeDesc }}</div>
+        <div class="setting-row__title">{{ t('kit.settings.language.label') }}</div>
+        <div class="setting-row__desc">{{ localeHint }}</div>
       </div>
       <UiSelect
         :model-value="appearance.locale"

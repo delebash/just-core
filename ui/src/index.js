@@ -22,11 +22,10 @@ export { configureLlmUi, llmUiBase, llmUiUrl } from "./client.js";
 // functions by hand: each of those was a step a host had to KNOW about, and every
 // omission failed silently.
 export { installLlmUi, llmUiCapabilities } from "./installLlmUi.js";
-// THE FAMILY SURFACE CONTRACT — the machine-readable canon (labels + shapes) every
-// app's contract test asserts against. Kit components read their own defaults from it.
-// Lives in common/ so common-layer components may import it (nothing in common/ may
-// import from the llm layer — the graduation rule).
-export { FAMILY_LABELS, FAMILY_TASK_LINGER, SETTINGS_SECTION_ORDER } from "./common/familyContract.js";
+// THE FAMILY SURFACE CONTRACT — the shapes every app's contract test asserts against (the shared
+// words are the kit's catalog, `kit.*`). Lives in common/ so common-layer components may import it
+// (nothing in common/ may import from the llm layer — the graduation rule).
+export { FAMILY_TASK_LINGER, SETTINGS_SECTION_ORDER } from "./common/familyContract.js";
 export { default as LlmUiHosts } from "./components/LlmUiHosts.vue";
 export { useAiTasksNav } from "./composables/useAiTasksNav.js";
 
