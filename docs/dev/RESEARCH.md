@@ -1198,6 +1198,13 @@ English".
   *code + web, 2026-10-12*.
 - **vue-i18n 12 is not released** (latest 11.4.14, 2026-10-10); its migration guide keeps `$t`
   and `useI18n()` and drops only the Legacy API mode. — *web, 2026-10-12*.
+- **The standard lint reads templates only:** `@intlify/vue-i18n/no-raw-text` checks template text and
+  the attributes it is told about, not the strings a component's `<script>` builds (column labels,
+  dialog titles, toasts, progress lines) nor plain `.js` files. A literal scan of `<script>` blocks
+  (comments, imports and console lines left out) found about 550 English-looking literals in 60 of
+  JustWrite's components — about 130 of them icon names — plus about 116 in its `.js` files; the kit
+  about 250 in 37 components, docgen about 84 in 7. So JustWrite's "0" by the lint is templates only.
+  — *measured 2026-10-12*, scratch scan; rough (bucketing-grade), each file read before converting.
 - **vue-i18n merges into the objects it is given:** `createI18n({ messages })` keeps the objects, and
   `mergeLocaleMessage` writes an app's keys into them, so a shared catalog module handed straight in
   is reworded by the first app that merges over it. The kit's `kitMessages()` returns a fresh copy for
