@@ -31,6 +31,8 @@ npm run build:android            # the Android app (quasar build -m capacitor -T
 npm run server                   # the server alone, on Electron's Node (scripts/node24.js; headless;
                                  #   FAMILY_TEMPLATE_UI_DIR=dist/spa serves the UI)
 npm run lint                     # Biome
+npm run i18n:lint                # the i18n lint: no word written straight into a template
+npm run i18n:report              # keys used but missing from a catalog, and keys nothing uses
 ```
 
 ## What differs from Quasar's default, and why
@@ -51,6 +53,13 @@ npm run lint                     # Biome
 - **The CSP `<meta>`** in `index.html` lets the page reach its server (`connect-src http: https:`)
   — Quasar's default has no `connect-src`, which blocks the renderer → server path.
 - **Biome**, not oxlint/ESLint (the family rule); `.vue` files skip the two template-blind rules.
+  ESLint runs one rule only, the i18n lint (`eslint.i18n.config.js`, the family's one file).
+- **vue-i18n** (§Q.11), the way Quasar's i18n preset installs it: `src/boot/i18n.js` app.use()s
+  the instance from `src/i18n/index.js`, which starts from the kit's catalog (`kit.*`) and merges
+  the app's `src/i18n/locales/<code>.json` over it; Quasar's own words follow the language through
+  its language packs (the kit's `followQuasarLang`). Every word on a page is a key.
+- **`resolve.dedupe`** in `extendViteConf`: the aliased kit's peer packages come from this app's
+  `node_modules`, one copy each.
 - **`allowScripts`** in every `package.json` Quasar installs into (see "Traps").
 - `src-capacitor/capacitor.config.js` stays CommonJS as Quasar generates it ("Capacitor's `.js`
   config loader doesn't yet handle ESM exports") — the one non-ESM file, generated config.

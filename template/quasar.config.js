@@ -19,6 +19,7 @@ export default defineConfig((/* ctx */) => {
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
     boot: [
+      'i18n'
     ],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
@@ -70,6 +71,15 @@ export default defineConfig((/* ctx */) => {
       // The development data folder (<repo>/data: the database, logs, Chromium's files) is
       // never watched — Chromium keeps its files locked (EBUSY) and they aren't source.
       extendViteConf (viteConf) {
+        // The aliased kit imports its peer packages by bare name from its own folder: ONE copy of
+        // each comes from this app's node_modules (Vue's provide/inject and reactivity, and
+        // Quasar's language, break with two) — the list every family app carries (§3).
+        viteConf.resolve = viteConf.resolve || {}
+        viteConf.resolve.dedupe = [
+          ...(viteConf.resolve.dedupe || []),
+          'vue', 'quasar', '@floating-ui/dom', 'pinia', 'vue-router', 'vue-i18n', 'marked',
+          '@vueuse/core', 'qrcode'
+        ]
         viteConf.server = viteConf.server || {}
         const ignored = [].concat(viteConf.server.watch?.ignored || [])
         viteConf.server.watch = { ...(viteConf.server.watch || {}), ignored: [ ...ignored, '**/data/**' ] }

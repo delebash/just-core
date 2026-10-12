@@ -1,0 +1,25 @@
+{
+  "layout": {
+    "title": "Quasar App",
+    "version": "Quasar v{version}",
+    "menu": "Menu",
+    "links": "Essential Links",
+    "link": {
+      "docs": "Docs",
+      "discord": "Discord Chat Channel",
+      "forum": "Forum",
+      "awesome": "Community Quasar projects"
+    }
+  },
+  "index": {
+    "logoAlt": "Quasar logo",
+    "toSecond": "Go to Second Page"
+  },
+  "second": {
+    "toIndex": "Go to Index Page"
+  },
+  "notFound": {
+    "message": "Oops. Nothing here...",
+    "home": "Go Home"
+  }
+}

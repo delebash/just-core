@@ -7,7 +7,7 @@
       </div>
 
       <div class="text-h2" style="opacity:.4">
-        Oops. Nothing here...
+        {{ t('notFound.message') }}
       </div>
 
       <q-btn
@@ -16,9 +16,15 @@
         text-color="blue"
         unelevated
         to="/"
-        label="Go Home"
+        :label="t('notFound.home')"
         no-caps
       />
     </div>
   </div>
 </template>
+
+<script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+</script>

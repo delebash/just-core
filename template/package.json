@@ -18,20 +18,27 @@
     "build:android": "quasar build -m capacitor -T android",
     "postinstall": "quasar prepare --silent",
     "lint": "biome check .",
-    "server": "node scripts/node24.js server/src/serve.js serve"
+    "server": "node scripts/node24.js server/src/serve.js serve",
+    "i18n:lint": "eslint -c eslint.i18n.config.js \"src/**/*.vue\"",
+    "i18n:report": "vue-i18n-extract report --vueFiles \"src/**/*.?(js|vue)\" --languageFiles \"src/i18n/locales/*.json\" --exclude kit."
   },
   "dependencies": {
     "pinia": "^4.0.3",
     "@quasar/extras": "^2.1.0",
     "quasar": "^2.35.0",
     "vue": "^3.5.43",
-    "vue-router": "^5.4.0"
+    "vue-router": "^5.4.0",
+    "vue-i18n": "^11.4.14"
   },
   "devDependencies": {
     "@quasar/app-vite": "^3.10.2",
     "autoprefixer": "^10.6.1",
     "postcss": "^8.5.29",
-    "@biomejs/biome": "2.5.15"
+    "@biomejs/biome": "2.5.15",
+    "@intlify/eslint-plugin-vue-i18n": "^4.5.1",
+    "eslint": "^10.12.0",
+    "vue-eslint-parser": "^10.4.1",
+    "vue-i18n-extract": "^2.0.7"
   },
   "keywords": [
     "quasar",

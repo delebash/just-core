@@ -15,7 +15,7 @@ npm run dev          # the desktop app, live
 npm run dev:spa      # the renderer alone in a browser tab (start the server yourself)
 npm run server       # the server alone (headless), the UI at /
 npm run build        # the installer
-npm run lint && node ../scripts/check-family.js   # must pass before a commit
+npm run lint && npm run i18n:lint && node ../scripts/check-family.js   # must pass before a commit
 ```
 
 ## What bites

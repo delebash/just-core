@@ -3,7 +3,7 @@
   <q-page class="flex flex-center">
     <div class="column items-center">
       <img
-        alt="Quasar logo"
+        :alt="t('index.logoAlt')"
         src="~@/assets/quasar-logo-vertical.svg"
         style="width: 200px; height: 200px"
       />
@@ -12,7 +12,7 @@
         class="q-mt-md"
         color="primary"
         to="/second"
-        label="Go to Second Page"
+        :label="t('index.toSecond')"
         no-caps
       />
     </div>
@@ -20,5 +20,7 @@
 </template>
 
 <script setup>
-//
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 </script>

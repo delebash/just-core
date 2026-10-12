@@ -958,6 +958,51 @@ const exports_ = kitExports();
 const kitFiles = new Map();
 for (const f of walk(join(KIT, "ui/src"))) kitFiles.set(basename(f), f);
 
+// ── check 16 · words go through vue-i18n (app-structure §Q.11; the i18n plan, Task 2) ────────
+// Every app — the template included — installs vue-i18n the way Quasar's i18n preset does (a boot
+// file named 'i18n' in quasar.config.js), starts its catalog from the kit's (kitMessages()), and
+// has Quasar's own words follow the language (the kit's followQuasarLang). The kit's old side
+// doors, deleted in Task 1, must not come back in an app's code. The i18n lint is the family's
+// one file, byte-identical to the kit's ui/eslint.i18n.config.js: compared wherever an app has
+// one. An app WITHOUT one is advisory for now — docgen gets its file in the plan's Task 4 and
+// JustVoice in Task 5; promote that line to fail() once both have it, as check 9's note says of
+// its own advisories.
+const I18N_DOORS = /\b(configureFamilyLabels|setUiLocale|FAMILY_LABELS|familyLabels|quickSetupCopy|catalogCopy|configureDialog)\b/;
+const KIT_I18N_LINT = join(KIT, "ui", "eslint.i18n.config.js");
+function checkI18n(app, files) {
+  const name = app.name;
+  const read = (rel) => (existsSync(join(app.dir, rel)) ? readFileSync(join(app.dir, rel), "utf8") : null);
+  const pkg = JSON.parse(read("package.json") || "{}");
+  if (!{ ...pkg.dependencies, ...pkg.devDependencies }["vue-i18n"]) fail(name, `package.json has no "vue-i18n" dependency — the app's words go through vue-i18n (§Q.11)`);
+  const boot = (read("quasar.config.js") || "").match(/\bboot:\s*\[([^\]]*)\]/);
+  if (!boot || !/['"]i18n['"]/.test(boot[1])) fail(name, "quasar.config.js's boot list has no 'i18n' — the instance is installed by src/boot/i18n.js (§Q.11)");
+  const bootFile = read("src/boot/i18n.js");
+  if (bootFile === null) fail(name, "src/boot/i18n.js missing — the boot file that app.use()s the vue-i18n instance (§Q.11)");
+  else if (!/followQuasarLang\(/.test(bootFile)) fail(name, "src/boot/i18n.js doesn't call the kit's followQuasarLang — Quasar's own words would stay English (§Q.11)");
+  const index = read("src/i18n/index.js");
+  if (index === null || !/kitMessages\(\)/.test(index)) fail(name, "src/i18n/index.js doesn't start the catalog from the kit's (kitMessages()) — the kit's screens would show raw keys (§Q.11)");
+  for (const file of files) {
+    if (!/\.(js|vue)$/.test(file)) continue;
+    readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+      const m = line.match(I18N_DOORS);
+      if (m) fail(name, `${file.slice(app.dir.length + 1).replace(/\\/g, "/")}:${i + 1} names ${m[1]} — removed in the i18n plan's Task 1; words go through vue-i18n (§Q.11)`);
+    });
+  }
+  const lint = join(app.dir, "eslint.i18n.config.js");
+  if (!existsSync(lint)) info(name, "no eslint.i18n.config.js — the family's i18n lint, a copy of the kit's ui/eslint.i18n.config.js (§Q.11)");
+  else if (hash(lint) !== hash(KIT_I18N_LINT)) fail(name, "eslint.i18n.config.js differs from the kit's ui/eslint.i18n.config.js — one file, byte-identical (§Q.11)");
+}
+function checkI18nKit() {
+  if (!existsSync(KIT_I18N_LINT)) fail("kit", "ui/eslint.i18n.config.js missing — the family's i18n lint (§Q.11)");
+  for (const file of walk(join(KIT, "ui", "src"))) {
+    if (!/\.(js|vue)$/.test(file)) continue;
+    readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+      const m = line.match(I18N_DOORS);
+      if (m) fail("kit", `ui/src/${file.slice(join(KIT, "ui", "src").length + 1).replace(/\\/g, "/")}:${i + 1} names ${m[1]} — removed in the i18n plan's Task 1 (§Q.11)`);
+    });
+  }
+}
+
 const perApp = [];
 for (const app of APPS) {
   if (!existsSync(app.dir)) { fail(app.name, `not found at ${app.dir}`); continue; }
@@ -976,6 +1021,7 @@ for (const app of APPS) {
     checkLauncher(app);
     checkDesktopMain(app);
     checkQuasar(app);
+    checkI18n(app, files);
   }
   checkHandRolled(app, files);
   checkRetired(app.name, app.dir, RETIRED.get(app.name));
@@ -998,6 +1044,7 @@ if (TEMPLATE.kind !== "quasar") {
   checkLauncher(TEMPLATE);
   checkDesktopMain(TEMPLATE);
   checkQuasar(TEMPLATE);
+  checkI18n(TEMPLATE, files);
   checkOneSaveDoor(TEMPLATE, files);
   checkOneShellDoor(TEMPLATE, files);
   checkOneHono(TEMPLATE, walk(join(TEMPLATE.dir, "server", "src")));
@@ -1009,6 +1056,7 @@ checkTrackerFormat();
 checkSkeletonCrossApp();
 checkRetired("kit", KIT, KIT_RETIRED);
 checkSkeletonKit();
+checkI18nKit();
 checkResearchRegister("kit", KIT);
 
 const showInfo = process.argv.includes("--info");

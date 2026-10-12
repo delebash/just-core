@@ -364,8 +364,45 @@ Chromium keeps its files there locked and the watcher fails on them (EBUSY).
 - Biome's version is one exact pin across the family, the template included; `biome.json` is
   byte-identical among the apps.
 
+- **words** (check 16, §Q.11): `vue-i18n` in `package.json`; `'i18n'` in the boot list;
+  `src/boot/i18n.js` calling the kit's `followQuasarLang`; `src/i18n/index.js` starting from
+  `kitMessages()`; none of the kit's removed text doors (`configureFamilyLabels`, `setUiLocale`,
+  `FAMILY_LABELS`, `familyLabels`, `quickSetupCopy`, `catalogCopy`, `configureDialog`) in
+  `src/`; `eslint.i18n.config.js` byte-identical to the kit's `ui/eslint.i18n.config.js` (an app
+  without one is advisory until docgen and JustVoice have theirs — the i18n plan's Tasks 4 and 5).
+
 The template is checked against all of it (check 4's tests aside) plus the shell doors (checks
 11–13); the docs and skeleton-lane checks are for products, not the template.
+
+### Q.11 · Words — vue-i18n
+
+Every word an app shows is a vue-i18n message, the kit's included (decided 2026-10-12: the kit's
+TASKS, "Every app and the kit on vue-i18n"; the plan `docs/plans/2026-10-12-i18n-standard.md`).
+The template is the reference.
+
+- **Installed as Quasar's i18n preset installs it** (quasar.dev/options/app-internationalization):
+  `src/boot/i18n.js`, first in `quasar.config.js > boot`, `app.use()`s the instance that
+  `src/i18n/index.js` exports — exported, because code outside a component translates too.
+- **The catalog starts from the kit's.** `createI18n({ legacy: false, messages: kitMessages() })`,
+  then the app's `src/i18n/locales/<code>.json` merged over it (`catalogsFromFiles(import.meta.glob(
+  "./locales/*.json", { eager: true }))` — a language is a file). The kit's words are `kit.*` keys;
+  an app rewords one by setting the same key in its own catalog, never by editing the kit's.
+- **The kit's code reads the app's instance:** its components through `useI18n()`, its code outside a
+  component through `kitT()`, from the instance `installLlmUi(app, { i18n })` hands over (required;
+  kit text read before that warns once in the console).
+- **Data that is shown names its key** (`labelKey`), and the component translates when it renders —
+  a list built once at load keeps the language it was built in.
+- **Quasar's own words follow the language:** the boot file calls the kit's
+  `followQuasarLang(i18n, import.meta.glob("../../node_modules/quasar/lang/*.js"))` (Quasar's
+  language packs, matched with `Lang.getClosestIsoName`).
+- **Dates and numbers in the app's language** — vue-i18n's `d()` and `n()`, or `Intl` given the
+  i18n locale — never the browser's default.
+- **Checked:** `eslint.i18n.config.js` is the family's one file (a copy of the kit's
+  `ui/eslint.i18n.config.js`), its `no-raw-text` rule at error: `npm run i18n:lint` at zero, and
+  `npm run i18n:report` with no missing key in the app's own languages. The lint reads template
+  text and plain attributes, not text a script builds nor a bound attribute's value — those are
+  checked by reading (the kit's `docs/dev/RESEARCH.md` §8).
+- `vue-i18n` is one of the kit's peers every app dedupes (§3).
 
 ---
 
@@ -420,8 +457,8 @@ build: {
     // ONE copy of every peer the kit imports, from this app's node_modules — Vue's
     // provide/inject and reactivity break with two.
     viteConf.resolve.dedupe = [ ...(viteConf.resolve.dedupe || []),
-      'vue', 'quasar', '@floating-ui/dom', 'pinia', 'vue-router', 'marked', '@vueuse/core' ]
-      // + 'vue-i18n', 'qrcode' where the app has them
+      'vue', 'quasar', '@floating-ui/dom', 'pinia', 'vue-router', 'vue-i18n', 'marked',
+      '@vueuse/core' ]   // + 'qrcode' where the app has it
     // The dev server reads the repo and the kit's UI. WATCH IGNORES are part of the contract:
     // the root is the repo, so the big non-frontend trees are never watched (JV measured
     // 500 ms → 6.2 s to first HTML without them; data/ also fails with EBUSY, §Q.8).

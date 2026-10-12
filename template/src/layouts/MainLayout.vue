@@ -8,15 +8,15 @@
           dense
           round
           icon="menu"
-          aria-label="Menu"
+          :aria-label="t('layout.menu')"
           @click="toggleLeftDrawer"
         />
 
         <q-toolbar-title>
-          Quasar App
+          {{ t('layout.title') }}
         </q-toolbar-title>
 
-        <div>Quasar v{{ $q.version }}</div>
+        <div>{{ t('layout.version', { version: $q.version }) }}</div>
       </q-toolbar>
     </q-header>
 
@@ -29,7 +29,7 @@
         <q-item-label
           header
         >
-          Essential Links
+          {{ t('layout.links') }}
         </q-item-label>
 
         <EssentialLink
@@ -47,12 +47,17 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import EssentialLink from '@/components/EssentialLink.vue'
 
-const linksList = [
+const { t } = useI18n()
+
+// A computed, so the words follow a language switch. Product names, sites and handles stay as
+// written; the words are keys.
+const linksList = computed(() => [
   {
-    label: 'Docs',
+    label: t('layout.link.docs'),
     caption: 'quasar.dev',
     icon: 'school',
     link: 'https://quasar.dev'
@@ -64,13 +69,13 @@ const linksList = [
     link: 'https://github.com/quasarframework'
   },
   {
-    label: 'Discord Chat Channel',
+    label: t('layout.link.discord'),
     caption: 'chat.quasar.dev',
     icon: 'chat',
     link: 'https://chat.quasar.dev'
   },
   {
-    label: 'Forum',
+    label: t('layout.link.forum'),
     caption: 'forum.quasar.dev',
     icon: 'record_voice_over',
     link: 'https://forum.quasar.dev'
@@ -89,11 +94,11 @@ const linksList = [
   },
   {
     label: 'Quasar Awesome',
-    caption: 'Community Quasar projects',
+    caption: t('layout.link.awesome'),
     icon: 'favorite',
     link: 'https://awesome.quasar.dev'
   }
-]
+])
 
 const leftDrawerOpen = ref(false)
 
