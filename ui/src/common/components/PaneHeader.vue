@@ -7,7 +7,8 @@
 //
 // Above the title, an eyebrow or a breadcrumb trail (`crumbs`). The title is plain text, or —
 // `editable` — the page's own name, edited in place (v-model:title; `before-title` holds a mark
-// before it, like a strand's colour dot). The default slot holds the actions. With `helpKey`
+// before it, like a strand's colour dot; `after-title` a control that works on it, like a
+// character's Name ideas). The default slot holds the actions. With `helpKey`
 // the "?" affordance (HelpTrigger) pins to the far right.
 //
 // The title keeps its one-line width: when it and the actions don't fit on one row, the actions
@@ -68,6 +69,7 @@ defineExpose({
           :value="title" :placeholder="placeholder"
           @input="emit('update:title', $event.target.value)" />
         <h1 v-else class="pane-h1">{{ title }}</h1>
+        <slot name="after-title" />
       </div>
       <p v-if="sub" class="pane-sub">{{ sub }}</p>
     </div>
@@ -118,6 +120,7 @@ defineExpose({
   field-sizing: content;
   min-width: 4ch;
   max-width: 100%;
+  flex: 0 1 auto; /* beside an after-title control, a long name shrinks rather than pushing it out */
 }
 .pane-title-input:hover { border-color: var(--border-soft); }
 .pane-title-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
