@@ -1017,6 +1017,20 @@ test("stop_compare_and_pop_spares_a_concurrent_fresh_load", async () => {
 
 // ── the router-listing mask (2026-07-17, the user's dead "Load now" button) ──
 
+test("model_servers_ram_is_the_router_tree_less_the_router", async () => {
+  // What unloading every AI model gives back (JustVoice's RAM check credits it, 2026-10-12).
+  const svc = serviceFor(tmp());
+  expect(await svc.modelServersRamMb()).toBeNull(); // no router
+  svc._router = { ...fakeRouter(), process: { pid: 4242 } };
+  const tree = vi.spyOn(hardware, "processTreeRssMb").mockResolvedValue(17_300);
+  const own = vi.spyOn(hardware, "processRssMb").mockResolvedValue(120);
+  expect(await svc.modelServersRamMb()).toBe(17_180);
+  expect(tree).toHaveBeenCalledWith(4242);
+  expect(own).toHaveBeenCalledWith(4242);
+  tree.mockResolvedValue(null); // the probe couldn't read it
+  expect(await svc.modelServersRamMb()).toBeNull();
+});
+
 test("resident_in_flight_load_outranks_router_idle_listing", async () => {
   const svc = serviceFor(tmp(), { routerModels: () => routerView([TEST_MODEL.id, "unloaded"]) });
   svc._router = fakeRouter(); // router alive, model listed idle

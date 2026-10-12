@@ -1294,6 +1294,23 @@ export class RunnerService {
     return router != null && router.isAlive() ? router.url : "";
   }
 
+  /**
+   * The system memory the router's model servers hold now, in MB — what unloading every AI
+   * model gives back (the router itself stays up). Each resident model is a child server of
+   * the router, so it is the router's process tree less the router's own process, read with
+   * the per-process probe (`hardware.processTreeRssMb`). null when no router is up or the probe
+   * can't read it. A host checking its own load against free memory credits this when that
+   * load will unload the AI models (JustVoice, 2026-10-12).
+   */
+  async modelServersRamMb() {
+    const router = this._router;
+    const pid = router != null && router.isAlive() ? router.process?.pid : null;
+    if (!pid) return null;
+    const tree = await hardware.processTreeRssMb(pid);
+    if (tree == null) return null;
+    return Math.max(0, tree - ((await hardware.processRssMb(pid)) ?? 0));
+  }
+
   // ── Engine install — its OWN once-per-machine step, separate from loading a model (a load
   //    REQUIRES the engine present; see _runLoad). ──────────────────────────────────────
 
