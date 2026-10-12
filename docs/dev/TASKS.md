@@ -10,6 +10,26 @@
 > Items extracted from plan docs are marked **[verified]** (code-checked at
 > extraction) or **[attributed]** (the plan doc's claim, not re-verified).
 
+## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
+STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp
+        and the AI model's door"): llama.cpp at b11239 uses mapped CPU weights in place, but the
+        kit loads gemma 4 26B A4B with `load-mode = none` and gemma 4 12B with `mmap+mlock`, so
+        neither leaves pages Windows can drop — the premise of the RAM ruling (fit plan §13.12,
+        "DISPLAY-ONLY in v1, enforcement only on evidence (mlock/no_mmap-keyed)", §8.18) doesn't
+        hold for them. Shown: "The AI model's door: check it on its RAM claim, for the load modes
+        that keep weights resident (`none` and `mmap+mlock`), in the kit for both apps? My lean:
+        yes, after one measurement that the 26B's real memory matches the claim." The user: "your
+        rec on all 3 go".
+WHY:    JustVoice's speech loads check free RAM since 2026-10-12; the AI model's load checked
+        nothing, so the order of loading decided which one ran short.
+NOT:    checking a plain `mmap` load (its CPU pages can be dropped — §8.18 stands for it).
+BUILT:  NOT built — the measurement failed (2026-10-12): gemma 4 26B A4B (`--load-mode none
+        --n-gpu-layers 31 --n-cpu-moe 21`) holds 9,838 MB (working set = its peak; private bytes
+        16,836) against `minRamMb` 17,685 = the whole file + 4,096 headroom; the claim charges the
+        file the card holds (JustVoice RESEARCH §10.14 "The 26B's RAM against its claim").
+OPEN:   what the door checks instead — the user's word.
+GO:     given 2026-10-12 ("your rec on all 3 go").
+
 ## Every app and the kit on vue-i18n [2026-10-12]
 STATE:  DECIDED 2026-10-12; plan written, awaiting go — `docs/plans/2026-10-12-i18n-standard.md`.
         Asked in a JustWrite session after a pseudo-locale run showed the kit's screens in English
