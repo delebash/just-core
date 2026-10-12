@@ -1029,6 +1029,14 @@ GitHub API and raw files, unpkg; the plan:
 
 ## 3 · AI tasks and the stream frames
 
+- `GET /v1/ai/resolved-route` rows carry `context` (since `1476549` + `b9ea75d`, 2026-10-11): the
+  routed local model's window — `meta.n_ctx` from the router's `/v1/models` entry when it's
+  loaded, else its `--ctx-size` launch argument — or `null` for a cloud provider or when the
+  router can't say; the lookup never fails the route and never loads the model. JustWrite's story
+  context reads it fresh per call and takes a seeded share of it (`src/services/storyContext.js`
+  `storyBudgetFor`). — *code, 2026-10-11* · `server/src/llm/prompts.js` `routerContext`,
+  `ResolvedRouteResponse.context`.
+
 - An app endpoint's SSE stream speaks six frames: `{delta}` (answer tokens), `{thinking}` (a
   thinking model's reasoning, before its answer — added 2026-10-06), `{progress}` (prompt
   reading, before the first token only), `{step: {name, done, total}}` (a later pass over part
