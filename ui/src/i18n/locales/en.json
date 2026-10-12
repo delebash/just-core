@@ -9,9 +9,7 @@
     "dialog": {
       "confirm": "Confirm",
       "ok": "OK",
-      "cancel": "Cancel",
-      "defaultTitle": "Are you sure?",
-      "close": "Close"
+      "defaultTitle": "Are you sure?"
     },
     "aiTabs": {
       "providers": "Providers & models",
@@ -23,7 +21,6 @@
     "lab": {
       "generatedPrompt": "Generated prompt",
       "generatedNote": "built by the app for every real run — test only; nothing here is saved or applied",
-      "refresh": "Refresh",
       "editCopies": "Edit copies for this test",
       "lockCopies": "Lock copies",
       "restoreGenerated": "Restore generated",
@@ -60,14 +57,10 @@
       "sample": "Sample"
     },
     "downloadBar": {
-      "cancel": "Cancel",
-      "retry": "Retry",
-      "dismiss": "Dismiss",
       "ready": "Ready ✓"
     },
     "connectionError": {
       "title": "Can't reach the {appName} server",
-      "retry": "Retry",
       "body": "{appName} needs its server to {need}. It isn't responding at {url}.",
       "need": "load and save your work",
       "theApp": "the app"
@@ -227,7 +220,8 @@
       "done": {
         "applied": "Setup applied.",
         "searchPending": "The search model didn't finish downloading — it downloads itself on your first search, or you can grab it any time from the model catalog."
-      }
+      },
+      "doneBody": ""
     },
     "aiOffer": {
       "eyebrow": "Optional",
@@ -400,10 +394,7 @@
         "unloadEmbedTitle": "Unload from memory — frees VRAM; it loads again on the next search",
         "reset": "Reset catalog",
         "add": "Add model",
-        "save": "Save",
-        "edit": "Edit",
         "editTitle": "Edit catalog fields",
-        "download": "Download",
         "unloadModel": "Unload model",
         "unloadModelTitle": "Free this model's memory (VRAM) — it loads again on next use",
         "loadModel": "Load model",
@@ -598,12 +589,10 @@
         "nvidiaNote": "Reported by nvidia-smi, which sees compute workloads only — apps using the GPU purely for graphics won't appear here.",
         "sumNote": "These add up to a little less than the total above: driver and desktop overhead isn't charged to any one process."
       },
-      "refresh": "Refresh",
       "clipboardFailed": "Couldn't reach the clipboard — select and copy from the console instead.",
       "debug": {
         "title": "Copy this machine's AI state — hardware, driver, engine build, tuning keys, VRAM, loaded models — for a bug report",
-        "copy": "Copy debug info",
-        "copied": "Copied ✓"
+        "copy": "Copy debug info"
       },
       "usage": {
         "colCalls": "Calls",
@@ -661,9 +650,10 @@
         "keySet": "API key set",
         "noKey": "no key",
         "test": "Test",
-        "edit": "Edit",
         "noLocal": "No local providers yet. Click “{add}” and point at {url}",
-        "noCloud": "No cloud providers. Click “{add}” and paste a key from OpenAI / Anthropic / OpenRouter."
+        "noCloud": "No cloud providers. Click “{add}” and paste a key from OpenAI / Anthropic / OpenRouter.",
+        "isDefault": "Default ✓",
+        "setDefault": "Set as default"
       },
       "scope": {
         "local": "Local · free",
@@ -681,7 +671,19 @@
       "thisPc": "This PC",
       "builtin": "Built-in",
       "removeItem": "Remove {item}",
-      "tag": "tag"
+      "tag": "tag",
+      "save": "Save",
+      "cancel": "Cancel",
+      "close": "Close",
+      "retry": "Retry",
+      "dismiss": "Dismiss",
+      "download": "Download",
+      "refresh": "Refresh",
+      "remove": "Remove",
+      "saving": "Saving…",
+      "resetDefaults": "Reset to defaults",
+      "inheritDefault": "Inherit default",
+      "reset": "Reset"
     },
     "classTunes": {
       "memType": {
@@ -943,11 +945,10 @@
       "devices": {
         "title": "Devices",
         "none": "None yet.",
-        "network": "Synced over the network",
-        "remove": "Remove"
+        "network": "Synced over the network"
       }
     },
-    "config": {
+    "configColumn": {
       "inherit": "— inherit —",
       "localBudget": "local: thinking budget {value} — {source}",
       "labTask": "Lab test — {action}",
@@ -961,7 +962,6 @@
       "inProdTitle": "This preset is in production for this feature",
       "useProd": "Use in production",
       "useProdTitle": "Make this preset the one this feature uses",
-      "save": "Save",
       "saveTitle": "Save changes to the loaded preset in place — \"Save as preset\" makes a new copy instead",
       "namePh": "name — Enter",
       "saveAs": "Save as preset",
@@ -1016,7 +1016,9 @@
       "run": "Run",
       "running": "Running…",
       "raw": "Raw model output",
-      "model": "model"
+      "model": "model",
+      "addSampler": "＋ Add custom sampler",
+      "samplerPlaceholder": "sampler (e.g. top_k)"
     },
     "appearance": {
       "pairing": {
@@ -1194,7 +1196,6 @@
         "cap": "the launch-config libraries — per-PC-class starting points, and the always-on switch bundles under every tune",
         "classTunesTitle": "PC class configs — the library"
       },
-      "saving": "Saving…",
       "save": "Save provider",
       "presetLocalEngine": "Local engine"
     },
@@ -1333,8 +1334,7 @@
         "expertMb": "Expert MB per token",
         "otherMb": "Other MB",
         "sha": "sha256"
-      },
-      "reset": "Reset to defaults"
+      }
     },
     "aiTasks": {
       "secs": "{s}s",
@@ -1459,7 +1459,7 @@
       "building": "Building the prompt preview…",
       "pickAction": "Pick an action on the left."
     },
-    "data": {
+    "dataManagement": {
       "saveTitle": "Save {app} backup",
       "filterName": "{app} backup",
       "downloaded": "Backup downloaded.",
@@ -1478,7 +1478,6 @@
       "reset": {
         "title": "Reset {app}?",
         "label": "Wipes ALL data — projects, settings, AI providers — and reloads with the demo seed. Type {word} to confirm.",
-        "confirm": "Reset",
         "mismatch": "Confirmation didn't match — not reset.",
         "done": "Reset — reloading…",
         "heading": "Reset {app}",
@@ -1491,7 +1490,7 @@
       "import": "Import backup…",
       "defaultApp": "Workspace"
     },
-    "chip": {
+    "featureChip": {
       "editTip": "Change the model & reasoning for {feature} — edits its preset",
       "viewTip": "Runs on {feature} — manage under AI settings → Routing by feature",
       "thisPreset": "this preset",
@@ -1504,12 +1503,11 @@
       },
       "runsOn": "Runs on",
       "popHead": "Runs on {feature}",
-      "inherit": "Inherit default",
       "thinking": "Thinking",
       "unlimited": "Unlimited ⚠ — this model has been observed to loop; may think until the context fills",
       "blast": "Changes the “{preset}” preset — used by {n} feature | Changes the “{preset}” preset — used by {n} features"
     },
-    "switches": {
+    "globalSwitches": {
       "applies": {
         "all": "All models",
         "moe": "MoE models",
@@ -1523,9 +1521,7 @@
       },
       "reset": {
         "title": "Reset the launch defaults?",
-        "body": "Restores the shipped switch bundles (all models · MoE · dense · speculative decode). Your PC class configs and saved machine tunes are not touched.",
-        "confirm": "Reset",
-        "button": "Reset to defaults"
+        "body": "Restores the shipped switch bundles (all models · MoE · dense · speculative decode). Your PC class configs and saved machine tunes are not touched."
       },
       "title": "Global launch defaults",
       "summary": "the always-on switch bundles under every tune — all models · MoE · dense · speculative decode",
@@ -1533,7 +1529,7 @@
       "helpBold": "Models with an applied config keep their saved values",
       "helpKept": "{kept} — a change here reaches them only when you refresh or remove their applied config in Tune & measure."
     },
-    "history": {
+    "measureHistory": {
       "col": {
         "when": "When",
         "run": "Run",
@@ -1667,7 +1663,6 @@
         "input": "Input $/1M",
         "output": "Output $/1M"
       },
-      "remove": "Remove",
       "idExample": "e.g. {id}",
       "add": "＋ Add"
     },
@@ -1692,7 +1687,7 @@
         "label": "Language"
       }
     },
-    "knobs": {
+    "knobGrid": {
       "namePlaceholder": "flag (e.g. ctx_len)",
       "valuePlaceholder": "value",
       "add": "＋ Add switch",
@@ -1702,11 +1697,8 @@
       "originTip": "Where this value comes from",
       "resetOne": "Reset to default",
       "otherKeys": "Other keys",
-      "remove": "Remove",
       "resetAllTip": "Reset the listed knobs to their defaults",
-      "perRequest": "per-request — sent with every request as JSON, not a launch flag; applies without reload",
-      "addSampler": "＋ Add custom sampler",
-      "samplerPlaceholder": "sampler (e.g. top_k)"
+      "perRequest": "per-request — sent with every request as JSON, not a launch flag; applies without reload"
     },
     "embed": {
       "failed": "The local embedding model \"{model}\" failed to load. Open the AI page and Edit the built-in provider to see the model log, then try again.",
@@ -1742,10 +1734,9 @@
       "pickProviderTip": "Pick a provider first to choose its model"
     },
     "modal": {
-      "close": "Close",
       "dialog": "Dialog"
     },
-    "select": {
+    "multiSelect": {
       "noMatches": "No matches",
       "placeholder": "Select…",
       "clearAll": "Clear all",
@@ -1795,7 +1786,7 @@
       "tps": "{n} tok/s",
       "words": "{n} words"
     },
-    "secret": {
+    "secretInput": {
       "show": "Show",
       "hide": "Hide"
     },

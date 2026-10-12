@@ -38,7 +38,7 @@ const dialog = computed(() => {
       title: opts.title || t("kit.dialog.defaultTitle"),
       message: opts.message || "",
       confirmLabel: opts.confirmLabel || t("kit.dialog.confirm"),
-      cancelLabel: opts.cancelLabel || t("kit.dialog.cancel"),
+      cancelLabel: opts.cancelLabel || t("kit.common.cancel"),
       danger: !!opts.danger,
     };
   }
@@ -57,7 +57,7 @@ const dialog = computed(() => {
     title: opts.title || "",
     message: opts.message || "",
     confirmLabel: opts.confirmLabel || t("kit.dialog.ok"),
-    cancelLabel: opts.cancelLabel || t("kit.dialog.cancel"),
+    cancelLabel: opts.cancelLabel || t("kit.common.cancel"),
     danger: !!opts.danger,
     fields,
     isSingle: !Array.isArray(opts.fields),
@@ -165,7 +165,7 @@ function onEnter(e, isLastField) {
     v-if="hostOpen"
     ref="modalRef"
     :title="dialog?.title || ''"
-    :close-label="dialog?.cancelLabel || t('kit.dialog.close')"
+    :close-label="dialog?.cancelLabel || t('kit.common.close')"
     :max-width="'440px'"
     dismissable
     @close="onClosed"
@@ -212,7 +212,7 @@ function onEnter(e, isLastField) {
     </div>
 
     <template #footer>
-      <UiButton intent="ghost" :label="dialog?.cancelLabel || t('kit.dialog.cancel')" @click="cancel" />
+      <UiButton intent="ghost" :label="dialog?.cancelLabel || t('kit.common.cancel')" @click="cancel" />
       <UiButton
         :intent="dialog?.danger ? 'danger' : 'primary'"
         :label="dialog?.confirmLabel || t('kit.dialog.ok')"

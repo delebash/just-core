@@ -1379,7 +1379,7 @@ refreshApplied();
 
         <template #actions="{ row: m }">
                 <div class="lu-macts">
-                  <UiButton intent="ghost" size="small" :title="t('kit.modelCatalog.btn.editTitle')" @click="startEdit(m)">{{ t('kit.modelCatalog.btn.edit') }}</UiButton>
+                  <UiButton intent="ghost" size="small" :title="t('kit.modelCatalog.btn.editTitle')" @click="startEdit(m)">{{ t('kit.common.edit') }}</UiButton>
                 <!-- Cancel lives IN the status-cell DownloadBar now (task.cancel — one control,
                      both channels: a spawn-LOAD aborts via /stop, a download via /download/cancel).
                      So the load/download CTAs simply HIDE while loading; no per-row Cancel button. -->
@@ -1390,7 +1390,7 @@ refreshApplied();
                        the pair read as two different controls across the two
                        catalogs. Same order, same words now. -->
                   <UiButton v-if="m.status === 'available'" intent="primary" size="small"
-                    :loading="loadingId === m.id" @click="download(m.id)">{{ t('kit.modelCatalog.btn.download') }}</UiButton>
+                    :loading="loadingId === m.id" @click="download(m.id)">{{ t('kit.common.download') }}</UiButton>
                   <!-- Load / Unload are ROW BUTTONS, not menu items (user, 2026-08-14):
                        since setting a default no longer loads, warming and freeing are
                        everyday verbs and belong in reach. -->
@@ -1579,9 +1579,9 @@ refreshApplied();
         <div v-if="saveErr" class="lu-error">{{ saveErr }}</div>
       </div>
       <template #footer>
-        <UiButton intent="ghost" @click="cancelEdit">{{ t('kit.dialog.cancel') }}</UiButton>
+        <UiButton intent="ghost" @click="cancelEdit">{{ t('kit.common.cancel') }}</UiButton>
         <span class="lu-mm-spacer" />
-        <UiButton intent="primary" :loading="saving" @click="saveModel">{{ editingNew ? t('kit.modelCatalog.btn.add') : t('kit.modelCatalog.btn.save') }}</UiButton>
+        <UiButton intent="primary" :loading="saving" @click="saveModel">{{ editingNew ? t('kit.modelCatalog.btn.add') : t('kit.common.save') }}</UiButton>
       </template>
     </AppModal>
 

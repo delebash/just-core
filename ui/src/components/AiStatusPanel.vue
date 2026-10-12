@@ -130,7 +130,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
           <h2>{{ t('kit.nav.aiTasks') }}</h2>
         </div>
         <UiButton intent="ghost" size="small" @click="tasks.closePanel()">
-          <Icon name="Close" :size="12" /> {{ t('kit.dialog.close') }}
+          <Icon name="Close" :size="12" /> {{ t('kit.common.close') }}
         </UiButton>
       </header>
 
@@ -158,7 +158,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
             <span class="aip-task-spacer" />
             <UiButton intent="danger" size="small" @click="tasks.cancel(task.id)">
               <template #icon><Icon name="Close" :size="11" /></template>
-              {{ t('kit.dialog.cancel') }}
+              {{ t('kit.common.cancel') }}
             </UiButton>
           </div>
 
@@ -261,7 +261,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
               <template #icon><Icon name="Refresh" :size="11" /></template>
             </UiButton>
             <UiButton intent="ghost" size="icon" @click="tasks.dismiss(task.id)"
-              v-tooltip.bottom="t('kit.downloadBar.dismiss')">
+              v-tooltip.bottom="t('kit.common.dismiss')">
               <template #icon><Icon name="Close" :size="11" /></template>
             </UiButton>
           </div>

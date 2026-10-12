@@ -33,7 +33,7 @@ const props = defineProps({
   // out). Apps that pass nothing look exactly as before.
   options: { type: Array, default: () => [] },
 });
-const app = computed(() => props.appName || t("kit.data.defaultApp"));
+const app = computed(() => props.appName || t("kit.dataManagement.defaultApp"));
 const busy = ref("");
 // The options' live checked-state, seeded from each entry's default (on unless
 // the app says otherwise).
@@ -65,17 +65,17 @@ async function exportBackup() {
     // JustVoice + docgen did not, which is exactly how one act ended up with two
     // behaviours across the family.
     const res = await saveBlob(blob, filename, {
-      title: t("kit.data.saveTitle", { app: app.value }),
-      filterName: t("kit.data.filterName", { app: app.value }),
+      title: t("kit.dataManagement.saveTitle", { app: app.value }),
+      filterName: t("kit.dataManagement.filterName", { app: app.value }),
       filterExt: "zip",
     });
     if (res.cancelled) return;
     pushToast({
-      message: res.downloaded ? t("kit.data.downloaded") : t("kit.data.saved"),
+      message: res.downloaded ? t("kit.dataManagement.downloaded") : t("kit.dataManagement.saved"),
       kind: "success",
     });
   } catch (e) {
-    pushToast({ message: t("kit.data.err.backup", { error: e.message }), kind: "error" });
+    pushToast({ message: t("kit.dataManagement.err.backup", { error: e.message }), kind: "error" });
   } finally {
     busy.value = "";
   }
@@ -86,9 +86,9 @@ async function onImport(e) {
   e.target.value = "";
   if (!file) return;
   const ok = await confirmDialog({
-    title: t("kit.data.restore.title"),
-    message: t("kit.data.restore.body"),
-    confirmLabel: t("kit.data.restore.confirm"),
+    title: t("kit.dataManagement.restore.title"),
+    message: t("kit.dataManagement.restore.body"),
+    confirmLabel: t("kit.dataManagement.restore.confirm"),
     danger: true,
   });
   if (!ok) return;
@@ -97,32 +97,32 @@ async function onImport(e) {
     const fd = new FormData();
     fd.append("file", file);
     await postForm("/v1/data/restore", fd);
-    pushToast({ message: t("kit.data.restore.done"), kind: "success" });
+    pushToast({ message: t("kit.dataManagement.restore.done"), kind: "success" });
     setTimeout(() => window.location.reload(), 700);
   } catch (err) {
-    pushToast({ message: t("kit.data.err.restore", { error: err.message }), kind: "error" });
+    pushToast({ message: t("kit.dataManagement.err.restore", { error: err.message }), kind: "error" });
     busy.value = "";
   }
 }
 
 async function reset() {
   const typed = await promptDialog({
-    title: t("kit.data.reset.title", { app: app.value }),
-    label: t("kit.data.reset.label", { word: RESET_WORD }),
-    confirmLabel: t("kit.data.reset.confirm"),
+    title: t("kit.dataManagement.reset.title", { app: app.value }),
+    label: t("kit.dataManagement.reset.label", { word: RESET_WORD }),
+    confirmLabel: t("kit.common.reset"),
     danger: true,
   });
   if (typed !== RESET_WORD) {
-    if (typed != null) pushToast({ message: t("kit.data.reset.mismatch") });
+    if (typed != null) pushToast({ message: t("kit.dataManagement.reset.mismatch") });
     return;
   }
   busy.value = "reset";
   try {
     await request("/v1/data/reset", { method: "POST" });
-    pushToast({ message: t("kit.data.reset.done"), kind: "success" });
+    pushToast({ message: t("kit.dataManagement.reset.done"), kind: "success" });
     setTimeout(() => window.location.reload(), 700);
   } catch (e) {
-    pushToast({ message: t("kit.data.err.reset", { error: e.message }), kind: "error" });
+    pushToast({ message: t("kit.dataManagement.err.reset", { error: e.message }), kind: "error" });
     busy.value = "";
   }
 }
@@ -132,8 +132,8 @@ async function reset() {
   <div class="lu-data">
     <div class="lu-data-row">
       <div class="lu-data-info">
-        <b>{{ t('kit.data.title') }}</b>
-        <span class="lu-muted">{{ t('kit.data.hint') }}</span>
+        <b>{{ t('kit.dataManagement.title') }}</b>
+        <span class="lu-muted">{{ t('kit.dataManagement.hint') }}</span>
         <!-- The app's per-backup choices (the options seam). A backup made with a
              box unchecked simply leaves that content out; restoring such a backup
              leaves the live copy of that content untouched. -->
@@ -142,20 +142,20 @@ async function reset() {
         </label>
       </div>
       <div class="lu-data-actions">
-        <UiButton intent="primary" size="small" :loading="busy === 'backup'" @click="exportBackup">{{ t('kit.data.export') }}</UiButton>
+        <UiButton intent="primary" size="small" :loading="busy === 'backup'" @click="exportBackup">{{ t('kit.dataManagement.export') }}</UiButton>
         <UiButton as="label" intent="secondary" size="small">
-          {{ t('kit.data.import') }}
+          {{ t('kit.dataManagement.import') }}
           <input type="file" accept=".zip,application/zip" style="display:none" @change="onImport" />
         </UiButton>
       </div>
     </div>
     <div class="lu-data-row lu-data-danger">
       <div class="lu-data-info">
-        <b>{{ t('kit.data.reset.heading', { app: app.toLowerCase() }) }}</b>
-        <span class="lu-muted">{{ t('kit.data.reset.hint') }}</span>
+        <b>{{ t('kit.dataManagement.reset.heading', { app: app.toLowerCase() }) }}</b>
+        <span class="lu-muted">{{ t('kit.dataManagement.reset.hint') }}</span>
       </div>
       <div class="lu-data-actions">
-        <UiButton intent="danger" size="small" :loading="busy === 'reset'" @click="reset">{{ t('kit.data.reset.button') }}</UiButton>
+        <UiButton intent="danger" size="small" :loading="busy === 'reset'" @click="reset">{{ t('kit.dataManagement.reset.button') }}</UiButton>
       </div>
     </div>
   </div>

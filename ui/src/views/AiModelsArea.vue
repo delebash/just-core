@@ -647,7 +647,7 @@ onMounted(() => {
       </div>
       <UiButton intent="ghost" size="small" class="lu-hwcopy"
         :title="t('kit.aiArea.debug.title')"
-        @click="copyDebugInfo">{{ debugCopied ? t('kit.aiArea.debug.copied') : t('kit.aiArea.debug.copy') }}</UiButton>
+        @click="copyDebugInfo">{{ debugCopied ? t('kit.common.copied') : t('kit.aiArea.debug.copy') }}</UiButton>
     </div>
 
     <!-- Which processes hold GPU memory. Opened from the "Other apps" cell,
@@ -657,8 +657,8 @@ onMounted(() => {
     <div v-if="gpuAppsOpen" class="lu-gpuapps">
       <div class="lu-gpuapps-head">
         <b>{{ t('kit.aiArea.gpuApps.title') }}</b>
-        <UiButton intent="ghost" size="small" :loading="gpuAppsBusy" @click="loadGpuApps(true)">{{ t('kit.aiArea.refresh') }}</UiButton>
-        <UiButton intent="ghost" size="small" @click="toggleGpuApps">{{ t('kit.dialog.close') }}</UiButton>
+        <UiButton intent="ghost" size="small" :loading="gpuAppsBusy" @click="loadGpuApps(true)">{{ t('kit.common.refresh') }}</UiButton>
+        <UiButton intent="ghost" size="small" @click="toggleGpuApps">{{ t('kit.common.close') }}</UiButton>
       </div>
       <div v-if="gpuAppsBusy && !gpuApps" class="lu-muted">{{ t('kit.aiArea.gpuApps.reading') }}</div>
       <!-- Unavailable is its OWN state. Rendering an empty table here would
@@ -788,12 +788,12 @@ onMounted(() => {
                  grid row, which is exactly the misplacement the user screenshotted). -->
             <div class="lu-prow-actions">
               <UiButton intent="secondary" size="small" @click="testProvider(p)">{{ t('kit.aiArea.providers.test') }}</UiButton>
-              <UiButton intent="primary" size="small" @click="editingId = p.id">{{ t('kit.aiArea.providers.edit') }}</UiButton>
+              <UiButton intent="primary" size="small" @click="editingId = p.id">{{ t('kit.common.edit') }}</UiButton>
               <!-- Default/Set-as-default is the RIGHTMOST action (2026-07-17) — matches the
                    model catalog's "Default ✓" position + the built-in header, so the default
                    indicator is far-right on every surface. -->
               <UiButton :intent="isDefaultProvider(p) ? 'success' : 'secondary'" size="small"
-                @click="openSetDefault(p)">{{ isDefaultProvider(p) ? t('kit.modelCatalog.btn.isDefault') : t('kit.modelCatalog.btn.setDefault') }}</UiButton>
+                @click="openSetDefault(p)">{{ isDefaultProvider(p) ? t('kit.aiArea.providers.isDefault') : t('kit.aiArea.providers.setDefault') }}</UiButton>
             </div>
           </div>
         </template>
@@ -834,15 +834,15 @@ onMounted(() => {
           </template>
           <template #footer>
             <template v-if="sdModel">
-              <UiButton intent="secondary" @click="setDefaultFor = null">{{ t('kit.dialog.cancel') }}</UiButton>
-              <UiButton intent="primary" :loading="settingDefault" @click="applySetDefault">{{ t('kit.modelCatalog.btn.setDefault') }}</UiButton>
+              <UiButton intent="secondary" @click="setDefaultFor = null">{{ t('kit.common.cancel') }}</UiButton>
+              <UiButton intent="primary" :loading="settingDefault" @click="applySetDefault">{{ t('kit.aiArea.providers.setDefault') }}</UiButton>
             </template>
             <template v-else-if="sdIsBuiltin">
-              <UiButton intent="secondary" @click="setDefaultFor = null">{{ t('kit.dialog.close') }}</UiButton>
+              <UiButton intent="secondary" @click="setDefaultFor = null">{{ t('kit.common.close') }}</UiButton>
               <UiButton intent="primary" @click="sdRunQuickSetup">{{ t('kit.quickSetup.runButton') }}</UiButton>
             </template>
             <template v-else>
-              <UiButton intent="secondary" @click="setDefaultFor = null">{{ t('kit.dialog.close') }}</UiButton>
+              <UiButton intent="secondary" @click="setDefaultFor = null">{{ t('kit.common.close') }}</UiButton>
               <UiButton intent="primary" @click="sdEditProvider">{{ t('kit.aiArea.setDefault.editProvider') }}</UiButton>
             </template>
           </template>

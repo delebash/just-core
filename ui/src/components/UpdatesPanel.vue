@@ -82,7 +82,7 @@ const line = computed(() => {
       <UiButton v-if="status?.state === 'latest' || status?.state === 'error'" intent="ghost" size="small"
         :label="t('kit.updates.checkAgain')" :disabled="busy" @click="run(updater.check)" />
       <UiButton v-else-if="status?.state === 'available' && status.canInstall" intent="primary" size="small"
-        :label="t('kit.modelCatalog.btn.download')" :disabled="busy" @click="run(updater.download)" />
+        :label="t('kit.common.download')" :disabled="busy" @click="run(updater.download)" />
       <UiButton v-else-if="status?.state === 'available' && status.releaseUrl" intent="primary" size="small"
         :label="t('kit.updates.openRelease')" @click="openExternal(status.releaseUrl)" />
       <UiButton v-else-if="status?.state === 'ready'" intent="primary" size="small"

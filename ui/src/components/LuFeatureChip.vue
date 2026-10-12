@@ -78,8 +78,8 @@ const emit = defineEmits(["navigate"]);
 const { t } = useI18n();
 const tooltip = computed(() =>
   props.editable
-    ? t("kit.chip.editTip", { feature: props.label || props.feature })
-    : t("kit.chip.viewTip", { feature: props.label || props.feature }),
+    ? t("kit.featureChip.editTip", { feature: props.label || props.feature })
+    : t("kit.featureChip.viewTip", { feature: props.label || props.feature }),
 );
 
 // ── the edit doorway (editable only) ────────────────────────────────────────
@@ -104,7 +104,7 @@ const thinkingOptions = computed(() => thinkingOptionsFor({
   customValue: draftIsLocal.value ? props.route?.value : null,
 }));
 
-const presetName = computed(() => props.route?.presetName || t("kit.chip.thisPreset"));
+const presetName = computed(() => props.route?.presetName || t("kit.featureChip.thisPreset"));
 
 // ── local vs cloud (2026-07-16 — DISPLAY-ONLY since the preset tier) ─────────
 // Is the ROUTE's resolved provider the built-in runner? Uses the same
@@ -150,8 +150,8 @@ const budgetLine = computed(() => {
   // raw origin rather than a dangling dash; never claim a layer it didn't come from.
   const label = resolvedSourceLabel(r.valueSource) || r.valueSource;
   return r.value == null
-    ? t("kit.chip.budgetNoValue", { source: label })
-    : t("kit.chip.budget", { value: r.value, source: label });
+    ? t("kit.featureChip.budgetNoValue", { source: label })
+    : t("kit.featureChip.budget", { value: r.value, source: label });
 });
 // -1 is a LEGAL typed value (never seeded) and honoured verbatim by the engine — so
 // it ships with the warning it earned: the Gemma thinking loop is verified on-box.
@@ -195,7 +195,7 @@ async function loadPopover() {
       ? resolvedToThinkingControl(p, props.route?.value, levelRows.value)
       : presetToThinkingControl(p);
   } catch (e) {
-    saveErr.value = e?.message || t("kit.chip.err.load");
+    saveErr.value = e?.message || t("kit.featureChip.err.load");
   } finally {
     loading.value = false;
   }
@@ -224,7 +224,7 @@ async function loadLevelMap() {
 // written from here: the PC class config stays product data (the Tune & measure
 // libraries edit it), your applied config stays what Apply wrote.
 async function save() {
-  if (!presetRow.value) { saveErr.value = t("kit.chip.err.noPreset"); return; }
+  if (!presetRow.value) { saveErr.value = t("kit.featureChip.err.noPreset"); return; }
   saving.value = true;
   saveErr.value = "";
   try {
@@ -247,7 +247,7 @@ async function save() {
     // every mounted chip (incl. this one, via its host's `route` prop) refetches.
     popoverOpen.value = false;
   } catch (e) {
-    saveErr.value = e?.message || t("kit.chip.err.save");
+    saveErr.value = e?.message || t("kit.featureChip.err.save");
   } finally {
     saving.value = false;
   }
@@ -261,7 +261,7 @@ async function save() {
       <span class="afc-sep">·</span>
     </template>
     <template v-else-if="!compact">
-      <span class="afc-label">{{ t('kit.chip.runsOn') }}</span>
+      <span class="afc-label">{{ t('kit.featureChip.runsOn') }}</span>
       <span class="afc-sep">·</span>
     </template>
     <b class="afc-provider">{{ resolvedProviderName }}</b>
@@ -279,7 +279,7 @@ async function save() {
       :offset="[0, 6]"
       :transition-duration="0"
     >
-      <i18n-t keypath="kit.chip.popHead" tag="div" class="afc-pop-h" scope="global"><template #feature><b>{{ label || feature }}</b></template></i18n-t>
+      <i18n-t keypath="kit.featureChip.popHead" tag="div" class="afc-pop-h" scope="global"><template #feature><b>{{ label || feature }}</b></template></i18n-t>
 
       <div v-if="loading" class="afc-pop-loading">{{ t('kit.common.loading') }}</div>
       <template v-else>
@@ -289,14 +289,14 @@ async function save() {
           editable
           stacked
           labels
-          :inherit-label="t('kit.chip.inherit')"
+          :inherit-label="t('kit.common.inheritDefault')"
           @update:model-value="draftPin = $event" />
 
         <!-- ONE three-state control, both routes (Off / Model|Provider default /
              levels). Local levels show their map numbers; the line below reports
              what actually resolves and which layer said so. -->
         <label class="afc-pop-field">
-          <span class="afc-pop-lbl">{{ t('kit.chip.thinking') }}</span>
+          <span class="afc-pop-lbl">{{ t('kit.featureChip.thinking') }}</span>
           <select class="lu-input afc-pop-sel" :value="draftThinking"
             @change="draftThinking = $event.target.value">
             <option v-for="o in thinkingOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
@@ -304,21 +304,21 @@ async function save() {
         </label>
 
         <div v-if="budgetLine" class="afc-pop-cap">{{ budgetLine }}</div>
-        <div v-if="isUnlimited" class="afc-pop-warn">{{ t('kit.chip.unlimited') }}</div>
+        <div v-if="isUnlimited" class="afc-pop-warn">{{ t('kit.featureChip.unlimited') }}</div>
         <!-- The gate REMOVAL (ruled 2026-08-06, "no fancy magic"): thinking is
              sent exactly as the preset asks — no inactive state exists to
              annotate; a model that can't take it answers with its own error. -->
 
         <!-- Every save is preset-sized now — the thinking level rides the preset. -->
         <div class="afc-pop-blast">
-          <i18n-t keypath="kit.chip.blast" scope="global" :plural="memberCount"><template #preset><b>{{ presetName }}</b></template><template #n>{{ memberCount }}</template></i18n-t>
+          <i18n-t keypath="kit.featureChip.blast" scope="global" :plural="memberCount"><template #preset><b>{{ presetName }}</b></template><template #n>{{ memberCount }}</template></i18n-t>
         </div>
 
         <div v-if="saveErr" class="afc-pop-err">{{ saveErr }}</div>
 
         <div class="afc-pop-foot">
-          <UiButton intent="ghost" size="small" @click="popoverOpen = false">{{ t('kit.dialog.cancel') }}</UiButton>
-          <UiButton intent="primary" size="small" :loading="saving" @click="save">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
+          <UiButton intent="ghost" size="small" @click="popoverOpen = false">{{ t('kit.common.cancel') }}</UiButton>
+          <UiButton intent="primary" size="small" :loading="saving" @click="save">{{ t('kit.common.save') }}</UiButton>
         </div>
       </template>
     </QMenu>

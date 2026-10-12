@@ -56,7 +56,7 @@ onBeforeUnmount(() => { stopped = true; clearTimeout(timer); });
         <template #url><code>{{ serverUrl }}</code></template>
       </i18n-t>
       <p v-if="isDev && devHint" class="conn-err__hint">{{ devHint }}</p>
-      <button class="conn-err__btn" type="button" @click="retry">{{ t("kit.connectionError.retry") }}</button>
+      <button class="conn-err__btn" type="button" @click="retry">{{ t("kit.common.retry") }}</button>
     </div>
   </div>
 </template>

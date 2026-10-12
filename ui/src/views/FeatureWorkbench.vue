@@ -496,7 +496,7 @@ onMounted(load);
                 <span class="lu-fw-spacer" />
                 <UiButton size="small" :intent="sectionDirty(row) ? 'primary' : 'ghost'"
                   :disabled="!sectionDirty(row) || sectionSaving === row.key"
-                  :label="sectionSaving === row.key ? t('kit.provider.saving') : t('kit.modelCatalog.btn.save')"
+                  :label="sectionSaving === row.key ? t('kit.common.saving') : t('kit.common.save')"
                   @click="saveSection(row)" />
               </div>
               <textarea class="lu-input lu-fw-sectext" :value="sectionText(row)" rows="5"

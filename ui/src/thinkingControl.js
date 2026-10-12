@@ -23,10 +23,8 @@ export const THINKING_CUSTOM = "__custom";
 
 // The level vocabulary, ascending — ONE source for every surface's option list.
 export const LEVEL_ORDER = ["low", "medium", "high", "xhigh", "max"];
-// Each level's word, read from the kit catalog (kit.thinking.level.*) when shown.
-export const LEVEL_WORD = Object.defineProperties({}, Object.fromEntries(
-  ["low","medium","high","xhigh","max"].map((k) => [k, { get: () => kitT(`kit.thinking.level.${k}`), enumerable: true }]),
-));
+// Each level's words: the kit catalog's kit.thinking.level.<level>.
+const levelWord = (lvl) => kitT(`kit.thinking.level.${lvl}`);
 
 // Stored preset pair → the control value. Think on with an empty level MUST read as
 // THINKING_CUSTOM, never collapse to "" (Off) — the collapse wrote think=false back
@@ -71,7 +69,7 @@ export function thinkingOptionsFor({ levelRows, current, customValue }) {
     if (levelRows?.length && !row) continue; // the provider genuinely lacks this level
     opts.push({
       value: lvl,
-      label: row?.tokens != null ? kitT("kit.thinking.withTokens", { level: LEVEL_WORD[lvl], tokens: row.tokens }) : LEVEL_WORD[lvl],
+      label: row?.tokens != null ? kitT("kit.thinking.withTokens", { level: levelWord(lvl), tokens: row.tokens }) : levelWord(lvl),
     });
   }
   if (current === THINKING_CUSTOM) {

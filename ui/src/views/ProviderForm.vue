@@ -95,11 +95,12 @@ const WHERE = computed(() => [
 // presets — fill URL + type + where-it-runs from a known provider (shared with QuickSetup
 // via useProviderConnect — one source, no drift).
 const PRESETS = PROVIDER_PRESETS;
-function applyPreset([name, url, type, isLocal]) {
-  if (!draft.name) draft.name = name;
-  draft.baseUrl = url;
-  draft.providerType = type;
-  local.value = isLocal;
+const presetName = (p) => (p.labelKey ? t(p.labelKey) : p.name);
+function applyPreset(p) {
+  if (!draft.name) draft.name = presetName(p);
+  draft.baseUrl = p.baseUrl;
+  draft.providerType = p.providerType;
+  local.value = p.local;
 }
 
 // ── model discovery (stale-while-revalidate) ────────────────────────────────
@@ -320,7 +321,7 @@ async function putReasoningRow(row) {
     <div v-if="isNew" class="lu-pf-presets">
       <span class="lu-muted lu-pf-presets-h">{{ t('kit.provider.presetsHead') }}</span>
       <div class="lu-pf-chips">
-        <button v-for="p in PRESETS" :key="p[0]" type="button" class="lu-pf-chip" @click="applyPreset(p)">{{ p[0] }}</button>
+        <button v-for="p in PRESETS" :key="p.baseUrl + p.providerType" type="button" class="lu-pf-chip" @click="applyPreset(p)">{{ presetName(p) }}</button>
       </div>
     </div>
 
@@ -443,7 +444,7 @@ async function putReasoningRow(row) {
       :max-width="'760px'" @close="showClassTunes = false">
       <LuClassTunes expanded />
     </AppModal>
-    <AppModal v-if="showGlobalSwitches" :title="t('kit.tuneModal.group.global')"
+    <AppModal v-if="showGlobalSwitches" :title="t('kit.globalSwitches.title')"
       :max-width="'760px'" @close="showGlobalSwitches = false">
       <LuGlobalSwitches expanded />
     </AppModal>
@@ -455,8 +456,8 @@ async function putReasoningRow(row) {
       <span class="lu-muted lu-pf-test">{{ testMsg }}</span>
       <span class="lu-pf-spacer" />
       <UiButton v-if="!isNew && !isBuiltin" intent="danger" @click="remove">{{ t('kit.common.delete') }}</UiButton>
-      <UiButton intent="ghost" @click="emit('cancel')">{{ t('kit.dialog.cancel') }}</UiButton>
-      <UiButton intent="primary" :loading="saving" @click="save">{{ saving ? t('kit.provider.saving') : t('kit.provider.save') }}</UiButton>
+      <UiButton intent="ghost" @click="emit('cancel')">{{ t('kit.common.cancel') }}</UiButton>
+      <UiButton intent="primary" :loading="saving" @click="save">{{ saving ? t('kit.common.saving') : t('kit.provider.save') }}</UiButton>
     </div>
   </div>
 </template>

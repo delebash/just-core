@@ -28,7 +28,7 @@ const props = defineProps({
 const { t, te } = useI18n();
 // A bundle's name: the kit's word for what it applies to, else the server's label.
 function bundleLabel(p) {
-  const key = `kit.switches.applies.${p.appliesTo}`;
+  const key = `kit.globalSwitches.applies.${p.appliesTo}`;
   return te(key) ? t(key) : p.label || p.id;
 }
 
@@ -59,7 +59,7 @@ async function reload() {
     }
     loaded.value = true;
   } catch (e) {
-    error.value = e.message || t("kit.switches.err.load");
+    error.value = e.message || t("kit.globalSwitches.err.load");
   } finally {
     loading.value = false;
   }
@@ -83,7 +83,7 @@ async function savePreset(p) {
       },
     }));
   } catch (e) {
-    error.value = e.message || t("kit.switches.err.save");
+    error.value = e.message || t("kit.globalSwitches.err.save");
   } finally {
     busy.value = "";
   }
@@ -91,9 +91,9 @@ async function savePreset(p) {
 
 async function reset() {
   const ok = await confirmDialog({
-    title: t("kit.switches.reset.title"),
-    message: t("kit.switches.reset.body"),
-    confirmLabel: t("kit.switches.reset.confirm"),
+    title: t("kit.globalSwitches.reset.title"),
+    message: t("kit.globalSwitches.reset.body"),
+    confirmLabel: t("kit.common.reset"),
   });
   if (!ok) return;
   busy.value = "__reset";
@@ -101,7 +101,7 @@ async function reset() {
   try {
     _apply(await request("/v1/ai/switch-presets/reset", { method: "POST" }));
   } catch (e) {
-    error.value = e.message || t("kit.switches.err.reset");
+    error.value = e.message || t("kit.globalSwitches.err.reset");
   } finally {
     busy.value = "";
   }
@@ -115,8 +115,8 @@ const ordered = computed(() =>
 <template>
   <component :is="expanded ? 'div' : 'details'" class="lu-gsw" :class="{ 'lu-gsw--expanded': expanded }" @toggle="onToggle">
     <summary v-if="!expanded" class="lu-gsw-summary">
-      <span class="lu-gsw-title">{{ t('kit.switches.title') }}</span>
-      <span class="lu-muted">{{ t('kit.switches.summary') }}</span>
+      <span class="lu-gsw-title">{{ t('kit.globalSwitches.title') }}</span>
+      <span class="lu-muted">{{ t('kit.globalSwitches.summary') }}</span>
     </summary>
 
     <div class="lu-gsw-body">
@@ -124,8 +124,8 @@ const ordered = computed(() =>
            caption; the layer-mechanics explainer lives in docs/models.md and on
            the Tune grid's own origin tags. -->
       <p class="lu-muted lu-gsw-help">
-        {{ t('kit.switches.help') }}
-        <i18n-t keypath="kit.switches.helpKept" scope="global"><template #kept><b>{{ t('kit.switches.helpBold') }}</b></template></i18n-t>
+        {{ t('kit.globalSwitches.help') }}
+        <i18n-t keypath="kit.globalSwitches.helpKept" scope="global"><template #kept><b>{{ t('kit.globalSwitches.helpBold') }}</b></template></i18n-t>
       </p>
 
       <div v-if="error" class="lu-error">{{ error }}</div>
@@ -135,13 +135,13 @@ const ordered = computed(() =>
         <div v-for="p in ordered" :key="p.id" class="lu-gsw-preset">
           <div class="lu-gsw-phead">
             <span class="lu-gsw-plabel">{{ bundleLabel(p) }}</span>
-            <UiButton intent="primary" size="small" :loading="busy === p.id" @click="savePreset(p)">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
+            <UiButton intent="primary" size="small" :loading="busy === p.id" @click="savePreset(p)">{{ t('kit.common.save') }}</UiButton>
           </div>
           <KnobGrid v-model="p.rows" :catalog="catalogMap" />
         </div>
 
         <div class="lu-gsw-foot">
-          <UiButton intent="secondary" size="small" :loading="busy === '__reset'" @click="reset">{{ t('kit.switches.reset.button') }}</UiButton>
+          <UiButton intent="secondary" size="small" :loading="busy === '__reset'" @click="reset">{{ t('kit.common.resetDefaults') }}</UiButton>
         </div>
       </template>
     </div>

@@ -607,13 +607,13 @@ onBeforeUnmount(stopAutoPoll);
       :max-width="'700px'" @close="showClassLib = false">
       <LuClassTunes ref="classTunesRef" expanded :model-id="model.id" :catalog="switchCatalog" />
     </AppModal>
-    <AppModal v-if="showGlobalLib" :title="t('kit.tuneModal.group.global')"
+    <AppModal v-if="showGlobalLib" :title="t('kit.globalSwitches.title')"
       :max-width="'760px'" @close="showGlobalLib = false">
       <LuGlobalSwitches expanded />
     </AppModal>
 
     <template #footer>
-      <UiButton intent="ghost" @click="emit('close')">{{ t('kit.dialog.close') }}</UiButton>
+      <UiButton intent="ghost" @click="emit('close')">{{ t('kit.common.close') }}</UiButton>
       <span class="lu-tmm-spacer" />
       <UiButton v-if="savedTune" intent="secondary" :loading="saveState === 'removing'" :disabled="autoRunning"
         :title="t('kit.tuneModal.remove.title')"

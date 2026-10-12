@@ -64,7 +64,7 @@ const fontOptions = UI_FONTS.map((f) => f.label);
       <UiSelect
         :model-value="appearance.uiScale"
         width="name"
-        :options="UI_SCALES.map((s) => ({ label: s.label, value: s.value }))"
+        :options="UI_SCALES.map((s) => ({ label: t(s.labelKey), value: s.value }))"
         @update:model-value="(v) => emit('patch', { uiScale: Number(v) })"
       />
     </div>

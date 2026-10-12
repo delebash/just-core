@@ -396,7 +396,7 @@ onBeforeUnmount(() => clearInterval(timer));
         <b class="lu-sync-sub">{{ t('kit.sync.devices.network') }}</b>
         <div v-for="p in settings.peers" :key="p.url" class="lu-sync-device">
           <span>{{ p.name || p.url }} <span class="lu-muted">· {{ p.url }}</span></span>
-          <UiButton intent="ghost" size="small" :loading="busy === 'remove'" @click="removePeer(p.url)">{{ t('kit.sync.devices.remove') }}</UiButton>
+          <UiButton intent="ghost" size="small" :loading="busy === 'remove'" @click="removePeer(p.url)">{{ t('kit.common.remove') }}</UiButton>
         </div>
       </template>
     </div>

@@ -321,7 +321,7 @@ const columnConfig = computed(() => {
         <span v-if="builtMeta" class="lu-muted">{{ builtMeta }}</span>
         <UiButton intent="secondary" size="small"
           :title="t('kit.lab.refreshTitle')"
-          @click="emit('refresh-preview')">{{ t('kit.lab.refresh') }}</UiButton>
+          @click="emit('refresh-preview')">{{ t('kit.common.refresh') }}</UiButton>
         <UiButton v-if="promptUnlocked" intent="ghost" size="small"
           :title="t('kit.lab.restoreTitle')"
           @click="previewEpoch += 1">{{ t('kit.lab.restoreGenerated') }}</UiButton>

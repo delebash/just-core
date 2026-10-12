@@ -37,14 +37,14 @@ defineProps({
       <b class="lu-dlbar-title">{{ title }}</b>
       <span v-if="role" class="lu-muted lu-dlbar-role">{{ role }}</span>
       <span class="lu-dlbar-spacer" />
-      <UiButton v-if="task.state === 'running' && task.cancel" intent="secondary" size="small" @click="task.cancel()">{{ t('kit.downloadBar.cancel') }}</UiButton>
+      <UiButton v-if="task.state === 'running' && task.cancel" intent="secondary" size="small" @click="task.cancel()">{{ t('kit.common.cancel') }}</UiButton>
       <!-- Retry stays DISABLED while the cancel is still finalizing (the model is tearing down) —
            clicking it mid-teardown re-races the load. It enables once the teardown completes. -->
-      <UiButton v-else-if="task.state === 'cancelled' || task.state === 'error'" intent="secondary" size="small" :disabled="task.finalizing" @click="task.retry()">{{ t('kit.downloadBar.retry') }}</UiButton>
+      <UiButton v-else-if="task.state === 'cancelled' || task.state === 'error'" intent="secondary" size="small" :disabled="task.finalizing" @click="task.retry()">{{ t('kit.common.retry') }}</UiButton>
       <!-- …and a way OUT of a terminal state. Without this a failed download was permanent:
            Retry was the only action, and the server kept the errored row so the bar came
            back on every poll (user, 2026-07-24: "no way to cancel"). -->
-      <UiButton v-if="(task.state === 'cancelled' || task.state === 'error') && task.dismiss" intent="ghost" size="small" :disabled="task.finalizing" @click="task.dismiss()">{{ t('kit.downloadBar.dismiss') }}</UiButton>
+      <UiButton v-if="(task.state === 'cancelled' || task.state === 'error') && task.dismiss" intent="ghost" size="small" :disabled="task.finalizing" @click="task.dismiss()">{{ t('kit.common.dismiss') }}</UiButton>
       <span v-else-if="task.state === 'done'" class="lu-dlbar-ok">{{ doneLabel || t('kit.downloadBar.ready') }}</span>
     </div>
 

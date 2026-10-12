@@ -24,12 +24,12 @@ import { clearMeasurements, listMeasurements } from "../measurements.js";
 // behaviour-preserving — sorting can be switched on per column later by adding `sortable`.
 const { t, d } = useI18n();
 const historyColumns = computed(() => [
-  { id: "when", accessorKey: "startedAt", header: t("kit.history.col.when") },
-  { id: "run", accessorKey: "label", header: t("kit.history.col.run") },
-  { id: "settings", accessorKey: "id", header: t("kit.history.col.settings") },
-  { id: "tps", accessorKey: "tokensPerSec", header: t("kit.history.col.tps"),
+  { id: "when", accessorKey: "startedAt", header: t("kit.measureHistory.col.when") },
+  { id: "run", accessorKey: "label", header: t("kit.measureHistory.col.run") },
+  { id: "settings", accessorKey: "id", header: t("kit.measureHistory.col.settings") },
+  { id: "tps", accessorKey: "tokensPerSec", header: t("kit.measureHistory.col.tps"),
     headerStyle: { textAlign: "right" }, cellStyle: { textAlign: "right", whiteSpace: "nowrap" } },
-  { id: "vram", accessorKey: "vramTotalMb", header: t("kit.history.col.vram"),
+  { id: "vram", accessorKey: "vramTotalMb", header: t("kit.measureHistory.col.vram"),
     headerStyle: { textAlign: "right" }, cellStyle: { textAlign: "right", whiteSpace: "nowrap" } },
 ]);
 
@@ -50,7 +50,7 @@ async function reload() {
     rows.value = (await listMeasurements(props.modelId)).measurements || [];
     loaded.value = true;
   } catch (e) {
-    error.value = e.message || t("kit.history.err.load");
+    error.value = e.message || t("kit.measureHistory.err.load");
   } finally {
     loading.value = false;
   }
@@ -69,14 +69,14 @@ const whenOf = (m) => (m.at
   : "");
 const settingsOf = (m) =>
   (m.switches || []).map((s) => `${s.flagName}=${s.flagValue}`).join(" · ") ||
-  t("kit.history.automatic");
+  t("kit.measureHistory.automatic");
 const gb = (mb) => (mb / 1024).toFixed(1);
 
 async function clearHistory() {
   const ok = await confirmDialog({
-    title: t("kit.history.clear.title"),
-    message: t("kit.history.clear.body"),
-    confirmLabel: t("kit.history.clear.button"),
+    title: t("kit.measureHistory.clear.title"),
+    message: t("kit.measureHistory.clear.body"),
+    confirmLabel: t("kit.measureHistory.clear.button"),
   });
   if (!ok) return;
   error.value = "";
@@ -84,7 +84,7 @@ async function clearHistory() {
   try {
     rows.value = (await clearMeasurements(props.modelId)).measurements || [];
   } catch (e) {
-    error.value = e.message || t("kit.history.err.clear");
+    error.value = e.message || t("kit.measureHistory.err.clear");
   } finally {
     clearing.value = false;
   }
@@ -97,10 +97,10 @@ async function clearHistory() {
       <Icon name="ChevRight" :size="15" class="lu-mh-caret" />
       <span class="lu-mh-text">
         <span class="lu-mh-title">
-          {{ t('kit.history.title') }}
+          {{ t('kit.measureHistory.title') }}
           <span v-if="loaded && hasRows" class="lu-mh-count">{{ rows.length }}</span>
         </span>
-        <span class="lu-muted">{{ t('kit.history.summary') }}</span>
+        <span class="lu-muted">{{ t('kit.measureHistory.summary') }}</span>
       </span>
     </summary>
 
@@ -113,23 +113,23 @@ async function clearHistory() {
           <template #when="{ row }"><span class="lu-mh-when">{{ whenOf(row) }}</span></template>
           <template #run="{ row }">
             <span class="lu-mh-run">
-              <UiTag v-if="row.source === 'autotune'" intent="info">{{ t('kit.history.autotune') }}</UiTag>
+              <UiTag v-if="row.source === 'autotune'" intent="info">{{ t('kit.measureHistory.autotune') }}</UiTag>
               <span v-if="row.label">{{ row.label }}</span>
-              <span v-else-if="row.source !== 'autotune'">{{ t('kit.history.measured') }}</span>
+              <span v-else-if="row.source !== 'autotune'">{{ t('kit.measureHistory.measured') }}</span>
             </span>
           </template>
           <template #settings="{ row }"><span class="lu-mh-sum">{{ settingsOf(row) }}</span></template>
           <template #tps="{ row }"><b class="lu-mh-tps">{{ row.tokensPerSec }}</b></template>
-          <template #vram="{ row }">{{ row.vramTotalMb ? t('kit.history.gb', { gb: gb(row.vramTotalMb) }) : "—" }}</template>
+          <template #vram="{ row }">{{ row.vramTotalMb ? t('kit.measureHistory.gb', { gb: gb(row.vramTotalMb) }) : "—" }}</template>
         </UiTable>
         <p v-else class="lu-muted lu-mh-empty">
-          {{ t('kit.history.empty') }}
+          {{ t('kit.measureHistory.empty') }}
         </p>
 
         <div v-if="hasRows" class="lu-mh-bar">
           <UiButton intent="ghost" size="small" :loading="clearing"
-            :title="t('kit.history.clear.tip')"
-            @click="clearHistory">{{ t('kit.history.clear.button') }}</UiButton>
+            :title="t('kit.measureHistory.clear.tip')"
+            @click="clearHistory">{{ t('kit.measureHistory.clear.button') }}</UiButton>
         </div>
       </template>
     </div>

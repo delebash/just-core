@@ -1233,6 +1233,11 @@ English".
 - **An emoji with a variation selector is "raw text" to the lint:** the family config's
   `ignorePattern` (`^[\\d\\s\\p{P}\\p{S}]*$`) covers `⚠` (So) but not `⚠️`, whose U+FE0F is a mark
   (Mn); ConnectionError's icon is the kit lint's one hit. — *measured 2026-10-12*.
+- **A copy of translated words keeps the language it was made in:** JustWrite's SettingsPage built
+  its appearance option lists once, at load (`Object.entries(SURFACE_TINTS).map(([key, t]) => ({ key,
+  ...t }))`, `UI_SCALES.map(…)`), which froze the kit's getter labels in the first language. The fix is
+  the standard shape: the table carries the key (`labelKey`), the list is a computed that calls
+  `t()`. — *code, 2026-10-12*.
 - **vue-i18n details the kit relies on** (11.4): numeric keys resolve (`kit.aiError.status.401`);
   `d(date, intlOptions)` with no format key formats through `Intl.DateTimeFormat` in the app's
   locale (`@intlify/core-base` `datetime()`, the empty-key path), so no `datetimeFormats` table is

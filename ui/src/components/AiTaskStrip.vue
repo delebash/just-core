@@ -166,15 +166,15 @@ function openPanel() { tasks.openPanel(); }
          JustVoice's rule, which this store had no answer for until now. -->
     <UiButton v-if="!isDone" intent="danger" size="small" @click="onCancel">
       <template #icon><Icon name="Close" :size="11" /></template>
-      {{ t('kit.dialog.cancel') }}
+      {{ t('kit.common.cancel') }}
     </UiButton>
     <template v-else>
       <UiButton v-if="canRetry" intent="ghost" size="small" @click="onRetry"
         v-tooltip.bottom="t('kit.aiTasks.again')">
         <template #icon><Icon name="Refresh" :size="11" /></template>
-        {{ t('kit.downloadBar.retry') }}
+        {{ t('kit.common.retry') }}
       </UiButton>
-      <UiButton intent="ghost" size="icon" @click="onDismiss" v-tooltip.bottom="t('kit.downloadBar.dismiss')">
+      <UiButton intent="ghost" size="icon" @click="onDismiss" v-tooltip.bottom="t('kit.common.dismiss')">
         <template #icon><Icon name="Close" :size="11" /></template>
       </UiButton>
     </template>

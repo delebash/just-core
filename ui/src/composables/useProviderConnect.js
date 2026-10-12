@@ -10,28 +10,25 @@
 // was pruned 2026-07-06 when the QuickSetup connect flow, its only consumer, was removed;
 // the server endpoint remains for a future ProviderForm affordance.)
 import { request } from "../client.js";
-import { kitT } from "../common/services/kitI18n.js";
 
-// Known providers, as start-from-a-preset chips: [label, baseUrl, providerType, isLocal].
-// The labels are product names, except the local engine's, which is a word in the kit's catalog.
-const LOCAL_ENGINE_PRESET = Object.defineProperty(
-  ["", "http://localhost:8080/v1", "openai-compat", true], 0,
-  { get: () => kitT("kit.provider.presetLocalEngine"), enumerable: true },
-);
+// Known providers, as start-from-a-preset chips: { name, baseUrl, providerType, local }. The names
+// are product names, except the local engine's, which is a word: it carries its catalog key
+// (`labelKey`) instead, and the form translates it.
+const preset = (name, baseUrl, providerType, local) => ({ name, baseUrl, providerType, local });
 export const PROVIDER_PRESETS = [
-  LOCAL_ENGINE_PRESET,
-  ["Ollama", "http://localhost:11434", "ollama", true],
-  ["LM Studio", "http://localhost:1234/v1", "openai-compat", true],
+  { labelKey: "kit.provider.presetLocalEngine", baseUrl: "http://localhost:8080/v1", providerType: "openai-compat", local: true },
+  preset("Ollama", "http://localhost:11434", "ollama", true),
+  preset("LM Studio", "http://localhost:1234/v1", "openai-compat", true),
   // Unsloth Studio speaks OpenAI-compatible; port from its own docs' curl example
   // (8888), which is the one it prints — see the seed row's comment for why it is
   // NOT in detect-local (it requires a Bearer key on every request).
-  ["Unsloth Studio", "http://localhost:8888/v1", "openai-compat", true],
-  ["OpenAI", "https://api.openai.com/v1", "openai", false],
-  ["Anthropic", "https://api.anthropic.com", "anthropic", false],
-  ["Gemini", "https://generativelanguage.googleapis.com", "gemini", false],
-  ["OpenRouter", "https://openrouter.ai/api/v1", "openrouter", false],
-  ["xAI (Grok)", "https://api.x.ai/v1", "xai", false],
-  ["Mistral", "https://api.mistral.ai/v1", "mistral", false],
+  preset("Unsloth Studio", "http://localhost:8888/v1", "openai-compat", true),
+  preset("OpenAI", "https://api.openai.com/v1", "openai", false),
+  preset("Anthropic", "https://api.anthropic.com", "anthropic", false),
+  preset("Gemini", "https://generativelanguage.googleapis.com", "gemini", false),
+  preset("OpenRouter", "https://openrouter.ai/api/v1", "openrouter", false),
+  preset("xAI (Grok)", "https://api.x.ai/v1", "xai", false),
+  preset("Mistral", "https://api.mistral.ai/v1", "mistral", false),
 ];
 
 // Provider types that are ALWAYS a metered cloud API — there is no local

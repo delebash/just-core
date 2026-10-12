@@ -64,10 +64,10 @@ const error = ref("");
 // The kit's words (kit.quickSetup.*) in the app's language — an app rewords its voice (band
 // captions, the model hint, roles, the done line) with its own kit.quickSetup.* keys — plus what
 // the host's stack can do: the surgery seams (2026-08-04) that let the fork die.
-const { t, te } = useI18n();
-// The line after setup is an app's own (JustVoice's); the kit has none, so it shows only when
-// the app's catalog sets kit.quickSetup.doneBody.
-const doneBody = computed(() => (te("kit.quickSetup.doneBody") || te("kit.quickSetup.doneBody", "en") ? t("kit.quickSetup.doneBody") : ""));
+const { t } = useI18n();
+// The line after setup is an app's own (JustVoice's): the kit's catalog has it empty, so it
+// shows only when the app's catalog sets kit.quickSetup.doneBody.
+const doneBody = computed(() => t("kit.quickSetup.doneBody"));
 const embedsOn = llmUiCapabilities().embeddings !== false;
 
 // ── The configured-state truth (decision A1190, restored + built 2026-08-04):

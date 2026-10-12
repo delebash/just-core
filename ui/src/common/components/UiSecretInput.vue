@@ -59,7 +59,7 @@ defineExpose({
       class="ui-secret__toggle"
       :disabled="disabled"
       :aria-pressed="revealed ? 'true' : 'false'"
-      :aria-label="revealed ? (hideLabel || t('kit.secret.hide')) : (revealLabel || t('kit.secret.show'))"
+      :aria-label="revealed ? (hideLabel || t('kit.secretInput.hide')) : (revealLabel || t('kit.secretInput.show'))"
       @click="revealed = !revealed"
     >
       <Icon :name="revealed ? 'EyeOff' : 'Eye'" :size="16" />

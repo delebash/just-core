@@ -41,9 +41,8 @@ const query = ref("");
 const field = ref(null);
 const filterEl = ref(null);
 const { t } = useI18n();
-// One stable row object (its Symbol value is its identity); the label is read when shown.
-const NO_MATCH = Object.defineProperty({ value: Symbol("no-match"), disable: true, empty: true }, "label",
-  { get: () => t("kit.select.noMatches"), enumerable: true });
+// The "No matches" row's value; the row itself is built where it is shown, in the language of the moment.
+const NO_MATCH_VALUE = Symbol("no-match");
 
 // Accept plain strings/numbers OR { [optionLabel]: …, [optionValue]: … }.
 const normalized = computed(() =>
@@ -59,7 +58,7 @@ const filtered = computed(() => {
   const list = !q ? normalized.value : normalized.value.filter(
     (o) => o.label.toLowerCase().includes(q) || String(o.value).toLowerCase().includes(q)
   );
-  return list.length ? list : [NO_MATCH];
+  return list.length ? list : [{ label: t("kit.multiSelect.noMatches"), value: NO_MATCH_VALUE, disable: true, empty: true }];
 });
 const chips = computed(() =>
   (props.modelValue ?? []).map((v) => byValue.value.get(v) ?? { label: String(v), value: v })
@@ -172,7 +171,7 @@ function itemAttrs(p, opt) {
     @popup-hide="onHide"
   >
     <template #selected>
-      <span v-if="!chips.length" class="ui-mselect-placeholder">{{ placeholder || t('kit.select.placeholder') }}</span>
+      <span v-if="!chips.length" class="ui-mselect-placeholder">{{ placeholder || t('kit.multiSelect.placeholder') }}</span>
       <span v-else class="ui-mselect-chips">
         <span v-for="c in chips" :key="String(c.value)" class="ui-mselect-chip">
           {{ c.label }}
@@ -190,7 +189,7 @@ function itemAttrs(p, opt) {
       <span class="ui-select-icons">
         <button
           v-if="chips.length" type="button" class="ui-select-clear" tabindex="-1"
-          :aria-label="t('kit.select.clearAll')" @click.stop="clearAll" @pointerdown.stop @mousedown.stop
+          :aria-label="t('kit.multiSelect.clearAll')" @click.stop="clearAll" @pointerdown.stop @mousedown.stop
         >
           <svg viewBox="0 0 16 16" width="11" height="11" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
@@ -203,7 +202,7 @@ function itemAttrs(p, opt) {
       <!-- the bar stays at the top of the scrolling list, as the filter did above the old list -->
       <div class="ui-mselect-filterbar">
         <input
-          ref="filterEl" v-model="query" class="ui-mselect-filter" :placeholder="t('kit.select.filter')"
+          ref="filterEl" v-model="query" class="ui-mselect-filter" :placeholder="t('kit.multiSelect.filter')"
           autocomplete="off" @keydown="onFilterKeydown" @click.stop @mousedown.stop
         />
       </div>

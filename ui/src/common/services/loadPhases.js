@@ -10,7 +10,8 @@
 // The words are the kit catalog's (kit.phase.*); each phase the server reports names its key.
 import { kitT } from "./kitI18n.js";
 
-const PHASE_KEYS = {
+// phase → its words' catalog key (kit.phase.<key>); friendlyPhase reads them when called.
+export const PHASE_KEYS = {
   queued: "gettingReady",
   // T1 (2026-07-17): the neutral phase before any real download chunk lands — the
   // download itself sets "model weights"; a cached file never announces one.
@@ -24,16 +25,11 @@ const PHASE_KEYS = {
   cancelling: "cancelling",
 };
 
-// phase → its words in the current language (a getter per phase, read when shown).
-export const PHASE_WORDS = Object.defineProperties({}, Object.fromEntries(
-  Object.entries(PHASE_KEYS).map(([phase, key]) => [phase, { get: () => kitT(`kit.phase.${key}`), enumerable: true }]),
-));
-
 export function friendlyPhase(detail, status) {
   const d = String(detail || "").trim();
-  if (Object.hasOwn(PHASE_KEYS, d)) return PHASE_WORDS[d];
+  if (Object.hasOwn(PHASE_KEYS, d)) return kitT(`kit.phase.${PHASE_KEYS[d]}`);
   if (d) return d; // already a sentence (the MTP notes)
-  if (Object.hasOwn(PHASE_KEYS, status || "")) return PHASE_WORDS[status];
+  if (Object.hasOwn(PHASE_KEYS, status || "")) return kitT(`kit.phase.${PHASE_KEYS[status]}`);
   if (status === "downloading") return kitT("kit.phase.downloading");
   if (status === "starting") return kitT("kit.phase.startingEngine");
   return kitT("kit.phase.working");

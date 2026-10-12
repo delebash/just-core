@@ -77,8 +77,8 @@ onMounted(load);
           <td><UiInput v-model="r.inputPerM" type="number" width="token" /></td>
           <td><UiInput v-model="r.outputPerM" type="number" width="token" /></td>
           <td class="lu-price-act">
-            <UiButton intent="primary" size="small" :loading="busy === r.modelId" @click="saveRow(r)">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
-            <UiButton intent="ghost" size="small" :title="t('kit.pricing.remove')" @click="delRow(r)">✕</UiButton>
+            <UiButton intent="primary" size="small" :loading="busy === r.modelId" @click="saveRow(r)">{{ t('kit.common.save') }}</UiButton>
+            <UiButton intent="ghost" size="small" :title="t('kit.common.remove')" @click="delRow(r)">✕</UiButton>
           </td>
         </tr>
         <tr class="ui-formgrid-add lu-price-add">

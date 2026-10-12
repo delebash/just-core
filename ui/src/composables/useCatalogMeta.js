@@ -34,11 +34,8 @@ export const typeById = computed(() =>
 // extraction-vs-copies shape we keep paying for. The picker needs the bare STRING
 // (UiSelect renders SelectItemText, text only — UiSelect.vue:99), the two tag sites need
 // it inside a UiTag, so the WORD is a function and the TAG is LuModelTypeTag.vue over it.
-export const MODEL_TYPE_LABEL = Object.defineProperties({}, Object.fromEntries(
-  ["moe","dense"].map((k) => [k, { get: () => kitT(`kit.modelType.${k}`), enumerable: true }]),
-));
 export function modelTypeLabel(type) {
-  return MODEL_TYPE_LABEL[type] || MODEL_TYPE_LABEL.dense; // catalog default, as above
+  return kitT(type === "moe" ? "kit.modelType.moe" : "kit.modelType.dense"); // dense: the catalog default, as above
 }
 // Is this an EMBEDDING model (RAG index), not a chat LLM? The explicit editable catalog flag
 // (CatalogRow.embedding, model_catalog_api.py:50 "replaces the /embed/i guess") — REQUIRED

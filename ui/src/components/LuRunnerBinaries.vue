@@ -170,7 +170,7 @@ async function reset() {
           <label class="lu-engbin-field">{{ t('kit.binaries.pinned') }}
             <UiInput v-model="pinnedBuild" width="token" />
           </label>
-          <UiButton intent="primary" size="small" :loading="busy === '__settings'" @click="saveSettings">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
+          <UiButton intent="primary" size="small" :loading="busy === '__settings'" @click="saveSettings">{{ t('kit.common.save') }}</UiButton>
         </div>
 
         <div class="lu-engbin-scroll">
@@ -185,7 +185,7 @@ async function reset() {
                 <td><UiInput v-model="r.assetUrl" :placeholder="EXAMPLE.asset" /></td>
                 <td><UiInput v-model="r.runtimeUrl" placeholder="—" /></td>
                 <td><UiInput v-model="r.serverExe" width="name" /></td>
-                <td><UiButton intent="primary" size="small" :loading="busy === rowKey(r)" @click="saveRow(r)">{{ t('kit.modelCatalog.btn.save') }}</UiButton></td>
+                <td><UiButton intent="primary" size="small" :loading="busy === rowKey(r)" @click="saveRow(r)">{{ t('kit.common.save') }}</UiButton></td>
               </tr>
               <tr class="ui-formgrid-add lu-engbin-addrow">
                 <td><UiInput v-model="draft.platform" :placeholder="EXAMPLE.platform" width="name" /></td>
@@ -218,11 +218,11 @@ async function reset() {
           <label class="lu-engbin-field">{{ t('kit.binaries.calib.otherMb') }}
             <UiInput v-model="calib.nonexpertMb" type="number" width="token" />
           </label>
-          <UiButton intent="primary" size="small" :loading="busy === '__calib'" @click="saveCalib">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
+          <UiButton intent="primary" size="small" :loading="busy === '__calib'" @click="saveCalib">{{ t('kit.common.save') }}</UiButton>
         </div>
 
         <div class="lu-engbin-foot">
-          <UiButton intent="secondary" size="small" :loading="busy === '__reset'" @click="reset">{{ t('kit.binaries.reset') }}</UiButton>
+          <UiButton intent="secondary" size="small" :loading="busy === '__reset'" @click="reset">{{ t('kit.common.resetDefaults') }}</UiButton>
         </div>
       </template>
     </div>

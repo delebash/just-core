@@ -96,7 +96,7 @@ function setModel(model) {
     <div class="lu-mp-field">
       <span v-if="labels" class="lu-mp-lbl">{{ t('kit.modelPicker.provider') }}</span>
       <select class="lu-input lu-mp-sel" :value="route" :aria-label="t('kit.modelPicker.provider')" @change="setRoute($event.target.value)">
-        <option value="">{{ inheritLabel || t('kit.chip.inherit') }}</option>
+        <option value="">{{ inheritLabel || t('kit.common.inheritDefault') }}</option>
         <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.name }}</option>
       </select>
     </div>

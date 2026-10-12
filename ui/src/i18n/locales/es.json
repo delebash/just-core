@@ -9,9 +9,7 @@
     "dialog": {
       "confirm": "Confirmar",
       "ok": "OK",
-      "cancel": "Cancelar",
-      "defaultTitle": "¿Estás seguro?",
-      "close": "Cerrar"
+      "defaultTitle": "¿Estás seguro?"
     },
     "aiTabs": {
       "providers": "Proveedores y modelos",
@@ -23,21 +21,16 @@
     "lab": {
       "generatedPrompt": "Prompt generado",
       "generatedNote": "construido por la aplicación en cada ejecución real — solo prueba; nada de esto se guarda ni se aplica",
-      "refresh": "Actualizar",
       "editCopies": "Editar copias para esta prueba",
       "lockCopies": "Bloquear copias",
       "restoreGenerated": "Restaurar generado",
       "changeData": "Cambiar lo que dice este prompt:"
     },
     "downloadBar": {
-      "cancel": "Cancelar",
-      "retry": "Reintentar",
-      "dismiss": "Descartar",
       "ready": "Listo ✓"
     },
     "connectionError": {
-      "title": "No se puede conectar con el servidor de {appName}",
-      "retry": "Reintentar"
+      "title": "No se puede conectar con el servidor de {appName}"
     },
     "quickSetup": {
       "runButton": "Ejecutar configuración rápida",
@@ -82,6 +75,13 @@
       "freeSpace": "Espacio libre en disco",
       "total": "Total",
       "clearShort": "Borrar…"
+    },
+    "common": {
+      "cancel": "Cancelar",
+      "close": "Cerrar",
+      "retry": "Reintentar",
+      "dismiss": "Descartar",
+      "refresh": "Actualizar"
     }
   }
 }

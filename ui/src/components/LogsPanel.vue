@@ -155,13 +155,13 @@ onMounted(() => {
       <span class="lu-logs-spacer" />
       <UiSelect :model-value="selected" :options="dayOptions" @update:model-value="onPickDay" />
       <UiSelect v-model="level" :options="LEVEL_OPTIONS" />
-      <UiButton intent="secondary" size="small" :loading="loading" @click="refresh">↻ {{ t('kit.aiArea.refresh') }}</UiButton>
+      <UiButton intent="secondary" size="small" :loading="loading" @click="refresh">↻ {{ t('kit.common.refresh') }}</UiButton>
     </div>
     <div class="lu-logs-head lu-logs-actions">
       <i18n-t keypath="kit.logs.clearVsDelete" tag="span" class="lu-muted lu-logs-sub" scope="global"><template #clear><b>{{ t('kit.logs.clear') }}</b></template><template #delete><b>{{ t('kit.common.delete') }}</b></template></i18n-t>
       <span class="lu-logs-spacer" />
       <UiButton intent="ghost" size="small" @click="copyLogs">{{ copied ? t('kit.logs.copied') : t('kit.common.copy') }}</UiButton>
-      <a v-if="selected === LIVE" class="lu-logs-dl" :href="llmUiUrl('/v1/logs/download')" download>{{ t('kit.modelCatalog.btn.download') }}</a>
+      <a v-if="selected === LIVE" class="lu-logs-dl" :href="llmUiUrl('/v1/logs/download')" download>{{ t('kit.common.download') }}</a>
       <UiButton v-if="selected === LIVE" intent="ghost" size="small" :loading="busy === 'clear'" @click="clearTail">{{ t('kit.logs.clear') }}</UiButton>
       <UiButton intent="danger" size="small" :loading="busy === 'delete'" :title="t('kit.logs.delDay.buttonTitle')" @click="deleteDay">{{ t('kit.logs.delDay.confirm') }}</UiButton>
       <UiButton intent="danger" size="small" :loading="busy === 'deleteAll'" :title="t('kit.logs.delAll.buttonTitle')" @click="deleteAll">{{ t('kit.logs.delAll.confirm') }}</UiButton>

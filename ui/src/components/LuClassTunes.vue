@@ -492,7 +492,7 @@ async function runImport() {
             <i18n-t keypath="kit.classTunes.form.savedAs" scope="global"><template #name><b>{{ editorClassPreview }}</b></template></i18n-t>
           </div>
           <div class="lu-ct-edact">
-            <UiButton intent="ghost" size="small" @click="editingClass = null">{{ t('kit.dialog.cancel') }}</UiButton>
+            <UiButton intent="ghost" size="small" @click="editingClass = null">{{ t('kit.common.cancel') }}</UiButton>
             <UiButton intent="primary" size="small" :loading="saving" @click="saveClass">{{ t('kit.classTunes.form.saveClass') }}</UiButton>
           </div>
         </div>
@@ -511,7 +511,7 @@ async function runImport() {
             <UiButton v-if="editingConfig.modelLocked" intent="ghost" size="small" @click="copyEditingConfig">
               {{ copiedKey === `${editingConfig.modelId}|${editingConfig.classKey}` ? t('kit.common.copied') : t('kit.common.copy') }}
             </UiButton>
-            <UiButton intent="ghost" size="small" @click="editingConfig = null">{{ t('kit.dialog.cancel') }}</UiButton>
+            <UiButton intent="ghost" size="small" @click="editingConfig = null">{{ t('kit.common.cancel') }}</UiButton>
             <UiButton intent="primary" size="small" :loading="saving" @click="saveConfig">{{ t('kit.classTunes.saveConfig') }}</UiButton>
           </div>
         </div>
@@ -521,7 +521,7 @@ async function runImport() {
           <UiTextarea v-model="importText" :rows="5"
             :placeholder="t('kit.classTunes.importPh')" />
           <div class="lu-ct-edact">
-            <UiButton intent="ghost" size="small" @click="showImport = false">{{ t('kit.dialog.cancel') }}</UiButton>
+            <UiButton intent="ghost" size="small" @click="showImport = false">{{ t('kit.common.cancel') }}</UiButton>
             <UiButton intent="primary" size="small" :loading="saving" @click="runImport">{{ t('kit.classTunes.import') }}</UiButton>
           </div>
         </div>

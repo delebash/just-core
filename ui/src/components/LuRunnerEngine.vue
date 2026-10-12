@@ -428,7 +428,7 @@ onMounted(() => {
               </label>
             </div>
           </div>
-          <UiButton intent="primary" size="small" :loading="savingKnobs" @click="saveKnobs">{{ t('kit.modelCatalog.btn.save') }}</UiButton>
+          <UiButton intent="primary" size="small" :loading="savingKnobs" @click="saveKnobs">{{ t('kit.common.save') }}</UiButton>
         </div>
         <p v-if="knobErr" class="lu-eng-err">{{ knobErr }}</p>
       </div>

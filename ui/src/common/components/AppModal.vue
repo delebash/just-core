@@ -189,7 +189,7 @@ const contentStyle = computed(() => {
                keeps the eyebrow/title props + their styling. -->
           <slot name="header-extra" />
         </div>
-        <button v-if="closable" type="button" class="ui-modal__close" :aria-label="closeLabel || t('kit.modal.close')" @click="close">
+        <button v-if="closable" type="button" class="ui-modal__close" :aria-label="closeLabel || t('kit.common.close')" @click="close">
           <Icon name="Close" :size="14" />
         </button>
       </header>
