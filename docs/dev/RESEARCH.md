@@ -51,6 +51,7 @@ Subjects: [1 · Memory: the arbiter and the probes](#1--memory-the-arbiter-and-t
 [5 · Starting other programs](#5--starting-other-programs) ·
 [6 · Claude Code: instructions and memory](#6--claude-code-instructions-and-memory) ·
 [7 · Cloud model adapters](#7--cloud-model-adapters) ·
+[8 · Words and translation](#8--words-and-translation) ·
 [Records not yet distilled](#records-not-yet-distilled)
 
 ---
@@ -1162,6 +1163,44 @@ code.claude.com/docs/en/best-practices):
 - The OpenAI adapter speaks the Responses API and, when a reasoning model rejects
   `temperature`, retries once without it (`server/src/llm/openai_sdk.js:240`). Whether
   `gpt-6.1-sol` needs anything else is unchecked. — *code, 2026-10-10*.
+
+---
+
+## 8 · Words and translation
+
+The plan: [`../plans/2026-10-12-i18n-standard.md`](../plans/2026-10-12-i18n-standard.md). The July
+research and its seven decisions are JustWrite's
+`docs/plans/2026-07-26-i18n-single-source-research.md`; what JustWrite still shows in English, by
+a pseudo-locale run, is JustWrite's `docs/dev/RESEARCH.md` "Translation: what still shows in
+English".
+
+- **Only JustWrite renders through vue-i18n.** JustWrite: 2,084 `$t(` calls in 79 files, 2,156
+  keys in `en.json` and `es.json`. JustVoice: vue-i18n `^11.4.13` installed and booted
+  (`src/boot/i18n.js`), a 46-key `en.json`, no `$t(` call. docgen: no vue-i18n. The kit: no
+  `$t(` or `useI18n`. — *code, 2026-10-12*.
+- **The kit's words reach an app's language only through the labels feed:** the reactive store
+  `ui/src/common/services/familyLabels.js` over `FAMILY_LABELS` (`common/familyContract.js:26`,
+  about 64 words), filled by JustWrite's `src/i18n/familyLabelsFeed.js` on every language change
+  and by JustVoice's `src/boot/jv.js:150`; app wording also comes in through `catalogCopy` and
+  `quickSetupCopy` (`installLlmUi.js:100`), and number formats through `setUiLocale`
+  (`common/services/locale.js`). — *code, 2026-10-12*.
+- **Hardcoded text by the standard lint** (`@intlify/vue-i18n/no-raw-text`, JustWrite's config,
+  every `.vue` file): the kit 832 strings in 36 of 70 files (LuModelCatalog 174, QuickSetup 77,
+  AiModelsArea 61, LuClassTunes 57, ConfigColumn 56, SyncPanel 48), docgen 163 in 8 of 11,
+  JustVoice 1,944 in 60 of 69, JustWrite 0 in 85. Labels in JavaScript, by a rough literal scan:
+  the kit ~70 in 13 files (`appearance.js` 41), JustWrite ~116 candidates in 30. — *measured
+  2026-10-12*, scratch census.
+- **Formatting that ignores the app's language:** `toLocaleString(` the kit 19, JustWrite 64,
+  docgen 3; `Intl.*Format` the kit 6, JustWrite 3; `localeCompare(` the kit 5, JustWrite 6. No
+  app sets a Quasar language pack, so Quasar's own words stay English. — *code, 2026-10-12*.
+- **Quasar 2.35 ships `Lang.getClosestIsoName(locale, isoNames)`** for matching an app's locale
+  to a pack (`quasar/src/plugins/lang/Lang.js:43`), as quasar.dev's language-pack page shows. —
+  *code + web, 2026-10-12*.
+- **vue-i18n 12 is not released** (latest 11.4.14, 2026-10-10); its migration guide keeps `$t`
+  and `useI18n()` and drops only the Legacy API mode. — *web, 2026-10-12*.
+- **Four other checkouts load the kit from source** (`JustVioce-round3`, `justvoice-quasar`,
+  `justwrite-quasar`, `docgen-quasar`): a change to the kit's API reaches them too. —
+  *code, 2026-10-12*.
 
 ---
 

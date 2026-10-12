@@ -10,6 +10,56 @@
 > Items extracted from plan docs are marked **[verified]** (code-checked at
 > extraction) or **[attributed]** (the plan doc's claim, not re-verified).
 
+## Every app and the kit on vue-i18n [2026-10-12]
+STATE:  DECIDED 2026-10-12; plan written, awaiting go — `docs/plans/2026-10-12-i18n-standard.md`.
+        Asked in a JustWrite session after a pseudo-locale run showed the kit's screens in English
+        and the kit's ~20 translated words coming through "the labels feed". The user: "i dont
+        understnad the feed and i thought the docgen used i18n and all our app used i18n,
+        exlplain we designed all apps to use i18n and docgen just generated the json files"; then
+        "all apps should use the standard i18n including kit, everything should be standard no
+        strange worki arounds, what needs to be done". Answered as shown:
+        "1. The kit (the shared screens: AI console, Sync, model catalog, Appearance, dialogs).
+        vue-i18n becomes a required install for every app that uses the kit, through npm's
+        peer-dependency mechanism. The kit gets its own en.json. Its components call $t, or
+        useI18n({ useScope: 'global' }), the vue-i18n way for shared components to use the app's
+        language. At install, the kit's text is merged into the app's translations with vue-i18n's
+        mergeLocaleMessage. An app that wants different words, such as JustVoice's "LLM
+        providers", sets the same key in its own file. The workarounds go: the labels feed; the
+        label parts of configureDialog / configureHelp; setUiLocale, the kit's separate language
+        for number formats. Kit components read the language from vue-i18n instead. The
+        translation lint runs on the kit too, so no English creeps back. Size: about 600 strings
+        (July count, not re-counted).
+        2. The kit's template app (the reference every family app follows). It gains the i18n boot
+        file as Quasar documents it, plus Quasar's own language pack switching with the app's
+        language, and the lint. app-structure.md gets the same. The family guard then checks every
+        app has it.
+        3. JustWrite (already on vue-i18n). Delete familyLabelsFeed.js and take the kit's text
+        instead. Quasar's own text switches language. Dates follow the app's language, using
+        vue-i18n's date formatting. The ~100 strings the lint can't see move into en.json.
+        4. docgen. It gets vue-i18n the way the template does, with its own en.json, and its
+        screens are converted. Its string count hasn't been measured yet. Its role stays as you
+        described: it turns every en.json (JustWrite's, the kit's, JustVoice's, its own) into the
+        other languages' files for your review.
+        5. JustVoice. vue-i18n is installed but no screen uses it: about 1,550 strings to convert
+        (July count). Another session works in JustVoice's folder, so that part would be handed to
+        it, not done by me.
+        6. Translations, last. Spanish for every catalog goes through docgen on your model, and you
+        review it there. That replaces the Spanish I wrote by hand.
+        Unchanged unless you say otherwise (both decided in July): seeded database words stay
+        English for now; server error messages are translated where the app already turns them
+        into readable text, not on the server.
+        My suggested order: kit and template first, since everything else takes their text. Then
+        JustWrite, then docgen, then JustVoice (its session), then the Spanish pass. … Say go and
+        I'll record your ruling in TASKS, write the plan and bring it back before any code changes."
+        The user: "your rec go" (2026-10-12) — for recording this and writing the plan.
+WHY:    the July design (every app and the kit on vue-i18n, docgen the translator) was built only
+        in JustWrite; the kit grew a side door instead, and JustVoice and docgen never converted.
+DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translation: what still
+        shows in English".
+OPEN:   go on the plan, and its decisions D1–D6 and the NOT STANDARD smoke check, each by name.
+        The counts measured for the plan replace the estimates in the answer above: the kit 832
+        template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
+
 ## The family's servers move to Hono — one server that runs in Node and in a worker [2026-10-09]
 STATE:  DECIDED 2026-10-09 — a JustVoice session that began with the user's "rethinking using tauri
         are we sure we shouldnt user tauri for complete desktop mobile dev" and went through
