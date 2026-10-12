@@ -43,11 +43,19 @@ export function usePanelDismiss(isOpen, panelEl, close, options = {}) {
 
   const open = () => (typeof isOpen === "function" ? isOpen() : !!unref(isOpen));
 
+  // Esc pressed inside a surface layered over the panel — a window it opened, a menu — belongs
+  // to that surface: it closes the window or the menu, not the panel under it (the same
+  // exemptions as a click; the panel's own root may itself be a [role="dialog"], so only a
+  // surface outside it counts). Before 2026-10-11 one Esc closed both, and a window the panel
+  // hosted went with it, mid-run (JustWrite's Save to sheet).
+  const layeredSelector = [PORTAL_EXEMPTIONS, ...extra].join(", ");
   function onDocKeydown(e) {
-    if (e.key === "Escape" && open()) {
-      e.stopPropagation();
-      close();
-    }
+    if (e.key !== "Escape" || !open()) return;
+    const target = e.target;
+    const root = unref(panelEl);
+    if (target?.closest?.(layeredSelector) && !root?.contains(target)) return;
+    e.stopPropagation();
+    close();
   }
 
   // Click-outside dismissal. Listens on mousedown rather than click: a popup can
