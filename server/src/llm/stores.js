@@ -1305,6 +1305,7 @@ export class ModelMeasurementStore {
       kind = "llm",
       realtimeX = 0.0,
       backend = null,
+      ramModelMb = 0,
     },
   ) {
     const h = db.session();
@@ -1323,6 +1324,8 @@ export class ModelMeasurementStore {
           vram_model_mb: pyIntOf(pyOr(vramModelMb, 0)), // Phase 5: the true-up footprint
           kind: kind || "llm",
           realtime_x: pyFloatParse(pyOr(realtimeX, 0)),
+          // The system memory a load took, where the host measures it (a speech model's RAM).
+          ram_model_mb: pyIntOf(pyOr(ramModelMb, 0)),
         }).lastInsertRowid,
       );
       const seen = new Set();
@@ -1365,6 +1368,7 @@ export class ModelMeasurementStore {
       vramModelMb: m.vram_model_mb || 0,
       kind: m.kind || "llm",
       realtimeX: Number(m.realtime_x || 0),
+      ramModelMb: m.ram_model_mb || 0,
       switches: flags.get(m.id) || [],
     }));
   }

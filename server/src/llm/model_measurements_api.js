@@ -45,6 +45,9 @@ export const MeasurementRow = T.Object({
   // A speech model's real-time factor (seconds of audio per second of work); 0 on every
   // other row. Declared so the wire never strips it.
   realtimeX: opt(T.Number(), 0.0),
+  // The system memory a load took (a speech model's RAM, 2026-10-12); 0 where not measured.
+  // Declared so the wire never strips it.
+  ramModelMb: opt(T.Integer(), 0),
   switches: opt(T.Array(MeasurementFlag), []),
 });
 

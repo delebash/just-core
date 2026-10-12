@@ -128,6 +128,27 @@ test("record_carries_footprint_and_kind_and_wire_declares_them", async () => {
   expect(wire.kind).toBe("llm");
 });
 
+test("a_row_carries_the_system_memory_a_load_took", async () => {
+  // A speech model's RAM has its own column beside its graphics memory (JustVoice, 2026-10-12).
+  const st = stores.getModelMeasurementStore();
+  st.record("tts:omnivoice:omnivoice-q8", {
+    machineKey: "box",
+    source: "ram_peak",
+    label: "speech memory (cpu)",
+    tokensPerSec: 0.0,
+    vramTotalMb: 0,
+    at: 1000,
+    rows: [],
+    kind: "tts",
+    backend: "cpu",
+    ramModelMb: 1340,
+  });
+  const row = st.list("tts:omnivoice:omnivoice-q8")[0];
+  expect([row.ramModelMb, row.vramModelMb]).toEqual([1340, 0]);
+  const wire = (await get("/v1/ai/model-measurements?modelId=tts:omnivoice:omnivoice-q8")).measurements[0];
+  expect(wire.ramModelMb).toBe(1340);
+});
+
 test("a_speech_speed_row_keeps_its_own_column_and_backend", async () => {
   // A speech model's real-time factor has its own column (never tokens_per_sec
   // reinterpreted) and names the backend that measured it, not the LLM's.

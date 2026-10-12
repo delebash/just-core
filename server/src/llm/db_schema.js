@@ -701,7 +701,7 @@ export const TABLES = [
   },
   {
     "name": "model_measurements",
-    "ddl": "CREATE TABLE model_measurements (\n\tid INTEGER NOT NULL, \n\tmodel_id VARCHAR NOT NULL, \n\tmachine_key VARCHAR NOT NULL, \n\tsource VARCHAR NOT NULL, \n\tlabel VARCHAR NOT NULL, \n\ttokens_per_sec FLOAT NOT NULL, \n\tvram_total_mb INTEGER NOT NULL, \n\tat INTEGER NOT NULL, \n\tbackend VARCHAR NOT NULL, \n\tvram_model_mb INTEGER NOT NULL, \n\tkind VARCHAR NOT NULL, \n\trealtime_x FLOAT NOT NULL, \n\tPRIMARY KEY (id)\n)",
+    "ddl": "CREATE TABLE model_measurements (\n\tid INTEGER NOT NULL, \n\tmodel_id VARCHAR NOT NULL, \n\tmachine_key VARCHAR NOT NULL, \n\tsource VARCHAR NOT NULL, \n\tlabel VARCHAR NOT NULL, \n\ttokens_per_sec FLOAT NOT NULL, \n\tvram_total_mb INTEGER NOT NULL, \n\tat INTEGER NOT NULL, \n\tbackend VARCHAR NOT NULL, \n\tvram_model_mb INTEGER NOT NULL, \n\tkind VARCHAR NOT NULL, \n\trealtime_x FLOAT NOT NULL, \n\tram_model_mb INTEGER NOT NULL, \n\tPRIMARY KEY (id)\n)",
     "indexes": [],
     "columns": {
       "id": {
@@ -762,6 +762,11 @@ export const TABLES = [
         "kind": "float",
         "notNull": true,
         "default": 0.0
+      },
+      "ram_model_mb": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
       }
     }
   },

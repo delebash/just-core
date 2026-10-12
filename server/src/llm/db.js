@@ -36,6 +36,7 @@ export const ADDED_COLUMNS = [
   ["model_measurements", "vram_model_mb", "INTEGER NOT NULL DEFAULT 0"],
   ["model_measurements", "kind", "VARCHAR NOT NULL DEFAULT 'llm'"],
   ["model_measurements", "realtime_x", "REAL NOT NULL DEFAULT 0"],
+  ["model_measurements", "ram_model_mb", "INTEGER NOT NULL DEFAULT 0"],
   ["knob_catalog", "fit_relevant", "BOOLEAN NOT NULL DEFAULT 0"],
   ["feature_prompts", "position", "INTEGER NOT NULL DEFAULT 0"],
 ];
