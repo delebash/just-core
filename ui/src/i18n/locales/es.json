@@ -1,0 +1,87 @@
+{
+  "kit": {
+    "nav": {
+      "appSettings": "Ajustes de la aplicación",
+      "aiSettings": "Ajustes de AI",
+      "aiTasks": "Tareas de AI",
+      "help": "Ayuda"
+    },
+    "dialog": {
+      "confirm": "Confirmar",
+      "ok": "OK",
+      "cancel": "Cancelar",
+      "defaultTitle": "¿Estás seguro?",
+      "close": "Cerrar"
+    },
+    "aiTabs": {
+      "providers": "Proveedores y modelos",
+      "models": "Modelos",
+      "routing": "Enrutamiento por función",
+      "usage": "Uso",
+      "console": "Consola del motor de IA"
+    },
+    "lab": {
+      "generatedPrompt": "Prompt generado",
+      "generatedNote": "construido por la aplicación en cada ejecución real — solo prueba; nada de esto se guarda ni se aplica",
+      "refresh": "Actualizar",
+      "editCopies": "Editar copias para esta prueba",
+      "lockCopies": "Bloquear copias",
+      "restoreGenerated": "Restaurar generado",
+      "changeData": "Cambiar lo que dice este prompt:"
+    },
+    "downloadBar": {
+      "cancel": "Cancelar",
+      "retry": "Reintentar",
+      "dismiss": "Descartar",
+      "ready": "Listo ✓"
+    },
+    "connectionError": {
+      "title": "No se puede conectar con el servidor de {appName}",
+      "retry": "Reintentar"
+    },
+    "quickSetup": {
+      "runButton": "Ejecutar configuración rápida",
+      "bandScope": "Configura solo el proveedor integrado llama.cpp",
+      "applyButton": "Aplicar configuración",
+      "cancelButton": "Cancelar",
+      "closeButton": "Cerrar",
+      "engineBarTitle": "El motor",
+      "engineBarRole": "el programa que ejecuta los modelos",
+      "configuredBand": "La IA local está configurada — {model} es el modelo predeterminado",
+      "rerunButton": "Volver a ejecutar la configuración rápida",
+      "alreadyTitle": "Ya está configurado",
+      "changeModelButton": "Cambiar modelo",
+      "checkTitle": "¿Comprobar la velocidad real de IA de este equipo?",
+      "checkRunButton": "Ejecutar la comprobación de 1 minuto",
+      "checkSkipButton": "Omitir — usar estimaciones",
+      "checkRetryButton": "Intentar de nuevo",
+      "checkContinueButton": "Continuar"
+    },
+    "aiOffer": {
+      "eyebrow": "Opcional",
+      "title": "Configurar funciones de IA",
+      "body": "La IA de {appName} se ejecuta donde tú elijas: en este PC, de forma privada y gratuita, o a través de un proveedor en línea. Puedes configurar esto en cualquier momento desde la página de IA.",
+      "bodyOnline": "La IA de {appName} funciona a través del proveedor en línea que tú elijas, con tu propia clave. Puedes configurar esto en cualquier momento desde la página de IA.",
+      "quickSetup": "Ejecutar configuración rápida",
+      "quickSetupSub": "Local: usa este PC, privado y gratuito",
+      "connectProvider": "Conectar un proveedor en línea",
+      "connectProviderSub": "Endpoint compatible con OpenAI",
+      "skip": "Omitir por ahora"
+    },
+    "settingsSections": {
+      "appearance": "Apariencia",
+      "backups": "Copias de seguridad",
+      "storage": "Almacenamiento",
+      "server": "Servidor",
+      "logs": "Registros",
+      "updates": "Actualizaciones",
+      "about": "Acerca de"
+    },
+    "storage": {
+      "serverLogs": "Registros del servidor",
+      "freeSpace": "Espacio libre en disco",
+      "total": "Total",
+      "clearShort": "Borrar…"
+    }
+  }
+}

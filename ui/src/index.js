@@ -40,6 +40,8 @@ export * from "./common/index.js";
 // docs/plans/2026-10-09-kit-controls-on-quasar.md.
 import "./quasar/theme.css";
 export { QUASAR_TEST_OPTIONS, installQuasarTheme } from "./quasar/install.js";
+// Quasar's own words follow the app's vue-i18n language (each app's i18n boot file calls it).
+export { followQuasarLang } from "./quasar/lang.js";
 // Every app's pages: <q-page :style-fn="pageFill"> — a page exactly as tall as the window under
 // the layout's header (./quasar/page.js).
 export { pageFill, pageFlow } from "./quasar/page.js";

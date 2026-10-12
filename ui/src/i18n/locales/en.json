@@ -1,0 +1,102 @@
+{
+  "kit": {
+    "nav": {
+      "appSettings": "App Settings",
+      "aiSettings": "AI Settings",
+      "aiTasks": "AI tasks",
+      "help": "Help"
+    },
+    "dialog": {
+      "confirm": "Confirm",
+      "ok": "OK",
+      "cancel": "Cancel",
+      "defaultTitle": "Are you sure?",
+      "close": "Close"
+    },
+    "aiTabs": {
+      "providers": "Providers & models",
+      "models": "Models",
+      "routing": "Routing by feature",
+      "usage": "Usage",
+      "console": "AI engine console"
+    },
+    "lab": {
+      "generatedPrompt": "Generated prompt",
+      "generatedNote": "built by the app for every real run — test only; nothing here is saved or applied",
+      "refresh": "Refresh",
+      "editCopies": "Edit copies for this test",
+      "lockCopies": "Lock copies",
+      "restoreGenerated": "Restore generated",
+      "changeData": "Change what this prompt says:"
+    },
+    "downloadBar": {
+      "cancel": "Cancel",
+      "retry": "Retry",
+      "dismiss": "Dismiss",
+      "ready": "Ready ✓"
+    },
+    "connectionError": {
+      "title": "Can't reach the {appName} server",
+      "retry": "Retry"
+    },
+    "quickSetup": {
+      "runButton": "Run Quick Setup",
+      "bandScope": "Sets up the built-in llama.cpp provider only",
+      "applyButton": "Apply setup",
+      "cancelButton": "Cancel",
+      "closeButton": "Close",
+      "engineBarTitle": "The engine",
+      "engineBarRole": "the program that runs models",
+      "configuredBand": "Local AI is set up — {model} is the default",
+      "rerunButton": "Re-run Quick Setup",
+      "alreadyTitle": "Already set up",
+      "changeModelButton": "Change model",
+      "checkTitle": "Check this PC's real AI speed?",
+      "checkRunButton": "Run the 1-minute check",
+      "checkSkipButton": "Skip — use estimates",
+      "checkRetryButton": "Try again",
+      "checkContinueButton": "Continue",
+      "bandSub": "Detect your hardware, pick the best free local model that fits, and set it as your default.",
+      "headSub": "Detect your hardware, pick the best free local model that fits, and set it as your default — all editable.",
+      "confirmTitle": "Recommended setup — for the Local built-in provider only",
+      "modelHint": "One good model runs every feature — writing, chat, extraction, judgment. Per-feature choices live under Routing by feature; this sets the shared default.",
+      "chatRole": "writes + chats",
+      "embedRole": "powers search + Ask the book",
+      "checkBody": "No preset matches this hardware, so the model recommended on the next screen would be chosen from estimates. A one-minute check downloads a small test model ({size}, one time), runs it briefly two ways, and measures how fast this PC really moves model data — the number that decides which models run at reading speed.",
+      "checkSkipNote": "Skip it and the recommendation is estimated from your hardware's specs instead. Nothing else changes either way.",
+      "checkDoneNote": "Measured — the recommendation on the next screen now uses this PC's real speed."
+    },
+    "aiOffer": {
+      "eyebrow": "Optional",
+      "title": "Set up AI features",
+      "body": "{appName}'s AI runs where you choose — on this PC, private and free, or through an online provider. You can set this up anytime from the AI page.",
+      "bodyOnline": "{appName}'s AI runs through an online provider you choose, with your own key. You can set this up anytime from the AI page.",
+      "quickSetup": "Run Quick Setup",
+      "quickSetupSub": "Local — uses this PC, private & free",
+      "connectProvider": "Connect an online provider",
+      "connectProviderSub": "OpenAI-compatible endpoint",
+      "skip": "Skip for now"
+    },
+    "settingsSections": {
+      "appearance": "Appearance",
+      "backups": "Backups",
+      "storage": "Storage",
+      "server": "Server",
+      "logs": "Logs",
+      "updates": "Updates",
+      "about": "About"
+    },
+    "storage": {
+      "serverLogs": "Server logs",
+      "freeSpace": "Free disk space",
+      "total": "Total",
+      "clearShort": "Clear…"
+    },
+    "catalog": {
+      "chatSectionLabel": "Chat & writing models",
+      "chatSectionHint": "write prose, chat, extract — pick one as your General model",
+      "generalUse": "Writes prose, chats, extracts",
+      "slotsFootnote": "The app runs these two side by side — the General model writes and chats; the Embedding model powers search. Each loads automatically the first time it's needed; Load now just skips that first wait."
+    }
+  }
+}

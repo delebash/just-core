@@ -24,6 +24,7 @@ import { configureExternal, isDesktopShell } from "./common/services/external.js
 import { configureServerApi, makeOriginAwareResolver } from "./common/services/serverApi.js";
 import { configureLlmUi } from "./client.js";
 import { configureQuickSetupCopy } from "./common/services/quickSetupCopy.js";
+import { catalogCopyFrom, fillKitWords, setKitI18n } from "./common/services/kitI18n.js";
 import { registerFeaturePanels, registerLabAdapters, registerSectionedFeatures } from "./services/labAdapters.js";
 import LlmUiHosts from "./components/LlmUiHosts.vue";
 import { installQuasarTheme } from "./quasar/install.js";
@@ -67,6 +68,11 @@ function warnNoOpener() {
  * Wire the shared LLM UI into `app`.
  *
  * @param app                Vue application instance
+ * @param opts.i18n          the app's vue-i18n instance, created from the kit's catalog
+ *                           (`kitMessages`) with the app's own merged after it — the
+ *                           kit's words come from its `kit.*` keys in the app's
+ *                           language, an app's own `kit.*` key rewording one
+ * @param opts.onQuickSetupApplied called when Quick Setup finishes (`{ modelId }`)
  * @param opts.devPorts      Vite dev ports that must NOT be treated as same-origin
  * @param opts.fallbackBase  loopback base for dev + the Tauri webview
  * @param opts.serverOverrideKey localStorage key that, when set, points the app at
@@ -98,6 +104,8 @@ function warnNoOpener() {
  *                           for folders rather than firing a dead menu item.
  */
 export function installLlmUi(app, {
+  i18n,
+  onQuickSetupApplied,
   devPorts = [],
   fallbackBase = "",
   serverOverrideKey = "",
@@ -126,8 +134,13 @@ export function installLlmUi(app, {
       "(e.g. http://127.0.0.1:<your server port>) or every /v1 call will 404 into an empty view.",
     );
   }
-  configureLlmUi({ baseUrl: base, catalogCopy: _copyFor(catalogCopy, capabilities) });
+  if (i18n) {
+    setKitI18n(i18n);
+    fillKitWords(i18n);
+  }
+  configureLlmUi({ baseUrl: base, catalogCopy: _copyFor(catalogCopy ?? (i18n ? catalogCopyFrom(i18n) : undefined), capabilities) });
   if (quickSetupCopy) configureQuickSetupCopy(quickSetupCopy);
+  if (onQuickSetupApplied) configureQuickSetupCopy({ onApplied: onQuickSetupApplied });
 
   if (capabilities) Object.assign(_capabilities, capabilities);
   if (labAdapters) registerLabAdapters(labAdapters);

@@ -1198,6 +1198,16 @@ English".
   *code + web, 2026-10-12*.
 - **vue-i18n 12 is not released** (latest 11.4.14, 2026-10-10); its migration guide keeps `$t`
   and `useI18n()` and drops only the Legacy API mode. — *web, 2026-10-12*.
+- **vue-i18n merges into the objects it is given:** `createI18n({ messages })` keeps the objects, and
+  `mergeLocaleMessage` writes an app's keys into them, so a shared catalog module handed straight in
+  is reworded by the first app that merges over it. The kit's `kitMessages()` returns a fresh copy for
+  that reason. — *measured 2026-10-12*, JustWrite's `src/i18n/kitWords.test.js` failing before the copy.
+- **The model catalog's copy object was read before any app set it:** `LuModelCatalog.vue` spreads
+  `catalogCopyConfig()` into a module-level constant, and the kit's index exports `AiModelsArea`
+  (which imports the catalog) statically, so the constant is built when an app first imports the
+  kit — before `installLlmUi` passes `catalogCopy`. docgen's and JustVoice's catalog wording
+  therefore never showed. Step C of the i18n plan translates those words at render. — *code,
+  2026-10-12*, not run in a window.
 - **Four other checkouts load the kit from source** (`JustVioce-round3`, `justvoice-quasar`,
   `justwrite-quasar`, `docgen-quasar`): a change to the kit's API reaches them too. —
   *code, 2026-10-12*.

@@ -52,11 +52,21 @@ STATE:  DECIDED 2026-10-12; plan written, awaiting go — `docs/plans/2026-10-12
         JustWrite, then docgen, then JustVoice (its session), then the Spanish pass. … Say go and
         I'll record your ruling in TASKS, write the plan and bring it back before any code changes."
         The user: "your rec go" (2026-10-12) — for recording this and writing the plan.
+        The plan's decisions, asked as shown (the plan, "Decisions"): D1 the kit's key prefix `kit`;
+        D2 JustVoice on the day the kit changes — (a) I make its two-file change, or (b) its session
+        makes it from the diff and the kit waits for its word, rec (b); D3 the smoke's pseudo-locale
+        check (NOT STANDARD); D4 the label contract tests, JustWrite's keys that repeat the canon and
+        FAMILY_LABELS itself go; D5 one kit language picker in Settings → Appearance in every app;
+        D6 JustWrite's data-like strings — chrome labels get keys, database-seeded words stay
+        English, the rest listed back first.
+        The user: "your rec go" (2026-10-12). Applied: D1, D2 (b), D4, D5, D6 as recommended; D3 is
+        NOT STANDARD, which a blanket go never covers — it waits for its own word.
 WHY:    the July design (every app and the kit on vue-i18n, docgen the translator) was built only
         in JustWrite; the kit grew a side door instead, and JustVoice and docgen never converted.
 DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translation: what still
         shows in English".
-OPEN:   go on the plan, and its decisions D1–D6 and the NOT STANDARD smoke check, each by name.
+OPEN:   building — Task 1 in the order A (the kit, additive), B (the apps; JustVoice's session from
+        one message), C (the kit, after JustVoice's word). D3 awaits its own word.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 

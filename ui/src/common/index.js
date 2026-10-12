@@ -105,6 +105,9 @@ export * from "./services/appearance.js";
 // shared UI locale (BCP-47 tag for UiNumber's Intl formatting; host drives it)
 export { uiLocale, setUiLocale } from "./services/locale.js";
 
+// The kit's words in the app's vue-i18n language, for kit code outside a component.
+export { kitLocale, kitT } from "./services/kitI18n.js";
+
 // shared language CODE → readable NAME (Intl.DisplayNames, follows uiLocale).
 // Every app shows language somewhere and each was about to grow its own map;
 // `en-US` reads as "American English", not as a code (2026-08-21).
