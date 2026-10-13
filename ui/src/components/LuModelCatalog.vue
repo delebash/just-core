@@ -664,7 +664,7 @@ const quantOptions = computed(() => {
   const qs = listing.value?.quants || [];
   const opts = qs.map((q) => ({
     value: q.quant,
-    label: `${q.quant} · ${gb(q.sizeMb)} GB${q.qat ? " · QAT" : ""}${q.kind === "IQ" ? " · IQ" : q.kind === "special" ? " · special" : ""}`,
+    label: `${q.quant} · ${gb(q.sizeMb)} GB${q.qat ? " · QAT" : ""}${q.kind === "IQ" ? " · IQ" : q.kind === "special" ? ` · ${t("kit.modelCatalog.quantSpecial")}` : ""}`,
   }));
   return [...opts, { value: "__custom", label: t("kit.modelCatalog.custom") }];
 });

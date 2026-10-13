@@ -1234,6 +1234,23 @@ English".
   `ignorePattern` (`^[\\d\\s\\p{P}\\p{S}]*$`) covers `⚠` (So) but not `⚠️`, whose U+FE0F is a mark
   (Mn); ConnectionError's icon was the kit lint's one hit. Since 2026-10-13 the pattern takes
   `\p{M}` too (`^[\\d\\s\\p{P}\\p{S}\\p{M}]*$`), and the kit's lint is at zero. — *measured 2026-10-12, 2026-10-13*.
+- **`eslint-plugin-i18next`'s `no-literal-string` (6.1.5, the script-string guard ruled 2026-10-13)**
+  reads script and template alike with `framework: "vue", mode: "all"`, and has four blind spots
+  or traps, all in its source (`lib/rules/no-literal-string.js`, `lib/helper/generateFullMatchRegExp.js`):
+  (1) a pattern given as a string is compiled WITHOUT the `u` flag, so `\p{…}` classes must be
+  RegExp objects; (2) everything inside a declaration whose name is UPPER_CASE is skipped, not
+  configurable — a table of UI words named `MODE_OPTIONS` is invisible to it; (3) in a template it
+  checks string literals, not template literals (`` :title="`Open ${name}`" `` passes); (4) options
+  replace its defaults rather than extend them. Measured with a trial ignore list (ids, classes,
+  keys, CSS values, icon names by shape; `t`/`kitT`/`emit`/`console`/`Error` callees; style, icon
+  and class properties): the kit 3,457 hits → 37 (about 20 real English the step-C sweep missed);
+  JustWrite 1,084 → 438 after converting its UI words, the rest text sent to the AI model, words
+  in exported books and default names stored as data; inside UPPER_CASE tables, 848 more in
+  JustWrite. — *measured 2026-10-13*, scratch probe.
+- **`Intl.RelativeTimeFormat` gives the compact English the apps wrote by hand:** `style: "narrow"`
+  → "3m ago", "2h ago", "4d ago", "5s ago"; `numeric: "auto"` → "yesterday"; under a minute
+  it says "now", so "just now" stays a kit word. Spanish narrow: "hace 3 min". — *measured
+  2026-10-13*, Node 26.
 - **A copy of translated words keeps the language it was made in:** JustWrite's SettingsPage built
   its appearance option lists once, at load (`Object.entries(SURFACE_TINTS).map(([key, t]) => ({ key,
   ...t }))`, `UI_SCALES.map(…)`), which froze the kit's getter labels in the first language. The fix is

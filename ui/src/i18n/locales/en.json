@@ -509,7 +509,8 @@
         "limited": "{license} — use-limited: not free for unrestricted/commercial use, never a default. The catalog only lists it; the weights download on your machine.",
         "permissive": "{license} — permissive (free to use).",
         "unknown": "license unknown"
-      }
+      },
+      "quantSpecial": "special"
     },
     "fit": {
       "ok": "Fits",
@@ -683,7 +684,8 @@
       "saving": "Saving…",
       "resetDefaults": "Reset to defaults",
       "inheritDefault": "Inherit default",
-      "reset": "Reset"
+      "reset": "Reset",
+      "loadFailed": "Couldn't load: {error}"
     },
     "classTunes": {
       "memType": {
@@ -1283,7 +1285,8 @@
         "warm": "Couldn't save the warm-on-startup setting.",
         "policy": "Couldn't save the update policy.",
         "update": "The engine update didn't complete.",
-        "updateFailed": "Update failed."
+        "updateFailed": "Update failed.",
+        "save": "Couldn't save."
       },
       "removeTitle": "Remove the engine?",
       "removeBody": "Deletes the installed llama.cpp binaries. Your downloaded models are kept — reinstall the engine any time to use them again.",
@@ -1406,7 +1409,8 @@
       "err": {
         "load": "Couldn't load logs: {error}",
         "deleteDay": "Couldn't delete the day.",
-        "deleteAll": "Couldn't delete the logs."
+        "deleteAll": "Couldn't delete the logs.",
+        "clear": "Couldn't clear."
       },
       "delDay": {
         "title": "Delete this day's log?",
@@ -1425,7 +1429,8 @@
       "clear": "Clear",
       "copied": "Copied",
       "noMatch": "No lines match this filter.",
-      "none": "No log lines yet."
+      "none": "No log lines yet.",
+      "today": "{day} (today)"
     },
     "workbench": {
       "otherGroup": "Other",
@@ -1457,7 +1462,10 @@
       "showList": "Show list",
       "hideList": "Hide list",
       "building": "Building the prompt preview…",
-      "pickAction": "Pick an action on the left."
+      "pickAction": "Pick an action on the left.",
+      "presetAssigned": "{name} · assigned",
+      "presetDefault": "{name} · default",
+      "presetNone": "— none —"
     },
     "dataManagement": {
       "saveTitle": "Save {app} backup",
@@ -1768,7 +1776,8 @@
         "medium": "Medium",
         "high": "High",
         "xhigh": "XHigh",
-        "max": "Max"
+        "max": "Max",
+        "off": "Off"
       },
       "withTokens": "{level} ({tokens})",
       "custom": "Custom",
@@ -1798,7 +1807,8 @@
       "placeholder": "Fetch or type a model id",
       "noMatch": "No match",
       "fetchFirst": "No models yet — Fetch first",
-      "typeOne": "No models listed — type one"
+      "typeOne": "No models listed — type one",
+      "fetch": "Fetch"
     },
     "toast": {
       "close": "Close toast"
@@ -1806,6 +1816,13 @@
     "fileSave": {
       "failed": "save failed"
     },
-    "warmStartup": "Load the default local model into memory on startup"
+    "warmStartup": "Load the default local model into memory on startup",
+    "hardware": {
+      "vram": "{gb} GB VRAM",
+      "ram": "{gb} GB RAM"
+    },
+    "time": {
+      "justNow": "just now"
+    }
   }
 }

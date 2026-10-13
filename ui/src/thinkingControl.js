@@ -62,7 +62,7 @@ export function resolvedToThinkingControl(p, resolvedValue, levelRows) {
 // failed / not seeded yet) falls back to plain level words — a control that offers only
 // "Off" would be a worse lie than an unnumbered label.
 export function thinkingOptionsFor({ levelRows, current, customValue }) {
-  const opts = [{ value: "", label: "Off" }];
+  const opts = [{ value: "", label: levelWord("off") }];
   const byLevel = Object.fromEntries((levelRows || []).map((r) => [r.level, r]));
   for (const lvl of LEVEL_ORDER) {
     const row = byLevel[lvl];

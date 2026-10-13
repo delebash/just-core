@@ -72,7 +72,7 @@ function openList(v) {
       </div>
     </div>
     <button v-if="showFetch" class="lu-btn lu-btn--secondary lu-btn--small" type="button" :disabled="loading" @click="$emit('fetch')">
-      {{ loading ? "…" : (items.length ? "↻ Refresh" : "Fetch") }}
+      {{ loading ? "…" : (items.length ? `↻ ${t('kit.common.refresh')}` : t('kit.combobox.fetch')) }}
     </button>
   </div>
 </template>

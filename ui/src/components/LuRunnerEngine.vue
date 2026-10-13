@@ -147,7 +147,7 @@ async function setDlSegmentsEnabled(v) {
   try {
     await request("/v1/ai/engine-config", { method: "PUT", body: { downloadSegmentsEnabled: !!v } });
   } catch (e) {
-    knobErr.value = e.message || "Couldn't save.";
+    knobErr.value = e.message || t("kit.engine.err.save");
   }
 }
 
@@ -233,7 +233,7 @@ async function saveKnobs() {
     pushToast({ message: t("kit.engine.saved"), kind: "success" });
     await refreshResident();
   } catch (e) {
-    knobErr.value = e.message || "Couldn't save.";
+    knobErr.value = e.message || t("kit.engine.err.save");
   } finally {
     savingKnobs.value = false;
   }

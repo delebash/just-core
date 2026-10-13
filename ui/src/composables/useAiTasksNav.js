@@ -14,8 +14,9 @@
 //   const { badge, isOpen, toggle, navAttrs } = useAiTasksNav();
 //   <button class="navlink" v-bind="navAttrs" @click="toggle"> … </button>
 
-import { computed } from "vue";
+import { computed, reactive } from "vue";
 
+import { kitT } from "../common/services/kitI18n.js";
 import { useAiTasksStore } from "../stores/aiTasks.js";
 
 export function useAiTasksNav() {
@@ -40,6 +41,8 @@ export function useAiTasksNav() {
     hasErrors,
     isOpen,
     toggle,
-    navAttrs: { "data-panel-toggle": "", title: "AI tasks" },
+    // reactive, so the title follows a language change in apps that bind
+    // `v-bind="nav.navAttrs"` (the nested computed unwraps on read)
+    navAttrs: reactive({ "data-panel-toggle": "", title: computed(() => kitT("kit.nav.aiTasks")) }),
   };
 }

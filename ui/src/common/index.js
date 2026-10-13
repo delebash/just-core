@@ -110,6 +110,9 @@ export { languageName, languageOptionsFrom, useLanguageNames } from "./services/
 // download surface in either app renders bytes identically.
 export { fmtBytes } from "./services/downloadRate.js";
 
+// shared "5m ago" (Intl.RelativeTimeFormat in the app's vue-i18n language) — the ONE time-ago label.
+export { relativeTime } from "./services/relativeTime.js";
+
 // shared composables (host-agnostic; vue-only)
 export { useRovingTabindex } from "./composables/useRovingTabindex.js";
 export { usePanelDismiss, PANEL_TOGGLE_ATTR } from "./composables/usePanelDismiss.js";

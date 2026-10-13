@@ -71,7 +71,7 @@ function filteredModels(pid) {
 // current value always shows).
 function modelOptions(pid) {
   const p = byId.value[pid];
-  const out = [{ value: "", label: "(provider default)" }];
+  const out = [{ value: "", label: t("kit.modelPicker.providerDefault") }];
   for (const m of filteredModels(pid)) out.push({ value: m, label: m });
   for (const extra of [props.kind === "embedding" ? p?.embeddingModel : p?.defaultModel, pin.value.model]) {
     if (extra && !out.some((o) => o.value === extra)) out.push({ value: extra, label: extra });

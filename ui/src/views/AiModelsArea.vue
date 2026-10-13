@@ -438,7 +438,7 @@ async function loadAll() {
     await loadProviders();
     await Promise.all([localOn ? loadHardware() : null, loadUsage()]);
   } catch (e) {
-    error.value = `Couldn't load: ${e.message}`;
+    error.value = t("kit.common.loadFailed", { error: e.message });
   } finally {
     loading.value = false;
   }

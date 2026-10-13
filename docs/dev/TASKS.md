@@ -141,8 +141,10 @@ DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translati
         shows in English".
 OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (each ticked in the
         plan with its commit; the follow-ups' words are in JustWrite's TASKS). The ⚠️ hit closed
-        2026-10-13. Next: Task 3, with the script-string guard as its first step. D3 awaits its
-        own word.
+        2026-10-13. Task 3 under way (step 2 in part, 2026-10-13 — the plan says what landed and
+        what is open). Waiting on the user: text sent to the AI model, words in exported books,
+        default names stored as data (asked 2026-10-13), D6's list, the CORS wording, the two
+        layout faults. D3 awaits its own word.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 

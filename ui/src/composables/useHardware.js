@@ -25,6 +25,7 @@
 import { computed, ref } from "vue";
 
 import { request } from "../client.js";
+import { kitT } from "../common/services/kitI18n.js";
 
 const hardware = ref(null);
 
@@ -67,9 +68,9 @@ export const ramMb = computed(() => hardware.value?.ramMb || 0);
 export const hardwareLabel = computed(() => {
 	if (!hardware.value) return "";
 	const vram = maxVramMb.value
-		? `${Math.round(maxVramMb.value / 1024)} GB VRAM`
+		? kitT("kit.hardware.vram", { gb: Math.round(maxVramMb.value / 1024) })
 		: "";
-	const ram = ramMb.value ? `${Math.round(ramMb.value / 1024)} GB RAM` : "";
+	const ram = ramMb.value ? kitT("kit.hardware.ram", { gb: Math.round(ramMb.value / 1024) }) : "";
 	return [vram, ram].filter(Boolean).join(" · ");
 });
 

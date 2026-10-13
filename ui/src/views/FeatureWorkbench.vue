@@ -187,7 +187,7 @@ async function load() {
     const firstCard = navRows.value.find((rw) => rw.type === "card");
     if (!action.value && !selFeature.value && firstCard) selectAction(firstCard.action.key);
   } catch (e) {
-    error.value = `Couldn't load: ${e.message}`;
+    error.value = t("kit.common.loadFailed", { error: e.message });
   } finally {
     loading.value = false;
   }
@@ -228,13 +228,13 @@ function featureOfAction(key) {
 }
 function featurePresetLabel(key) {
   const pid = refPid(key);
-  if (pid) return `${presetName(pid)} · assigned`;
+  if (pid) return t("kit.workbench.presetAssigned", { name: presetName(pid) });
   const fk = featureOfAction(key);
   const fpid = fk && fk !== key ? refPid(fk) : "";
-  if (fpid) return `${presetName(fpid)} · assigned`;
+  if (fpid) return t("kit.workbench.presetAssigned", { name: presetName(fpid) });
   const did = presetAssign.value.defaultPresetId;
-  if (presetExists(did)) return `${presetName(did)} · default`;
-  return "— none —";
+  if (presetExists(did)) return t("kit.workbench.presetDefault", { name: presetName(did) });
+  return t("kit.workbench.presetNone");
 }
 
 async function setFeaturePreset(key, presetId) {

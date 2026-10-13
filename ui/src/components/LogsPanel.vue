@@ -34,7 +34,7 @@ const dayOptions = computed(() => [
     // LABEL is localised (the reader's date format); `value` above stays the ISO
     // id — it is the `/v1/logs/day?date=` wire key. Ordering does not depend on
     // the label text: the server returns days newest-first (_day_files sorts).
-    label: `${formatLogDay(d.day)}${d.live ? " (today)" : ""} · ${d.sizeKb} KB`,
+    label: `${d.live ? t("kit.logs.today", { day: formatLogDay(d.day) }) : formatLogDay(d.day)} · ${d.sizeKb} KB`,
   })),
 ]);
 const LEVEL_OPTIONS = computed(() => [
@@ -99,7 +99,7 @@ async function clearTail() {
   try {
     await request("/v1/logs/clear", { method: "POST" });
     await refresh();
-  } catch (e) { err.value = e.message || "Couldn't clear."; }
+  } catch (e) { err.value = e.message || t("kit.logs.err.clear"); }
   finally { busy.value = ""; }
 }
 async function deleteDay() {
