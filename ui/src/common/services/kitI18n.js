@@ -50,3 +50,9 @@ export function kitTe(key) {
 export function kitLocale() {
   return current().global.locale.value;
 }
+
+/** A number in the app's language — vue-i18n's n(), Intl options allowed (`{ maximumFractionDigits: 1 }`,
+ *  `{ style: "currency", currency: "USD" }`). For kit code outside a component; components use useI18n().n. */
+export function kitN(value, options) {
+  return current().global.n(value, options);
+}

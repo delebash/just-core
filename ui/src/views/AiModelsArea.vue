@@ -220,8 +220,8 @@ const hwLabel = computed(() => {
     os: h.os || "—",
     cpu: h.cpuCores ? t("kit.aiArea.hw.threads", { n: h.cpuCores }) : "—",
     gpu: gpu ? gpu.name : t("kit.aiArea.hw.cpuOnly"),
-    vram: gpu?.vramMb ? `${(gpu.vramMb / 1024).toFixed(0)} GB` : null,
-    ram: h.ramMb ? `${(h.ramMb / 1024).toFixed(0)} GB` : "—",
+    vram: gpu?.vramMb ? `${fmtNum(gpu.vramMb / 1024, { maximumFractionDigits: 0 })} GB` : null,
+    ram: h.ramMb ? `${fmtNum(h.ramMb / 1024, { maximumFractionDigits: 0 })} GB` : "—",
     accel: accel || "—",
   };
 });
@@ -253,9 +253,11 @@ const { start: startResPoll } = usePoll(async () => {
     _loadedSig = sig;
   } catch { /* keep last */ }
 }, 2500);
-const gb1 = (mb) => (mb / 1024).toFixed(1);
+const gb1 = (mb) => fmtNum(mb / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+// the debug report's own (English, like the logs)
+const gbEn = (mb) => (mb / 1024).toFixed(1);
 // GB past a gigabyte, MB below it — a "0.3 GB" cell reads as a rounding error.
-const mem1 = (mb) => (mb >= 1024 ? `${gb1(mb)} GB` : `${Math.round(mb)} MB`);
+const mem1 = (mb) => (mb >= 1024 ? `${gb1(mb)} GB` : `${fmtNum(Math.round(mb))} MB`);
 
 // ── "Other apps" → which ones (2026-08-15) ──────────────────────────────────
 // The strip has always been able to say HOW MUCH memory it can't account for
@@ -361,8 +363,8 @@ function debugInfoText() {
   const st = engState.value || {};
   const r = resident.value;
   const lines = [
-    `OS: ${h.os || "?"} (${h.platform || "?"}) · CPU ${h.cpuCores ?? "?"} threads · RAM ${h.ramMb ? gb1(h.ramMb) : "?"} GB`,
-    `GPU: ${gpu ? `${gpu.name} · ${gpu.vramMb ? gb1(gpu.vramMb) : "?"} GB VRAM · driver ${gpu.driver || "?"}` : "none detected"}`,
+    `OS: ${h.os || "?"} (${h.platform || "?"}) · CPU ${h.cpuCores ?? "?"} threads · RAM ${h.ramMb ? gbEn(h.ramMb) : "?"} GB`,
+    `GPU: ${gpu ? `${gpu.name} · ${gpu.vramMb ? gbEn(gpu.vramMb) : "?"} GB VRAM · driver ${gpu.driver || "?"}` : "none detected"}`,
     `Acceleration: ${hwLabel.value?.accel || "—"}`,
     `Engine: ${st.installed ? `installed · ${st.build || "?"} · ${st.gpu || "?"}` : "not installed"}`,
     `Tuning keys: machine ${h.machineKey || "?"} · class ${h.classKey || "?"}`,
@@ -391,7 +393,7 @@ async function copyDebugInfo() {
   }
 }
 
-const fmtUsd = (n) => (n ? `$${Number(n).toFixed(n < 1 ? 4 : 2)}` : "$0");
+const fmtUsd = (v) => fmtNum(Number(v) || 0, { style: "currency", currency: "USD", minimumFractionDigits: !v ? 0 : v < 1 ? 4 : 2, maximumFractionDigits: !v ? 0 : v < 1 ? 4 : 2 });
 // The usage breakdowns (by feature, by provider) are the same five columns with a different
 // first-column label — one config, used twice, instead of the same <table> written out twice.
 // Every column sorts: the panel exists to answer "what is costing me the most".

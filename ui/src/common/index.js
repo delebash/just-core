@@ -99,7 +99,7 @@ export { answerWorkerCalls, inAppServer, serverFetch, setServerTransport, worker
 export * from "./services/appearance.js";
 
 // The kit's words in the app's vue-i18n language, for kit code outside a component.
-export { kitLocale, kitT } from "./services/kitI18n.js";
+export { kitLocale, kitN, kitT } from "./services/kitI18n.js";
 
 // shared language CODE → readable NAME (Intl.DisplayNames, in the app's vue-i18n language).
 // Every app shows language somewhere and each was about to grow its own map;

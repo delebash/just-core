@@ -45,7 +45,7 @@ const lingering = computed(() =>
   tasks.visibleTasks.filter((task) => !tasks.isRunning(task.id)));
 const recentCount = computed(() => lingering.value.length + tasks.history.length);
 
-const { t } = useI18n();
+const { t, n } = useI18n();
 const LINGER_ICON = { done: "Check", cancelled: "Close", error: "Alert" };
 function settledDurationMs(t) {
   return Math.max(0, (t.finishedAt || 0) - t.startedAt);
@@ -69,8 +69,8 @@ function togglePreview(id) {
 }
 
 function fmtSeconds(ms) {
-  if (!ms || ms < 0) return "0.0s";
-  if (ms < 60_000) return t("kit.aiTasks.secs", { s: (ms / 1000).toFixed(1) });
+  if (!ms || ms < 0) return t("kit.aiTasks.secs", { s: n(0, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) });
+  if (ms < 60_000) return t("kit.aiTasks.secs", { s: n(ms / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) });
   const m = Math.floor(ms / 60_000);
   const s = Math.floor((ms % 60_000) / 1000);
   return t("kit.aiTasks.minSecs", { m, s });
@@ -182,7 +182,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
               {{ fmtSeconds(elapsedMs(task)) }}
             </span>
             <span v-if="firstTokenMs(task) != null" class="aip-stat" v-tooltip.bottom="t('kit.aiTasks.firstTip')">
-              {{ t('kit.aiTasks.first', { s: (firstTokenMs(task) / 1000).toFixed(1) }) }}
+              {{ t('kit.aiTasks.first', { s: n(firstTokenMs(task) / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }) }}
             </span>
             <span v-if="task.tokensOut || taskTokensSoFar(task)" class="aip-stat" v-tooltip.bottom="task.tokensOut ? t('kit.aiTasks.tokensExactTip') : t('kit.aiTasks.tokensApproxTip')">
               <template v-if="task.tokensOut">{{ fmtTokens({ outputTokens: task.tokensOut }) }}</template>

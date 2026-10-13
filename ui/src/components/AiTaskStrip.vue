@@ -37,7 +37,7 @@ const props = defineProps({
 });
 
 const tasks = useAiTasksStore();
-const { t } = useI18n();
+const { t, n } = useI18n();
 
 // A FINISHED task measures to its own finishedAt, never the live clock. The ticker
 // stops when nothing is RUNNING, so a task lingering after completion would otherwise
@@ -71,12 +71,11 @@ const progressPct = computed(() => {
 });
 
 const elapsedSeconds = computed(() => {
-  if (!props.task) return "0.0";
-  return Math.max(0, (endedAt.value - props.task.startedAt) / 1000).toFixed(1);
+  return n(props.task ? Math.max(0, (endedAt.value - props.task.startedAt) / 1000) : 0, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 });
 const firstTokenSeconds = computed(() => {
   if (!props.task?.firstDeltaAt) return null;
-  return ((props.task.firstDeltaAt - props.task.startedAt) / 1000).toFixed(1);
+  return n((props.task.firstDeltaAt - props.task.startedAt) / 1000, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 });
 const tokensLabel = computed(() => {
   if (!props.task) return null;

@@ -64,7 +64,7 @@ const error = ref("");
 // The kit's words (kit.quickSetup.*) in the app's language — an app rewords its voice (band
 // captions, the model hint, roles, the done line) with its own kit.quickSetup.* keys — plus what
 // the host's stack can do: the surgery seams (2026-08-04) that let the fork die.
-const { t } = useI18n();
+const { t, n } = useI18n();
 // The line after setup is an app's own (JustVoice's): the kit's catalog has it empty, so it
 // shows only when the app's catalog sets kit.quickSetup.doneBody.
 const doneBody = computed(() => t("kit.quickSetup.doneBody"));
@@ -108,13 +108,13 @@ const cacheOffer = computed(() => {
     (o) => o.exists && o.models?.length && o.root !== st?.ownRoot,
   ) || null;
 });
-function fmtCacheBytes(n) {
-  if (!n) return "0 B";
+function fmtCacheBytes(bytes) {
   const units = ["B", "KB", "MB", "GB", "TB"];
   let i = 0;
-  let v = n;
+  let v = bytes || 0;
   while (v >= 1024 && i < units.length - 1) { v /= 1024; i += 1; }
-  return `${v >= 10 ? Math.round(v) : v.toFixed(1)} ${units[i]}`;
+  const digits = v >= 10 || !v ? 0 : 1;
+  return `${n(v, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false })} ${units[i]}`;
 }
 const cacheOptions = computed(() => {
   const o = cacheOffer.value;

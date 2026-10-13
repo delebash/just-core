@@ -22,7 +22,7 @@ import { clearMeasurements, listMeasurements } from "../measurements.js";
 // The shared UiTable's column config (2026-07-24 migration off a hand-rolled <table>).
 // Deliberately NOT sortable: this table never had sorting and the migration is meant to be
 // behaviour-preserving — sorting can be switched on per column later by adding `sortable`.
-const { t, d } = useI18n();
+const { t, d, n } = useI18n();
 const historyColumns = computed(() => [
   { id: "when", accessorKey: "startedAt", header: t("kit.measureHistory.col.when") },
   { id: "run", accessorKey: "label", header: t("kit.measureHistory.col.run") },
@@ -70,7 +70,7 @@ const whenOf = (m) => (m.at
 const settingsOf = (m) =>
   (m.switches || []).map((s) => `${s.flagName}=${s.flagValue}`).join(" · ") ||
   t("kit.measureHistory.automatic");
-const gb = (mb) => (mb / 1024).toFixed(1);
+const gb = (mb) => n(mb / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 async function clearHistory() {
   const ok = await confirmDialog({

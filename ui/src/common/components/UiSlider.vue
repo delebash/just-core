@@ -33,8 +33,11 @@
 
 import { QSlider } from "quasar";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 
 import UiInput from "./UiInput.vue";
+
+const { n: fmtNum } = useI18n();
 
 const props = defineProps({
   modelValue: { type: [Number, String, null], default: 0 },
@@ -75,7 +78,8 @@ const value = computed(() => {
 function tidy(n) {
   if (!Number.isFinite(n)) return "";
   const decimals = String(nStep.value).split(".")[1]?.length ?? 0;
-  return decimals ? String(Number(n.toFixed(decimals))) : String(Math.round(n));
+  // in the app's language ("0,3" in Spanish), no thousands separator
+  return fmtNum(decimals ? Number(n.toFixed(decimals)) : Math.round(n), { maximumFractionDigits: decimals, useGrouping: false });
 }
 const shown = computed(() =>
   props.format ? props.format(value.value) : tidy(value.value),

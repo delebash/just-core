@@ -8,7 +8,11 @@
 // files back to back) resets the window instead of producing a negative rate.
 // PURE logic, no Vue components (the modelPick.js precedent), so vitest covers it; the ETA
 // words come from the kit catalog (kit.eta.*).
-import { kitT } from "./kitI18n.js";
+import { kitN, kitT } from "./kitI18n.js";
+
+// a size or speed's number in the app's language — one decimal, or a whole one; no thousands
+// separator ("1023 MB", as these always read)
+const size = (v, digits) => kitN(v, { minimumFractionDigits: digits, maximumFractionDigits: digits, useGrouping: false });
 
 export function createRateTracker({ windowMs = 6000, now = () => Date.now() } = {}) {
   let samples = []; // [{t, bytes}] within the window, oldest first
@@ -45,20 +49,20 @@ export function createRateTracker({ windowMs = 6000, now = () => Date.now() } = 
 export function fmtBytes(n) {
   if (!n) return "";
   const mb = n / (1024 * 1024);
-  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
-  if (mb >= 1) return `${Math.round(mb)} MB`;
+  if (mb >= 1024) return `${size(mb / 1024, 1)} GB`;
+  if (mb >= 1) return `${size(Math.round(mb), 0)} MB`;
   // Sub-MB never rounds to a lying "0 MB" (a 490 KB database is not
   // nothing — JV's Disk-usage panel showed all-zero rows over real bytes).
-  return `${Math.max(1, Math.round(n / 1024))} KB`;
+  return `${size(Math.max(1, Math.round(n / 1024)), 0)} KB`;
 }
 
 export function fmtSpeed(bytesPerSec) {
   if (!bytesPerSec || bytesPerSec <= 0) return "";
   const mbps = bytesPerSec / (1024 * 1024);
-  if (mbps >= 1024) return `${(mbps / 1024).toFixed(1)} GB/s`;
-  if (mbps >= 10) return `${Math.round(mbps)} MB/s`;
-  if (mbps >= 1) return `${mbps.toFixed(1)} MB/s`;
-  return `${Math.max(1, Math.round(bytesPerSec / 1024))} KB/s`;
+  if (mbps >= 1024) return `${size(mbps / 1024, 1)} GB/s`;
+  if (mbps >= 10) return `${size(Math.round(mbps), 0)} MB/s`;
+  if (mbps >= 1) return `${size(mbps, 1)} MB/s`;
+  return `${size(Math.max(1, Math.round(bytesPerSec / 1024)), 0)} KB/s`;
 }
 
 export function fmtEta(seconds) {
@@ -67,7 +71,7 @@ export function fmtEta(seconds) {
   if (seconds < 90) return kitT("kit.eta.seconds", { n: Math.max(5, Math.round(seconds / 5) * 5) });
   const minutes = Math.round(seconds / 60);
   if (minutes < 90) return kitT("kit.eta.minutes", { n: minutes });
-  return kitT("kit.eta.hours", { n: (minutes / 60).toFixed(1) });
+  return kitT("kit.eta.hours", { n: kitN(minutes / 60, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) });
 }
 
 /** The suffix both progress labels append: " · 38 MB/s · ~2m left".

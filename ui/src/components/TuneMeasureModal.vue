@@ -53,7 +53,7 @@ const props = defineProps({
 });
 const emit = defineEmits(["close"]);
 
-const gb = (mb) => (mb >= 10240 ? `${Math.round(mb / 1024)}` : `${(mb / 1024).toFixed(1)}`);
+const gb = (mb) => (mb >= 10240 ? n(Math.round(mb / 1024)) : n(mb / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
 
 // Knob-catalog metadata (C1) — names/help/kind for the Plane-1 switch grid.
 // Fetch + map come from the shared knobCatalog.js (one source with LuClassTunes'
@@ -87,7 +87,7 @@ const tuneBusy = computed(() => tunePhase.value === "loading" || tunePhase.value
 // group, which after this reorder is the class section — the B6-window probe
 // caught new rows rendering at the top), so "＋ Add switch" appends at the
 // visual bottom (KnobGrid's add() already appends within a section).
-const { t } = useI18n();
+const { t, n } = useI18n();
 const TUNE_GROUPS = computed(() => [
   // The layer's words come from the ONE source (tuneState.js classLayerLabel) — this
   // grid heading, the catalog badge and the budget line all name the same layer, and

@@ -20,7 +20,7 @@ import { llmUiCapabilities } from "../installLlmUi.js";
 // section's name and hint, the General model's use, the slots footnote — are kit.catalog.*, which
 // an app rewords with its own keys (docgen: "Translation models"). The embedding slot shows
 // unless the app declared it has no embedding features (installLlmUi's capabilities).
-const { t, n: fmtNum } = useI18n();
+const { t, n: fmtNum, locale } = useI18n();
 const showEmbedding = llmUiCapabilities().embeddings !== false;
 // Examples in the form's placeholders are values, not words — never translated.
 const EXAMPLE = {
@@ -189,8 +189,8 @@ function sortModels(list) {
   return [...list].sort((a, b) => {
     const va = sortVal(a, key);
     const vb = sortVal(b, key);
-    let c = typeof va === "string" ? va.localeCompare(vb) : va - vb;
-    if (c === 0) c = (a.name || "").localeCompare(b.name || ""); // stable name tiebreak
+    let c = typeof va === "string" ? va.localeCompare(vb, locale.value) : va - vb;
+    if (c === 0) c = (a.name || "").localeCompare(b.name || "", locale.value); // stable name tiebreak
     return c * dir;
   });
 }
@@ -298,7 +298,7 @@ const busy = ref(""); // CATALOG-op id in flight (delete) — distinct from the 
 // Sub-10 GB keeps one decimal for a genuine half (4.5), but the unary + drops a trailing
 // ".0" so a real 8 GB floor reads "8", not "8.0" (2026-07-27, same ruling that snapped the
 // seed floors to binary MB: "vram and ram usually only come in even sizes").
-const gb = (mb) => (mb >= 10240 ? `${Math.round(mb / 1024)}` : `${+(mb / 1024).toFixed(1)}`);
+const gb = (mb) => fmtNum(mb / 1024, { maximumFractionDigits: mb >= 10240 ? 0 : 1 });
 function fitChipLabel(m) {
   // Embedding rows show WHERE THE POLICY PUTS THEM, not a raw-card VRAM grade
   // (2026-07-25, the user's catch: the old chip said "Fits · needs ~6.8 GB VRAM"
