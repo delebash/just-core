@@ -185,6 +185,9 @@ onMounted(async () => {
 .lu-console-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .lu-console-sub { font-size: 11.5px; }
 .lu-console-spacer { flex: 1; }
+/* The level and source selects are as wide as their words (the kit fills its container by
+   default, which put each on a full-width row of its own) — LuRunnerEngine.vue's precedent. */
+.lu-console-head :deep(.ui-select-trigger) { width: fit-content; }
 .lu-console-path { font-family: var(--font-mono, monospace); font-size: 11px; word-break: break-all; }
 .lu-console-stale { font-size: 11.5px; color: var(--warning-ink, #b54708); font-style: italic; }
 /* The box fills the pane and is the single scroller (.lu-logbox brings overflow +

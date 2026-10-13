@@ -90,11 +90,16 @@ const COLUMNS = [
   // wraps happily, so a narrower share just means another line), and Bench held a two-digit
   // number in a column sized for far more. Bench's floor is its own HEADER — the word
   // "Bench" plus the sort caret — not the data, which is why it can't go below ~5%.
-  { key: "name", label: "kit.modelCatalog.col.model", defDir: "asc", w: "29%" },
+  { key: "name", label: "kit.modelCatalog.col.model", defDir: "asc", w: "24%" },
   { key: "type", label: "kit.modelCatalog.col.type", defDir: "asc", w: "11%" },
   { key: "license", label: "kit.modelCatalog.col.license", defDir: "asc", w: "11%" },
   { key: "quality", label: "kit.modelCatalog.col.bench", num: true, defDir: "asc", w: "5%" },
-  { key: "fit", label: "kit.modelCatalog.col.fit", defDir: "asc", w: "7%" },
+  // Fit holds the chip with its speed band ("Fits · ~slow"); at 7% it ran into Status at 1280 px
+  // (found 2026-10-12). Model gives up the difference — its prose wraps, so that is another line,
+  // where a narrower Status broke "downloaded" mid-word at 1024 px and a narrower Actions stacked
+  // Edit over Download at 1280 — and the longest chips ("Won't fit · ~very slow") wrap inside
+  // their column (see .lu-mgrid .lu-fit).
+  { key: "fit", label: "kit.modelCatalog.col.fit", defDir: "asc", w: "12%" },
   { key: "status", label: "kit.modelCatalog.col.status", defDir: "asc", w: "17%" },
 ];
 // The un-sortable Actions column takes the remainder. Shares total 100%.
@@ -1641,6 +1646,9 @@ refreshApplied();
 .lu-mgrid :deep(th.lu-th-num) .ui-table-th-inner,
 .lu-mgrid :deep(th.lu-th-act) .ui-table-th-inner { justify-content: flex-end; }
 .lu-mgrid :deep(th.lu-th-num), .lu-mgrid :deep(th.lu-th-act) { text-align: right; }
+/* The Fit chip wraps between words when its column is narrower than it (never mid-word), so a
+   long one ("Won't fit · ~very slow") stays in its own column instead of running into Status. */
+.lu-mgrid :deep(.lu-fit) { white-space: normal; overflow-wrap: normal; border-radius: 10px; max-width: 100%; }
 /* Bench column — right-aligned, tabular. */
 .lu-mnum { text-align: right; font-variant-numeric: tabular-nums; }
 .lu-bench { font-weight: 600; color: var(--ink-2); }
