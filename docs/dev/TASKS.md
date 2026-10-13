@@ -135,6 +135,25 @@ STATE:  DECIDED 2026-10-12; plan written, awaiting go — `docs/plans/2026-10-12
         which looks different. I recommend (a): the screen looks the same, and it matches why
         that pattern exists." The user: "your rec go" (2026-10-13). Applied: all three as
         recommended.
+        Five questions, asked as shown (2026-10-13, after Task 3's first landing): "1. **Text
+        sent to the AI model:** I recommend it stays English and is marked as not screen text.
+        Some text is used both on screen and in prompts: relationship trajectories, POV options,
+        reader personas, voice-drift metric names, chat citations, the briefing's "3 days ago". I
+        recommend the screen gets keys while the prompt asks for the same key in English, so one
+        table serves both. 2. **Words inside exported books** ("Contents", "Chapter 3"): I
+        recommend they stay English for now, with a "book language" setting added to IDEAS.
+        3. **Default names saved as data** ("Untitled character", "New chat", "Custom",
+        "first-run measure"): I recommend new-thing names use the app's language when created. A
+        new project's starter content ("Part One", the starting statuses, the worldbuilding
+        categories) stays English. D6 list (the plan says I list it back): plot templates,
+        beat-sheet frameworks, the AI-tell scanner's notes, the strands page's beat suggestions. My
+        recommendation: names and explanations shown in pickers get keys. Beats a template writes
+        into your book follow the app's language when you apply it. The English words the AI-tell
+        scanner looks for stay English. 4. **CORS message:** I recommend "or run the desktop app"
+        instead of "the Tauri app". 5. **The two older layout faults** (the console's full-width
+        selects, the catalog's "Fits · slow" chip overlapping the Status column): I recommend
+        fixing both in the kit." The user: "your rec go there is no tauri app anymore!!!!!!!!!!!!
+        !!!!!!!!" (2026-10-13). Applied: all five as recommended. D3 still awaits its own word.
 WHY:    the July design (every app and the kit on vue-i18n, docgen the translator) was built only
         in JustWrite; the kit grew a side door instead, and JustVoice and docgen never converted.
 DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translation: what still
@@ -142,9 +161,8 @@ DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translati
 OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (each ticked in the
         plan with its commit; the follow-ups' words are in JustWrite's TASKS). The ⚠️ hit closed
         2026-10-13. Task 3 under way (step 2 in part, 2026-10-13 — the plan says what landed and
-        what is open). Waiting on the user: text sent to the AI model, words in exported books,
-        default names stored as data (asked 2026-10-13), D6's list, the CORS wording, the two
-        layout faults. D3 awaits its own word.
+        what is open). The five questions of 2026-10-13 are ruled (above); building them. D3
+        awaits its own word.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 

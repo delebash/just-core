@@ -1602,7 +1602,7 @@
       "refused": "The local AI engine isn't running — pick your models in AI Settings, or press Load now.",
       "dns": "Couldn't resolve the host — check the Base URL.",
       "timeout": "Timed out — local models often need to load before the first call.",
-      "cors": "Browser blocked the request — in dev mode the provider needs CORS enabled, or run in the Tauri app.",
+      "cors": "Browser blocked the request — in dev mode the provider needs CORS enabled, or run the desktop app.",
       "reachHost": "Couldn't reach {host}",
       "reachLlm": "Couldn't reach the LLM",
       "withHint": "{lead} — {hint}",
