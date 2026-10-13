@@ -32,7 +32,7 @@ npm run server                   # the server alone, on Electron's Node (scripts
                                  #   FAMILY_TEMPLATE_UI_DIR=dist/spa serves the UI)
 npm run lint                     # Biome
 npm run i18n:lint                # the i18n lint: no word written straight into a template
-npm run i18n:report              # keys used but missing from a catalog, and keys nothing uses
+npm run i18n:report              # keys used but missing from the English catalog, and keys nothing uses
 ```
 
 ## What differs from Quasar's default, and why

@@ -1232,7 +1232,8 @@ English".
   QuickSetup shows only when `te()` finds it. — *measured 2026-10-12*.
 - **An emoji with a variation selector is "raw text" to the lint:** the family config's
   `ignorePattern` (`^[\\d\\s\\p{P}\\p{S}]*$`) covers `⚠` (So) but not `⚠️`, whose U+FE0F is a mark
-  (Mn); ConnectionError's icon is the kit lint's one hit. — *measured 2026-10-12*.
+  (Mn); ConnectionError's icon was the kit lint's one hit. Since 2026-10-13 the pattern takes
+  `\p{M}` too (`^[\\d\\s\\p{P}\\p{S}\\p{M}]*$`), and the kit's lint is at zero. — *measured 2026-10-12, 2026-10-13*.
 - **A copy of translated words keeps the language it was made in:** JustWrite's SettingsPage built
   its appearance option lists once, at load (`Object.entries(SURFACE_TINTS).map(([key, t]) => ({ key,
   ...t }))`, `UI_SCALES.map(…)`), which froze the kit's getter labels in the first language. The fix is

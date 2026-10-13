@@ -11,7 +11,7 @@
     "dup": "npx --yes jscpd@5",
     "lint": "biome check src",
     "i18n:lint": "eslint -c eslint.i18n.config.js \"src/**/*.vue\"",
-    "i18n:report": "vue-i18n-extract report --vueFiles \"src/**/*.?(js|vue)\" --languageFiles \"src/i18n/locales/*.json\""
+    "i18n:report": "vue-i18n-extract report --vueFiles \"src/**/*.?(js|vue)\" --languageFiles \"src/i18n/locales/en.json\""
   },
   "files": [
     "src"

@@ -399,7 +399,9 @@ The template is the reference.
   i18n locale — never the browser's default.
 - **Checked:** `eslint.i18n.config.js` is the family's one file (a copy of the kit's
   `ui/eslint.i18n.config.js`), its `no-raw-text` rule at error: `npm run i18n:lint` at zero, and
-  `npm run i18n:report` with no missing key in the app's own languages. The lint reads template
+  `npm run i18n:report` with no key missing from the English catalogs — English is the source;
+  other languages fill through docgen and show English until then (decided 2026-10-13: the kit's
+  TASKS, "Every app and the kit on vue-i18n"). The lint reads template
   text and plain attributes, not text a script builds nor a bound attribute's value — those are
   checked by reading (the kit's `docs/dev/RESEARCH.md` §8).
 - `vue-i18n` is one of the kit's peers every app dedupes (§3).

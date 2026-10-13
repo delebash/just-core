@@ -113,13 +113,34 @@ STATE:  DECIDED 2026-10-12; plan written, awaiting go — `docs/plans/2026-10-12
         English, the rest listed back first.
         The user: "your rec go" (2026-10-12). Applied: D1, D2 (b), D4, D5, D6 as recommended; D3 is
         NOT STANDARD, which a blanket go never covers — it waits for its own word.
+        Three questions, asked as shown (2026-10-12): "**A guard for script text.** The standard
+        Vue lint (`@intlify/eslint-plugin-vue-i18n`) has no rule for strings in scripts. The
+        widely used option is `eslint-plugin-i18next`'s `no-literal-string` rule. It flags any
+        string literal, whichever translation library you use. The cost is an ignore list to
+        maintain (icon names, keys, CSS classes, ids). The alternative is the D3 smoke check,
+        which only catches text that appears on screen. I recommend the lint rule: it also
+        catches error messages and toasts that rarely show." · "**Spanish for the new keys.**
+        `CLAUDE.md` says the key report must show nothing missing, and a key absent from
+        `es.json` counts as missing. The plan says new Spanish comes from docgen, not by hand.
+        (a) "Nothing missing" applies to English, the source. Spanish gaps wait for docgen and
+        show English until then. This is the usual translation workflow. (b) I keep
+        hand-translating new keys, as before, and docgen replaces them later. I recommend (a)."
+        · "**The ⚠️ icon:** the one remaining hit from the kit's lint is the ⚠️ in the "can't
+        reach the server" screen (`ConnectionError`). The lint counts it as text because of the
+        invisible marker after the ⚠ that makes it an emoji. Two ways to clear it: (a) Widen the
+        family lint's ignore pattern (`\p{M}`) so marks like that are skipped too. This edits the
+        lint config that Task 2 will copy into every app. (b) Swap it for the kit's `Alert` icon,
+        which looks different. I recommend (a): the screen looks the same, and it matches why
+        that pattern exists." The user: "your rec go" (2026-10-13). Applied: all three as
+        recommended.
 WHY:    the July design (every app and the kit on vue-i18n, docgen the translator) was built only
         in JustWrite; the kit grew a side door instead, and JustVoice and docgen never converted.
 DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translation: what still
         shows in English".
-OPEN:   building — Task 1: A, B and C done 2026-10-12 (each ticked in the plan with its commit).
-        Open in Task 1: the kit lint's one hit (ConnectionError's ⚠️ icon — awaits the user's word).
-        Next: Task 2 (template, app-structure §Q, guard). D3 awaits its own word.
+OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (each ticked in the
+        plan with its commit; the follow-ups' words are in JustWrite's TASKS). The ⚠️ hit closed
+        2026-10-13. Next: Task 3, with the script-string guard as its first step. D3 awaits its
+        own word.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 
