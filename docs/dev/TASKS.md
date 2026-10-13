@@ -164,7 +164,8 @@ OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (eac
         commits). The five questions of 2026-10-13 are ruled (above) and built: the CORS
         message, the two layout faults, the shared tables, the marked exemptions; the
         script-string rule is in the family lint file, the kit, template and JustWrite at zero.
-        Next: the language picker (D5), then step 6's gates. D3 awaits its own word.
+        The language picker (D5) done 2026-10-13: the kit's LanguagePicker, in JustWrite's
+        Appearance card. Next: step 6's gates, then Task 4 (docgen). D3 awaits its own word.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 
