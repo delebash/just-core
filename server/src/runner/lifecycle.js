@@ -2593,6 +2593,9 @@ export class RunnerService {
     const arb = this._arbiter;
     const want = arb.reservedMb(modelId) || 0;
     if (want <= 0) return;
+    // The RAM door at a wake: warn and go ahead (decided 2026-10-12).
+    const ramNeed = this._resident.get(modelId)?.ramNeed ?? null;
+    if (ramNeed) await this._admitRam(modelId, ramNeed, { creditMb: await arb.evictableRamMb({ exclude: modelId }), wake: true });
     const hw = this._hardwareFn();
     const made = await arb.makeRoom(want, {
       exclude: modelId,
@@ -3131,12 +3134,15 @@ export class RunnerService {
       // The draft (just acquired + pinned above) is GPU-resident alongside the main model —
       // charge its VRAM to the fit, or it silently sheds main layers.
       const [draftMeta, draftBytes] = this._draftFitInputs(ov);
-      const fit = processMod.computeFit(meta, gguf.ggufTotalBytes(ggufPath), hw, ov, {
+      const totalBytes = gguf.ggufTotalBytes(ggufPath);
+      const fit = processMod.computeFit(meta, totalBytes, hw, ov, {
         safetyMarginMb: config.safetyMarginMb,
         ctxCapTokens: config.ctxCapTokens,
         draftMeta,
         draftBytes,
       });
+      // What it needs free in system memory (the RAM door), null for a plain-mmap launch.
+      const ramNeed = this._ramNeed(modelId, meta, totalBytes, fit, ov, hw, config);
       // 1b fit-by-omission: only tune/preset/request-EXPLICIT placement knobs are emitted; a
       // non-explicit knob is omitted so the child's default `--fit` places tensors at our
       // always-emitted ctx. Tuned boxes render identically to before.
@@ -3184,11 +3190,16 @@ export class RunnerService {
           await this._cleanupCancelled(modelId);
           return;
         }
+        // The RAM door refuses BEFORE anything is evicted, crediting what the holders the card's
+        // room-making may evict say they hold (JustVoice's speech slots); exactly after.
+        const ramCredit = ramNeed ? await this._arbiter.evictableRamMb({ exclude: modelId }) : 0;
+        await this._admitRam(modelId, ramNeed, { creditMb: ramCredit });
         await this._admit(modelId, fit.vramMb, config.modelsMax, hw, {
           nglExplicit: fit.nglExplicit,
           isMoe: fit.isMoe,
           staleEmbedIds: staleEmbeds,
         });
+        if (ramCredit > 0) await this._admitRam(modelId, ramNeed);
         Object.assign(this._residentEntry(modelId), {
           status: "starting",
           detail: "loading into VRAM",
@@ -3239,7 +3250,9 @@ export class RunnerService {
           error: "",
           downloaded: 0,
           total: 0,
+          ramNeed, // what a wake checks
         });
+        if (ramNeed) background(`ram-settle ${modelId}`, () => this._recordSettledRam(modelId, fit, ov), log);
       });
     } catch (exc) {
       if (exc instanceof DownloadCancelled) {
@@ -3374,6 +3387,169 @@ export class RunnerService {
     } catch (e) {
       log.debug(`load-footprint persist failed for ${modelId}: ${errText(e)}`); // best-effort, never load-fatal
     }
+  }
+
+  // ── The RAM door (decided 2026-10-12; JustVoice RESEARCH §10.14, this kit's TASKS "The AI
+  //    model's load checks free RAM"). Fit plan §8.18 kept RAM display-only because mapped
+  //    weights can be dropped; a load mode that keeps them resident (no mmap, or mmap + lock)
+  //    is the evidence §8.18 names for enforcing. ──────────────────────────────────────────
+
+  /**
+   * MiB of this launch's weights held in system memory: the input side ("always on the CPU",
+   * gguf.js) + every block the card doesn't hold + the experts of the first `nCpuMoe` blocks
+   * — the complement of what `fit.placedWeightMib` puts on the card. The share approximation
+   * without a tensor table; the whole file when nothing goes to the card. Measured on the 26B:
+   * 8,972 MiB at `--n-cpu-moe 21` against a 9,836 MB working set, and +1,633 vs +1,635 at 25.
+   */
+  static _cpuHeldMib(meta, totalBytes, f) {
+    const sizeMib = totalBytes / fitMod.MIB;
+    const nLayers = pyInt(f.blockCount || 0);
+    const flag = processMod.engineNglFlag(f.nGpuLayers, nLayers);
+    if (!(flag > 0) || nLayers <= 0) return sizeMib;
+    if (meta.tensorBytesKnown && (meta.layerNonexpBytes || []).length >= nLayers) {
+      const onGpu = new Set(fitMod.engineGpuBlocks(nLayers, flag));
+      let bytes = pyInt(meta.inputBytes || 0);
+      for (let i = 0; i < nLayers; i++) {
+        const exps = pyInt(meta.layerExpsBytes?.[i] || 0);
+        if (!onGpu.has(i)) bytes += pyInt(meta.layerNonexpBytes[i] || 0) + exps;
+        else if (i < f.nCpuMoe) bytes += exps;
+      }
+      return bytes / fitMod.MIB;
+    }
+    const expertShare = meta.isMoe && typeof meta.expertByteShare === "function" ? meta.expertByteShare() : 0.0;
+    const g = Math.min(Math.max(0, f.nGpuLayers), nLayers);
+    const share = fitMod.moeGpuSizeShare({ nLayers, gpuLayers: g, nCpuMoe: f.nCpuMoe, expertShare });
+    return Math.max(0, sizeMib - sizeMib * share * (g / nLayers));
+  }
+
+  /** The most system memory (MB) this model held at its last loads here with this launch: the
+   * `"ram_peak"` rows whose fit-relevant switches match (the fingerprint the persisted VRAM arm
+   * matches). 0 when none. */
+  _measuredRamMb(modelId, f, ov, hw) {
+    let fset;
+    try {
+      fset = new Set(this._fitRelevantFlagsFn?.() || []);
+    } catch {
+      return 0;
+    }
+    if (!fset.size) return 0;
+    const pairsOf = (sw) =>
+      pySorted(
+        Object.entries(sw).filter(([k]) => fset.has(k)),
+        (kv) => kv,
+      );
+    const want = pairsOf(RunnerService._fitConfigSwitches(f, ov));
+    const mkey = hardware.machineKey(hw);
+    const backend = hardware.activeBackend(hw);
+    let best = 0;
+    for (const r of this.measurementRows()) {
+      if (
+        (r?.modelId ?? "") !== modelId ||
+        (r?.machineKey ?? "") !== mkey ||
+        (r?.backend ?? "") !== backend ||
+        (r?.source ?? "") !== "ram_peak"
+      ) {
+        continue;
+      }
+      const got = pairsOf(bandwidth._normSwitches(Object.fromEntries((r.switches || []).map((fl) => [fl.flagName, fl.flagValue]))));
+      if (got.length === want.length && got.every(([k, v], i) => k === want[i][0] && v === want[i][1])) {
+        best = Math.max(best, pyInt(r.ramModelMb || 0));
+      }
+    }
+    return best;
+  }
+
+  /** What this launch needs free in system memory — {heldMb, by: "weights" | "measured",
+   * marginMb} — or null when its load mode leaves weight pages the system can drop (plain
+   * mmap: §8.18 stands for it). The larger of the weights it keeps off the card and what it
+   * held at its last loads like this, plus the safety margin. */
+  _ramNeed(modelId, meta, totalBytes, f, ov, hw, config) {
+    if (!(ov?.noMmap || ov?.mlock)) return null;
+    const weights = Math.round(RunnerService._cpuHeldMib(meta, totalBytes, f));
+    const measured = this._measuredRamMb(modelId, f, ov, hw);
+    return {
+      heldMb: Math.max(weights, measured),
+      by: measured > weights ? "measured" : "weights",
+      marginMb: Math.max(0, pyInt(config?.safetyMarginMb || 0)),
+    };
+  }
+
+  /** Refuse a load — or, at a `wake`, warn and go ahead (the wake's own policy: an AI feature
+   * must not fail mid-task) — when free system memory, plus `creditMb` the room-making may give
+   * back, can't hold `need`. */
+  async _admitRam(modelId, need, { creditMb = 0, wake = false } = {}) {
+    if (need == null) return;
+    const freeMb = os.freemem() / fitMod.MIB + Math.max(0, creditMb);
+    if (need.heldMb + need.marginMb <= freeMb) return;
+    const gb = (mb) => Math.round((mb / 1024) * 10) / 10;
+    const what =
+      need.by === "measured"
+        ? `it took about ${gb(need.heldMb)} GB of this machine's memory when it last loaded here`
+        : `the part of it that stays in this machine's memory is about ${gb(need.heldMb)} GB`;
+    const short =
+      `${what} (+${need.marginMb} MB safety margin) but only ${gb(freeMb)} GB of this machine's ` +
+      `${gb(os.totalmem() / fitMod.MIB)} GB is free`;
+    if (wake) {
+      log.warning(`waking ${modelId}: ${short} — it wakes anyway and may run slowly`);
+      return;
+    }
+    let speech = [];
+    try {
+      speech = ((await this._arbiter.snapshot(this._hardwareFn())).reservations || [])
+        .filter((r) => r.kind !== "llm" && !r.pinned)
+        .map((r) => r.key.replace(/^(tts|stt):/, ""));
+    } catch {
+      /* the message without the names */
+    }
+    throw new RuntimeError(
+      `not enough memory to load ${modelId}: ${short}. ` +
+        (speech.length
+          ? `A speech model (${speech.join(", ")}) is loaded and holds memory too — unload it first, or close other programs.`
+          : "Close other programs, or pick a smaller model."),
+    );
+  }
+
+  /** The router's child serving `modelId` — its command line names it with `--alias`. */
+  async _modelServerPid(modelId) {
+    const router = this._router;
+    const rpid = router != null && router.isAlive() ? router.process?.pid : null;
+    if (!rpid) return null;
+    for (const pid of await hardware.processTreePids(rpid)) {
+      if (pid === rpid) continue;
+      try {
+        const argv = (await hardware.processCmdline(pid)) || [];
+        const i = argv.indexOf("--alias");
+        if (i >= 0 && argv[i + 1] === modelId) return pid;
+      } catch {
+        /* a process that ended meanwhile */
+      }
+    }
+    return null;
+  }
+
+  /** Once a confirmed load's model server settles (two equal readings, 2 s apart), record what
+   * it holds as a `"ram_peak"` row with this launch's switches — the measured half of the RAM
+   * door. Best-effort, in the background. */
+  async _recordSettledRam(modelId, f, ov) {
+    if (this._recordLoadFn == null) return;
+    const pid = await this._modelServerPid(modelId);
+    if (!pid) return;
+    let last = -1;
+    let best = 0;
+    for (let i = 0; i < 30; i++) {
+      const mb = await hardware.processTreeRssMb(pid);
+      if (mb == null) return;
+      best = Math.max(best, mb);
+      if (mb === last) break;
+      last = mb;
+      await this._sleep(2.0);
+    }
+    await this._recordLoadFn(modelId, {
+      switches: RunnerService._fitConfigSwitches(f, ov),
+      source: "ram_peak",
+      label: "system memory once loaded",
+      ramModelMb: best,
+    });
   }
 
   /**

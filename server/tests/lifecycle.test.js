@@ -20,6 +20,7 @@
 // All 208 Python tests are ported, plus one JS-only test at the end (marked): the router
 // lock's re-entry through a reservation's own evictor, which no Python test exercised.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test, vi } from "vitest";
@@ -3698,4 +3699,90 @@ test("js_admission_evicts_an_earlier_load_through_its_own_evictor", async () => 
   expect(unloaded).toEqual([TEST_MODEL.id]);
   expect(svc.status().status).toBe("running");
   expect(svc._routerLock.locked).toBe(false);
+});
+
+// ── The RAM door (decided 2026-10-12; JustVoice RESEARCH §10.14) ──────────────
+
+test("cpu_held_mib_is_the_complement_of_what_the_card_holds", () => {
+  // 4 blocks of 10 MiB non-expert + 50 MiB experts, a 100 MiB input side, a 100 MiB output.
+  const M = 1024 * 1024;
+  const meta = {
+    tensorBytesKnown: true,
+    isMoe: true,
+    inputBytes: 100 * M,
+    layerNonexpBytes: [10 * M, 10 * M, 10 * M, 10 * M],
+    layerExpsBytes: [50 * M, 50 * M, 50 * M, 50 * M],
+  };
+  const total = (100 + 4 * 60 + 100) * M;
+  // Every block on the card, the first 2 blocks' experts in RAM: the input side + 2 × 50.
+  expect(RunnerService._cpuHeldMib(meta, total, { blockCount: 4, nGpuLayers: 4, nCpuMoe: 2 })).toBe(200);
+  // -ngl 3: the output + the last 2 blocks on the card, blocks 0 and 1 whole in RAM.
+  expect(RunnerService._cpuHeldMib(meta, total, { blockCount: 4, nGpuLayers: 3, nCpuMoe: 0 })).toBe(220);
+  // Nothing on the card: the whole file.
+  expect(RunnerService._cpuHeldMib(meta, total, { blockCount: 4, nGpuLayers: 0, nCpuMoe: 0 })).toBe(440);
+});
+
+test("the_ram_need_is_for_resident_load_modes_and_rises_to_what_was_measured", () => {
+  const M = 1024 * 1024;
+  const meta = { tensorBytesKnown: true, isMoe: true, inputBytes: 100 * M, layerNonexpBytes: [10 * M, 10 * M], layerExpsBytes: [50 * M, 50 * M] };
+  const fit = { blockCount: 2, nGpuLayers: 2, nCpuMoe: 2 };
+  const svc = serviceFor(tmp());
+  const hw = fakeHw(8192);
+  // Plain mmap: the pages can be dropped — §8.18 stands, nothing is checked.
+  expect(svc._ramNeed("m", meta, 320 * M, fit, new Overrides({}), hw, { safetyMarginMb: 1024 })).toBeNull();
+  const measured = vi.spyOn(svc, "_measuredRamMb").mockReturnValue(0);
+  expect(svc._ramNeed("m", meta, 320 * M, fit, new Overrides({ noMmap: true }), hw, { safetyMarginMb: 1024 })).toEqual({
+    heldMb: 200,
+    by: "weights",
+    marginMb: 1024,
+  });
+  measured.mockReturnValue(260);
+  expect(svc._ramNeed("m", meta, 320 * M, fit, new Overrides({ mlock: true }), hw, { safetyMarginMb: 1024 })).toEqual({
+    heldMb: 260,
+    by: "measured",
+    marginMb: 1024,
+  });
+});
+
+test("the_ram_door_refuses_a_load_and_warns_at_a_wake", async () => {
+  const hw = fakeHw(8192);
+  const arb = new VramArbiter(() => hw);
+  const svc = serviceFor(tmp(), { arbiter: arb, hardwareFn: () => hw });
+  vi.spyOn(os, "totalmem").mockReturnValue(32 * 1024 ** 3);
+  vi.spyOn(os, "freemem").mockReturnValue(8 * 1024 ** 3);
+  const need = { heldMb: 8972, by: "weights", marginMb: 1024 };
+  await expect(svc._admitRam("gemma", need)).rejects.toThrow(
+    "not enough memory to load gemma: the part of it that stays in this machine's memory is about 8.8 GB (+1024 MB safety margin) but only 8 GB of this machine's 32 GB is free. Close other programs, or pick a smaller model.",
+  );
+  // What the card's room-making may evict gives its memory back.
+  await expect(svc._admitRam("gemma", need, { creditMb: 3300 })).resolves.toBeUndefined();
+  // A loaded speech model is named.
+  arb.reserve("tts:voxcpm2", 2937, { kind: "tts", evictFn: () => {} });
+  await expect(svc._admitRam("gemma", need)).rejects.toThrow("A speech model (voxcpm2) is loaded and holds memory too");
+  // By what it took before.
+  await expect(svc._admitRam("gemma", { ...need, heldMb: 9836, by: "measured" })).rejects.toThrow(
+    "it took about 9.6 GB of this machine's memory when it last loaded here",
+  );
+  // At a wake: a warning, and it goes ahead.
+  await expect(svc._admitRam("gemma", need, { wake: true })).resolves.toBeUndefined();
+});
+
+test("a_wake_short_of_ram_still_wakes", async () => {
+  // The wake's own policy: an AI feature must not fail mid-task — the RAM door only warns.
+  const hw = fakeHw(8192);
+  const arb = new VramArbiter(() => hw);
+  const svc = serviceFor(tmp(), { arbiter: arb, hardwareFn: () => hw, routerModels: sleepingRouterModels("test-model") });
+  svc._router = fakeRouter();
+  svc._resident.set("test-model", {
+    status: "running",
+    modelId: "test-model",
+    url: "",
+    detail: "",
+    error: "",
+    ramNeed: { heldMb: 30000, by: "weights", marginMb: 1024 },
+  });
+  arb.reserve("test-model", 6000, { kind: "llm", evictFn: () => {} });
+  vi.spyOn(os, "freemem").mockReturnValue(4 * 1024 ** 3);
+  await svc.ensureModelReady("test-model");
+  expect(arb.isAsleep("test-model")).toBe(false);
 });

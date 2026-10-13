@@ -404,7 +404,7 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
       at: Date.now(),
       rows: [],
     });
-  const recordLoad = (modelId, { vramModelMb, switches, source, label }) => {
+  const recordLoad = (modelId, { vramModelMb = 0, switches, source, label, ramModelMb = 0 }) => {
     const store = stores.getModelMeasurementStore();
     const sw = switches || {};
     const rows = Object.keys(sw)
@@ -420,6 +420,7 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
       rows,
       vramModelMb: Math.trunc(vramModelMb),
       kind: "llm",
+      ramModelMb: Math.trunc(ramModelMb),
     });
     store.pruneLoadRows(modelId, currentHwKey(), stores.listFitRelevantFlags(), stores.loadRowsKeep(), source);
   };

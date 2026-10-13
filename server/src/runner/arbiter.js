@@ -77,8 +77,12 @@ export const EVICT_MIN_MB = 600;
 
 /** One ledger row (Python's `_Reservation`). */
 export class _Reservation {
-  constructor({ vramMb, pinned, seq, kind = "llm", evictFn = null, source = "computed", asleep = false }) {
+  constructor({ vramMb, pinned, seq, kind = "llm", evictFn = null, source = "computed", asleep = false, ramFn = null }) {
     this.vramMb = vramMb;
+    // The OWNER's reader of the system memory it holds (async → MB | null), when it has one — a
+    // JustVoice speech slot's process. An AI model's load credits it when it may evict this
+    // holder (`evictableRamMb`, 2026-10-12).
+    this.ramFn = ramFn;
     this.pinned = pinned;
     this.seq = seq; // monotonic use stamp — higher = more recently used (drives LRU eviction)
     this.kind = kind; // owner kind: "llm" | "tts" | "stt" — drives busy protection + kind-scoped counts
@@ -242,14 +246,31 @@ export class VramArbiter {
    * evictor — without one, `makeRoom` can never pick this reservation. `source` (§13.1)
    * records the number's provenance — measured | computed | declared.
    */
-  reserve(key, vramMb, { pinned = false, kind = "llm", evictFn = null, source = "computed" } = {}) {
+  reserve(key, vramMb, { pinned = false, kind = "llm", evictFn = null, source = "computed", ramFn = null } = {}) {
     this._seq += 1;
     this._reservations.set(
       key,
       // Python's max(0, vram_mb): 0 unless the number is > 0 (NaN included).
-      new _Reservation({ vramMb: vramMb > 0 ? vramMb : 0, pinned, seq: this._seq, kind, evictFn, source: source || "computed" }),
+      new _Reservation({ vramMb: vramMb > 0 ? vramMb : 0, pinned, seq: this._seq, kind, evictFn, source: source || "computed", ramFn }),
     );
     return true;
+  }
+
+  /** The system memory (MB) that the reservations `makeRoom` could evict say they hold — what a
+   * load that makes room on the card may give back in RAM. Only holders that registered a
+   * `ramFn` count; a pinned, busy or asleep holder, or `exclude`, never does. */
+  async evictableRamMb({ exclude = null } = {}) {
+    const busy = this.busyKinds();
+    let total = 0;
+    for (const [k, r] of this._reservations) {
+      if (k === exclude || r.pinned || r.asleep || busy.has(r.kind) || typeof r.ramFn !== "function") continue;
+      try {
+        total += Math.max(0, Math.trunc(Number((await r.ramFn()) || 0)) || 0);
+      } catch {
+        /* an unreadable holder credits nothing */
+      }
+    }
+    return total;
   }
 
   /** Drop `key`'s reservation (on unload / a failed-or-cancelled load). Idempotent. */

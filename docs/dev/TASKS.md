@@ -27,8 +27,40 @@ BUILT:  NOT built — the measurement failed (2026-10-12): gemma 4 26B A4B (`--l
         --n-gpu-layers 31 --n-cpu-moe 21`) holds 9,838 MB (working set = its peak; private bytes
         16,836) against `minRamMb` 17,685 = the whole file + 4,096 headroom; the claim charges the
         file the card holds (JustVoice RESEARCH §10.14 "The 26B's RAM against its claim").
-OPEN:   what the door checks instead — the user's word.
-GO:     given 2026-10-12 ("your rec on all 3 go").
+        What it checks instead (decided 2026-10-12, after a Fable review and an Opus check of it).
+        Fable's rule, as shown: "The AI model's door checks the computed CPU-held part of the file
+        plus the safety margin, raised by what it took at its last load with that placement,
+        crediting the speech slots it evicts." Opus, as shown: "Fable's rule, with two additions.
+        It runs at wakes too. At a wake it warns and goes ahead, matching the wake's own policy;
+        at an explicit load it refuses. Measure one more placement first, with a speech model on
+        the card, to confirm the computed number tracks it. My lean: yes. The refusal message
+        comes to you for wording before it ships, as JustVoice's did." Why the wake: a model
+        sleeps after `sleep_idle` (900 s) and the next request wakes it through `_admitWake`
+        (`runner/lifecycle.js`), not the load path. The user: "your rec on all go".
+        BUILT (2026-10-12; committed 2026-10-13, once the words were approved): the second measurement —
+        `--n-cpu-moe 25` held 11,471 MB against 10,209 computed (+1,262 above the experts, the
+        same as at 21); "beside a speech model" is not a placement the kit makes (it evicts).
+        `RunnerService._cpuHeldMib` (the complement of `fit.placedWeightMib`), `_measuredRamMb`
+        (`"ram_peak"` rows by fingerprint), `_ramNeed` (null for plain mmap), `_admitRam` (refuse
+        at a load, warn at a wake), `_recordSettledRam` (the model server by `--alias`, two equal
+        readings); `arbiter.evictableRamMb` + a reservation's `ramFn` (JustVoice's speech slots
+        register one); `recordLoad` passes `ramModelMb`; `hardware.processTreeSharedMb` (for
+        JustVoice's spill check). Tests; the kit suite (1,154) and JustWrite's server suite (158)
+        pass. Through JustVoice's app: the 26B passed the check and recorded 9,843 MB.
+        The words (decided 2026-10-13, in a JustVoice session) — shown: "2. The AI model's
+        refusal: "not enough memory to load gemma-4-26b-a4b-qat: the part of it that stays in this
+        machine's memory is about 8.8 GB (+1024 MB safety margin) but only 8 GB of this machine's
+        32 GB is free. Close other programs, or pick a smaller model." When a past load decides
+        the number: "…it took about 9.6 GB of this machine's memory when it last loaded here…".
+        With a speech model loaded, the last sentence becomes: "A speech model (voxcpm2) is
+        loaded and holds memory too — unload it first, or close other programs." My lean: yes. It
+        mirrors JustVoice's approved speech message. 3. Where a wake's warning shows. Today it's
+        only in the log. A toast would need new screen work in both apps. My lean: the log. The
+        wake goes ahead either way, so there's nothing for you to act on mid-task." The user:
+        "your rec go". Both as built (`_admitRam`).
+OPEN:   — (not checked live: a real refusal; unit tests only).
+GO:     given 2026-10-12 ("your rec on all 3 go"; what it checks: "your rec on all go"); the
+        words: "your rec go" (2026-10-13).
 
 ## Every app and the kit on vue-i18n [2026-10-12]
 STATE:  DECIDED 2026-10-12; plan written, awaiting go — `docs/plans/2026-10-12-i18n-standard.md`.

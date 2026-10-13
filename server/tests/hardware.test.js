@@ -444,6 +444,24 @@ test("tree_device_mem_sums_windows_counter_arm", async () => {
   expect(await hw.processTreeDeviceMemMb(1234)).toBeNull();
 });
 
+test("windows_gpu_shared_counter_and_tree", async () => {
+  vi.spyOn(hw, "platformKey").mockReturnValue("windows");
+  vi.spyOn(hw, "which").mockImplementation((n) => (n === "typeperf" ? "C:/typeperf" : null));
+  ran(
+    '"(PDH-CSV 4.0)","\\\\BOX\\GPU Process Memory(pid_1300_luid_a_phys_0)\\Shared Usage"\n' +
+      '"10/12/2026 15:24:36.125","81788928.000000"\n',
+  );
+  expect(await hw._windowsGpuProcessSharedMb(1300)).toBe(78);
+  vi.spyOn(hw, "platformKey").mockReturnValue("linux");
+  expect(await hw._windowsGpuProcessSharedMb(1300)).toBeNull();
+  // The tree sums what answers; nothing answering is null, not 0.
+  vi.spyOn(hw, "processTreePids").mockResolvedValue([1234, 1300]);
+  vi.spyOn(hw, "_windowsGpuProcessSharedMb").mockImplementation(async (pid) => (pid === 1300 ? 78 : null));
+  expect(await hw.processTreeSharedMb(1234)).toBe(78);
+  vi.spyOn(hw, "_windowsGpuProcessSharedMb").mockResolvedValue(null);
+  expect(await hw.processTreeSharedMb(1234)).toBeNull();
+});
+
 test("tree_rss_sums_shim_and_child", async () => {
   vi.spyOn(hw, "processTreePids").mockResolvedValue([1234, 1300]);
   vi.spyOn(hw, "processRssMb").mockImplementation(async (pid) => ({ 1234: 4, 1300: 509 })[pid]);

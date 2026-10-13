@@ -432,3 +432,21 @@ test("a_fresh_reserve_clears_the_sleep_flag", () => {
   expect(a.isAsleep("chat")).toBe(false);
   expect(a.committedMb()).toBe(6100);
 });
+
+test("evictable_ram_counts_only_holders_that_could_be_evicted", async () => {
+  // The AI model's RAM door credits what makeRoom could free in system memory (2026-10-12).
+  const a = arb(8000);
+  a.reserve("chat", 6000, { kind: "llm", evictFn: () => {} });
+  a.reserve("tts:vox", 3000, { kind: "tts", evictFn: () => {}, ramFn: async () => 3300 });
+  a.reserve("stt:asr", 500, {
+    kind: "stt",
+    evictFn: () => {},
+    ramFn: async () => {
+      throw new Error("gone");
+    },
+  });
+  a.reserve("embed", 300, { pinned: true, kind: "llm", evictFn: () => {}, ramFn: async () => 900 });
+  expect(await a.evictableRamMb({ exclude: "chat" })).toBe(3300);
+  a.busyBegin("tts");
+  expect(await a.evictableRamMb({ exclude: "chat" })).toBe(0);
+});

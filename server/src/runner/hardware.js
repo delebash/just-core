@@ -767,6 +767,26 @@ export async function _windowsGpuProcessDedicatedMb(pid) {
 }
 
 /**
+ * Per-PID SHARED GPU memory on Windows — the same counter set's `Shared Usage`: system memory
+ * the process's GPU allocations live in. NVIDIA's Windows driver (536.40+) can satisfy a CUDA
+ * allocation from it when the card is full instead of failing, so growth across a load is a
+ * spill. A process that fits sits at a constant baseline (78 MB for audio.cpp, 2026-10-12);
+ * llama.cpp keeps its CPU-side weights in pinned host memory, which counts here too, so it is
+ * no spill signal for llama.cpp (JustVoice RESEARCH §10.14 "What Shared Usage shows").
+ */
+export async function _windowsGpuProcessSharedMb(pid) {
+  if (self.platformKey() !== "windows" || !self.which("typeperf")) return null;
+  let out;
+  try {
+    out = await runText(["typeperf", `\\GPU Process Memory(pid_${pid}*)\\Shared Usage`, "-sc", "1"], 10);
+  } catch (e) {
+    log.debug(`typeperf GPU shared probe failed: ${e?.message ?? e}`);
+    return null;
+  }
+  return sumTypeperfSample(out);
+}
+
+/**
  * Dedicated DEVICE memory (MiB) held by ONE process, or null when it cannot be measured.
  * nvidia-smi's per-process query first (Linux, Windows-TCC), then the Windows per-PID GPU
  * Process Memory counters (the WDDM path). No AMD per-process arm exists — vendor tooling
@@ -917,6 +937,23 @@ export async function processTreeDeviceMemMb(pid) {
     const w = await self._windowsGpuProcessDedicatedMb(p);
     if (w != null) {
       total += w;
+      seen = true;
+    }
+  }
+  return seen ? total : null;
+}
+
+/**
+ * Shared GPU memory (MiB) summed over a process TREE (`_windowsGpuProcessSharedMb`). null =
+ * not Windows, or no counter answered.
+ */
+export async function processTreeSharedMb(pid) {
+  let total = 0;
+  let seen = false;
+  for (const p of await self.processTreePids(pid)) {
+    const v = await self._windowsGpuProcessSharedMb(p);
+    if (v != null) {
+      total += v;
       seen = true;
     }
   }
