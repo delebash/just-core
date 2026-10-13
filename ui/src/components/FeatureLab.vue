@@ -181,13 +181,23 @@ const sampleIx = ref(0);       // the next sample the button fills
 const composing = ref(false);
 const sources = testDataSources();
 const sourceById = Object.fromEntries(sources.map((s) => [s.id, s]));
-const sourceOptions = reactive({}); // source.id -> [{value,label}]
+const sourceItems = reactive({}); // source.id -> its rows as options [{value,label}], once listed
 const sourceLoading = reactive({}); // source.id -> true while its list() is in flight
 // source.id -> the option the user picked. A select that snaps back to its own
 // placeholder reads as a broken dropdown; it keeps what you chose (user ruling
 // 2026-08-15). Accepted cost: re-picking the SAME item is a no-op, because
 // @update:model-value only fires on change.
 const pickerValue = reactive({});
+
+// A source's words: the keys a host names (labelKey, kindKey), translated as they render, or the
+// words it passed as they are.
+const sourceWord = (src) => (src?.labelKey ? t(src.labelKey) : src?.label);
+const kindWord = (src) => (src?.kindKey ? t(src.kindKey) : src?.kind);
+// A picker's options: its placeholder, in the language of the moment, then the source's rows.
+const sourceOptions = (sourceId) => [
+  { value: "", label: t("kit.lab.insertFrom", { source: sourceWord(sourceById[sourceId]) }) },
+  ...(sourceItems[sourceId] || []),
+];
 
 const decl = computed(() => testDataAction(props.action));
 const pickers = computed(() =>
@@ -223,20 +233,12 @@ function loadSource(sourceId) {
   const src = sourceById[sourceId];
   if (!src || sourceLoading[sourceId]) return;
   sourceLoading[sourceId] = true;
-  // Seed the placeholder row so the control renders IMMEDIATELY rather than
-  // popping into existence when the fetch lands.
-  if (!sourceOptions[sourceId]) {
-    sourceOptions[sourceId] = [{ value: "", label: t("kit.lab.insertFrom", { source: src.label }) }];
-  }
   Promise.resolve()
     .then(() => src.list())
     .then((items) => {
-      sourceOptions[sourceId] = [
-        { value: "", label: t("kit.lab.insertFrom", { source: src.label }) },
-        ...(items || []).map((it) => ({ value: String(it.id), label: it.label })),
-      ];
+      sourceItems[sourceId] = (items || []).map((it) => ({ value: String(it.id), label: it.label }));
     })
-    .catch(() => { sourceOptions[sourceId] = []; })
+    .catch(() => { sourceItems[sourceId] = []; })
     .finally(() => { sourceLoading[sourceId] = false; });
 }
 
@@ -261,7 +263,7 @@ async function insertFrom(picker, id) {
   try {
     const payload = await picker.fill(id);
     const set = mergeVariables(vars, payload || {});
-    if (!set) pushToast({ message: t("kit.lab.itemMismatch", { kind: sourceById[picker.source]?.kind || t("kit.lab.item") }) });
+    if (!set) pushToast({ message: t("kit.lab.itemMismatch", { kind: kindWord(sourceById[picker.source]) || t("kit.lab.item") }) });
   } catch (e) {
     pickerValue[picker.source] = prev; // nothing was inserted — don't claim it was
     pushToast({ message: e?.message || t("kit.lab.err.item") });
@@ -347,9 +349,9 @@ const columnConfig = computed(() => {
           <!-- Visible while its list loads (disabled, showing its own label) so the
                fill row does not reshuffle as the fetches land. Hidden only once we
                KNOW the source has nothing to offer. -->
-          <UiSelect v-if="sourceLoading[p.source] || (sourceOptions[p.source] || []).length > 1"
-            :disabled="!!sourceLoading[p.source] && (sourceOptions[p.source] || []).length <= 1"
-            :model-value="pickerValue[p.source] ?? ''" :options="sourceOptions[p.source] || []" width="name"
+          <UiSelect v-if="sourceLoading[p.source] || sourceItems[p.source]?.length"
+            :disabled="!!sourceLoading[p.source] && !sourceItems[p.source]?.length"
+            :model-value="pickerValue[p.source] ?? ''" :options="sourceOptions(p.source)" width="name"
             @update:model-value="(v) => insertFrom(p, v)" />
         </template>
         <UiButton v-if="decl?.compose" intent="secondary" size="small"

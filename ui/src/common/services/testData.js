@@ -7,7 +7,8 @@
 // generic name-matching and no single-variable bridge (both deleted — QC-35's
 // locked mechanism supersedes the B4-4 gate).
 //
-// A source:      { id, label, kind, list() → [{id, label}] }
+// A source:      { id, label, kind, list() → [{id, label}] } — or labelKey / kindKey in place of
+//                label / kind: message keys the Lab translates as it renders (JW's sources)
 // A declaration: {
 //   pickers: [{ source: <source id>, fill(id) → Promise<{variables}> }],
 //   compose: { label?, run() → Promise<{variables}> },   // "From this book"
