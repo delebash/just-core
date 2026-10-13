@@ -81,18 +81,21 @@ const linksList = computed(() => [
     link: 'https://forum.quasar.dev'
   },
   {
+    // eslint-disable-next-line i18next/no-literal-string -- a product name
     label: 'Twitter',
     caption: '@quasarframework',
     icon: 'rss_feed',
     link: 'https://twitter.quasar.dev'
   },
   {
+    // eslint-disable-next-line i18next/no-literal-string -- a product name
     label: 'Facebook',
     caption: '@QuasarFramework',
     icon: 'public',
     link: 'https://facebook.quasar.dev'
   },
   {
+    // eslint-disable-next-line i18next/no-literal-string -- a product name
     label: 'Quasar Awesome',
     caption: t('layout.link.awesome'),
     icon: 'favorite',

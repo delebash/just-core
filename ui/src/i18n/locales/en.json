@@ -510,7 +510,16 @@
         "permissive": "{license} — permissive (free to use).",
         "unknown": "license unknown"
       },
-      "quantSpecial": "special"
+      "quantSpecial": "special",
+      "compose": {
+        "embedding": "embedding model",
+        "moe": "mixture-of-experts model",
+        "model": "model",
+        "withParams": "{params} {kind}",
+        "context": "{n}k context",
+        "mtpDraft": "MTP draft for faster generation",
+        "mtpBuiltin": "MTP for faster generation"
+      }
     },
     "fit": {
       "ok": "Fits",
@@ -1561,7 +1570,8 @@
       "autotune": "Auto-tune",
       "measured": "measured",
       "gb": "{gb} GB",
-      "empty": "Nothing measured yet — every “Load & measure” result and auto-tune trial is recorded here automatically."
+      "empty": "Nothing measured yet — every “Load & measure” result and auto-tune trial is recorded here automatically.",
+      "firstRunLabel": "first-run measure"
     },
     "console": {
       "source": {

@@ -860,13 +860,15 @@ function composedDescription() {
   const e = editing.value;
   const bits = [];
   const params = (e.totalParams || e.sizeLabel || inspected.value?.sizeLabel || "").toString().trim();
-  const kind = e.embedding ? "embedding model" : e.type === "moe" ? "mixture-of-experts model" : "model";
-  bits.push(params ? `${params} ${kind}` : kind);
-  if (e.trainedCtx) bits.push(`${Math.round(e.trainedCtx / 1024)}k context`);
+  // In the interface language — the description is the user's text from here on (ruled
+  // 2026-10-13: a new thing's words follow the app's language when it is made).
+  const kind = t(e.embedding ? "kit.modelCatalog.compose.embedding" : e.type === "moe" ? "kit.modelCatalog.compose.moe" : "kit.modelCatalog.compose.model");
+  bits.push(params ? t("kit.modelCatalog.compose.withParams", { params, kind }) : kind);
+  if (e.trainedCtx) bits.push(t("kit.modelCatalog.compose.context", { n: Math.round(e.trainedCtx / 1024) }));
   // Honest MTP phrasing: an external draft file vs built-in prediction layers. Keyed
   // to the MODEL's capability (a draft, or the header built-in), not the enable flag.
-  if (e.mtpDraftFile) bits.push("MTP draft for faster generation");
-  else if (e.mtpBuiltin) bits.push("MTP for faster generation");
+  if (e.mtpDraftFile) bits.push(t("kit.modelCatalog.compose.mtpDraft"));
+  else if (e.mtpBuiltin) bits.push(t("kit.modelCatalog.compose.mtpBuiltin"));
   if (e.quant) {
     const q = (listing.value?.quants || []).find((x) => x.quant === e.quant);
     bits.push(`${e.quant}${q?.qat ? " (QAT)" : ""}`);

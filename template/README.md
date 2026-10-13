@@ -31,7 +31,7 @@ npm run build:android            # the Android app (quasar build -m capacitor -T
 npm run server                   # the server alone, on Electron's Node (scripts/node24.js; headless;
                                  #   FAMILY_TEMPLATE_UI_DIR=dist/spa serves the UI)
 npm run lint                     # Biome
-npm run i18n:lint                # the i18n lint: no word written straight into a template
+npm run i18n:lint                # the i18n lint: no word written into a template or built in code
 npm run i18n:report              # keys used but missing from the English catalog, and keys nothing uses
 ```
 

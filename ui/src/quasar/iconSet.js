@@ -5,6 +5,7 @@
 // test (docs/plans/2026-10-08-phone-ui-library-test.md in justwrite-app). Quasar takes an SVG
 // icon as "path@@style|viewBox" (QIcon); the keys the kit has no icon for keep the Material SVGs
 // of Quasar's svg-material-icons set. installQuasarTheme() (./install.js) sets it.
+/* eslint-disable i18next/no-literal-string -- Quasar's icon set: icon names, not words */
 import base from "quasar/icon-set/svg-material-icons.js";
 import { ICON_PATHS } from "../common/iconPaths.js";
 

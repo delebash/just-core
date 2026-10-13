@@ -398,12 +398,16 @@ The template is the reference.
 - **Dates and numbers in the app's language** — vue-i18n's `d()` and `n()`, or `Intl` given the
   i18n locale — never the browser's default.
 - **Checked:** `eslint.i18n.config.js` is the family's one file (a copy of the kit's
-  `ui/eslint.i18n.config.js`), its `no-raw-text` rule at error: `npm run i18n:lint` at zero, and
+  `ui/eslint.i18n.config.js`) with two rules at error — `no-raw-text` (@intlify) for template text,
+  `no-literal-string` (eslint-plugin-i18next) for the strings code builds, in `.js` files and in a
+  `.vue` file's script and bound attributes: `npm run i18n:lint` (`src/**/*.{js,vue}`) at zero, and
   `npm run i18n:report` with no key missing from the English catalogs — English is the source;
   other languages fill through docgen and show English until then (decided 2026-10-13: the kit's
-  TASKS, "Every app and the kit on vue-i18n"). The lint reads template
-  text and plain attributes, not text a script builds nor a bound attribute's value — those are
-  checked by reading (the kit's `docs/dev/RESEARCH.md` §8).
+  TASKS, "Every app and the kit on vue-i18n"). Neither rule reads a template literal inside a
+  template attribute, nor a table in an UPPER_CASE declaration — such a table names its keys
+  (`labelKey`). Text that stays English on purpose — what the AI model reads (a table it shares
+  with the screen gives the prompt its keys in English), the words inside an exported book, ids —
+  carries an `eslint-disable` comment with its reason (the kit's `docs/dev/RESEARCH.md` §8).
 - `vue-i18n` is one of the kit's peers every app dedupes (§3).
 
 ---

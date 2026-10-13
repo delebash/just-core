@@ -124,6 +124,7 @@ async function useOllama() {
   error.value = "";
   try {
     await setAsEmbedding(p.id, p.embeddingModel);
+    // eslint-disable-next-line i18next/no-literal-string -- a product name
     doneModel.value = `${p.embeddingModel} (${p.name || "Ollama"})`;
   } catch (e) {
     error.value = e?.message || String(e);

@@ -1246,7 +1246,12 @@ English".
   and class properties): the kit 3,457 hits → 37 (about 20 real English the step-C sweep missed);
   JustWrite 1,084 → 438 after converting its UI words, the rest text sent to the AI model, words
   in exported books and default names stored as data; inside UPPER_CASE tables, 848 more in
-  JustWrite. — *measured 2026-10-13*, scratch probe.
+  JustWrite. — *measured 2026-10-13*, scratch probe. **Switched on 2026-10-13** in the family's
+  `eslint.i18n.config.js` (its options are the trial's, plus a number-with-unit and a class-list
+  shape; `data-tip` is read — tooltips use it): the kit, the template and JustWrite at zero, with
+  the rulings' exemptions as reasoned `eslint-disable` comments (37 prompt, export, id and starter
+  blocks in JustWrite). An `eslint-disable` for this rule in a file the rule doesn't reach is
+  reported as unused, so each one sits where a hit was.
 - **`Intl.RelativeTimeFormat` gives the compact English the apps wrote by hand:** `style: "narrow"`
   → "3m ago", "2h ago", "4d ago", "5s ago"; `numeric: "auto"` → "yesterday"; under a minute
   it says "now", so "just now" stays a kit word. Spanish narrow: "hace 3 min". — *measured

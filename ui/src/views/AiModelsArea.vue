@@ -354,6 +354,7 @@ const stripCells = computed(() => [...memCells.value, ...props.hwCells]);
 // or a support chat gets the machine's true state in one paste. The block is diagnostic
 // data for whoever reads the report, like the logs, so it stays English in every language.
 const debugCopied = ref(false);
+/* eslint-disable i18next/no-literal-string -- the debug report stays English, like the logs (above) */
 function debugInfoText() {
   const h = hardware.value || {};
   const gpu = h.gpus?.[0];
@@ -379,6 +380,7 @@ function debugInfoText() {
   ];
   return lines.join("\n");
 }
+/* eslint-enable i18next/no-literal-string */
 async function copyDebugInfo() {
   try {
     await navigator.clipboard.writeText(debugInfoText());

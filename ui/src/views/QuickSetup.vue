@@ -706,7 +706,7 @@ async function measureAfterApply(modelId) {
     const res = await request(`/v1/llm-runner/measure?model_id=${encodeURIComponent(modelId)}`, { method: "POST" });
     if (!res?.ok || !(res.tokensPerSec > 0)) return;
     await recordMeasurement(modelId, res.tokensPerSec, {
-      vramTotalMb: res.vramTotalMb || 0, switches: {}, source: "measure", label: "first-run measure",
+      vramTotalMb: res.vramTotalMb || 0, switches: {}, source: "measure", label: t("kit.measureHistory.firstRunLabel"),
     });
     await refreshRunnerModels(); // the chip reads the measured row on the next payload
   } catch { /* the chip keeps its prediction — honest, just not measured */ }
