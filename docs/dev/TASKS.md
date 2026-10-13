@@ -167,11 +167,13 @@ STATE:  DECIDED 2026-10-12; plan written, awaiting go — `docs/plans/2026-10-12
         formatting it on screen, which changes the stored data, so it needs your go. 6. The
         language picker is 280 px wide for "Español" … Your rule is to size controls to their
         content. Keep it, or size it down?" The user: "your rec think on them again go"
-        (2026-10-13). Applied, after a second look: 1 waits for JustVoice's push (its wiring grew
-        — JustWrite's TASKS); 2 built (docgen `b30422f`); 3 not covered, still waits; 4 built —
+        (2026-10-13). Applied, after a second look: 1 on hold — JustVoice's stress test found the
+        restore design diverging, its replacement awaits the user's word in JustVoice's session
+        (JustWrite's TASKS); 2 built (docgen `b30422f`); 3 not covered, still waits; 4 built —
         the re-grep found one more, the CSRF allowlist's Tauri origins, removed with them (kit
         `09e22d1`); the `isTauriShell` alias and export, serverApi's `isTauri` branch and three
-        comments are held until JustVoice's session commits its edits in those files; 5 built
+        comments landed once JustVoice's session committed its edits in those files (kit
+        `7e760f2`, on its `a4ef14d`); 5 built
         (JustWrite `ec7a522`; old notes keep their stored words, nothing rewritten); 6 sized to
         its content — UiSelect's `width="fit"` (kit `2e1309d`, `ad5dbdc`), 87–91 px.
 WHY:    the July design (every app and the kit on vue-i18n, docgen the translator) was built only
