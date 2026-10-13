@@ -58,7 +58,9 @@ BUILT:  NOT built — the measurement failed (2026-10-12): gemma 4 26B A4B (`--l
         only in the log. A toast would need new screen work in both apps. My lean: the log. The
         wake goes ahead either way, so there's nothing for you to act on mid-task." The user:
         "your rec go". Both as built (`_admitRam`).
-OPEN:   — (not checked live: a real refusal; unit tests only).
+OPEN:   — (the refusal checked live 2026-10-13 through JustVoice: the 26B with 7.2 GB free
+        ended in the approved words, by its measured reading — JustVoice RESEARCH §10.14 "Forcing
+        a spill and a refusal"; the wake's warning is unit-tested only).
 GO:     given 2026-10-12 ("your rec on all 3 go"; what it checks: "your rec on all go"); the
         words: "your rec go" (2026-10-13).
 
