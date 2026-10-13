@@ -137,9 +137,10 @@ test("csrf_rejects_foreign_origins_on_mutations_only", async () => {
     detail: "cross-origin request rejected",
     instance: "/v1/things",
   });
-  for (const ok of [null, "", "http://localhost:1430", "http://localhost:9999", "tauri://localhost", "https://localhost", "capacitor://localhost", "http://myhost:1234"]) {
+  for (const ok of [null, "", "http://localhost:1430", "http://localhost:9999", "https://localhost", "capacitor://localhost", "http://myhost:1234"]) {
     expect([ok, (await post(ok)).status]).toEqual([ok, 200]); // last one: the same origin
   }
+  expect((await post("tauri://localhost")).status).toBe(403); // no Tauri app any more (2026-10-13)
   expect((await post("http://myhost:9999")).status).toBe(403); // re.match anchors the start only…
   expect((await post("http://localhost:1430.evil.test")).status).toBe(200); // …so this passes, as in Python
   r = await app.request("/v1/things", { method: "GET", headers: { origin: "https://evil.test" } });

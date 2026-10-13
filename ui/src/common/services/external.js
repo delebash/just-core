@@ -2,22 +2,21 @@
 // Shared "hand something to the OS" — THE seam for external links (#12a) and,
 // since 2026-08-14, for local FOLDERS ("Open folder" on both model catalogs).
 //
-// WHY A SEAM AT ALL: a Tauri webview swallows `target=_blank` and `window.open`,
-// so a desktop app must route these through its OS opener. The kit cannot import
-// `@tauri-apps/plugin-opener` itself — that would break every non-Tauri consumer's
-// build — so the host hands its openers in once at boot. In all three apps that is
-// now the SAME two functions from the SAME plugin (the 2026-08-14 convergence:
-// they were plugin-shell, a hand-written Rust command, and plugin-opener):
+// WHY A SEAM AT ALL: a desktop app hands links and folders to the OS through its shell
+// (the kit's Electron shell: `openExternal` / `openPath` over the app's one preload bridge),
+// and the kit cannot reach that bridge itself — each app reads it in its own
+// `services/native.js` — so the host hands its openers in once at boot. In all three apps
+// that is the same line (the 2026-08-14 convergence, kept through the move to Electron):
 //
-//   import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+//   import { openPath, openUrl } from "../services/native.js";
 //   installLlmUi(app, { external: { open: openUrl, openPath } });
 //
-// THE GATE LIVES HERE, not in the apps. Those openers only work inside the Tauri
-// webview, and every app also runs in a plain browser (`vite dev`, and JustVoice's
-// headless `serve` UI). So this module decides:
-//   - openExternal → the host's opener in the webview, `window.open` in a browser
+// THE GATE LIVES HERE, not in the apps. Those openers only work inside the desktop
+// window, and every app also runs in a plain browser (`quasar dev`, and the headless
+// server's UI). So this module decides:
+//   - openExternal → the host's opener in the window, `window.open` in a browser
 //     (which works there).
-//   - openPath → the host's opener in the webview, and FALSE anywhere else. There
+//   - openPath → the host's opener in the window, and FALSE anywhere else. There
 //     is no browser fallback and there cannot be one: a page cannot hand a
 //     filesystem path to the file manager. It reports failure instead of
 //     pretending, and the caller says what that means in its own words.
@@ -29,17 +28,13 @@
 
 const config = { open: null, openPath: null };
 
-/** Inside the family's desktop shell? Two answers while the family moves to Electron
- *  (JustVoice's plan docs/plans/2026-10-07-electron-node-plan.md §4):
- *    - the Electron shell's ONE preload bridge, `window.appShell` (read only by the
- *      app's `services/native.js` — and by this test);
- *    - a Tauri 2 webview's IPC bootstrap, `__TAURI_INTERNALS__` (NOT `window.__TAURI__`,
- *      which exists only with `withGlobalTauri` — JustVoice's folder-openers were
- *      silently dead for exactly that reason until 2026-08-14).
- *  The Tauri half goes when the last app has moved. */
+/** Inside the family's desktop shell? The Electron shell's ONE preload bridge,
+ *  `window.appShell` (read only by the app's `services/native.js` — and by this test).
+ *  A Tauri webview's `__TAURI_INTERNALS__` counted too until 2026-10-13, when no family
+ *  app ran on Tauri any more. */
 export function isDesktopShell() {
   if (typeof window === "undefined") return false;
-  return !!window.appShell || !!window.__TAURI_INTERNALS__;
+  return !!window.appShell;
 }
 
 /** The old name, kept while JustWrite and JustVoice still call it — the same test. */

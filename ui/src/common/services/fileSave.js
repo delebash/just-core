@@ -12,8 +12,8 @@
 //     path comes back so the app can remember it)
 //   - otherwise the browser download, straight to the Downloads folder
 //
-// The browser path is NOT a broken fallback: driven inside a real Tauri webview
-// on 2026-08-15 (Edg/151) it wrote the file and the bytes verified. JustWrite's
+// The browser path is NOT a broken fallback: driven inside a real desktop webview
+// on 2026-08-15 (Tauri's then, Edg/151) it wrote the file and the bytes verified. JustWrite's
 // download.js used to claim WebView2 ignores `<a download>` on blob: URLs —
 // that is no longer true, so the fallback is a real delivery, just a silent one.
 //

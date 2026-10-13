@@ -71,8 +71,8 @@ function onContentClick(e) {
     if (m) openHelp(m[1] || "", m[2] || "");
     return;
   }
-  // External doc links: the renderer stamps them target=_blank, which the Tauri
-  // webview swallows — route through the shared opener (#12a).
+  // External doc links: the renderer stamps them target=_blank — route through the
+  // shared opener (#12a), so the desktop app hands them to the system browser.
   if (/^https?:/i.test(href)) {
     e.preventDefault();
     openExternal(href);

@@ -107,7 +107,7 @@ export const INK_PALETTES = {
 };
 
 // ── UI size scale ────────────────────────────────────────────────────
-// Applied as CSS `zoom` on <html> (Chromium / Tauri webview), scaling every
+// Applied as CSS `zoom` on <html> (Chromium, the Electron window's engine), scaling every
 // px/em together.
 export const UI_SCALES = [
   labelled("scale.compact",     { value: 0.9 }),

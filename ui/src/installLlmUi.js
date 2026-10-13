@@ -11,8 +11,8 @@
 //   • `<AppDialog/>` unmounted → `confirmDialog()`'s promise never settles, so every
 //     confirmed action in the app was a button that did nothing at all.
 //   • `configureLlmUi({})` with no baseUrl → defaults to `window.location.origin`,
-//     which in the production webview is `tauri.localhost`, so every kit LLM view
-//     rendered EMPTY — in production only.
+//     which in the production webview (Tauri's, then) was `tauri.localhost`, so every
+//     kit LLM view rendered EMPTY — in production only.
 //   • the missing `data-panel-toggle` → the AI-tasks panel opened and instantly
 //     closed, because the click that opened it counted as the outside-click.
 //
@@ -48,18 +48,17 @@ export function llmUiCapabilities() {
 }
 
 /** A desktop shell that wires no opener at all: `external.js` still falls back to
- *  window.open, but the Tauri webview swallows that, so every About/help link in
- *  the app is silently dead. Say so instead of pretending. (The plugin stays the
- *  APP's dependency — importing `@tauri-apps/plugin-opener` in the kit breaks
- *  every non-Tauri consumer's build, measured 2026-08-04.)
+ *  window.open for links, but Open folder has no fallback, so it is silently dead.
+ *  Say so instead of pretending. (The openers stay the APP's: only its
+ *  `services/native.js` reads the shell's bridge.)
  *
- *  The second copy of the "are we in Tauri?" test lived here until 2026-08-14 and
- *  tested something else (protocol/hostname); external.js owns the one test now. */
+ *  The second copy of the "are we in the desktop shell?" test lived here until 2026-08-14
+ *  and tested something else (protocol/hostname); external.js owns the one test now. */
 function warnNoOpener() {
   if (isDesktopShell()) {
     console.warn(
-      "[llm-ui] external links and Open folder will do nothing in this webview: pass " +
-      'installLlmUi(app, { external: { open: openUrl, openPath } }) from "@tauri-apps/plugin-opener".',
+      "[llm-ui] Open folder will do nothing in this window: pass " +
+      "installLlmUi(app, { external: { open: openUrl, openPath } }) from the app's services/native.js.",
     );
   }
 }
@@ -75,7 +74,7 @@ function warnNoOpener() {
  *                           voice) by setting the same key in its own catalog
  * @param opts.onQuickSetupApplied called when Quick Setup finishes (`{ modelId }`)
  * @param opts.devPorts      Vite dev ports that must NOT be treated as same-origin
- * @param opts.fallbackBase  loopback base for dev + the Tauri webview
+ * @param opts.fallbackBase  loopback base for dev + the desktop window (app://<id>)
  * @param opts.serverOverrideKey localStorage key that, when set, points the app at
  *                           a remote server and beats the origin-aware default
  * @param opts.resolveBase   supply a resolver instead of devPorts/fallbackBase
@@ -91,11 +90,11 @@ function warnNoOpener() {
  *                           retires the 2026-08-06 pieces concept)
  * @param opts.featurePanels `{ featureKey: Component }` — an app control mounted on
  *                           that feature's routing pane (JV's reading-style dial)
- * @param opts.external      your openers, straight from `@tauri-apps/plugin-opener`:
+ * @param opts.external      your openers, from the app's `services/native.js`:
  *                           `{ open: openUrl, openPath }` — the identical line in
  *                           all three apps. `(url) => …` is the older links-only
  *                           form; `false` skips wiring. Both are gated on being in
- *                           a Tauri webview by `common/services/external.js`, so a
+ *                           the desktop window by `common/services/external.js`, so a
  *                           browser keeps window.open for links and reports "can't"
  *                           for folders rather than firing a dead menu item.
  */
@@ -124,14 +123,6 @@ export function installLlmUi(app, {
   // empty lists in the production webview only. One resolver, called once, both fed.
   configureServerApi({ resolveBase: resolve });
   const base = resolve();
-  if (!base && typeof window !== "undefined" && window.location?.hostname === "tauri.localhost") {
-    // Loud in dev, because the silent version of this shipped: no base inside the
-    // webview means every /v1 call goes to tauri.localhost and quietly returns nothing.
-    console.warn(
-      "[llm-ui] no base URL resolved inside the Tauri webview — pass fallbackBase " +
-      "(e.g. http://127.0.0.1:<your server port>) or every /v1 call will 404 into an empty view.",
-    );
-  }
   configureLlmUi({ baseUrl: base });
   setQuickSetupApplied(onQuickSetupApplied);
 
@@ -140,9 +131,9 @@ export function installLlmUi(app, {
   if (sectionedFeatures) registerSectionedFeatures(sectionedFeatures);
   if (featurePanels) registerFeaturePanels(featurePanels);
   if (external !== false) {
-    // `{ open, openPath }` is the shape all three apps pass (both straight from
-    // @tauri-apps/plugin-opener). A bare function is the older links-only form and
-    // still works. external.js gates both on being in a Tauri webview, so nothing
+    // `{ open, openPath }` is the shape all three apps pass (both from the app's
+    // services/native.js). A bare function is the older links-only form and still
+    // works. external.js gates both on being in the desktop window, so nothing
     // here has to ask what kind of host this is.
     const open = typeof external === "function" ? external : (external && external.open) || null;
     const openPath = (typeof external === "object" && external && external.openPath) || null;

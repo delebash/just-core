@@ -70,7 +70,7 @@ onBeforeUnmount(() => stopAfterEach?.());
    frame's own buttons, and whatever the host puts in the slot (JW's whole control
    cluster, docgen's mode cycler + AiStatusButton). Adding drag without them would have
    handed both apps a dead title bar.
-   All of it is inert outside a Tauri/Electron webview, so the headless browser path is
+   All of it is inert outside the Electron window, so the headless browser path is
    untouched in every app. */
 .lu-titlebar { -webkit-app-region: drag; user-select: none; }
 .lu-titlebar-btn { -webkit-app-region: no-drag; }

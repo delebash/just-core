@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Shared imperative, promise-based dialog API — replaces the browser's built-in
 // prompt() / confirm() (which leak "from localhost" chrome in dev and look out of
-// place in a packaged Tauri shell). App-agnostic; the host component (the shared
+// place in the desktop app). App-agnostic; the host component (the shared
 // AppDialog / UiDialog) reads `dialogState` and calls _resolveDialog(...) on
 // confirm / cancel. Supersedes the per-app services/dialog.js forks.
 //

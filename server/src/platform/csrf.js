@@ -13,7 +13,8 @@
 //
 // Allowed: no `Origin` (non-browser clients) · SAME-ORIGIN, derived per request (the
 // server-hosted UI — browsers DO send Origin on same-origin mutations; JW hit that
-// 2026-07-15) · the shared Tauri and Capacitor (phone) origins + the app's own `appOrigins` (its dev server) ·
+// 2026-07-15) · the shared Capacitor (phone) origins + the app's own `appOrigins` (its dev server and its
+// desktop window, `app://<id>`) ·
 // `extraOrigins`/`originRegex` (an app's CORS allowlist, reused — ONE allowlist, never a
 // second list) · any non-mutating method. Rejected: everything else, 403 problem+json.
 //
@@ -24,11 +25,6 @@
 // (2026-10-08 — JustVoice: `["/v1", "/mcp"]`), as for the auth middleware.
 
 import { requestPath, sendProblem } from "./auth.js";
-
-// The packaged Tauri webview origins — identical for every app in the family. (A webview
-// that routes through the Tauri HTTP plugin sends no Origin at all; one that fetches
-// directly — docgen — sends these.)
-export const TAURI_ORIGINS = Object.freeze(["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"]);
 
 // The phone app's webview origins (Capacitor: Android serves the page from https://localhost, iOS
 // from capacitor://localhost) — identical for every app in the family. A phone syncing with a
@@ -65,7 +61,6 @@ function sameOrigin(c) {
 export function csrfOrigin({ appOrigins = [], extraOrigins = [], originRegex = "", typeBase = "", prefixes = ["/v1"] } = {}) {
   const guarded = (p) => (prefixes || []).some((pre) => p.startsWith(pre));
   const allow = new Set([
-    ...TAURI_ORIGINS,
     ...CAPACITOR_ORIGINS,
     ...(appOrigins || []).filter(Boolean),
     ...(extraOrigins || []).filter(Boolean),
