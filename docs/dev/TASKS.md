@@ -154,6 +154,26 @@ STATE:  DECIDED 2026-10-12; plan written, awaiting go — `docs/plans/2026-10-12
         selects, the catalog's "Fits · slow" chip overlapping the Status column): I recommend
         fixing both in the kit." The user: "your rec go there is no tauri app anymore!!!!!!!!!!!!
         !!!!!!!!" (2026-10-13). Applied: all five as recommended. D3 still awaits its own word.
+        Six items, asked as shown (2026-10-13, after the language picker landed): "1. JustVoice's
+        session found a sync bug that also hits JustWrite … JustWrite needs a small change in
+        `server/src/data_admin.js` and a line in `docs/sync.md`. … Go once they push? 2. Task 4
+        (docgen's screens): go? 3. D3 (the smoke's pseudo-locale check) still waits on your word
+        by name. 4. Tauri leftovers. No app or package uses any of these any more … I recommend
+        removing them all: kit `external.js:42`: the `__TAURI_INTERNALS__` check; kit
+        `external.js:46`: the `isTauriShell` alias, and its export at `common/index.js:67`; kit
+        `serverApi.js:52-53`: the `isTauri` branch; kit `installLlmUi.js:127-131`: the
+        `tauri.localhost` warning; about 15 comments that still describe Tauri as current. 5. A
+        note's date is stored as text ("Oct 13") … Fixing it means storing the date itself and
+        formatting it on screen, which changes the stored data, so it needs your go. 6. The
+        language picker is 280 px wide for "Español" … Your rule is to size controls to their
+        content. Keep it, or size it down?" The user: "your rec think on them again go"
+        (2026-10-13). Applied, after a second look: 1 waits for JustVoice's push (its wiring grew
+        — JustWrite's TASKS); 2 built (docgen `b30422f`); 3 not covered, still waits; 4 built —
+        the re-grep found one more, the CSRF allowlist's Tauri origins, removed with them (kit
+        `09e22d1`); the `isTauriShell` alias and export, serverApi's `isTauri` branch and three
+        comments are held until JustVoice's session commits its edits in those files; 5 built
+        (JustWrite `ec7a522`; old notes keep their stored words, nothing rewritten); 6 sized to
+        its content — UiSelect's `width="fit"` (kit `2e1309d`, `ad5dbdc`), 87–91 px.
 WHY:    the July design (every app and the kit on vue-i18n, docgen the translator) was built only
         in JustWrite; the kit grew a side door instead, and JustVoice and docgen never converted.
 DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translation: what still
@@ -165,7 +185,10 @@ OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (eac
         message, the two layout faults, the shared tables, the marked exemptions; the
         script-string rule is in the family lint file, the kit, template and JustWrite at zero.
         The language picker (D5) done 2026-10-13: the kit's LanguagePicker, in JustWrite's
-        Appearance card. Next: step 6's gates, then Task 4 (docgen). D3 awaits its own word.
+        Appearance card. Task 4 (docgen) steps 1–2 done 2026-10-13 (docgen `b30422f`); the
+        AppearancePanel's Language row becomes the picker with JustVoice's Task 5 (its session
+        asked to hold it). Next: Task 3 step 6's and Task 4 step 3's gates — both name D3's
+        pseudo-locale check, which awaits its own word — then Task 6.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 
