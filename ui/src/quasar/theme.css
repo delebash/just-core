@@ -244,7 +244,7 @@
 .ui-select-trigger.is-open .q-field__control,
 .ui-select-trigger:has(.q-select__focus-target:focus-visible) .q-field__control { border-color: var(--accent); box-shadow: var(--focus-ring, 0 0 0 3px var(--accent-soft)); }
 /* width="fit": the box as wide as its choice, not its column (the language picker) */
-.ui-select-trigger.ui-w-fit { width: auto; }
+.ui-select-trigger.ui-w-fit { width: fit-content; }
 .ui-select-trigger.is-disabled { opacity: .55; cursor: not-allowed; }
 .ui-select-trigger.is-disabled .q-field__control { background: var(--surface-2); }
 .ui-select-trigger.is-empty { color: var(--muted, var(--ink-3)); }
