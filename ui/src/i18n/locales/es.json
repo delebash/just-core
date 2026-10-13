@@ -82,6 +82,11 @@
       "retry": "Reintentar",
       "dismiss": "Descartar",
       "refresh": "Actualizar"
+    },
+    "settings": {
+      "language": {
+        "label": "Idioma"
+      }
     }
   }
 }

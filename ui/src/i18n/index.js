@@ -29,3 +29,25 @@ const catalogs = catalogsFromFiles(import.meta.glob("./locales/*.json", { eager:
 export function kitMessages() {
   return structuredClone(catalogs);
 }
+
+/**
+ * A language's name in its OWN language — "Español", not "Spanish" — for a language picker
+ * (LanguagePicker; moved from JustWrite's src/i18n/index.js, 2026-10-13).
+ *
+ * Someone hunting for their language is looking for the word they would use for it, not for
+ * whatever the current UI happens to call it. `Intl.DisplayNames` ships this for every locale
+ * the runtime knows, which is why there is no table of labels here and no seed row either.
+ *
+ * Spanish and French write their language names lowercase; a picker item reads better
+ * capitalised, so only the first character is raised — the rest of the string is left exactly
+ * as the runtime produced it, because casing rules are the runtime's business, not ours.
+ */
+export function languageName(code) {
+  let name = code;
+  try {
+    name = new Intl.DisplayNames([code], { type: "language" }).of(code) || code;
+  } catch {
+    // An unknown or malformed tag falls back to the code itself, which is still selectable.
+  }
+  return name.charAt(0).toLocaleUpperCase(code) + name.slice(1);
+}
