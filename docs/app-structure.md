@@ -128,8 +128,10 @@ template loads `file://`), with the hash router. **Packaging — `quasar.config.
 
 **What the kit's shell does, so no app does it:** resolves the data root before Chromium writes
 anything and keeps Chromium's own files under `<root>/electron`; runs `serverEntry` in a
-`utilityProcess` (`serve --port <port>`, the root in `dataDirEnv`) after evicting a stale
-listener, and stops it gracefully on quit (asks, waits, then kills); loads the window from
+`utilityProcess` (`serve`, the root in `dataDirEnv` — the server listens on the port its own
+settings name, `port` being its default, and says which; when it can't, a listener there is
+stopped only if it answers `GET /v1/health` with the app's `product`, then the server starts
+again), and stops it gracefully on quit (asks, waits up to 15 s, then kills); loads the window from
 `app://<id>/` (the dev server in development) — it opens even with the server down and shows the
 kit's connection-error screen; the §11 tray and keep-running switch; the native dialogs; the
 opener. The server's own escape hatch is `<ID_UPPER>_DEV_NO_SERVER=1`.
@@ -137,7 +139,8 @@ opener. The server's own escape hatch is `<ID_UPPER>_DEV_NO_SERVER=1`.
 **One bridge object — `window.appShell` — read only by `src/services/native.js`.** The kit's
 preload exposes it: `invoke(command, args)` for the shell's commands (`pickDirectory`,
 `pickFile`, `saveFile`, `storageGetRoot`, `storageRelocate`, `setKeepRunning`, `setTrayLabels`,
-`openExternal`, `openPath`), `on(event, fn)` for its `tray:*` pushes, `platform`, and `versions`
+`openExternal`, `openPath`, `serverUrl` — the server's URL once it listens, for the renderer's
+API base), `on(event, fn)` for its `tray:*` pushes, `platform`, and `versions`
 (`{ electron, chrome }`, for an About page). `native.js` is the one file that reads it and the one
 that asks the kit's `isDesktopShell()`; it exports one function per command plus `openUrl` /
 `openPath` / `onShellEvent`, and outside the desktop app (a browser tab, the headless UI) each

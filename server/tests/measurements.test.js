@@ -78,6 +78,20 @@ test("clear_per_model_then_all", async () => {
   expect(db.session().count("measurement_switches")).toBe(0);
 });
 
+test("clear_with_a_source_deletes_only_that_sources_rows", () => {
+  const st = stores.getModelMeasurementStore();
+  const rec = (mid, source) =>
+    st.record(mid, { machineKey: "k", source, label: "", tokensPerSec: 0, vramTotalMb: 0, at: 5, rows: [{ flagName: "runtime", flagValue: "b" }] });
+  rec("tts:m", "no_card");
+  rec("tts:m", "peak");
+  rec("tts:m", "speed");
+  rec("tts:other", "no_card");
+  expect(st.clear("tts:m", "no_card")).toBe(1);
+  expect(st.list("tts:m").map((r) => r.source).sort()).toEqual(["peak", "speed"]);
+  expect(st.list("tts:other").map((r) => r.source)).toEqual(["no_card"]);
+  expect(db.session().count("measurement_switches")).toBe(3);
+});
+
 test("post_requires_model_id", async () => {
   const r = await postRaw({ modelId: " ", tokensPerSec: 1 });
   expect(r.status).toBe(400);

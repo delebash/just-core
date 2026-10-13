@@ -861,7 +861,9 @@ function composedDescription() {
   const bits = [];
   const params = (e.totalParams || e.sizeLabel || inspected.value?.sizeLabel || "").toString().trim();
   // In the interface language — the description is the user's text from here on (ruled
-  // 2026-10-13: a new thing's words follow the app's language when it is made).
+  // 2026-10-13: new-thing names use the app's language when created; applying it to this
+  // pre-filled description was the implementer's, kept by the user's word on 2026-10-13 — the
+  // narrowings review K6).
   const kind = t(e.embedding ? "kit.modelCatalog.compose.embedding" : e.type === "moe" ? "kit.modelCatalog.compose.moe" : "kit.modelCatalog.compose.model");
   bits.push(params ? t("kit.modelCatalog.compose.withParams", { params, kind }) : kind);
   if (e.trainedCtx) bits.push(t("kit.modelCatalog.compose.context", { n: Math.round(e.trainedCtx / 1024) }));

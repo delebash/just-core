@@ -27,6 +27,7 @@ const COMMANDS = new Set([
   "updateCheck",
   "updateDownload",
   "updateInstall",
+  "serverUrl",
 ]);
 
 contextBridge.exposeInMainWorld("appShell", {

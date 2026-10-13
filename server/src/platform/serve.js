@@ -13,11 +13,15 @@
 // A stop is graceful: the server closes (its onClose hooks stop engines and release the
 // GPU), with a 3 s grace for open streams as uvicorn's `timeout_graceful_shutdown=3`, then
 // the process exits 0. A server that can't listen (port taken) exits 3, uvicorn's
-// STARTUP_FAILURE code.
+// STARTUP_FAILURE code — under the desktop app, once it has told main which port
+// (`{type: "listen-failed", host, port, code}`) and main has asked it to stop. An app that
+// names its port before it is built (`resolvePort`) has that port probed first, so a port
+// another server of the app holds is reported before the app opens its database.
 
 import path from "node:path";
-import { parseArgs } from "node:util";
+import { getSystemErrorMap, parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
+import { PROBE_HOST, portInUse } from "./port.js";
 import { closeApp } from "./server.js";
 
 // The built UI on a computer's server (Node only — the phone's in-app server serves none): an app
@@ -74,20 +78,56 @@ export function parseServeArgs(argv, { envPrefix, env = process.env } = {}) {
   };
 }
 
+/** The error a listen on a taken port gives, in Node's own words (its system error map). */
+function addressInUse() {
+  const [errno, [code, message]] = [...getSystemErrorMap()].find(([, [name]]) => name === "EADDRINUSE");
+  return Object.assign(new Error(`${code}: ${message}`), { code, errno });
+}
+
+/**
+ * The server can't take its port: exit 3 — under the desktop app, once it has told the shell
+ * which port and the shell has asked it to stop (a message posted just before exiting can be
+ * lost). The shell stops the listener when it is this app's own server and starts this one
+ * again; any other program keeps the port. `app` is null when the port was found taken before
+ * the app was built.
+ */
+function cantListen(app, host, port, e, log) {
+  log.error?.(`could not listen on ${host}:${port}: ${e.message}`);
+  const parent = process.parentPort;
+  if (!parent) return process.exit(3);
+  parent.on("message", (m) => {
+    if (m?.data?.type !== "stop") return;
+    (app ? closeApp(app) : Promise.resolve())
+      .catch((err) => log.error?.(`close failed: ${err?.stack || err}`))
+      .finally(() => process.exit(3));
+  });
+  parent.postMessage({ type: "listen-failed", host, port, code: e.code ?? null });
+  return new Promise(() => {}); // the shell's stop ends this process
+}
+
 /**
  * Run a Hono app as the family server. `build(args)` returns `{app, host, port,
  * banner?}` — host/port already resolved (CLI/env over the app's settings store);
  * `app` is the app's Hono instance. Returns `{app, server, stop, port}`.
+ *
+ * `resolvePort(args)`, when given, names the port the server will listen on before `build` runs,
+ * read without writing anything (the app reads its settings read-only); `build` gets it as
+ * `args.port`. That port is probed first: when something already listens there — this app's own
+ * old or headless server, with the same database open — it is reported as a failed listen is,
+ * and `build`, which opens the database, never runs.
  */
-export async function runServer({ argv = process.argv.slice(2), envPrefix, build, log = console }) {
+export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, log = console }) {
   const args = parseServeArgs(argv, { envPrefix });
+  if (resolvePort) {
+    args.port = await resolvePort(args);
+    if (args.port != null && (await portInUse(args.port))) return cantListen(null, PROBE_HOST, args.port, addressInUse(), log);
+  }
   const { app, host, port, banner } = await build(args);
   let server;
   try {
     server = await listen(app, host, port);
   } catch (e) {
-    log.error?.(`could not listen on ${host}:${port}: ${e.message}`);
-    process.exit(3);
+    return cantListen(app, host, port, e, log);
   }
   const addr = server.address();
   const boundPort = typeof addr === "object" && addr ? addr.port : port;

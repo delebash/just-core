@@ -6,7 +6,10 @@
 //     JSON, as FastAPI does; on request (`pyFloats`), a route that opts in keeps Python's
 //     whole-number floats (`1.0`) and every body as sent rides on `c.get("sentBody")`;
 //   - no practical body limit (FastAPI has none; JustWrite's book import posts a base64
-//     zip as JSON — study §3.3);
+//     zip as JSON — study §3.3): Hono's `bodyLimit` (hono/body-limit —
+//     hono.dev/docs/middleware/builtin/body-limit, as the Hono plan §3 named it) at 1 GiB, on
+//     the JSON-reading path only (`input({body})` and `readJson`) — an upload route streams its
+//     own body (a backup restore has no limit);
 //   - validation: ajv with every error reported and defaults filled; unknown fields are
 //     dropped after it (pydantic's extra="ignore") unless the model forbids them
 //     (extra="forbid" → 422); the errors answer as pydantic's 422;
@@ -27,6 +30,7 @@
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { routePath } from "hono/route";
 
 // ONE Hono for the family. An app makes its routers with THIS `Hono` (and streams with this
@@ -46,6 +50,21 @@ import { clean, laxConvert, shapeRequest, unwrapTyped } from "./models.js";
 import { pyClone, pyJsonParse } from "./pyjson.js";
 
 const BODY_LIMIT = 1024 * 1024 * 1024; // 1 GiB — "none" in practice, as FastAPI
+
+// hono/body-limit's middleware for one size. Over it, the family's 413 (errors.js answers a
+// thrown `statusCode` refusal) in place of the middleware's plain-text default.
+const tooLarge = () => {
+  throw Object.assign(new Error("Request body is too large"), { statusCode: 413 });
+};
+const LIMITS = new Map();
+function limiter(maxSize) {
+  let l = LIMITS.get(maxSize);
+  if (!l) {
+    l = bodyLimit({ maxSize, onError: tooLarge });
+    LIMITS.set(maxSize, l);
+  }
+  return l;
+}
 
 // ajv as Fastify set it up for the family: @fastify/ajv-compiler 4.0.6's defaults
 // (lib/default-ajv-options.js) under the family's own options, plus ajv-formats as the compiler
@@ -141,14 +160,12 @@ async function readBody(c, { schema = null, pyFloats = false } = {}) {
   const run = async () => {
     if (NO_BODY.has(c.req.method)) return { value: undefined };
     const family = familyOf(c);
-    const length = Number(c.req.header("content-length") ?? 0);
-    if (length > family.bodyLimit) {
-      throw Object.assign(new Error("Request body is too large"), { statusCode: 413 });
-    }
-    const text = await c.req.text();
-    if (text.length > family.bodyLimit) {
-      throw Object.assign(new Error("Request body is too large"), { statusCode: 413 });
-    }
+    // The body is read inside hono/body-limit, which refuses it (by its Content-Length, or as it
+    // streams in) once it passes the limit.
+    let text = "";
+    await limiter(family.bodyLimit)(c, async () => {
+      text = await c.req.text();
+    });
     const type = c.req.header("content-type");
     // No content type: FastAPI tries JSON when there is a body. Another type nobody claims:
     // the text as it came.

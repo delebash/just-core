@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // pydantic models, in TypeBox (decided 2026-10-07, plan §10 Q5): a model is a TypeBox
-// schema — Fastify validates requests against it natively — and `model(Schema, value)`
+// schema — ajv checks requests against it in the kit's `input()` (server.js; not Hono's
+// validator() — kit RESEARCH §2) — and `model(Schema, value)`
 // is the constructor, `Foo(**value)`: it fills defaults, converts what pydantic's lax
 // mode converts, drops unknown fields (pydantic's extra="ignore") and throws a
 // ModelValidationError in pydantic's words when a value can't fit.

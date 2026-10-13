@@ -1373,12 +1373,24 @@ export class ModelMeasurementStore {
     }));
   }
 
-  clear(modelId = null) {
+  /** Delete `modelId`'s rows (every model's when null); with `source`, only rows of that source
+   * (a host forgetting one kind of row — JustVoice's remembered failed card load). */
+  clear(modelId = null, source = null) {
     const h = db.session();
     return h.tx(() => {
-      const ids = (
-        modelId ? h.all("select id from model_measurements where model_id = ?", [modelId]) : h.all("select id from model_measurements")
-      ).map((m) => m.id);
+      const where = [];
+      const args = [];
+      if (modelId) {
+        where.push("model_id = ?");
+        args.push(modelId);
+      }
+      if (source) {
+        where.push("source = ?");
+        args.push(source);
+      }
+      const ids = h
+        .all(`select id from model_measurements${where.length ? ` where ${where.join(" and ")}` : ""}`, args)
+        .map((m) => m.id);
       let n = 0;
       if (ids.length) {
         h.run(`delete from measurement_switches where measurement_id in (${inList(ids)})`, ids);

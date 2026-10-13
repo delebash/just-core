@@ -198,10 +198,17 @@ export async function safeRequest(path, fallback = null, opts = {}) {
   }
 }
 
+// checkServer's defaults (the reasons are in its loop).
+const CHECK = { tries: 8, delayMs: 500, probeTimeoutMs: 500 };
+// The longest checkServer() waits with its defaults, in ms — every try's abort plus the sleeps
+// between them: about 7.5 s. A boot step before it that waits on something else (JustVoice's
+// wait for its shell's server URL) gives up after the same time.
+export const CHECK_SERVER_MS = CHECK.tries * CHECK.probeTimeoutMs + (CHECK.tries - 1) * CHECK.delayMs;
+
 // Boot-time reachability check — the renderer is a thin client; with no server
 // we must NOT boot (empty stores that silently fail to save). Retries briefly so
 // a still-starting server (e.g. the Tauri sidecar) isn't falsely reported down.
-export async function checkServer({ tries = 8, delayMs = 500, probeTimeoutMs = 500 } = {}) {
+export async function checkServer({ tries = CHECK.tries, delayMs = CHECK.delayMs, probeTimeoutMs = CHECK.probeTimeoutMs } = {}) {
   for (let i = 0; i < tries; i++) {
     try {
       // Per-try abort: a refused connection takes ~1s inside the production

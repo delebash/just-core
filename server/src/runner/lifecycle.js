@@ -944,6 +944,7 @@ export class RunnerService {
       recordLoadFn = null,
       fitRelevantFlagsFn = null,
       declaredClaimFn = null,
+      speechModelsFn = null,
     } = {},
   ) {
     this._cacheRoot = pyPath(cacheRoot);
@@ -1004,6 +1005,9 @@ export class RunnerService {
     this._recordLoadFn = recordLoadFn;
     this._fitRelevantFlagsFn = fitRelevantFlagsFn;
     this._declaredClaimFn = declaredClaimFn;
+    // The host's loaded speech models by name, on the card or the CPU (JustVoice wires its
+    // slots) — for the RAM refusal's words only; null = the card's speech bookings name them.
+    this._speechModelsFn = speechModelsFn;
     this._probeStarted = false;
     this._probeValue = null;
     this._now = now;
@@ -2592,10 +2596,11 @@ export class RunnerService {
   async _admitWake(modelId) {
     const arb = this._arbiter;
     const want = arb.reservedMb(modelId) || 0;
-    if (want <= 0) return;
-    // The RAM door at a wake: warn and go ahead (decided 2026-10-12).
+    // The RAM door at a wake: warn and go ahead (decided 2026-10-12: "It runs at wakes too") —
+    // a model booked at 0 MB on the card (on the CPU) included.
     const ramNeed = this._resident.get(modelId)?.ramNeed ?? null;
     if (ramNeed) await this._admitRam(modelId, ramNeed, { creditMb: await arb.evictableRamMb({ exclude: modelId }), wake: true });
+    if (want <= 0) return;
     const hw = this._hardwareFn();
     const made = await arb.makeRoom(want, {
       exclude: modelId,
@@ -3476,30 +3481,38 @@ export class RunnerService {
 
   /** Refuse a load — or, at a `wake`, warn and go ahead (the wake's own policy: an AI feature
    * must not fail mid-task) — when free system memory, plus `creditMb` the room-making may give
-   * back, can't hold `need`. */
+   * back, can't hold `need`. The words say what is free now, without the credit; a refusal that
+   * counted a credit names no holder, since their memory was already counted. */
   async _admitRam(modelId, need, { creditMb = 0, wake = false } = {}) {
     if (need == null) return;
-    const freeMb = os.freemem() / fitMod.MIB + Math.max(0, creditMb);
-    if (need.heldMb + need.marginMb <= freeMb) return;
+    const freeNowMb = os.freemem() / fitMod.MIB;
+    const credited = Math.max(0, creditMb);
+    if (need.heldMb + need.marginMb <= freeNowMb + credited) return;
     const gb = (mb) => Math.round((mb / 1024) * 10) / 10;
     const what =
       need.by === "measured"
         ? `it took about ${gb(need.heldMb)} GB of this machine's memory when it last loaded here`
         : `the part of it that stays in this machine's memory is about ${gb(need.heldMb)} GB`;
     const short =
-      `${what} (+${need.marginMb} MB safety margin) but only ${gb(freeMb)} GB of this machine's ` +
+      `${what} (+${need.marginMb} MB safety margin) but only ${gb(freeNowMb)} GB of this machine's ` +
       `${gb(os.totalmem() / fitMod.MIB)} GB is free`;
     if (wake) {
       log.warning(`waking ${modelId}: ${short} — it wakes anyway and may run slowly`);
       return;
     }
     let speech = [];
-    try {
-      speech = ((await this._arbiter.snapshot(this._hardwareFn())).reservations || [])
-        .filter((r) => r.kind !== "llm" && !r.pinned)
-        .map((r) => r.key.replace(/^(tts|stt):/, ""));
-    } catch {
-      /* the message without the names */
+    if (!credited) {
+      try {
+        // The host's loaded speech models on any placement (`speechModelsFn`), else those
+        // booked on the card.
+        speech = this._speechModelsFn
+          ? [...((await this._speechModelsFn()) || [])]
+          : ((await this._arbiter.snapshot(this._hardwareFn())).reservations || [])
+              .filter((r) => r.kind !== "llm" && !r.pinned)
+              .map((r) => r.key.replace(/^(tts|stt):/, ""));
+      } catch {
+        /* the message without the names */
+      }
     }
     throw new RuntimeError(
       `not enough memory to load ${modelId}: ${short}. ` +
@@ -4497,6 +4510,7 @@ export function configureService({
   recordLoadFn = null,
   fitRelevantFlagsFn = null,
   declaredClaimFn = null,
+  speechModelsFn = null,
 } = {}) {
   const root = cacheRoot || defaultCacheRoot();
   const kwargs = {};
@@ -4517,6 +4531,7 @@ export function configureService({
     recordLoadFn,
     fitRelevantFlagsFn,
     declaredClaimFn,
+    speechModelsFn,
   };
   for (const [k, v] of Object.entries(fns)) if (v != null) kwargs[k] = v;
   state.service = new RunnerService(root, kwargs);

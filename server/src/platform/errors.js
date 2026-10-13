@@ -125,7 +125,7 @@ function jsonableErrors(errors) {
   }));
 }
 
-// ── ajv (Fastify's validator) errors in pydantic's words ─────────────────────
+// ── ajv (the kit's `input()` validator, server.js) errors in pydantic's words ─
 const LOC_ROOT = { body: "body", querystring: "query", params: "path", headers: "header" };
 
 function typeMessage(want, data) {

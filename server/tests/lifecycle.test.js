@@ -3759,6 +3759,14 @@ test("the_ram_door_refuses_a_load_and_warns_at_a_wake", async () => {
   // A loaded speech model is named.
   arb.reserve("tts:voxcpm2", 2937, { kind: "tts", evictFn: () => {} });
   await expect(svc._admitRam("gemma", need)).rejects.toThrow("A speech model (voxcpm2) is loaded and holds memory too");
+  // Short even with a credit: the words say what is free now, and name no holder — the credit
+  // already counted its memory.
+  await expect(svc._admitRam("gemma", need, { creditMb: 500 })).rejects.toThrow(
+    "but only 8 GB of this machine's 32 GB is free. Close other programs, or pick a smaller model.",
+  );
+  // The host's speech models on any placement (JustVoice's slots, a CPU one included).
+  svc._speechModelsFn = () => ["voxcpm2", "kokoro"];
+  await expect(svc._admitRam("gemma", need)).rejects.toThrow("A speech model (voxcpm2, kokoro) is loaded and holds memory too");
   // By what it took before.
   await expect(svc._admitRam("gemma", { ...need, heldMb: 9836, by: "measured" })).rejects.toThrow(
     "it took about 9.6 GB of this machine's memory when it last loaded here",
@@ -3785,4 +3793,17 @@ test("a_wake_short_of_ram_still_wakes", async () => {
   vi.spyOn(os, "freemem").mockReturnValue(4 * 1024 ** 3);
   await svc.ensureModelReady("test-model");
   expect(arb.isAsleep("test-model")).toBe(false);
+});
+
+test("a_wake_checks_ram_for_a_model_booked_at_0_mb_on_the_card", async () => {
+  // A model on the CPU books 0 MB on the card; its wake still runs the RAM door.
+  const hw = fakeHw(8192);
+  const arb = new VramArbiter(() => hw);
+  const svc = serviceFor(tmp(), { arbiter: arb, hardwareFn: () => hw });
+  const ramNeed = { heldMb: 30000, by: "weights", marginMb: 1024 };
+  svc._resident.set("cpu-model", { status: "running", modelId: "cpu-model", url: "", detail: "", error: "", ramNeed });
+  arb.reserve("cpu-model", 0, { kind: "llm", evictFn: () => {} });
+  const door = vi.spyOn(svc, "_admitRam");
+  await svc._admitWake("cpu-model");
+  expect(door).toHaveBeenCalledWith("cpu-model", ramNeed, { creditMb: 0, wake: true });
 });

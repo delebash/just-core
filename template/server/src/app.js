@@ -27,7 +27,10 @@ export async function createApp({ dataDir, uiDir = null, readAuth = () => [[], f
   app.use("*", starletteCors({ allowOrigins: ["*"], allowMethods: ["*"], allowHeaders: ["*"] }));
   app.use("*", bearerAuth({ readAuth, typeBase: TYPE_BASE }));
 
-  app.get("/v1/health", (c) => c.json({ ok: true, app: "family-template" }));
+  // `product` is the name the desktop shell knows this app's server by (its `productName`, as
+  // src-electron/electron-main.js sets it): a server already on the port is stopped only when its
+  // health answers with it.
+  app.get("/v1/health", (c) => c.json({ ok: true, app: "family-template", product: "Family Template" }));
   app.get("/v1/hello", (c) => c.json({ message: "Hello from the family template's server", dataDir }));
   if (uiDir && existsSync(path.join(uiDir, "index.html"))) {
     app.use("/*", serveStatic({ root: uiDir }));

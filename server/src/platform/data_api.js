@@ -162,8 +162,16 @@ async function receiveUpload(c, dest) {
  *                      app (2026-07-11): the host tears down anything derived from the old
  *                      data (e.g. the LLM runner's resident models + VRAM ledger). Reset
  *                      covers itself inside `runReset`.
+ *   - `beforeCopy(h)` / `afterCopy(h)` → run inside the RESTORE's transaction, on its
+ *                      connection with the backup attached as `src`, around the table copy — for
+ *                      a synced app's own restore steps (its sync engine's state must follow the
+ *                      restored rows; JustVoice's narrowings review P16).
+ *   - `afterTables()` → right after the RESTORE's table copy commits, before the asset
+ *                      folders are replaced (which can take minutes, and can fail): a synced app
+ *                      runs its sync engine's step here, so no sync and no failed asset copy comes
+ *                      between the restored rows and that step.
  */
-export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null, prefix = "/v1/data", onReplaced = null }) {
+export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null, prefix = "/v1/data", onReplaced = null, beforeCopy = null, afterCopy = null, afterTables = null }) {
   const assets = async () => entriesOf(assetDirs ? await assetDirs() : {});
   /** Every table across all metadatas, FK-ordered within each (parents first). */
   const orderedTables = () => tablesOf(metadata).flatMap(sortedTables);
@@ -237,6 +245,7 @@ export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null
         const tables = orderedTables();
         const srcTables = new Set(h.all("SELECT name FROM src.sqlite_master WHERE type='table'").map((r) => r.name));
         h.tx(() => {
+          if (beforeCopy) beforeCopy(h);
           // Clear children → parents, refill parents → children.
           for (const t of [...tables].reverse()) h.exec(`DELETE FROM main."${t}"`);
           for (const t of tables) {
@@ -248,6 +257,7 @@ export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null
             const colSql = cols.map((col) => `"${col}"`).join(", ");
             h.exec(`INSERT INTO main."${t}" (${colSql}) SELECT ${colSql} FROM src."${t}"`);
           }
+          if (afterCopy) afterCopy(h);
         });
         h.exec("DETACH src");
       } catch (e) {
@@ -256,6 +266,7 @@ export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null
       } finally {
         h.close();
       }
+      if (afterTables) await afterTables();
       // Replace each declared asset dir with the backup's copy.
       for (const [arcname, d] of await assets()) {
         const bdir = path.join(tmp, arcname);

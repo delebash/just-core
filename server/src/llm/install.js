@@ -216,6 +216,9 @@ export async function installLlm(
     cacheRoot = null,
     product = "",
     allowKeyReveal = false,
+    // The host's loaded speech models by name, on any placement — the AI model's RAM refusal
+    // names them (RunnerService `speechModelsFn`; JustVoice passes its slots).
+    speechModelsFn = null,
   } = {},
 ) {
   if (!handle) throw new Error("installLlm: pass db (the host's database handle)");
@@ -249,7 +252,7 @@ export async function installLlm(
   if (app) mountLlmRouters(app, { featurePrompts, config, allowKeyReveal, dataDir, product });
   // 6. point the bundled runner's catalog/switches at the shared DB.
   if (runnerCatalog) {
-    wireRunnerCatalog(dataDir, { cacheRoot, product });
+    wireRunnerCatalog(dataDir, { cacheRoot, product, speechModelsFn });
     // Seed-vs-file self-heal: re-derive catalog facts from ALREADY-DOWNLOADED GGUFs whose
     // rows never got the identify pass. A background task — boot never waits on file reads.
     background(
@@ -315,7 +318,7 @@ export function siblingCacheWithModels(dataDir) {
 }
 
 /** Point the bundled runner at the shared DB: catalog, switches, config, the cache. */
-export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = "" } = {}) {
+export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = "", speechModelsFn = null } = {}) {
   const catalogFn = () =>
     stores
       .getModelCatalogStore()
@@ -374,7 +377,10 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
     chosen = true;
   }
   // Nothing ever chosen (a fresh or reset database) and this app's own cache holds no
-  // models: share a sibling app's that does, and save the choice (decided 2026-10-06).
+  // models: share a sibling app's that does, and save the choice (decided 2026-10-06: no
+  // choice saved and a sibling's cache holds models → use it and save the choice; "and this
+  // app's own cache holds none" was the implementer's, kept by the user's word on 2026-10-13 —
+  // the narrowings review K5).
   if (!cacheRoot && !chosen && dataDir) {
     const sibling = siblingCacheWithModels(dataDir);
     if (sibling) {
@@ -440,6 +446,7 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
     recordProbeFn: recordProbe,
     recordLoadFn: recordLoad,
     fitRelevantFlagsFn: stores.listFitRelevantFlags,
+    speechModelsFn,
   });
 
   // A run routed to the bundled runner makes its model resident BEFORE dispatch.

@@ -10,9 +10,12 @@
 //     files and the window position live under it — nothing lands where the user didn't
 //     choose (the 2026-08-14 ruling Tauri broke).
 //   - The server is the app's server module in a `utilityProcess`: it ends when main
-//     dies, even on a hard kill (plan §1.1); it says when it listens; a stop asks it over
-//     `parentPort`, waits, then kills — graceful for all three apps (JustWrite and docgen
-//     only hard-killed under Tauri).
+//     dies, even on a hard kill (plan §1.1); it listens on the port its own settings name
+//     and says which (`ready`), or which port it couldn't take (checked before it opens its
+//     database when the app names the port first — platform/serve.js `resolvePort`) — then
+//     a listener there is stopped only when it answers GET /v1/health as this app's own
+//     server; a stop asks it over `parentPort`, waits, then kills — graceful for all three
+//     apps (JustWrite and docgen only hard-killed under Tauri). The renderer asks for the URL (`serverUrl`).
 //   - The window loads the built UI from `app://<id>/` (ruling 3) — it opens even when
 //     the server is down and shows the kit's connection-error screen; in development it
 //     loads the Vite dev server instead.
@@ -28,7 +31,6 @@
 //     (package.json `build.electronFuses`).
 
 import fs from "node:fs";
-import net0 from "node:net";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -46,6 +48,7 @@ import {
   Tray,
   utilityProcess,
 } from "electron";
+import { portInUse } from "../platform/port.js";
 import { checkOutput, run } from "../platform/procs.js";
 import { CHROME_DIR, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir } from "./dataRoot.js";
 
@@ -64,6 +67,7 @@ export const COMMANDS = [
   "updateCheck",
   "updateDownload",
   "updateInstall",
+  "serverUrl",
 ];
 
 const DEFAULT_TRAY_LABELS = {
@@ -79,14 +83,21 @@ const DEFAULT_TRAY_LABELS = {
   quit: null, // "🚪 Quit <productName>"
 };
 
-const STOP_WAIT_MS = 8000; // the server's own 3 s grace plus engine shutdown
+// The server's own 3 s grace plus engine shutdown — 15 s, what the Tauri shell it replaced
+// waited (10 s for the shutdown reply, then 5 s for the exit).
+const STOP_WAIT_MS = 15_000;
 
 /**
  * Run the desktop app. `config`:
  *   id            short id — the app:// host, tray id, window-state key (e.g. "justvoice")
  *   appName       the data folder's name under the OS fallback (`%LOCALAPPDATA%\<App>\<App>`)
  *   productName   shown in the tray and dialogs
- *   port          the app's registered server port (the family port registry)
+ *   port          the app's registered server port (the family port registry) — its server's
+ *                 default. The server listens where its own settings say (JustVoice's Port
+ *                 setting) and tells the shell the port when it is ready.
+ *   serverProduct the `product` the app's server names in GET /v1/health (default
+ *                 productName) — a listener already on the server's port is stopped only when
+ *                 it answers with it, as this app's own server
  *   serverEntry   absolute path of the app's server module (runs `serve`)
  *   dataDirEnv    the app's data-dir variable (e.g. "JUSTVOICE_DATA_DIR")
  *   repoRoot      the checkout root (development: the data root is <repoRoot>/data)
@@ -112,7 +123,8 @@ export function runDesktopApp(config) {
   const state = {
     root: null,
     server: null, // the utilityProcess
-    port: config.port,
+    serverPhase: "off", // off · starting · ready
+    port: config.port ?? null,
     keepRunning: false,
     quitting: false,
     win: null,
@@ -161,13 +173,34 @@ export function runDesktopApp(config) {
   };
 
   // ── the server ─────────────────────────────────────────────────────────────
-  const serverUrl = () => `http://127.0.0.1:${state.port}`;
+  const serverUrl = () => (state.port ? `http://127.0.0.1:${state.port}` : null);
 
-  async function evictStaleListener(port) {
-    // A server left on the port by a crashed run would answer this app's UI with stale
-    // code; the Rust shells evicted it the same way (netstat+taskkill / lsof+kill).
-    if (!(await portInUse(port))) return;
-    console.warn(`[shell] port ${port} already in use — evicting the stale listener`);
+  // The renderer's `serverUrl`: answered once the server listens (the port is the server's own —
+  // it says it then), or once a start ends without one.
+  const urlWaiters = [];
+  function settleServerUrl() {
+    for (const resolve of urlWaiters.splice(0)) resolve(serverUrl());
+  }
+
+  /** Is the listener on `port` this app's own server? It answers GET /v1/health with the app's
+   * `product` (the family health baseline). The wait is the window's own for one health probe
+   * (the kit UI's `checkServer`, `probeTimeoutMs` 500 ms): a listener that takes the connection
+   * and never answers is not taken for this app's server. */
+  async function answersAsThisApp(port) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${port}/v1/health`, { signal: AbortSignal.timeout(500) });
+      const body = r.ok ? await r.json() : null;
+      return body?.product === (config.serverProduct || config.productName);
+    } catch {
+      return false;
+    }
+  }
+
+  async function evictListener(port) {
+    // A server of this app's left on the port (a crashed run, a headless server) would answer
+    // this app's UI with its own code. The Rust shells evicted the same way (netstat+taskkill /
+    // lsof+kill) — but any listener, before the start.
+    console.warn(`[shell] port ${port} is held by this app's own server — stopping it`);
     try {
       if (process.platform === "win32") {
         const out = await checkOutput(["netstat", "-ano"]);
@@ -191,11 +224,21 @@ export function runDesktopApp(config) {
     while (Date.now() - t0 < 5000 && (await portInUse(port))) await new Promise((r) => setTimeout(r, 150));
   }
 
-  async function startServer() {
-    if (state.server) return;
+  async function startServer({ evicted = false } = {}) {
+    if (state.server || (state.serverPhase === "starting" && !evicted)) return;
     if (process.env[`${config.id.toUpperCase().replace(/-/g, "_")}_DEV_NO_SERVER`]) return; // run it yourself
-    await evictStaleListener(config.port);
-    const child = utilityProcess.fork(config.serverEntry, ["serve", "--port", String(config.port)], {
+    state.serverPhase = "starting";
+    // Before the start: this app's own server left on its usual port (a crashed run, a headless
+    // server) is stopped first, so the new one never opens the database beside it. An app whose
+    // port is a setting checks that port too, before it opens anything (platform/serve.js
+    // `resolvePort`).
+    if (!evicted && config.port && (await portInUse(config.port)) && (await answersAsThisApp(config.port))) {
+      await evictListener(config.port);
+    }
+    // No --port: the server listens where its own settings say, and says where once it listens
+    // (`ready`), or which port it couldn't take (`listen-failed` — before it opens its database,
+    // when the app names its port first).
+    const child = utilityProcess.fork(config.serverEntry, ["serve"], {
       env: { ...process.env, [config.dataDirEnv]: state.root },
       serviceName: `${config.productName} server`,
       stdio: "pipe",
@@ -206,19 +249,42 @@ export function runDesktopApp(config) {
     child.on("message", (m) => {
       if (m?.type === "ready") {
         state.port = m.port;
+        state.serverPhase = "ready";
         console.log(`[shell] server listening on ${m.port}`);
+        settleServerUrl();
+      } else if (m?.type === "listen-failed") {
+        listenFailed(m, evicted);
       }
     });
     child.on("exit", (code) => {
-      if (state.server === child) state.server = null;
+      if (state.server === child) {
+        state.server = null;
+        state.serverPhase = "off";
+        settleServerUrl();
+      }
       if (!state.quitting) console.warn(`[shell] server exited (${code})`);
     });
   }
 
-  function stopServer() {
+  // The server couldn't listen; it waits for our stop. When this app's own server holds the
+  // port, stop that one and start again (once); any other program keeps the port.
+  async function listenFailed({ port, code }, evicted) {
+    state.port = port; // the server's port, taken or not
+    const ours = code === "EADDRINUSE" && !evicted && (await answersAsThisApp(port));
+    if (!ours) console.warn(`[shell] the server could not listen on port ${port} (${code}) — whatever holds it is left running`);
+    await stopServer({ restarting: ours });
+    if (!ours) return;
+    await evictListener(port);
+    await startServer({ evicted: true });
+  }
+
+  function stopServer({ restarting = false } = {}) {
     const child = state.server;
     if (!child) return Promise.resolve();
     state.server = null;
+    // A restart keeps the renderer's `serverUrl` waiting for the next start.
+    state.serverPhase = restarting ? "starting" : "off";
+    if (!restarting) settleServerUrl();
     return new Promise((resolve) => {
       let done = false;
       const finish = () => {
@@ -586,6 +652,12 @@ export function runDesktopApp(config) {
       if (err) throw new Error(err);
       return null;
     },
+    // The server's URL for the renderer's API base: at once when the server listens (or none
+    // is starting), else once its start ends.
+    serverUrl() {
+      if (state.serverPhase !== "starting") return serverUrl();
+      return new Promise((resolve) => urlWaiters.push(resolve));
+    },
     updateStatus() {
       return updateNow();
     },
@@ -653,19 +725,4 @@ export function runDesktopApp(config) {
     if (updatesOn) checkForUpdates();
   });
   return { state, startServer, stopServer, quitApp };
-}
-
-function portInUse(port) {
-  return new Promise((resolve) => {
-    const s = net0.connect({ host: "127.0.0.1", port, timeout: 300 });
-    s.once("connect", () => {
-      s.destroy();
-      resolve(true);
-    });
-    s.once("error", () => resolve(false));
-    s.once("timeout", () => {
-      s.destroy();
-      resolve(false);
-    });
-  });
 }

@@ -283,8 +283,23 @@ has its app-side facts):
   `dependencies` now holds only what the server and shell load: the kit and `@fastify/static`.
 - better-sqlite3 13 and koffi ship per-platform N-API prebuilds, so neither needs a rebuild for
   Electron's ABI — locally or on CI.
-- The shell evicts a stale listener on the app's port before starting the server, so a second
-  copy of an app (or a headless server on the same port) is stopped, as the Tauri shells did.
+- The shell stops a listener on the server's port only when it is this app's own server: the
+  server picks its port from its own settings and reports it taken (`listen-failed`); the
+  shell then stops the listener only if it answers `GET /v1/health` with the app's `product`
+  (within 500 ms) and starts the server once more — any other program keeps the port
+  (`shell/main.js` `listenFailed`). An app that names its port before it is built
+  (`runServer`'s `resolvePort` — JustVoice) has the port probed before any of its code opens
+  the database, so it never opens the database while another server of the app holds that port.
+  Before any server starts, the shell also checks the app's usual port (its config `port`) and
+  stops this app's own server there. Not covered: a second server of the app on another port with
+  the same data folder (a data-folder lock would cover it — for the user's word).
+  *code, 2026-10-13; not run in Electron.* (Was, until 2026-10-13: the shell evicted any
+  listener on the app's port before starting the server, so a second copy of an app — or a
+  headless server on the same port — was stopped, as the Tauri shells did.)
+- The probe is a connection to 127.0.0.1, not a trial bind: on Windows a listener on
+  `0.0.0.0:<port>` doesn't stop another from binding `127.0.0.1:<port>`, nor the other way
+  round, while a connection to 127.0.0.1 reaches either (`platform/port.js` `portInUse`).
+  *measured 2026-10-13, this machine, Node 26.5.0: both binds succeeded.*
 - The kit's CSP default forbids eval; an app adds sources per directive with `cspAdd`.
 
 **JustVoice's server port** (*measured 2026-10-08*; JustVoice's register has its app-side facts):
@@ -991,6 +1006,18 @@ GitHub API and raw files, unpkg; the plan:
     routes were added (Fastify preferred a fixed segment over a `:param` by itself).
   - Headers set on `c` before `next()` are copied onto whatever response follows, error answers
     included (`context.js` `set res`) — Fastify's reply headers from a hook behaved the same.
+  - `hono/cors` (*code* — 4.13.13 `middleware/cors/index.js`, read 2026-10-13; the family's CORS
+    since then, `platform/cors.js`): it answers EVERY `OPTIONS` itself, 204 with no body; a
+    refused origin gets the same 204 without `Access-Control-Allow-Origin` (Starlette: 400
+    "Disallowed CORS origin"); it never refuses a method or header — it lists the allowed ones
+    and the browser decides. `credentials: true` stamps Allow-Credentials on every answer, an
+    allowed origin or not; `origin` as a function adds `Vary: Origin`; `"*"` stamps `*` even with
+    no Origin header; no `maxAge` unless given (Starlette: 600); no Private Network Access header.
+  - `hono/body-limit` (*code* — 4.13.13 `middleware/body-limit/index.js`, read 2026-10-13): with a
+    `Content-Length` (and no `Transfer-Encoding`) it decides by the header alone; otherwise it
+    reads the whole stream, counting, and hands the route a new Request over the buffered chunks.
+    Mounted on a route, it would refuse a big upload before the route runs — the family runs it
+    only where a JSON body is read (`platform/server.js` `readBody`).
   - `@hono/node-server`'s `serveStatic` takes an absolute root, answers `Range`, sends no
     `ETag`, and serves a file for ANY method (OPTIONS like HEAD) — mount it with `app.get` or put
     a 405 route before it. Its `serve()` replaces the global Request/Response unless
