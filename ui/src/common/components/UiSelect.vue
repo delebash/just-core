@@ -34,7 +34,7 @@ const props = defineProps({
   showClear:  { type: Boolean, default: false },
   id:         { type: String, default: undefined },
   inputId:    { type: String, default: undefined },
-  width:      { type: String, default: "" }, // content cap: token/id/name/url/path/prose/edit/full
+  width:      { type: String, default: "" }, // content cap: token/id/name/url/path/prose/edit/full · fit: as wide as its choice
   title:      { type: String, default: undefined },
   ariaLabel:  { type: String, default: undefined },
 });

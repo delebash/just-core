@@ -31,7 +31,7 @@ function pick(code) {
   <UiSelect
     :model-value="locale"
     :options="options"
-    width="name"
+    width="fit"
     :aria-label="t('kit.settings.language.label')"
     @update:model-value="pick"
   />
