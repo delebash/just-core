@@ -37,9 +37,6 @@ export function isDesktopShell() {
   return !!window.appShell;
 }
 
-/** The old name, kept while JustWrite and JustVoice still call it — the same test. */
-export const isTauriShell = isDesktopShell;
-
 /** Merge semantics (configureServerApi's shape): a host that wires only `open`
  *  keeps whatever folder opener was configured before, and vice versa. */
 export function configureExternal({ open, openPath: openPathFn } = {}) {

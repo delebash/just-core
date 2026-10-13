@@ -30,7 +30,7 @@ export function configureServerApi({ resolveBase, authToken } = {}) {
 
 // Origin-aware base resolver factory — shared machinery; only the per-app dev
 // ports + loopback fallback differ. Returns the page origin when the server
-// hosts the UI (same-origin, no CORS); otherwise (Vite dev / Tauri webview) the
+// hosts the UI (same-origin, no CORS); otherwise (the dev server / the desktop window's app://) the
 // fallback. The host reads its own VITE_SERVER_URL (statically) and passes the
 // resolved value as `fallback`.
 // `overrideKey` (2026-08-15) is a localStorage key whose value, when set, WINS
@@ -47,10 +47,9 @@ export function makeOriginAwareResolver({ devPorts = [], fallback = "", override
       const override = localStorage.getItem(overrideKey);
       if (override) return override;
     }
-    const { protocol, origin, port, hostname } = window.location;
+    const { protocol, origin, port } = window.location;
     const isDev = devPorts.includes(port);
-    const isTauri = protocol === "tauri:" || hostname === "tauri.localhost";
-    if (!isDev && !isTauri && (protocol === "http:" || protocol === "https:")) return origin;
+    if (!isDev && (protocol === "http:" || protocol === "https:")) return origin;
     return fallback;
   };
 }
@@ -207,7 +206,7 @@ export const CHECK_SERVER_MS = CHECK.tries * CHECK.probeTimeoutMs + (CHECK.tries
 
 // Boot-time reachability check — the renderer is a thin client; with no server
 // we must NOT boot (empty stores that silently fail to save). Retries briefly so
-// a still-starting server (e.g. the Tauri sidecar) isn't falsely reported down.
+// a still-starting server (the desktop app's, just launched) isn't falsely reported down.
 export async function checkServer({ tries = CHECK.tries, delayMs = CHECK.delayMs, probeTimeoutMs = CHECK.probeTimeoutMs } = {}) {
   for (let i = 0; i < tries; i++) {
     try {

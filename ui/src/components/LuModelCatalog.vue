@@ -1686,7 +1686,7 @@ refreshApplied();
    (each chip stays intact via its own nowrap) rather than widening the table. */
 .lu-mm { color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px; }
 .lu-typetag, .lu-mm :deep(.ui-tag) { white-space: nowrap; }
-/* WRAPS. Measured at the app's minimum window (1000px, tauri.conf.json): the button
+/* WRAPS. Measured at the app's minimum window (1000px, the desktop window's minWidth): the button
    cluster needed +31px more than its cell and overran it on 14 rows. Wrapping lets the
    buttons stack on a narrow window instead of spilling out of the column — no width to
    maintain, and it stays a single row at every wider size. */
