@@ -160,12 +160,11 @@ DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translati
         shows in English".
 OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (each ticked in the
         plan with its commit; the follow-ups' words are in JustWrite's TASKS). The ⚠️ hit closed
-        2026-10-13. Task 3 under way (step 2 in part, 2026-10-13 — the plan says what landed and
-        what is open). The five questions of 2026-10-13 are ruled (above) and built: the CORS
+        2026-10-13. Task 3 under way: steps 2–4 done 2026-10-13 (the plan says what landed, with
+        commits). The five questions of 2026-10-13 are ruled (above) and built: the CORS
         message, the two layout faults, the shared tables, the marked exemptions; the
         script-string rule is in the family lint file, the kit, template and JustWrite at zero.
-        Next: the D6 tables, Task 3's dates and numbers, the language picker (D5). D3 awaits its
-        own word.
+        Next: the language picker (D5), then step 6's gates. D3 awaits its own word.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 

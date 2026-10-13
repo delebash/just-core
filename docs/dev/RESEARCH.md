@@ -1265,6 +1265,23 @@ English".
   `d(date, intlOptions)` with no format key formats through `Intl.DateTimeFormat` in the app's
   locale (`@intlify/core-base` `datetime()`, the empty-key path), so no `datetimeFormats` table is
   needed for one-off formats. — *measured 2026-10-12*.
+- **A named date or number format is formatted in the language it is found in** (vue-i18n
+  11.4.13, `@intlify/core-base` `datetime()` / `number()`: `resolveFormatLocale` walks the fallback
+  chain, then `new Intl.DateTimeFormat(targetLocale, …)`). A format defined for `en` only, asked
+  for in Spanish, is formatted in English (read in the code, not run); so JustWrite lists its named formats for every
+  language (`src/i18n/index.js`, `everyLanguage()`), the same Intl options in each. With them,
+  `dateTime` · `monthDay` · `time` · `oneDecimal` · `percent` read "10/13/2026, 3:05:09 PM · Oct 13 ·
+  3:05 PM · 15.7 · 31%" in English and "13/10/2026, 15:05:09 · 13 oct · 15:05 · 15,7 · 31 %" in
+  Spanish. Kit code passes Intl options instead: an app's named formats are not the kit's to
+  assume. — *code and measured 2026-10-13*, scratch probe on the built app.
+- **Spanish groups thousands only from five digits** (CLDR `minimumGroupingDigits: 2`): `n(2600)`
+  is "2600", `n(105000)` is "105.000" — a four-digit word count without a separator is correct,
+  not a missed `n()`. — *measured 2026-10-13*, Chrome on the built app.
+- **`npx biome` in a checkout without its own `node_modules` runs the wrong tool:** npm resolves the
+  unrelated package `biome` (0.3.3), which exits 0 and prints nothing — a silent pass. The family's
+  linter is `@biomejs/biome` (2.5.x); a passing check prints "Checked N files". Run it from a
+  checkout that installs it, from `ui/` for the kit's files (from the kit's root it stops on the
+  nested `ui/biome.json`). — *measured 2026-10-13*, the i18n worktree.
 - **Four other checkouts load the kit from source** (`JustVioce-round3`, `justvoice-quasar`,
   `justwrite-quasar`, `docgen-quasar`): a change to the kit's API reaches them too. —
   *code, 2026-10-12*.
