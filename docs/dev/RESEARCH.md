@@ -1321,6 +1321,22 @@ English".
 - **Spanish groups thousands only from five digits** (CLDR `minimumGroupingDigits: 2`): `n(2600)`
   is "2600", `n(105000)` is "105.000" — a four-digit word count without a separator is correct,
   not a missed `n()`. — *measured 2026-10-13*, Chrome on the built app.
+- **vue-i18n's `missing` option** (11.4.13) is `(locale, key, instance, type)`, called for a missed
+  message (`type` "translate") and a missed named format; a handler replaces the warning. In
+  JustWrite's smoke build (D3's replacement) it reports a key missing from English as a console
+  error, checked with `te(key, "en")` so a Spanish gap — the ruled fallback — stays quiet:
+  `$t("probe.no.such.key")` → "[i18n] missing translate: probe.no.such.key (en)", `$t("common.save")`
+  → nothing. — *measured 2026-10-15*, Chrome on the smoke's build.
+- **Quasar passes `QCLI_`-prefixed command-line variables to the client** as
+  `import.meta.env.QCLI_…` (@quasar/app-vite 3.10.2, "Adding to import.meta.env › From command
+  line") — no quasar.config change. — *docs, and measured 2026-10-15*.
+- **QInput hides its clear button when read-only:** use-field.js shows it on `clearable &&
+  hasValue && editable`, with `editable = !disable && !readonly` (quasar 2.35.0). Quasar's own
+  word for it is `$q.lang.label.clear` — "Borrar" in its Spanish pack (UiDate's Clear uses it). —
+  *code, and measured 2026-10-15*.
+- **A table column is as wide as its content's intrinsic size; `min-width: 0` on a flex child in
+  the cell doesn't lower it** — JustWrite's Characters list kept its name column at 398 px (the
+  description's 340 px cap) with it. — *measured 2026-10-15*.
 - **`npx biome` in a checkout without its own `node_modules` runs the wrong tool:** npm resolves the
   unrelated package `biome` (0.3.3), which exits 0 and prints nothing — a silent pass. The family's
   linter is `@biomejs/biome` (2.5.x); a passing check prints "Checked N files". Run it from a

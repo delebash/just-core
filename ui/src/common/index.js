@@ -8,6 +8,7 @@ import "./styles.css";
 
 export { default as UiButton } from "./components/UiButton.vue";
 export { default as UiInput } from "./components/UiInput.vue";
+export { default as UiDate } from "./components/UiDate.vue";
 export { default as UiSecretInput } from "./components/UiSecretInput.vue";
 export { default as UiTextarea } from "./components/UiTextarea.vue";
 export { default as UiCheckbox } from "./components/UiCheckbox.vue";
@@ -114,6 +115,8 @@ export { fmtBytes } from "./services/downloadRate.js";
 
 // shared "5m ago" (Intl.RelativeTimeFormat in the app's vue-i18n language) — the ONE time-ago label.
 export { relativeTime } from "./services/relativeTime.js";
+// a calendar date kept as ISO ("2027-03-01") — UiDate's value — in the app's language
+export { dateLabel, isIsoDate } from "./services/isoDate.js";
 
 // shared composables (host-agnostic; vue-only)
 export { useRovingTabindex } from "./composables/useRovingTabindex.js";
