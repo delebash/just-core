@@ -390,10 +390,13 @@
 /* connected — buttons flex to fill + stack label/sublabel; the 1px gap reads as
    a hairline divider. Caller owns row sizing (flex: 1; min-width). */
 .ui-seg--connected { border-radius: 9px; }
-.ui-seg--connected .q-btn { flex: 1; flex-direction: column; align-items: center; gap: 1px; padding: 6px 4px; }
+/* Narrower than its words, a button's text wraps instead of pushing the strip past its row (the
+   AI page's Local/Online strip ran 112 px past a 390 px window). The words carry the wrap
+   themselves: QBtnToggle's `no-wrap` sets nowrap on the button's content, which they inherit. */
+.ui-seg--connected .q-btn { flex: 1; flex-direction: column; align-items: center; gap: 1px; padding: 6px 4px; min-width: 0; text-align: center; }
 .ui-seg--connected .q-btn.active { color: var(--accent-ink, var(--accent)); box-shadow: 0 0 0 1px var(--border), 0 1px 2px var(--shadow-soft, rgba(0,0,0,.08)); }
-.ui-seg--connected .ui-seg__label { font-size: 12px; }
-.ui-seg--connected .ui-seg__sub { font-size: 10px; color: var(--muted); }
+.ui-seg--connected .ui-seg__label { font-size: 12px; white-space: normal; }
+.ui-seg--connected .ui-seg__sub { font-size: 10px; color: var(--muted); white-space: normal; }
 .ui-seg--connected .q-btn.active .ui-seg__sub { color: var(--accent-ink, var(--accent)); opacity: .8; }
 
 /* ── Tab strip (UiTabStrip on QTabs + QTab) ────────────────────────────── */

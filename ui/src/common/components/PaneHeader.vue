@@ -124,7 +124,10 @@ defineExpose({
 }
 .pane-title-input:hover { border-color: var(--border-soft); }
 .pane-title-input:focus { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
-.pane-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+/* Never wider than the header: on a row of its own, a control that gives way (the AI feature chip
+   shortens its model name) shrinks to fit — on Brainstorm it held the actions 37 px past a
+   390 px window in Spanish, 3 px in English. */
+.pane-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; max-width: 100%; }
 /* The "?" is the far right of the title's row: after the actions while they share it, before
    them once they've dropped to the row below. */
 .pane-help { margin-left: auto; }
