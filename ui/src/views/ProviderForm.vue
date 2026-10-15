@@ -492,6 +492,12 @@ async function putReasoningRow(row) {
 .lu-pf-libs { margin-top: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .lu-pf-libs-cap { font-size: 11px; }
 .lu-pf-foot { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+/* At phone width (Quasar's xs) what doesn't fit on the footer's row drops to the row below, as in
+   AppModal's footer, rather than running off the screen — Save ended 40 px past a 390 px window
+   (2026-10-15). */
+@media (max-width: 599.98px) {
+  .lu-pf-foot { flex-wrap: wrap; }
+}
 .lu-pf-spacer { flex: 1; }
 .lu-pf-test { font-size: 11.5px; }
 /* the native provider-type select reuses .lu-input; force select chrome */
