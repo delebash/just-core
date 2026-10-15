@@ -216,8 +216,9 @@ export async function installLlm(
     cacheRoot = null,
     product = "",
     allowKeyReveal = false,
-    // The host's loaded speech models by name, on any placement — the AI model's RAM refusal
-    // names them (RunnerService `speechModelsFn`; JustVoice passes its slots).
+    // The host's loaded speech models, [{id, placement: "gpu" | "cpu"}] — the AI model's RAM
+    // refusal names them, and after a credit only those on the CPU (RunnerService
+    // `speechModelsFn`; JustVoice passes its slots).
     speechModelsFn = null,
   } = {},
 ) {

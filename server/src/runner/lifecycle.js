@@ -1005,7 +1005,7 @@ export class RunnerService {
     this._recordLoadFn = recordLoadFn;
     this._fitRelevantFlagsFn = fitRelevantFlagsFn;
     this._declaredClaimFn = declaredClaimFn;
-    // The host's loaded speech models by name, on the card or the CPU (JustVoice wires its
+    // The host's loaded speech models, [{id, placement: "gpu" | "cpu"}] (JustVoice wires its
     // slots) — for the RAM refusal's words only; null = the card's speech bookings name them.
     this._speechModelsFn = speechModelsFn;
     this._probeStarted = false;
@@ -3482,7 +3482,8 @@ export class RunnerService {
   /** Refuse a load — or, at a `wake`, warn and go ahead (the wake's own policy: an AI feature
    * must not fail mid-task) — when free system memory, plus `creditMb` the room-making may give
    * back, can't hold `need`. The words say what is free now, without the credit; a refusal that
-   * counted a credit names no holder, since their memory was already counted. */
+   * counted a credit names only the speech models running on the CPU, whose memory no credit
+   * counted (decided 2026-10-15, JustVoice's narrowings review M3 × M10). */
   async _admitRam(modelId, need, { creditMb = 0, wake = false } = {}) {
     if (need == null) return;
     const freeNowMb = os.freemem() / fitMod.MIB;
@@ -3501,18 +3502,18 @@ export class RunnerService {
       return;
     }
     let speech = [];
-    if (!credited) {
-      try {
-        // The host's loaded speech models on any placement (`speechModelsFn`), else those
-        // booked on the card.
-        speech = this._speechModelsFn
-          ? [...((await this._speechModelsFn()) || [])]
-          : ((await this._arbiter.snapshot(this._hardwareFn())).reservations || [])
-              .filter((r) => r.kind !== "llm" && !r.pinned)
-              .map((r) => r.key.replace(/^(tts|stt):/, ""));
-      } catch {
-        /* the message without the names */
-      }
+    try {
+      // The host's loaded speech models with where each runs (`speechModelsFn` →
+      // [{id, placement}]), else those booked on the card. After a credit, only those on the CPU:
+      // the card's room-making credited the others' memory, never theirs.
+      const loaded = this._speechModelsFn
+        ? [...((await this._speechModelsFn()) || [])]
+        : ((await this._arbiter.snapshot(this._hardwareFn())).reservations || [])
+            .filter((r) => r.kind !== "llm" && !r.pinned)
+            .map((r) => ({ id: r.key.replace(/^(tts|stt):/, ""), placement: "gpu" }));
+      speech = loaded.filter((s) => !credited || s.placement === "cpu").map((s) => s.id);
+    } catch {
+      /* the message without the names */
     }
     throw new RuntimeError(
       `not enough memory to load ${modelId}: ${short}. ` +

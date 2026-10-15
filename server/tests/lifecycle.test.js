@@ -3765,8 +3765,24 @@ test("the_ram_door_refuses_a_load_and_warns_at_a_wake", async () => {
     "but only 8 GB of this machine's 32 GB is free. Close other programs, or pick a smaller model.",
   );
   // The host's speech models on any placement (JustVoice's slots, a CPU one included).
-  svc._speechModelsFn = () => ["voxcpm2", "kokoro"];
+  svc._speechModelsFn = () => [
+    { id: "voxcpm2", placement: "gpu" },
+    { id: "kokoro", placement: "cpu" },
+  ];
   await expect(svc._admitRam("gemma", need)).rejects.toThrow("A speech model (voxcpm2, kokoro) is loaded and holds memory too");
+  // After a credit, the ones on the CPU: the card's room-making credited the others' memory,
+  // never theirs (decided 2026-10-15, JustVoice's M3 × M10).
+  await expect(svc._admitRam("gemma", need, { creditMb: 500 })).rejects.toThrow(
+    "but only 8 GB of this machine's 32 GB is free. A speech model (kokoro) is loaded and holds memory too — unload it first, or close other programs.",
+  );
+  svc._speechModelsFn = () => [{ id: "voxcpm2", placement: "gpu" }];
+  await expect(svc._admitRam("gemma", need, { creditMb: 500 })).rejects.toThrow(
+    "but only 8 GB of this machine's 32 GB is free. Close other programs, or pick a smaller model.",
+  );
+  svc._speechModelsFn = () => [
+    { id: "voxcpm2", placement: "gpu" },
+    { id: "kokoro", placement: "cpu" },
+  ];
   // By what it took before.
   await expect(svc._admitRam("gemma", { ...need, heldMb: 9836, by: "measured" })).rejects.toThrow(
     "it took about 9.6 GB of this machine's memory when it last loaded here",
