@@ -25,6 +25,9 @@ const props = defineProps({
   need: { type: String, default: "" },
   // Dev-only hint (shown only when import.meta.env.DEV); plain text.
   devHint: { type: String, default: "" },
+  // Why the server isn't there, when the app knows (its desktop shell's `serverStatus`): one
+  // sentence in the app's words, under the body. Plain text.
+  detail: { type: String, default: "" },
 });
 const isDev = import.meta.env.DEV;
 const { t } = useI18n();
@@ -55,6 +58,7 @@ onBeforeUnmount(() => { stopped = true; clearTimeout(timer); });
         <template #need>{{ need || t("kit.connectionError.need") }}</template>
         <template #url><code>{{ serverUrl }}</code></template>
       </i18n-t>
+      <p v-if="detail">{{ detail }}</p>
       <p v-if="isDev && devHint" class="conn-err__hint">{{ devHint }}</p>
       <button class="conn-err__btn" type="button" @click="retry">{{ t("kit.common.retry") }}</button>
     </div>

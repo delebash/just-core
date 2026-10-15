@@ -16,11 +16,15 @@
 // STARTUP_FAILURE code — under the desktop app, once it has told main which port
 // (`{type: "listen-failed", host, port, code}`) and main has asked it to stop. An app that
 // names its port before it is built (`resolvePort`) has that port probed first, so a port
-// another server of the app holds is reported before the app opens its database.
+// another server of the app holds is reported before the app opens its database. An app that
+// names itself (`productName`) has its data folder locked before it is built (data_lock.js): a
+// second server of the app on the same folder says so and exits 3 — under the desktop app, once
+// it has told main (`{type: "data-folder-locked", dataDir}`) and main has asked it to stop.
 
 import path from "node:path";
 import { getSystemErrorMap, parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
+import { dataFolderInUse, lockDataDir } from "./data_lock.js";
 import { PROBE_HOST, portInUse } from "./port.js";
 import { closeApp } from "./server.js";
 
@@ -106,6 +110,21 @@ function cantListen(app, host, port, e, log) {
 }
 
 /**
+ * Another server of the app holds the data folder: say so and exit 3, before anything is built —
+ * under the desktop app, once the shell knows (it shows the words) and has asked this one to stop.
+ */
+function dataFolderLocked(productName, dataDir) {
+  process.stderr.write(`${dataFolderInUse(productName, dataDir)}\n`);
+  const parent = process.parentPort;
+  if (!parent) return process.exit(3);
+  parent.on("message", (m) => {
+    if (m?.data?.type === "stop") process.exit(3);
+  });
+  parent.postMessage({ type: "data-folder-locked", dataDir });
+  return new Promise(() => {}); // the shell's stop ends this process
+}
+
+/**
  * Run a Hono app as the family server. `build(args)` returns `{app, host, port,
  * banner?}` — host/port already resolved (CLI/env over the app's settings store);
  * `app` is the app's Hono instance. Returns `{app, server, stop, port}`.
@@ -115,12 +134,27 @@ function cantListen(app, host, port, e, log) {
  * `args.port`. That port is probed first: when something already listens there — this app's own
  * old or headless server, with the same database open — it is reported as a failed listen is,
  * and `build`, which opens the database, never runs.
+ *
+ * `productName`, when given, is the app's name in its words (the desktop shell's `productName`,
+ * e.g. "JustVoice"): the data folder (`--data-dir` / `<APP>_DATA_DIR` — the desktop shell always
+ * names it) is then locked before `build`, after the port probe so this app's own old server on
+ * the port is still reported to the shell, which stops it. Held by another server of the app, the
+ * start ends with `dataFolderInUse`'s words. The lock goes when the process exits.
+ * `lockRetries` overrides proper-lockfile's retries (tests).
  */
-export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, log = console }) {
+export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, productName, lockRetries, log = console }) {
   const args = parseServeArgs(argv, { envPrefix });
   if (resolvePort) {
     args.port = await resolvePort(args);
     if (args.port != null && (await portInUse(args.port))) return cantListen(null, PROBE_HOST, args.port, addressInUse(), log);
+  }
+  if (productName && args.dataDir) {
+    try {
+      await lockDataDir(args.dataDir, lockRetries != null ? { retries: lockRetries } : {});
+    } catch (e) {
+      if (e?.code !== "ELOCKED") throw e;
+      return dataFolderLocked(productName, args.dataDir);
+    }
   }
   const { app, host, port, banner } = await build(args);
   let server;

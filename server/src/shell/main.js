@@ -14,8 +14,12 @@
 //     and says which (`ready`), or which port it couldn't take (checked before it opens its
 //     database when the app names the port first — platform/serve.js `resolvePort`) — then
 //     a listener there is stopped only when it answers GET /v1/health as this app's own
-//     server; a stop asks it over `parentPort`, waits, then kills — graceful for all three
-//     apps (JustWrite and docgen only hard-killed under Tauri). The renderer asks for the URL (`serverUrl`).
+//     server, and then it is asked first (its app's shutdown route, else SIGTERM off Windows —
+//     stale_server.js) and killed only past the wait; our own server's stop asks it over
+//     `parentPort`, waits, then kills — graceful for all three apps (JustWrite and docgen only
+//     hard-killed under Tauri). The renderer asks for the URL (`serverUrl`), and on its
+//     connection-error screen why a start failed (`serverStatus`: the port held by another
+//     program, or the data folder held by another server of the app — platform/data_lock.js).
 //   - The window loads the built UI from `app://<id>/` (ruling 3) — it opens even when
 //     the server is down and shows the kit's connection-error screen; in development it
 //     loads the Vite dev server instead.
@@ -48,9 +52,10 @@ import {
   Tray,
   utilityProcess,
 } from "electron";
+import { dataFolderInUse } from "../platform/data_lock.js";
 import { portInUse } from "../platform/port.js";
-import { checkOutput, run } from "../platform/procs.js";
 import { CHROME_DIR, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir } from "./dataRoot.js";
+import { stopStaleServer } from "./stale_server.js";
 
 /** The renderer's commands — the preload exposes exactly these (`appShell.invoke`). */
 export const COMMANDS = [
@@ -68,6 +73,7 @@ export const COMMANDS = [
   "updateDownload",
   "updateInstall",
   "serverUrl",
+  "serverStatus",
 ];
 
 const DEFAULT_TRAY_LABELS = {
@@ -98,6 +104,9 @@ const STOP_WAIT_MS = 15_000;
  *   serverProduct the `product` the app's server names in GET /v1/health (default
  *                 productName) — a listener already on the server's port is stopped only when
  *                 it answers with it, as this app's own server
+ *   shutdownPath  the app server's own shutdown route, POSTed from this machine (JustVoice:
+ *                 "/v1/shutdown") — such a server is asked through it to stop before it is
+ *                 killed; without one it is sent SIGTERM (Windows: killed at once)
  *   serverEntry   absolute path of the app's server module (runs `serve`)
  *   dataDirEnv    the app's data-dir variable (e.g. "JUSTVOICE_DATA_DIR")
  *   repoRoot      the checkout root (development: the data root is <repoRoot>/data)
@@ -125,6 +134,10 @@ export function runDesktopApp(config) {
     server: null, // the utilityProcess
     serverPhase: "off", // off · starting · ready
     port: config.port ?? null,
+    // Why the last start failed, for the renderer's connection-error screen (`serverStatus`): the
+    // port another program holds, or the words for a data folder another server of the app holds.
+    portTaken: null,
+    dataFolderInUse: null,
     keepRunning: false,
     quitting: false,
     win: null,
@@ -198,36 +211,18 @@ export function runDesktopApp(config) {
 
   async function evictListener(port) {
     // A server of this app's left on the port (a crashed run, a headless server) would answer
-    // this app's UI with its own code. The Rust shells evicted the same way (netstat+taskkill /
-    // lsof+kill) — but any listener, before the start.
-    console.warn(`[shell] port ${port} is held by this app's own server — stopping it`);
-    try {
-      if (process.platform === "win32") {
-        const out = await checkOutput(["netstat", "-ano"]);
-        const pids = new Set();
-        for (const line of out.split(/\r?\n/)) {
-          const cols = line.trim().split(/\s+/);
-          if (cols.length < 5 || cols[0] !== "TCP" || !cols.includes("LISTENING")) continue;
-          if (!cols[1].endsWith(`:${port}`)) continue;
-          const pid = Number(cols[cols.length - 1]);
-          if (pid) pids.add(pid);
-        }
-        for (const pid of pids) await run(["taskkill", "/F", "/PID", String(pid)]);
-      } else {
-        const out = await run(["lsof", "-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-t"]);
-        for (const pid of out.stdout.split(/\s+/).filter(Boolean)) await run(["kill", "-9", pid]);
-      }
-    } catch (e) {
-      console.warn(`[shell] could not evict the stale listener: ${e.message}`);
-    }
-    const t0 = Date.now();
-    while (Date.now() - t0 < 5000 && (await portInUse(port))) await new Promise((r) => setTimeout(r, 150));
+    // this app's UI with its own code, its database open beside ours. Asked to stop first, killed
+    // only past the wait (the Rust shells killed any listener at once).
+    console.warn(`[shell] port ${port} is held by this app's own server — asking it to stop`);
+    await stopStaleServer(port, { shutdownPath: config.shutdownPath || null, waitMs: STOP_WAIT_MS });
   }
 
   async function startServer({ evicted = false } = {}) {
     if (state.server || (state.serverPhase === "starting" && !evicted)) return;
     if (process.env[`${config.id.toUpperCase().replace(/-/g, "_")}_DEV_NO_SERVER`]) return; // run it yourself
     state.serverPhase = "starting";
+    state.portTaken = null;
+    state.dataFolderInUse = null;
     // Before the start: this app's own server left on its usual port (a crashed run, a headless
     // server) is stopped first, so the new one never opens the database beside it. An app whose
     // port is a setting checks that port too, before it opens anything (platform/serve.js
@@ -254,6 +249,12 @@ export function runDesktopApp(config) {
         settleServerUrl();
       } else if (m?.type === "listen-failed") {
         listenFailed(m, evicted);
+      } else if (m?.type === "data-folder-locked") {
+        // Another server of this app has the data folder open: the start ends, and the renderer's
+        // connection-error screen says so.
+        state.dataFolderInUse = dataFolderInUse(config.productName, m.dataDir);
+        console.warn(`[shell] ${state.dataFolderInUse}`);
+        stopServer();
       }
     });
     child.on("exit", (code) => {
@@ -271,7 +272,11 @@ export function runDesktopApp(config) {
   async function listenFailed({ port, code }, evicted) {
     state.port = port; // the server's port, taken or not
     const ours = code === "EADDRINUSE" && !evicted && (await answersAsThisApp(port));
-    if (!ours) console.warn(`[shell] the server could not listen on port ${port} (${code}) — whatever holds it is left running`);
+    if (!ours) {
+      console.warn(`[shell] the server could not listen on port ${port} (${code}) — whatever holds it is left running`);
+      // Another program holds it: the renderer's connection-error screen says so (`serverStatus`).
+      if (code === "EADDRINUSE") state.portTaken = port;
+    }
     await stopServer({ restarting: ours });
     if (!ours) return;
     await evictListener(port);
@@ -657,6 +662,14 @@ export function runDesktopApp(config) {
     serverUrl() {
       if (state.serverPhase !== "starting") return serverUrl();
       return new Promise((resolve) => urlWaiters.push(resolve));
+    },
+    // The server's URL and why its last start failed — {url, portTaken, dataFolderInUse} — when it
+    // is known: at once, or once a start under way ends. The renderer's connection-error screen
+    // asks.
+    serverStatus() {
+      const status = () => ({ url: serverUrl(), portTaken: state.portTaken, dataFolderInUse: state.dataFolderInUse });
+      if (state.serverPhase !== "starting") return status();
+      return new Promise((resolve) => urlWaiters.push(() => resolve(status())));
     },
     updateStatus() {
       return updateNow();
