@@ -52,9 +52,11 @@
 // Opt-in LOOK modifiers — plain classes on the component (visual variants are CSS, per the
 // three-tier rule), defined in common/styles.css. Absent = today's look, so no existing
 // table moves: `ui-table-fixed` (table-layout: fixed — column widths become SHARES the
-// browser divides, so the grid can never outgrow its container), `ui-table-sticky` (header
-// pinned while the body scrolls), `ui-table-top` (cells top-aligned, for rows whose first
-// column is a tall stack and the rest are one-liners).
+// browser divides, so the grid can never outgrow its container), `ui-table-sticky` (the table is
+// its own scroll box with its header pinned — Quasar's "Sticky header": give the UiTable a height
+// or max-height, e.g. `max-height: 58vh`, or `height: 100%` to fill a lane), `ui-table-top`
+// (cells top-aligned, for rows whose first column is a tall stack and the rest are one-liners).
+// A table wider than its box scrolls sideways inside QTable's own wrapper (../../quasar/theme.css).
 //
 // Cell rendering: a slot named after column.id — <template #title="{ row, value }">.
 // HEADER rendering: `head-<column.id>` — <template #head-sel>. Added 2026-08-03: cells
@@ -230,8 +232,10 @@ function onRowClick(row, event) {
 
 // QTable draws the <table> itself (class q-table) inside a scroll wrapper it makes focusable;
 // the table keeps its .ui-table class (every rule that styles a table reads it) and the wrapper
-// — which scrolls nothing here — takes no Tab stop. Neither attribute is one QTable's render
-// changes later, so Vue leaves both as set.
+// takes no Tab stop of its own: a table that fits scrolls nothing, and one that scrolls is reached
+// through the controls in its cells, or — with none — by the browser, which makes a scroller with
+// nothing focusable inside a Tab stop itself (Chrome 124–125). Neither attribute is one QTable's
+// render changes later, so Vue leaves both as set.
 const qtable = ref(null);
 // QTable shows every row it is given (the paging is this table's, above)
 const ALL_ROWS = { rowsPerPage: 0 };

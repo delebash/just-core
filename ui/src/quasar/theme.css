@@ -609,13 +609,21 @@
 /* QTable draws the <table> (UiTable gives it back its .ui-table class) inside a container and a
    scroll wrapper of its own; the look stays common/styles.css's .ui-table*. What QTable sets that
    the plain table didn't have is taken off, at zero specificity so every app rule still wins:
-   the card's white, its shadow and corners, the wrapper's scrolling (it would also become the
-   sticky header's scroller), and on rows and cells the 48px height, the padding, font, background
-   and positioning (a positioned cell moves its absolutely placed children, and is composited after
-   an animation) — back to what the browser gives a plain table — and the hover overlay on every row. */
+   the card's white, its shadow and corners, and on rows and cells the 48px height, the padding,
+   font, background and positioning (a positioned cell moves its absolutely placed children, and is
+   composited after an animation) — back to what the browser gives a plain table — and the hover
+   overlay on every row. QTable's scroll wrapper stays as Quasar ships it (2026-10-15): a table
+   wider than its box scrolls sideways inside it (the table's own max-width is taken off so it can
+   be wider than the wrapper), instead of pushing its page sideways. */
 :where(.ui-table-wrap .q-table__container) { position: static; color: inherit; background: none; border-radius: 0; box-shadow: none; }
-:where(.ui-table-wrap .q-table__middle) { overflow: visible; max-width: none; }
 :where(.ui-table-wrap table.q-table) { max-width: none; border-spacing: revert; }
+/* A pinned-header table (`ui-table-sticky`) is its own scroll box — Quasar's "Sticky header"
+   (quasar.dev/vue-components/table#sticky-header-column: "height or max-height is important"). Its
+   user gives the UiTable a height or max-height; QTable takes what the pager leaves of it, and its
+   wrapper scrolls both ways with the header pinned (the header's rule: common/styles.css). */
+.ui-table-sticky > .q-table__container,
+.ui-table-sticky > .q-table__container > .q-table__middle { min-height: 0; }
+.ui-table-sticky > .q-table__container { flex: 1 1 auto; }
 /* what the browser gives a plain table's rows and cells */
 :where(.ui-table-wrap .q-table thead, .ui-table-wrap .q-table tr, .ui-table-wrap .q-table th, .ui-table-wrap .q-table td) {
   height: revert; padding: revert; background-color: revert; font-weight: revert; font-size: revert; position: revert;
@@ -623,12 +631,10 @@
 }
 :where(.ui-table-wrap .q-table tbody td)::before,
 :where(.ui-table-wrap .q-table tbody td)::after { content: none; }
-/* At phone width (Quasar's xs) a table wider than the window scrolls sideways in QTable's own
-   wrapper, with its first column kept in view — Quasar's "Sticky first column" (the cells need a
-   background of their own, or the columns scrolled under them show through). A sticky header
-   then pins to that wrapper, not the page, so on a phone it scrolls away with the rows. */
+/* At phone width (Quasar's xs) a table that scrolls sideways keeps its first column in view —
+   Quasar's "Sticky first column" (the cells need a background of their own, or the columns
+   scrolled under them show through). */
 @media (max-width: 599.98px) {
-  .ui-table-wrap .q-table__middle { overflow-x: auto; }
   .ui-table-wrap .q-table thead th:first-child,
   .ui-table-wrap .q-table .ui-table-row > td:first-child { position: sticky; left: 0; z-index: 1; }
   .ui-table-wrap .q-table thead th:first-child { z-index: 2; }

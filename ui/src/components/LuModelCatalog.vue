@@ -78,33 +78,25 @@ const sortKey = ref("quality");
 const sortDir = ref("asc"); // quality asc = best (lowest rank) first
 // The sortable columns, in render order. `num` = right-aligned numeric; `defDir` = the
 // natural FIRST-click direction (all read best ascending here).
-// `w` = the column's SHARE of the table, not a pixel size. With `table-layout: fixed`
-// (see the style block) the browser divides the container by these proportions, so the
-// grid always fits its panel at any window size and each column's text wraps inside its
-// own column. Percentages replaced a scatter of hand-guessed px/ch caps (max-width 320px,
-// 46ch, min-width 210px…), each of which was a guess that held at one window width and
-// truncated at another — the 2026-07-24 truncation bug, three times over. Retune by
-// changing a share here; nothing else needs to know a width.
+// Widths come from the content, not from shares (the user's ruling, 2026-10-15: "narrow columns
+// (chips, numbers, buttons) take only the width they need, and the text column takes the rest
+// and wraps … When even that doesn't fit, the table scrolls inside its own box"): every column
+// but Model is a `lu-th-fit` column, as wide as its content and no wider, and Model takes the
+// rest; a table wider than its box scrolls sideways in it (the kit's UiTable). The fixed shares
+// this replaced (2026-07-24) kept the grid inside its panel, at the cost of a License chip broken
+// mid-word, a Bench header wider than its column and Edit / Download / ⋯ stacked on three rows
+// below 1280 px. `oneLine` = the cells never wrap (a chip, a number, the status words); Type's
+// chips stack one under another instead.
 const COLUMNS = [
-  // Tuned 2026-07-24 on the user's read: Model was taking more than it needed (its prose
-  // wraps happily, so a narrower share just means another line), and Bench held a two-digit
-  // number in a column sized for far more. Bench's floor is its own HEADER — the word
-  // "Bench" plus the sort caret — not the data, which is why it can't go below ~5%.
-  { key: "name", label: "kit.modelCatalog.col.model", defDir: "asc", w: "24%" },
-  { key: "type", label: "kit.modelCatalog.col.type", defDir: "asc", w: "11%" },
-  { key: "license", label: "kit.modelCatalog.col.license", defDir: "asc", w: "11%" },
-  { key: "quality", label: "kit.modelCatalog.col.bench", num: true, defDir: "asc", w: "5%" },
-  // Fit holds the chip with its speed band ("Fits · ~slow"); at 7% it ran into Status at 1280 px
-  // (found 2026-10-12). Model gives up the difference — its prose wraps, so that is another line,
-  // where a narrower Status broke "downloaded" mid-word at 1024 px and a narrower Actions stacked
-  // Edit over Download at 1280 — and the longest chips ("Won't fit · ~very slow") wrap inside
-  // their column (see .lu-mgrid .lu-fit).
-  { key: "fit", label: "kit.modelCatalog.col.fit", defDir: "asc", w: "12%" },
-  { key: "status", label: "kit.modelCatalog.col.status", defDir: "asc", w: "17%" },
+  { key: "name", label: "kit.modelCatalog.col.model", defDir: "asc" },
+  { key: "type", label: "kit.modelCatalog.col.type", defDir: "asc" },
+  { key: "license", label: "kit.modelCatalog.col.license", defDir: "asc", oneLine: true },
+  { key: "quality", label: "kit.modelCatalog.col.bench", num: true, defDir: "asc", oneLine: true },
+  { key: "fit", label: "kit.modelCatalog.col.fit", defDir: "asc", oneLine: true },
+  { key: "status", label: "kit.modelCatalog.col.status", defDir: "asc", oneLine: true },
 ];
-// The un-sortable Actions column takes the remainder. Shares total 100%.
-const ACTIONS_W = "20%";
-// The shared UiTable's column config, derived from COLUMNS above so the shares stay declared
+const ONE_LINE = { whiteSpace: "nowrap" };
+// The shared UiTable's column config, derived from COLUMNS above so each column is declared
 // ONCE. UiTable owns the header markup, the sort state and the sort arrow; this component
 // keeps the ORDERING, because the list is grouped (sections + a doesn't-fit divider) and
 // sorted within each group — a plain row-model sort would flatten the sections away. That is
@@ -120,10 +112,10 @@ const TABLE_COLUMNS = computed(() => [
     accessorKey: c.key,
     header: t(c.label),
     sortable: true,
-    headerStyle: { width: c.w },
-    meta: { headerClass: c.num ? "lu-th-num" : "" },
+    cellStyle: c.oneLine ? ONE_LINE : undefined,
+    meta: { headerClass: [c.num && "lu-th-num", c.key !== "name" && "lu-th-fit"] },
   })),
-  { id: "actions", header: t("kit.modelCatalog.col.actions"), sortable: false, headerStyle: { width: ACTIONS_W }, meta: { headerClass: "lu-th-act" } },
+  { id: "actions", header: t("kit.modelCatalog.col.actions"), sortable: false, meta: { headerClass: ["lu-th-act", "lu-th-fit"] } },
 ]);
 // UiTable emits { id, desc }; the two refs above stay the source of truth for sortModels().
 // A header click that CLEARS the sort (null) is impossible here — the table is mounted with
@@ -1260,10 +1252,10 @@ refreshApplied();
            copies of "a table with sortable headers and hand-guessed widths". UiTable owns the
            header markup, the sort state and the sort arrow; the ORDERING stays here because
            the list is grouped into sections and sorted within each, which a plain row-model
-           sort would flatten (hence `manual-sorting`). The three look modifiers are the kit's
-           opt-in classes: shares-not-content widths, a pinned header, top-aligned cells. -->
+           sort would flatten (hence `manual-sorting`). The two look modifiers are the kit's
+           opt-in classes: a pinned header (the table its own scroll box), top-aligned cells. -->
       <UiTable
-        class="lu-mgrid ui-table-fixed ui-table-sticky ui-table-top"
+        class="lu-mgrid ui-table-sticky ui-table-top"
         :data="groupedRows"
         :columns="TABLE_COLUMNS"
         :data-key="rowKeyOf"
@@ -1610,49 +1602,37 @@ refreshApplied();
    notes) rows — the "cramped" read (user, 2026-07-24). Sized to the window with a cap,
    the AppModal.vue:221 precedent for a vh-bounded scroller. */
 /* Viewport-relative, not a pixel guess: the list gets a share of the window height and
-   scrolls past it (the old fixed 260px showed barely one-and-a-half of the taller rows). */
-.lu-mcat-wrap { max-height: 58vh; overflow: auto; border: 1px solid var(--border); border-radius: var(--r-sm, 8px); background: var(--surface); }
-/* Fit-to-data (user, 2026-07-22 — "too wide, fit the data"): the table sizes to its
-   CONTENT, not a forced width:100% stretch. Narrow columns shrink (nowrap); only the
-   Model column grows, wrapping its description within a cap. */
-/* PROPORTIONAL, not hand-measured (user, 2026-07-24: "hardcoding px width height is bad
-   coding" — and they were right; this table had accumulated max-width 320px, 46ch,
-   min-width 160px, min-width 210px and a 260px scroller, each a guess that held at one
-   window size and truncated at another).
-   `table-layout: fixed` + `width: 100%` + the per-column SHARES in COLUMNS: the browser
-   divides the container, so the grid can never exceed its panel (the old `width: auto`
-   grew to 1238px inside a 1106px wrap and pushed Status/Actions out of sight) and every
-   cell's text wraps inside its own column with no cap to maintain. */
-/* `table-layout: fixed`, the pinned header and the top-aligned cells now come from the kit's
-   opt-in classes on the component (`ui-table-fixed ui-table-sticky ui-table-top`) — the three
-   behaviours this table needed are ones any data grid eventually wants, so they live in
-   common/styles.css rather than being re-declared per component. What stays here is what is
-   genuinely this catalog's own: its slightly smaller type and its cell contents. */
+   scrolls past it (the old fixed 260px showed barely one-and-a-half of the taller rows). The
+   share is the table's own (2026-10-15): a pinned-header UiTable is its own scroll box, both ways
+   — Quasar's "Sticky header" — and this box keeps the frame, its corners clipping the header. */
+.lu-mcat-wrap { overflow: hidden; border: 1px solid var(--border); border-radius: var(--r-sm, 8px); background: var(--surface); }
+.lu-mgrid { max-height: 58vh; }
+/* Fit to the data (the user, 2026-07-22 "too wide, fit the data", and 2026-10-15): the narrow
+   columns take their content's width and Model the rest, with no width written anywhere
+   (2026-07-24: "hardcoding px width height is bad coding"); a grid wider than its box scrolls
+   sideways inside it instead of pushing Status and Actions out of sight. The pinned header and
+   the top-aligned cells are the kit's opt-in classes (`ui-table-sticky ui-table-top`). What
+   stays here is this catalog's own: its slightly smaller type and its cell contents. */
 .lu-mgrid :deep(.ui-table) { font-size: 12.5px; }
 .lu-mgrid :deep(.ui-table thead th) { border-bottom: 1px solid var(--border); }
+/* A `lu-th-fit` column is as wide as its content and no wider — the shrink-to-fit idiom, a width
+   every content outgrows; Model, the one column without it, takes what is left. */
+.lu-mgrid :deep(th.lu-th-fit) { width: 1%; }
 /* TOP-aligned, not middle (user, 2026-07-24 — the columns "read misaligned"): the Model
    cell runs 5-7 lines (name · id · size · description · notes · card link) while Type /
    License / Bench / Fit / Status / Actions are one line each, so centering floated every
    badge in the middle of a tall row, level with nothing. Top-aligned, each cell lines up
    with the model NAME — the row's anchor. */
-/* Cells WRAP. `nowrap` here is what forced the table wider than its panel: every column
-   demanded its full single-line width and the grid grew past the container, clipping the
-   right-hand end. Top-aligned so one-line cells sit level with the model NAME instead of
-   floating mid-row against a 5-7 line Model cell. Chips keep their own `nowrap` below, so
-   a badge still never breaks mid-word. */
-/* Cells WRAP: `nowrap` is what once forced the grid wider than its panel, every column
-   demanding its full single-line width until the right-hand end clipped. Chips keep their own
-   nowrap below, so a badge still never breaks mid-word. */
-.lu-mgrid :deep(.ui-table tbody td) { padding: 9px 11px; border-bottom: 1px solid var(--border); white-space: normal; overflow-wrap: anywhere; }
+/* Model's text wraps between words, and breaks a word only when the word alone is wider than
+   the column (`break-word`, not `anywhere`: `anywhere` would let Model narrow to a letter before
+   the grid scrolls); the `oneLine` columns never wrap (COLUMNS). */
+.lu-mgrid :deep(.ui-table tbody td) { padding: 9px 11px; border-bottom: 1px solid var(--border); white-space: normal; overflow-wrap: break-word; }
 .lu-mgrid :deep(.ui-table tbody tr:last-child td) { border-bottom: 0; }
 /* The numeric + actions headers align right; the kit's header handles the rest (click to
    sort, the caret on the active column, the hover and active colours). */
 .lu-mgrid :deep(th.lu-th-num) .ui-table-th-inner,
 .lu-mgrid :deep(th.lu-th-act) .ui-table-th-inner { justify-content: flex-end; }
 .lu-mgrid :deep(th.lu-th-num), .lu-mgrid :deep(th.lu-th-act) { text-align: right; }
-/* The Fit chip wraps between words when its column is narrower than it (never mid-word), so a
-   long one ("Won't fit · ~very slow") stays in its own column instead of running into Status. */
-.lu-mgrid :deep(.lu-fit) { white-space: normal; overflow-wrap: normal; border-radius: 10px; max-width: 100%; }
 /* Bench column — right-aligned, tabular. */
 .lu-mnum { text-align: right; font-variant-numeric: tabular-nums; }
 .lu-bench { font-weight: 600; color: var(--ink-2); }
@@ -1686,11 +1666,8 @@ refreshApplied();
    (each chip stays intact via its own nowrap) rather than widening the table. */
 .lu-mm { color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px; }
 .lu-typetag, .lu-mm :deep(.ui-tag) { white-space: nowrap; }
-/* WRAPS. Measured at the app's minimum window (1000px, the desktop window's minWidth): the button
-   cluster needed +31px more than its cell and overran it on 14 rows. Wrapping lets the
-   buttons stack on a narrow window instead of spilling out of the column — no width to
-   maintain, and it stays a single row at every wider size. */
-.lu-macts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; justify-content: flex-end; }
+/* One row: the buttons are the column's content, and the column is as wide as they are. */
+.lu-macts { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; justify-content: flex-end; }
 /* ⋯ overflow trigger — NOT portaled (it lives in the row), so it stays scoped. The
    portaled menu CONTENT (.lu-mmenu / .lu-mmi / .lu-mmsep) moved to common/styles.css
    beside .ui-select-content: the menu teleports its content to <body>, where a component's

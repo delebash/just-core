@@ -10,6 +10,11 @@
 > Items extracted from plan docs are marked **[verified]** (code-checked at
 > extraction) or **[attributed]** (the plan doc's claim, not re-verified).
 
+## FOUND 2026-10-15 — the provider form's Save button runs off a phone screen
+At 390 px, JustWrite's AI → Providers & models → Edit: the footer's **Save provider** button
+(`ui/src/views/ProviderForm.vue`, `.lu-pf-foot`) ends at 408 px in a 368 px tab, so the tab scrolls
+sideways by 40 px. Seen while measuring the table change; older than it, not fixed. Not asked yet.
+
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp
         and the AI model's door"): llama.cpp at b11239 uses mapped CPU weights in place, but the

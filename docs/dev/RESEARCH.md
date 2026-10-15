@@ -852,6 +852,22 @@ step Q3):
     gives rows 48px, cells `7px 16px` padding, every `td` `position: relative` with the hover and
     selection overlays on `td::before`/`::after`, `border-collapse: separate`, the card a white
     background, and `q-table--no-wrap` unless `wrap-cells`.
+  - A table wider than its box, and a pinned header (*docs + code + measured*, 2026-10-15): Quasar's
+    "Sticky header" (quasar.dev/vue-components/table#sticky-header-column) gives the table a height
+    or max-height ("height or max-height is important"), so `.q-table__middle.scroll` scrolls both
+    ways and the sticky header pins inside it. A sticky `th` pins to its nearest scroll container,
+    and any `overflow` but `visible`/`clip` makes one — so a wrapper that scrolls sideways always
+    takes the pin from an outer scroller, and no CSS can scroll it only while the table overflows
+    (a `scroll-state()` query needs a scroll container already). QTable's root is
+    `q-table__container column no-wrap` and `.q-table__card .q-table__middle` is `flex: 1 1 auto`:
+    a bounded UiTable needs only `min-height: 0` down to the wrapper. Chrome makes a scroller with
+    nothing keyboard-focusable inside a Tab stop itself (announced in the Chrome 118 beta; rolled out
+    in 124–125, developer.chrome.com/release-notes/124). Measured on JustWrite at a 1000 px window:
+    Characters' table 784 px in 642, Chapters' 766, Worldbuilding's 848, Analysis's 682 in 596 —
+    until 2026-10-15 they pushed their page sideways. The model catalog sized to its content needs
+    936 px (Model's widest tag 219 · Type 77 · License 136 · Bench 70 · Fit 146 · Status 103 ·
+    Actions 184): it fits from a ~1,330 px window; at 1280 its box is 886, which Model's tags
+    wrapping between words would reach exactly (Model 169).
   - QTable's own sort differs from TanStack's: null and undefined sort first ascending (TanStack:
     undefined last either way); other values compare as numbers, dates, booleans, or else as
     lower-cased strings — so "Zed 10" sorts before "Zed 9" (TanStack's automatic choice compares
