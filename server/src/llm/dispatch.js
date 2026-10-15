@@ -43,6 +43,19 @@ export function getEnsureLocalModel() {
   return ensureLocalModel;
 }
 
+/**
+ * For a host that resolves its own adapter instead of a feature route (docgen's engine presets):
+ * make `model` resident first when `adapter` is the built-in runner — the check the adapter makes
+ * itself before it asks for the router's URL (openai_compat.js `_apiBase`). The kit's run path
+ * does the same from a route (prompts.js `ensureLocalReady`). No-op without the hook, for any
+ * other provider, or with no model. Without it, a call on an unloaded model fails at once with
+ * "the bundled llama.cpp engine isn't running" (docgen's translation jobs, found 2026-10-15).
+ */
+export async function ensureLocalModelFor(adapter, model) {
+  if (ensureLocalModel == null || !model || adapter?.provider_type !== "local-llamacpp") return;
+  await ensureLocalModel(model);
+}
+
 // ── the host-injected local-router base URL (2026-08-03) ─────────────────────
 // The bundled runner's port is ALLOCATED at spawn, not fixed: every family app used to
 // spawn its router on :8080 and the second app's requests then reached the FIRST app's
