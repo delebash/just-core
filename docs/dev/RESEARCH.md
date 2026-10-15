@@ -1052,6 +1052,15 @@ GitHub API and raw files, unpkg; the plan:
   ("a hardcoded plaintext password") without a secret store; the async API is recommended
   (electronjs.org). `@aparajita/capacitor-secure-storage` 8.0.0 — Keychain on iOS, Keystore on
   Android (~166 stars); Capawesome's Secure Preferences is an Insiders (paid) plugin.
+- Node's global `fetch` (Node 26.5) sends no `Origin` header on a POST, so the shell's
+  `POST /v1/shutdown` to a stale server passes the CSRF guard. — *measured, 2026-10-15* (kit
+  a1ddee9, `server/src/shell/stale_server.js`).
+- `proper-lockfile` 4.1.2 (MIT; brings `signal-exit` 3.0.7 ISC and `retry` 0.12.0 MIT): an
+  `mkdir` lock, stale after 10 s by default and refreshed every 5 s, survives a system sleep,
+  released on process exit except SIGKILL or a fatal crash; `onCompromised` throws by default.
+  The kit locks each app's data folder at start (`server/src/platform/data_lock.js`, the folder
+  `server.lock` inside it; a start retries for 11 s to outlast a crashed server's stale lock).
+  — *code + test, 2026-10-15* (kit a1ddee9) · the package's README.
 
 ---
 
@@ -1190,6 +1199,14 @@ code.claude.com/docs/en/best-practices):
 - The OpenAI adapter speaks the Responses API and, when a reasoning model rejects
   `temperature`, retries once without it (`server/src/llm/openai_sdk.js:240`). Whether
   `gpt-6.1-sol` needs anything else is unchecked. — *code, 2026-10-10*.
+- Claude Off on Opus 5.5, Fable and Mythos (`GENERATIONS` `off: null`) sends no `thinking` field
+  and `output_config.effort` "low", the lowest of low / medium / high / xhigh / max; these models
+  answer 400 to `{type: "disabled"}` at every effort. The resolved route carries `alwaysThinks`,
+  and the thinking control says "This model always thinks — Off makes it think less." — *code,
+  2026-10-15* (kit f92c3de) · platform.claude.com/docs/en/build-with-claude/effort (fetched
+  2026-10-15); the `claude-api` skill, Migrating to Claude Opus 5.5 → Breaking change 1. Open:
+  `claude-mythos-preview` (the Anthropic SDK lists it) matches no `GENERATIONS` row, so it is
+  treated as a legacy model and sent `budget_tokens` — unchecked against the API.
 
 ---
 
