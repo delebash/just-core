@@ -300,4 +300,10 @@ const contentStyle = computed(() => {
   background: var(--surface-2);
   flex-shrink: 0;
 }
+/* At phone width (Quasar's xs) what doesn't fit on the footer's row drops to the row below, as the
+   header's does, rather than squeezing a field to nothing — JustVoice's New project held its name
+   box at 95 px and its language at "Lang…" (2026-10-15). */
+@media (max-width: 599.98px) {
+  .ui-modal__footer { flex-wrap: wrap; }
+}
 </style>
