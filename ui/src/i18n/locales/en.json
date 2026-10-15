@@ -1791,7 +1791,8 @@
       },
       "withTokens": "{level} ({tokens})",
       "custom": "Custom",
-      "customValue": "Custom ({value})"
+      "customValue": "Custom ({value})",
+      "alwaysThinks": "This model always thinks — Off makes it think less."
     },
     "modelType": {
       "moe": "MoE",

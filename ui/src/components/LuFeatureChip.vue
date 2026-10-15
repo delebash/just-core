@@ -42,7 +42,7 @@ import UiButton from "../common/components/UiButton.vue";
 import { request } from "../client.js";
 // resolvedSourceLabel: the budget line's layer names. Importing the module also arms
 // its any-write invalidation (QC-43), so a save here refreshes every mounted chip.
-import { resolvedSourceLabel } from "../composables/useResolvedRoute.js";
+import { resolvedSourceLabel, useResolvedRoute } from "../composables/useResolvedRoute.js";
 import {
   presetToThinkingControl, resolvedToThinkingControl, THINKING_CUSTOM,
   thinkingControlToWire, thinkingOptionsFor,
@@ -152,6 +152,23 @@ const budgetLine = computed(() => {
   return r.value == null
     ? t("kit.featureChip.budgetNoValue", { source: label })
     : t("kit.featureChip.budget", { value: r.value, source: label });
+});
+// A model that can't stop thinking (Claude Opus 5.5, Fable, Mythos) runs Off at its lowest
+// effort; the Thinking control says so for those models only (the narrowings review, P41 —
+// approved 2026-10-15). The model is the pin being written: the route row while the pin still
+// names it, else the route the server resolves for the repointed pin.
+const { ensureRoute, routeFor } = useResolvedRoute();
+const draftRouteArgs = computed(() => {
+  const pid = draftPin.value?.providerId || "";
+  const mdl = draftPin.value?.model || "";
+  return pid && mdl ? [props.feature, "", pid, mdl] : null;
+});
+watch(() => (popoverOpen.value && !pinNamesRoute.value && draftRouteArgs.value?.join("|")) || "", (key) => {
+  if (key) ensureRoute(...draftRouteArgs.value);
+});
+const draftAlwaysThinks = computed(() => {
+  if (pinNamesRoute.value) return !!props.route?.alwaysThinks;
+  return !!(draftRouteArgs.value && routeFor(...draftRouteArgs.value)?.alwaysThinks);
 });
 // -1 is a LEGAL typed value (never seeded) and honoured verbatim by the engine — so
 // it ships with the warning it earned: the Gemma thinking loop is verified on-box.
@@ -303,6 +320,7 @@ async function save() {
           </select>
         </label>
 
+        <div v-if="draftAlwaysThinks" class="afc-pop-cap">{{ t('kit.thinking.alwaysThinks') }}</div>
         <div v-if="budgetLine" class="afc-pop-cap">{{ budgetLine }}</div>
         <div v-if="isUnlimited" class="afc-pop-warn">{{ t('kit.featureChip.unlimited') }}</div>
         <!-- The gate REMOVAL (ruled 2026-08-06, "no fancy magic"): thinking is

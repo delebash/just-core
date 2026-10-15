@@ -64,8 +64,11 @@ export const CURATED_MODELS = [
 // matching no row is LEGACY (claude-haiku-4-5 and older): the classic budget_tokens (the
 // NUMBER from the reasoning_map, via the resolver), samplers allowed. Per row:
 //   off       how thinking is turned off — "disabled", "between_tools" (Sonnet 5.5 400s on
-//             disabled), or null where it can't be (Fable, Mythos, Opus 5.5 400 on disabled;
-//             the field is left out and the model thinks anyway)
+//             disabled), or null where it can't be (Fable, Mythos, Opus 5.5 400 on disabled):
+//             there Off leaves the field out and sends effort "low", the lowest level, so the
+//             model thinks as little as it can (the narrowings review, P41 — approved
+//             2026-10-15; platform.claude.com/docs/en/build-with-claude/effort, checked
+//             2026-10-15). The thinking control says so for these models (`alwaysThinks`).
 //   sampling  false where temperature / top_p / top_k 400 even with thinking off (removed, or
 //             any non-default value rejected)
 // First match wins, so a longer id sits above its prefix (opus-5-5 above opus-5).
@@ -84,6 +87,18 @@ const GENERATIONS = [
   ["sonnet-4-6", { off: "disabled", sampling: true }],
 ];
 const SAMPLERS = ["temperature", "top_p", "top_k"];
+
+/** The model's GENERATIONS row, or null for a legacy model. */
+const generationOf = (model) => {
+  const m = (model || "").toLowerCase();
+  return GENERATIONS.find(([s]) => m.includes(s))?.[1] ?? null;
+};
+
+/** True for a model that can't stop thinking (Fable, Mythos, Opus 5.5): Off asks it for effort
+ * "low" instead. The resolved route carries it, so the thinking control can say so. */
+export function alwaysThinks(model) {
+  return generationOf(model)?.off === null;
+}
 
 /** LLM adapter for Anthropic's Claude family over the official SDK. */
 export class AnthropicAdapter {
@@ -122,6 +137,11 @@ export class AnthropicAdapter {
     return this._client;
   }
 
+  /** Can `model` (default: this provider's) not stop thinking? The resolved route asks. */
+  alwaysThinks(model) {
+    return alwaysThinks(model || this.default_model);
+  }
+
   // ── helpers ─────────────────────────────────────────────────────
 
   /** Anthropic wants the system text in a top-level field and only user/assistant turns
@@ -135,15 +155,16 @@ export class AnthropicAdapter {
    * Anthropic extended thinking, model-aware (GENERATIONS). NEW models, on: adaptive
    * thinking + output_config.effort (the map WORD), samplers dropped (400-rejected under
    * thinking). NEW models, off: the generation's own off switch ("disabled" /
-   * "between_tools", or none where the model can't stop thinking), samplers dropped where the
-   * generation rejects them. LEGACY models: a `thinking` block with budget_tokens (the map
-   * NUMBER, ≥1024 AND < max_tokens) + a max_tokens bump; drop the temperature override.
+   * "between_tools"; where the model can't stop thinking, no `thinking` field and effort
+   * "low"), samplers dropped where the generation rejects them. LEGACY models: a `thinking`
+   * block with budget_tokens (the map NUMBER, ≥1024 AND < max_tokens) + a max_tokens bump;
+   * drop the temperature override.
    */
   static _applyReasoning(body, think, effort, budget, model) {
-    const m = (model || "").toLowerCase();
-    const gen = GENERATIONS.find(([s]) => m.includes(s))?.[1] ?? null;
+    const gen = generationOf(model);
     if (!think) {
       if (gen?.off) body.thinking = { type: gen.off };
+      else if (gen) body.output_config = { ...body.output_config, effort: "low" };
       if (gen && !gen.sampling) for (const k of SAMPLERS) delete body[k];
       return;
     }

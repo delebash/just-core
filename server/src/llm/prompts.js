@@ -370,6 +370,10 @@ export const ResolvedRouteResponse = T.Object({
   // --ctx-size; null off the local runner (a cloud provider publishes none) or when the
   // router can't say.
   context: opt(nullable(T.Integer()), null),
+  // The routed model can't stop thinking (Claude Opus 5.5, Fable, Mythos — the adapter's
+  // `alwaysThinks`): Off sends effort "low", and the thinking control says so (2026-10-15, the
+  // narrowings review, P41).
+  alwaysThinks: opt(T.Boolean(), false),
 });
 
 /** `x.strip()` of a str — a non-str raises as Python's AttributeError did (a 500). */
@@ -972,6 +976,7 @@ export function makeFeatureRouter(getStore, getConfig) {
           value: rp.value,
           valueSource: rp.source,
           context,
+          alwaysThinks: typeof adapter.alwaysThinks === "function" && adapter.alwaysThinks(mdl) === true,
         }),
       );
     },

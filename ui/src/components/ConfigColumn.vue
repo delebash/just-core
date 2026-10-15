@@ -308,6 +308,19 @@ const localBudgetLine = computed(() => {
   return t("kit.configColumn.localBudget", { value: r.value, source: label || r.valueSource });
 });
 
+// A model that can't stop thinking (Claude Opus 5.5, Fable, Mythos) runs Off at its lowest
+// effort; the Reasoning control says so for those models only (the narrowings review, P41 —
+// approved 2026-10-15). The route asked is the one this column's run takes: the same
+// providerId/model overrides the run sends (buildBody), the action's own route when none.
+const thinkRouteArgs = computed(() => {
+  const pin = props.modelValue?.pin;
+  return props.action ? [props.action, "", pin?.providerId || "", pin?.model || ""] : null;
+});
+watch(() => thinkRouteArgs.value?.join("|") || "", () => {
+  if (thinkRouteArgs.value) ensureRoute(...thinkRouteArgs.value);
+}, { immediate: true });
+const alwaysThinks = computed(() => !!(thinkRouteArgs.value && routeFor(...thinkRouteArgs.value)?.alwaysThinks));
+
 // The gate REMOVAL (ruled 2026-08-06, "no fancy magic"): thinking is sent
 // exactly as configured — no inactive state exists; a provider that can't
 // take the parameter answers with its own error plus the fix pointer.
@@ -706,6 +719,8 @@ defineExpose({ run, cancel });
          wrap this to a column of fragments. -->
     <div v-if="localBudgetLine" class="cc-localbudget lu-muted"
       :title="t('kit.configColumn.localBudgetTitle')">{{ localBudgetLine }}</div>
+    <!-- The Reasoning control's note for a model that can't stop thinking (P41). -->
+    <div v-if="alwaysThinks" class="cc-localbudget lu-muted">{{ t('kit.thinking.alwaysThinks') }}</div>
 
     <!-- Plane-2 long-tail samplers (KnobGrid checklist). temperature + top_p are
          excluded — they are edited in the per-call params row above. #35 (B4-3,

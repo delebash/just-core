@@ -22,7 +22,7 @@ import { APIError as AnthropicAPIError } from "@anthropic-ai/sdk";
 import { ApiError, EmbedContentResponse, GenerateContentResponse } from "@google/genai";
 import { APIError as OpenAIAPIError } from "openai";
 import { beforeEach, expect, test, vi } from "vitest";
-import { AnthropicAdapter } from "../src/llm/anthropic.js";
+import { AnthropicAdapter, alwaysThinks } from "../src/llm/anthropic.js";
 import { LLMMessage, popReasoning } from "../src/llm/base.js";
 import { GeminiAdapter } from "../src/llm/gemini.js";
 import { OllamaAdapter } from "../src/llm/ollama.js";
@@ -147,10 +147,11 @@ test("anthropic_reasoning_legacy_vs_new_model", () => {
   const b3 = {};
   AnthropicAdapter._applyReasoning(b3, false, "high", null, "claude-sonnet-5");
   expect(b3.thinking).toEqual({ type: "disabled" });
-  // Fable (always thinks), off → no thinking config forced.
+  // Fable (always thinks), off → no thinking config, effort "low" (P41).
   const b4 = {};
   AnthropicAdapter._applyReasoning(b4, false, "high", null, "claude-fable-5");
   expect("thinking" in b4).toBe(false);
+  expect(b4.output_config).toEqual({ effort: "low" });
   // LEGACY off → untouched.
   const b5 = { temperature: 0.7 };
   AnthropicAdapter._applyReasoning(b5, false, "high", 8192, "claude-haiku-4-5");
@@ -159,10 +160,12 @@ test("anthropic_reasoning_legacy_vs_new_model", () => {
 });
 
 test("anthropic_reasoning_5x_generations", () => {
-  // Opus 5.5 can't stop thinking: off leaves the field out, and the samplers go (a 400 otherwise).
+  // Opus 5.5 can't stop thinking: off leaves the field out and asks for effort "low" (P41), and
+  // the samplers go (a 400 otherwise).
   const a = { temperature: 0.7, top_p: 0.9 };
   AnthropicAdapter._applyReasoning(a, false, "high", null, "claude-opus-5-5");
   expect("thinking" in a || "temperature" in a || "top_p" in a).toBe(false);
+  expect(a.output_config).toEqual({ effort: "low" });
   // Sonnet 5.5 turns thinking off with between_tools ({type: "disabled"} is a 400).
   const s = { temperature: 0.7 };
   AnthropicAdapter._applyReasoning(s, false, "high", null, "claude-sonnet-5-5");
@@ -182,6 +185,38 @@ test("anthropic_reasoning_5x_generations", () => {
   const o46 = { temperature: 0.2 };
   AnthropicAdapter._applyReasoning(o46, false, "high", null, "claude-opus-4-6");
   expect(o46.temperature).toBe(0.2);
+});
+
+test("anthropic_off_on_a_model_that_always_thinks_sends_effort_low", () => {
+  // P41 (approved 2026-10-15): Opus 5.5, Fable and Mythos 400 on {type: "disabled"} at every
+  // effort, so Off sends no thinking field and effort "low", the lowest level
+  // (platform.claude.com/docs/en/build-with-claude/effort).
+  for (const id of ["claude-opus-5-5", "claude-fable-5", "claude-fable-5-1", "claude-mythos-5", "claude-mythos-5-1"]) {
+    const b = { max_tokens: 4096, temperature: 0.7 };
+    AnthropicAdapter._applyReasoning(b, false, "", null, id);
+    expect(b, id).toEqual({ max_tokens: 4096, output_config: { effort: "low" } });
+    expect(alwaysThinks(id), id).toBe(true);
+  }
+  // Another output_config field survives beside the effort.
+  const kept = { output_config: { format: { type: "json_schema" } } };
+  AnthropicAdapter._applyReasoning(kept, false, "", null, "claude-opus-5-5");
+  expect(kept.output_config).toEqual({ format: { type: "json_schema" }, effort: "low" });
+  // On, the level asked for is sent as before.
+  const on = {};
+  AnthropicAdapter._applyReasoning(on, true, "high", null, "claude-opus-5-5");
+  expect(on).toEqual({ thinking: { type: "adaptive" }, output_config: { effort: "high" } });
+  // Models that can turn thinking off, and legacy ones, are not "always thinks", and their Off
+  // sends no effort.
+  for (const id of ["claude-opus-5", "claude-sonnet-5-5", "claude-sonnet-5", "claude-haiku-5-5", "claude-opus-4-8", "claude-haiku-4-5", ""]) {
+    expect(alwaysThinks(id), id).toBe(false);
+    const b = {};
+    AnthropicAdapter._applyReasoning(b, false, "", null, id);
+    expect("output_config" in b, id).toBe(false);
+  }
+  // The adapter answers for its own default model when none is named.
+  expect(new AnthropicAdapter("a", { defaultModel: "claude-opus-5-5" }).alwaysThinks("")).toBe(true);
+  expect(new AnthropicAdapter("a").alwaysThinks("claude-fable-5-1")).toBe(true);
+  expect(new AnthropicAdapter("a").alwaysThinks("")).toBe(false); // claude-haiku-4-5
 });
 
 test("gemini_build_config_thinking_off_word_number", () => {

@@ -499,7 +499,7 @@ test("resolved_route_without_preset_falls_to_dispatch", async () => {
   expect(text).toBe(
     '{"feature":"greet","action":"","providerId":"fake","model":"m","presetId":"","presetName":"","presetSource":"",' +
       '"think":false,"level":"","reasoningWord":"","value":null,"valueSource":"","configured":true,"detail":"",' +
-      '"context":null}',
+      '"context":null,"alwaysThinks":false}',
   );
 });
 
@@ -513,6 +513,17 @@ test("resolved_route_override_params_win", async () => {
   expect(body.model).toBe("override-model"); // the override model, not the default
   expect(body.providerId).toBe(adapter.provider_id);
   expect(body.value).toBeNull(); // no preset / think off → no budget resolved
+});
+
+test("resolved_route_says_when_the_model_always_thinks", async () => {
+  // P41 (2026-10-15): a model that can't stop thinking (the Claude adapter's alwaysThinks —
+  // Opus 5.5, Fable, Mythos) is named on the route, so the thinking control can say so. An
+  // adapter without the method answers false.
+  const [c, adapter] = featureClient(new MemPromptStore());
+  expect((await (await c.get("/v1/ai/resolved-route?feature=greet&model=thinker")).json()).alwaysThinks).toBe(false);
+  adapter.alwaysThinks = (m) => m === "thinker";
+  expect((await (await c.get("/v1/ai/resolved-route?feature=greet&model=thinker")).json()).alwaysThinks).toBe(true);
+  expect((await (await c.get("/v1/ai/resolved-route?feature=greet&model=other")).json()).alwaysThinks).toBe(false);
 });
 
 test("resolved_route_unconfigured_is_honest", async () => {
