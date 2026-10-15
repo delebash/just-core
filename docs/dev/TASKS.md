@@ -189,8 +189,10 @@ OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (eac
         The language picker (D5) done 2026-10-13: the kit's LanguagePicker, in JustWrite's
         Appearance card. Task 4 (docgen) steps 1–2 done 2026-10-13 (docgen `b30422f`); the
         AppearancePanel's Language row becomes the picker with JustVoice's Task 5 (its session
-        asked to hold it). Next: Task 3 step 6's and Task 4 step 3's gates — both name D3's
-        pseudo-locale check, which awaits its own word — then Task 6.
+        asked to hold it). Task 3 step 6's and Task 4 step 3's gates run 2026-10-15 (the user:
+        "you have a go on it all get it all done"), all but D3's pseudo-locale check, which
+        awaits its own word (the plan has what ran and what was fixed). Next: D3; Task 6 — its
+        context sentences wait for the user's words (asked 2026-10-15).
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 
