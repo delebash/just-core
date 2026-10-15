@@ -658,8 +658,12 @@ export function runDesktopApp(config) {
       return null;
     },
     // The server's URL for the renderer's API base: at once when the server listens (or none
-    // is starting), else once its start ends.
+    // is starting), else once its start ends. A start that failed because another program held
+    // the port or another server the data folder is tried again first: the connection-error
+    // screen's Retry reloads the window, and its boot asks here (P6, 2026-10-15 — that program
+    // may be closed by now). A server stopped from the tray stays stopped.
     serverUrl() {
+      if (!state.server && state.serverPhase !== "starting" && (state.portTaken || state.dataFolderInUse)) void startServer();
       if (state.serverPhase !== "starting") return serverUrl();
       return new Promise((resolve) => urlWaiters.push(resolve));
     },
