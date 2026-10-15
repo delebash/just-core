@@ -197,8 +197,9 @@ OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (eac
         sentences as drafted, neutral Latin American Spanish with "tú", the glossary of the plan's
         four names plus the other product and format names in the catalogs, run unattended, the
         GPU only when JustVoice's session says it is free. The kit's catalog has its project at
-        `ui/just-ai-i18n-docgen/config.json`. Next: Task 6's lists (JustWrite's under way), then the
-        user's review in docgen.
+        `ui/just-ai-i18n-docgen/config.json`. Task 6's three lists staged 2026-10-15 (JustWrite
+        2,980, the kit 1,453 of 1,454, docgen 278 — JustWrite's TASKS). Next: the user's review in
+        docgen, then Apply per catalog.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 
