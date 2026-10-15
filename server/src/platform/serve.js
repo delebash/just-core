@@ -141,9 +141,13 @@ function dataFolderLocked(productName, dataDir) {
  * the port is still reported to the shell, which stops it. Held by another server of the app, the
  * start ends with `dataFolderInUse`'s words. The lock goes when the process exits.
  * `lockRetries` overrides proper-lockfile's retries (tests).
+ * `defaultDataDir`, when given, is the app's own default folder (its family ladder), used when
+ * neither `--data-dir` nor `<APP>_DATA_DIR` names one — so a headless run with no folder named is
+ * locked too, and `build` gets the same folder.
  */
-export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, productName, lockRetries, log = console }) {
+export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, productName, lockRetries, defaultDataDir, log = console }) {
   const args = parseServeArgs(argv, { envPrefix });
+  if (!args.dataDir && defaultDataDir) args.dataDir = path.resolve(await defaultDataDir());
   if (resolvePort) {
     args.port = await resolvePort(args);
     if (args.port != null && (await portInUse(args.port))) return cantListen(null, PROBE_HOST, args.port, addressInUse(), log);

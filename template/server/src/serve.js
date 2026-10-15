@@ -13,6 +13,9 @@ export async function main(argv = process.argv.slice(2)) {
   return runServer({
     argv,
     envPrefix: "FAMILY_TEMPLATE",
+    // One server per data folder (platform/data_lock.js): an app that keeps data names itself, and
+    // its default folder as `defaultDataDir`, so the folder is locked before `build` opens it.
+    productName: "Family Template",
     build: async ({ dataDir, host, port }) => ({
       app: await createApp({ dataDir, uiDir: process.env.FAMILY_TEMPLATE_UI_DIR || null }),
       host: host ?? "127.0.0.1",

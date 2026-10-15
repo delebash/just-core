@@ -61,7 +61,7 @@ test("a start right after a crash waits for the lock to go stale instead of refu
 
 test("a process that exits cleanly lets its lock go", async () => {
   const dir = newDir();
-  const mod = pathToFileURL(path.resolve("src/platform/data_lock.js")).href;
+  const mod = pathToFileURL(path.resolve(import.meta.dirname, "../src/platform/data_lock.js")).href;
   const child = spawn(
     process.execPath,
     ["--input-type=module", "-e", `const m = await import(${JSON.stringify(mod)}); await m.lockDataDir(${JSON.stringify(dir)}); console.log("locked"); process.exit(0);`],
@@ -124,4 +124,18 @@ test("the lock is taken before build, and only when the app names itself", async
   };
   await expect(runServer({ argv: ["serve", "--data-dir", other], envPrefix: null, build: build2 })).rejects.toThrow("stop here");
   expect(lockedAtBuild).toBe(false);
+});
+
+test("with no folder named, the app's default folder is locked and given to build", async () => {
+  const dir = newDir();
+  let seen = null;
+  const build = async (args) => {
+    seen = { dataDir: args.dataDir, locked: existsSync(path.join(dir, LOCK_NAME)) };
+    throw new Error("stop here");
+  };
+  await expect(
+    runServer({ argv: ["serve"], envPrefix: null, productName: "Docgen", defaultDataDir: () => dir, build }),
+  ).rejects.toThrow("stop here");
+  expect(seen).toEqual({ dataDir: path.resolve(dir), locked: true });
+  await lockfile.unlock(dir, { lockfilePath: path.join(dir, LOCK_NAME) });
 });
