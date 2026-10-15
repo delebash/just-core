@@ -1220,9 +1220,18 @@ code.claude.com/docs/en/best-practices):
   answer 400 to `{type: "disabled"}` at every effort. The resolved route carries `alwaysThinks`,
   and the thinking control says "This model always thinks — Off makes it think less." — *code,
   2026-10-15* (kit f92c3de) · platform.claude.com/docs/en/build-with-claude/effort (fetched
-  2026-10-15); the `claude-api` skill, Migrating to Claude Opus 5.5 → Breaking change 1. Open:
-  `claude-mythos-preview` (the Anthropic SDK lists it) matches no `GENERATIONS` row, so it is
-  treated as a legacy model and sent `budget_tokens` — unchecked against the API.
+  2026-10-15); the `claude-api` skill, Migrating to Claude Opus 5.5 → Breaking change 1.
+- `claude-mythos-preview` (invitation-only, succeeded by `claude-mythos-5-1`) matches no
+  `GENERATIONS` row, so it is sent the legacy `{type: "enabled", budget_tokens}` — which it
+  accepts: the migration guide's "Before (Mythos Preview / older models)" example sends exactly
+  that, and extended thinking is "accepted only on Claude 4.6 and earlier models and on Claude
+  Mythos Preview". Anthropic's SDK warns the form is deprecated for it ("Use
+  'thinking.type=adaptive' instead"). Whether it takes `output_config.effort` or `{type:
+  "disabled"}` is not documented, so it is NOT treated like Mythos 5 (which 400s on both a
+  budget and disabled); left on the legacy path. (was: "unchecked" — until 2026-10-15.) — *the
+  `claude-api` skill (cached 2026-10-06): model-migration.md "Migrating to Claude Fable 5.1",
+  prompt-caching.md "Rejected combinations"; `@anthropic-ai/sdk` 0.132.1
+  `MODELS_TO_WARN_WITH_THINKING_ENABLED`*.
 
 ---
 
