@@ -3,3 +3,10 @@
 # it holds the headless launcher (app-structure.md §Q.3).
 dist/
 node_modules/
+
+# docgen (just-ai-i18n-docgen) — the translation tool's machine state for the kit's catalog (the
+# lines its Setup page prints); config.json and *.accepted.json / *.notes.json are committed.
+ui/just-ai-i18n-docgen/*.probe.json
+ui/just-ai-i18n-docgen/.just-ai-i18n-docgen-cache.json
+ui/just-ai-i18n-docgen/.just-ai-i18n-docgen-probe-cache.json
+ui/just-ai-i18n-docgen/.just-ai-i18n-docgen-state.json

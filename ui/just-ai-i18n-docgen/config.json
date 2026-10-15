@@ -1,0 +1,24 @@
+{
+  "source": "../src/i18n/locales/en.json",
+  "targets": [
+    "es"
+  ],
+  "context": "Shared screens of a family of desktop apps: AI model setup, providers, sync, appearance and settings; write neutral Latin American Spanish and address the user as tú.",
+  "glossary": [
+    "JustWrite",
+    "JustVoice",
+    "docgen",
+    "llama.cpp",
+    "Hugging Face",
+    "GGUF",
+    "CUDA",
+    "OneDrive",
+    "Ollama",
+    "Dropbox",
+    "Vulkan",
+    "Tailscale",
+    "ZeroTier",
+    "EPUB",
+    "DOCX"
+  ]
+}

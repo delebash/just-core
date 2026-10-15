@@ -191,8 +191,14 @@ OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (eac
         AppearancePanel's Language row becomes the picker with JustVoice's Task 5 (its session
         asked to hold it). Task 3 step 6's and Task 4 step 3's gates run 2026-10-15 (the user:
         "you have a go on it all get it all done"), all but D3's pseudo-locale check, which
-        awaits its own word (the plan has what ran and what was fixed). Next: D3; Task 6 — its
-        context sentences wait for the user's words (asked 2026-10-15).
+        awaits its own word (the plan has what ran and what was fixed). Ruled 2026-10-15 ("your
+        rec on all go"; the words as shown are in JustWrite's TASKS): D3 no — vue-i18n's own
+        `missing` hook in the smoke's build instead (the plan, D3); Task 6 with the context
+        sentences as drafted, neutral Latin American Spanish with "tú", the glossary of the plan's
+        four names plus the other product and format names in the catalogs, run unattended, the
+        GPU only when JustVoice's session says it is free. The kit's catalog has its project at
+        `ui/just-ai-i18n-docgen/config.json`. Next: Task 6's lists (JustWrite's under way), then the
+        user's review in docgen.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 
