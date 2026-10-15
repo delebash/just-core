@@ -956,7 +956,8 @@
       "devices": {
         "title": "Devices",
         "none": "None yet.",
-        "network": "Synced over the network"
+        "network": "Synced over the network",
+        "beforeRestore": "{name} (before the restore on {date})"
       }
     },
     "configColumn": {

@@ -94,6 +94,15 @@ function ago(iso) {
 const KINDS = new Set(["file", "folder", "http"]);
 const kindLabel = (kind) => (KINDS.has(kind) ? t(`kit.sync.kind.${kind}`) : kind || "");
 
+// A device's name in the list. The id this device had before a restore stays an entry (its folder
+// copy is read for its newer work), marked by the server `retired: { name, at }`: it reads
+// "‹name› (before the restore on ‹date›)" — the name it had, the restore's date.
+function deviceLabel(p) {
+  const at = Date.parse(p.retired?.at ?? "");
+  if (!Number.isFinite(at)) return p.name || p.id;
+  return t("kit.sync.devices.beforeRestore", { name: p.retired.name || p.name || p.id, date: d(new Date(at)) });
+}
+
 async function load() {
   try {
     status.value = await request("/v1/sync/status");
@@ -284,7 +293,7 @@ onBeforeUnmount(() => clearInterval(timer));
     <!-- the status -->
     <div class="lu-card lu-sync-row">
       <div class="lu-sync-info">
-        <b v-if="latest">{{ t('kit.sync.status.synced', { ago: ago(latest.lastSync), from: latest.name || latest.id }) }}</b>
+        <b v-if="latest">{{ t('kit.sync.status.synced', { ago: ago(latest.lastSync), from: deviceLabel(latest) }) }}</b>
         <b v-else>{{ t('kit.sync.status.never') }}</b>
         <span class="lu-muted">{{ t('kit.sync.status.thisDevice', { name: status?.deviceName || "…" }) }}</span>
       </div>
@@ -390,7 +399,7 @@ onBeforeUnmount(() => clearInterval(timer));
       <b>{{ t('kit.sync.devices.title') }}</b>
       <span v-if="!(status?.peers ?? []).length" class="lu-muted"><em>{{ t('kit.sync.devices.none') }}</em></span>
       <div v-for="p in status?.peers ?? []" :key="p.id" class="lu-sync-device">
-        <span><b>{{ p.name || p.id }}</b> <span class="lu-muted">· {{ kindLabel(p.kind) }} · {{ ago(p.lastSync) }}</span></span>
+        <span><b>{{ deviceLabel(p) }}</b> <span class="lu-muted">· {{ kindLabel(p.kind) }} · {{ ago(p.lastSync) }}</span></span>
       </div>
       <template v-if="(settings.peers ?? []).length">
         <b class="lu-sync-sub">{{ t('kit.sync.devices.network') }}</b>
