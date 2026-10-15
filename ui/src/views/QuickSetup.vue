@@ -1225,7 +1225,9 @@ defineExpose({ openWizard });
 
 <style scoped>
 .lu-qs { border: 1px solid var(--border); border-radius: var(--r-md, 10px); background: var(--surface); padding: 12px 16px; }
-.lu-qs--bare { border: none; border-radius: 0; background: transparent; padding: 0; display: inline-flex; align-items: center; gap: 12px; }
+/* Wraps: the line beside the button drops below it when the row doesn't fit (at 390 px in Spanish
+   the button alone is 292 px, and the unwrapped row ran 127 px past its card). */
+.lu-qs--bare { border: none; border-radius: 0; background: transparent; padding: 0; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .lu-qs-barefor { font-size: 13.5px; font-weight: 600; color: var(--ink); }
 .lu-qs-baresub { font-size: 12px; line-height: 1.4; }
 .lu-qs-head { display: flex; align-items: center; gap: 12px; }
