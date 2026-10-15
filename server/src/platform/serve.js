@@ -27,6 +27,7 @@ import { serve } from "@hono/node-server";
 import { dataFolderInUse, lockDataDir } from "./data_lock.js";
 import { PROBE_HOST, portInUse } from "./port.js";
 import { closeApp } from "./server.js";
+import { registerServerStop } from "./shutdown_api.js";
 
 // The built UI on a computer's server (Node only — the phone's in-app server serves none): an app
 // takes it from here, so it uses the kit's @hono/node-server like everything else it serves.
@@ -195,6 +196,8 @@ export async function runServer({ argv = process.argv.slice(2), envPrefix, build
     })();
     return stopping;
   };
+  // POST /v1/shutdown (shutdown_api.js, when the app mounts it) stops through this same stop.
+  registerServerStop(stop);
 
   const port0 = process.parentPort;
   if (port0) {
