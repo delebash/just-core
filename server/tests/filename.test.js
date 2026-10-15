@@ -24,3 +24,12 @@ test("never_empty", () => {
   expect(safeTitle(null)).toBe("book");
   expect(safeTitle("???")).toBe("book");
 });
+
+test("a_name_of_its_own_when_nothing_is_left", () => {
+  // A chapter's file in JustVoice's chapter zip falls back to "Chapter 3", its voice lines to
+  // "voicelines" (2026-10-15, the JustVoice narrowings review R7).
+  expect(safeTitle("", "Chapter 3")).toBe("Chapter 3");
+  expect(safeTitle("???", "Chapter 3")).toBe("Chapter 3");
+  expect(safeTitle(null, "voicelines")).toBe("voicelines");
+  expect(safeTitle("Bigger Inside", "Chapter 3")).toBe("Bigger Inside");
+});

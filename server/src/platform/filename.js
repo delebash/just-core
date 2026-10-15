@@ -5,15 +5,16 @@
 /**
  * The title as written, minus the characters a Windows file name can't hold (`<>:"/\|?*` and the
  * control characters below U+0020), with the ends trimmed and trailing dots dropped. Never empty:
- * "book" when nothing is left. JustWrite's rule, moved here so JustVoice's exports name their
+ * `fallback` ("book" unless one is given — a chapter's "Chapter 3") when nothing is left.
+ * JustWrite's rule, moved here so JustVoice's exports name their
  * files the same way (decided 2026-10-13, the JustVoice narrowings review R7); since 2026-10-15
  * JustWrite's renderer and server import this one (the server's copy also dropped the control
  * characters, so this one does too).
  */
-export function safeTitle(title) {
+export function safeTitle(title, fallback = "book") {
   const s = String(title || "")
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, "")
     .trim()
     .replace(/\.+$/, "");
-  return s || "book";
+  return s || fallback;
 }
