@@ -1660,7 +1660,11 @@ refreshApplied();
    here. `:empty` collapses the line entirely on a row that has no tags. */
 .lu-mtags { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 3px; }
 .lu-mtags:empty { display: none; }
-.lu-mtags .lu-mbadge { margin-left: 0; }
+/* The tags are the Model column's text, so they wrap between words like the rest of it (the
+   browser's normal wrapping, 2026-10-15) and the longest one ("Not tuned here — 5 other PC
+   classes") doesn't set the column's width. Not QBadge's `multi-line`: that is
+   `word-break: break-all`, a break mid-word. */
+.lu-mtags .lu-mbadge { margin-left: 0; white-space: normal; }
 .lu-mgrid :deep(.lu-mgroup td) { background: var(--surface-2); color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; padding: 5px 11px; }
 /* The Type cell holds chips: let them WRAP onto a second line when the column is narrow
    (each chip stays intact via its own nowrap) rather than widening the table. */

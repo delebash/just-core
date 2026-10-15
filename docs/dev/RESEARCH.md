@@ -866,8 +866,10 @@ step Q3):
     Characters' table 784 px in 642, Chapters' 766, Worldbuilding's 848, Analysis's 682 in 596 —
     until 2026-10-15 they pushed their page sideways. The model catalog sized to its content needs
     936 px (Model's widest tag 219 · Type 77 · License 136 · Bench 70 · Fit 146 · Status 103 ·
-    Actions 184): it fits from a ~1,330 px window; at 1280 its box is 886, which Model's tags
-    wrapping between words would reach exactly (Model 169).
+    Actions 184): it fits from a ~1,330 px window; at 1280 its box is 886. With Model's tags
+    wrapping between words (`white-space: normal`) it needs 833 and fits from ~1,227 (1264 and 1280
+    measured). QBadge's own `multi-line` prop is `word-break: break-all` — a break mid-word — so it
+    is not the way to let a tag wrap (Quasar 2.35.0's QBadge.sass).
   - QTable's own sort differs from TanStack's: null and undefined sort first ascending (TanStack:
     undefined last either way); other values compare as numbers, dates, booleans, or else as
     lower-cased strings — so "Zed 10" sorts before "Zed 9" (TanStack's automatic choice compares
