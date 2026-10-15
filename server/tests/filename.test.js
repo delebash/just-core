@@ -15,6 +15,8 @@ test("a_title_keeps_its_spaces_apostrophes_and_letters", () => {
 test("only_what_windows_forbids_goes", () => {
   expect(safeTitle('A <B>: "C"/D\\E|F?G*')).toBe("A B CDEFG");
   expect(safeTitle("  Trailing dots...")).toBe("Trailing dots");
+  // Control characters (a tab or a newline pasted into a title) can't be in a file name either.
+  expect(safeTitle("Tab\there\nand\u0000null")).toBe("Tabhereandnull");
 });
 
 test("never_empty", () => {
