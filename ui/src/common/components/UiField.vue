@@ -7,18 +7,27 @@
 // falls back to the `label` prop. Styles are global (.ui-field* in
 // common/styles.css) so raw .ui-field markup works alongside this component.
 // Supersedes JvField.
-defineProps({
+// A label's trailing "(…)" — a unit, "Head silence (s)" — keeps its case under the uppercase
+// eyebrow (.ui-unit): "(S)" would read as siemens (2026-10-15).
+import { computed } from "vue";
+
+const props = defineProps({
   label: { type: String, default: "" },
   hint: { type: String, default: "" },
   layout: { type: String, default: "inline" }, // inline | block
   for: { type: String, default: undefined },
+});
+
+const parts = computed(() => {
+  const m = /^(.*\S)\s+(\([^()]*\))$/.exec(props.label);
+  return m ? { text: m[1], unit: m[2] } : { text: props.label, unit: "" };
 });
 </script>
 
 <template>
   <div class="ui-field" :class="layout === 'block' ? 'ui-field--block' : ''">
     <label v-if="$slots.label || label" :for="$attrs.for ?? undefined">
-      <slot name="label">{{ label }}</slot>
+      <slot name="label">{{ parts.text }}<span v-if="parts.unit" class="ui-unit">{{ ` ${parts.unit}` }}</span></slot>
     </label>
     <div>
       <slot />
