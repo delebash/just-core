@@ -1484,6 +1484,7 @@
       "err": {
         "backup": "Backup failed: {error}",
         "restore": "Restore failed: {error}",
+        "otherLibrary": "This backup is from another sync library. Stop using the cloud folder and remove your paired devices in Settings → Sync, then restore it.",
         "reset": "Reset failed: {error}"
       },
       "restore": {

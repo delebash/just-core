@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { makeDataRouter, sortedTables } from "../src/platform/data_api.js";
+import { ApiError } from "../src/platform/errors.js";
 import { createServer } from "../src/platform/server.js";
 import { openDatabase } from "../src/platform/sql.js";
 import { ZipReader, ZipWriter } from "../src/platform/zip.js";
@@ -112,6 +113,53 @@ test("backup_exclude_skips_named_asset_dirs_and_restore_leaves_live_copy", async
   expect(rr.status).toBe(200);
   expect(rows(engine)).toEqual({ 1: "original" });
   expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("still here after restore");
+});
+
+test("restore_hooks_run_around_the_copy_and_a_hook_refusal_is_the_answer", async () => {
+  // A synced app's restore steps (the sync package's appSync.restoreHooks): beforeCopy and
+  // afterCopy inside the copy's transaction, on its connection with the backup attached as `src`;
+  // afterTables once it committed. A hook's own error with a status is the answer, and nothing
+  // was copied.
+  const tmp = mkdtempSync(join(tmpdir(), "kit-data-hooks-"));
+  const db = join(tmp, "app.db");
+  const engine = openDatabase(db, { foreignKeys: false });
+  engine.exec(NOTES.ddl);
+  engine.run("INSERT INTO notes (id, body) VALUES (1, 'original')");
+  const calls = [];
+  let refuse = false;
+  const app = createServer({ typeBase: "https://example.test/errors/" });
+  app.route(
+    "/",
+    makeDataRouter({
+      getDbPath: () => db,
+      metadata: [NOTES],
+      runReset: () => {},
+      beforeCopy: (h) => {
+        calls.push(["beforeCopy", h.all("SELECT body FROM src.notes")[0].body, h.all("SELECT body FROM main.notes")[0].body]);
+        if (refuse) throw new ApiError(409, "restore-other-library", "Sync refused", "another library", { error: "restore-other-library" });
+      },
+      afterCopy: (h) => calls.push(["afterCopy", h.all("SELECT body FROM main.notes")[0].body]),
+      afterTables: () => calls.push(["afterTables", rows(engine)[1]]),
+    }),
+  );
+  const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
+  engine.run("UPDATE notes SET body = 'changed' WHERE id = 1");
+
+  expect((await upload(app, blob)).status).toBe(200);
+  expect(calls).toEqual([
+    ["beforeCopy", "original", "changed"],
+    ["afterCopy", "original"],
+    ["afterTables", "original"],
+  ]);
+
+  engine.run("UPDATE notes SET body = 'changed again' WHERE id = 1");
+  refuse = true;
+  calls.length = 0;
+  const r = await upload(app, blob);
+  expect(r.status).toBe(409);
+  expect(await r.json()).toMatchObject({ status: 409, detail: "another library", error: "restore-other-library" });
+  expect(calls.map((c) => c[0])).toEqual(["beforeCopy"]);
+  expect(rows(engine)).toEqual({ 1: "changed again" });
 });
 
 // Not in the Python file: the refusals as the Python router answered them (measured

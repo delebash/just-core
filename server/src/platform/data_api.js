@@ -165,7 +165,10 @@ async function receiveUpload(c, dest) {
  *   - `beforeCopy(h)` / `afterCopy(h)` → run inside the RESTORE's transaction, on its
  *                      connection with the backup attached as `src`, around the table copy — for
  *                      a synced app's own restore steps (its sync engine's state must follow the
- *                      restored rows; JustVoice's narrowings review P16).
+ *                      restored rows; JustVoice's narrowings review P16). An error a hook throws
+ *                      with a `statusCode` is the answer (the sync app layer's refusal of a backup
+ *                      from another sync library: 409, `error: "restore-other-library"`); the
+ *                      sync package's `appSync.restoreHooks` is all three.
  *   - `afterTables()` → right after the RESTORE's table copy commits, before the asset
  *                      folders are replaced (which can take minutes, and can fail): a synced app
  *                      runs its sync engine's step here, so no sync and no failed asset copy comes
@@ -261,7 +264,10 @@ export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null
         });
         h.exec("DETACH src");
       } catch (e) {
-        // surface restore failures as data (the transaction rolled back)
+        // a hook's own answer reaches the client as it is (a synced app refusing a backup from
+        // another sync library: 409 with its code); anything else is a failed restore — either way
+        // the transaction rolled back
+        if (Number.isInteger(e?.statusCode)) throw e;
         throw new HttpError(400, `restore failed: ${String(e?.message ?? e).slice(0, 300)}`);
       } finally {
         h.close();

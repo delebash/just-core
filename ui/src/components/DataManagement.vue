@@ -100,7 +100,11 @@ async function onImport(e) {
     pushToast({ message: t("kit.dataManagement.restore.done"), kind: "success" });
     setTimeout(() => window.location.reload(), 700);
   } catch (err) {
-    pushToast({ message: t("kit.dataManagement.err.restore", { error: err.message }), kind: "error" });
+    // A synced app refuses a backup from another sync library while it syncs (the sync package's
+    // restore hooks: 409, `error: "restore-other-library"`) — its own words, not "Restore failed".
+    const otherLibrary = err.problem?.error === "restore-other-library";
+    const message = otherLibrary ? t("kit.dataManagement.err.otherLibrary") : t("kit.dataManagement.err.restore", { error: err.message });
+    pushToast({ message, kind: "error" });
     busy.value = "";
   }
 }
