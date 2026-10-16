@@ -5,7 +5,39 @@
 // docs/plans/2026-10-08-the-phone.md), and `setServerTransport(workerFetch(worker))` sends the
 // requests there. Nothing else in the UI calls `fetch` for the server.
 
-const platformFetch = (input, init) => globalThis.fetch(input, init);
+// A keepalive request (a save that must outlive the page) is refused outright once the keepalive
+// bytes in flight would pass 64 KiB — the Fetch standard's limit (HTTP-network-or-cache fetch:
+// https://fetch.spec.whatwg.org/#http-network-or-cache-fetch; MDN RequestInit `keepalive`); the
+// browser sends nothing and rejects with "TypeError: Failed to fetch". Measured 2026-10-16:
+// JustWrite's book autosave failed every time once the book passed 64 KB. A request that doesn't
+// fit goes as an ordinary one instead — it still lands, unless the page is gone before it does.
+const KEEPALIVE_QUOTA = 64 * 1024;
+let keepaliveInFlight = 0;
+
+/** A request body's size in bytes; Infinity when it can't be known up front (a form, a stream). */
+function bodyBytes(body) {
+  if (body == null) return 0;
+  if (typeof body === "string") return new TextEncoder().encode(body).length;
+  if (typeof Blob !== "undefined" && body instanceof Blob) return body.size;
+  if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) return body.byteLength;
+  if (body instanceof URLSearchParams) return new TextEncoder().encode(body.toString()).length;
+  return Number.POSITIVE_INFINITY;
+}
+
+async function platformFetch(input, init) {
+  if (!init?.keepalive) return globalThis.fetch(input, init);
+  const bytes = bodyBytes(init.body);
+  if (keepaliveInFlight + bytes > KEEPALIVE_QUOTA) {
+    const { keepalive: _overQuota, ...ordinary } = init;
+    return globalThis.fetch(input, ordinary);
+  }
+  keepaliveInFlight += bytes;
+  try {
+    return await globalThis.fetch(input, init);
+  } finally {
+    keepaliveInFlight -= bytes;
+  }
+}
 let current = platformFetch;
 
 /** `fetch`, through the transport the app chose. */
