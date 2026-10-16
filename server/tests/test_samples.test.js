@@ -68,3 +68,18 @@ test("seed_fill_fans_actions_and_skips_present", async () => {
   const kept = (await list("brainstorm"))[0];
   expect(kept.variables.user_content).toBe("MY edited premise.");
 });
+
+test("seed_fill_adds_a_variable_a_stored_sample_lacks_keeping_its_values", async () => {
+  // A prompt gains a {{variable}}: the seed's sample gains it too, and a database seeded before
+  // gets it on the next boot — the run refuses a sample without it (HTTP 400). The user's own
+  // values stay (JustWrite's writer samples and {{storyContext}}, 2026-10-16).
+  const h = db.session();
+  const before = [{ actions: ["writerAI.continue"], label: "Storm", variables: { passage: "A storm." } }];
+  h.tx(() => stores.getTestSampleStore().seedFill(h, before));
+  const got = (await list("writerAI.continue"))[0];
+  await put({ id: got.id, action: "writerAI.continue", label: "Storm", variables: { passage: "MY storm." } });
+
+  const after = [{ actions: ["writerAI.continue"], label: "Storm", variables: { passage: "A storm.", storyContext: "" } }];
+  expect(h.tx(() => stores.getTestSampleStore().seedFill(h, after))).toBe(0);
+  expect((await list("writerAI.continue"))[0].variables).toEqual({ passage: "MY storm.", storyContext: "" });
+});

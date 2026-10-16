@@ -1255,11 +1255,20 @@ export class TestSampleStore {
   /**
    * Insert missing (action_key, label) samples on the GIVEN handle. Each host row authors
    * ONE blob and fans it to its sibling actions: `actions` (a list) — or a single `action`
-   * — names every action the blob seeds. Returns how many rows were added.
+   * — names every action the blob seeds. A sample already stored keeps every value it has and
+   * gains any variable the seed now carries that it lacks (2026-10-16: a prompt that gains a
+   * {{variable}} refuses a sample without it — JustWrite's writer samples and
+   * {{storyContext}}). Returns how many rows were added.
    */
   seedFill(h, rows) {
     let added = 0;
     let pos = 0;
+    const fillVars = (id, variables, skip = new Set()) => {
+      for (const [name, value] of Object.entries(variables)) {
+        const n = strip(name || "");
+        if (n && !skip.has(n)) h.insert("test_sample_vars", { sample_id: id, name: n, value: pyStrScalar(pyOr(value, "")) });
+      }
+    };
     for (const r of rows || []) {
       const label = strip(r.label || "");
       const variables = r.variables || {};
@@ -1272,13 +1281,15 @@ export class TestSampleStore {
       for (const action of actions) {
         const a = strip(action || "");
         if (!a) continue;
-        if (h.one("select id from test_samples where action_key = ? and label = ? limit 1", [a, label])) continue;
+        const stored = h.one("select id from test_samples where action_key = ? and label = ? limit 1", [a, label]);
+        if (stored) {
+          const has = new Set(h.all("select name from test_sample_vars where sample_id = ?", [stored.id]).map((v) => v.name));
+          fillVars(stored.id, variables, has);
+          continue;
+        }
         const id = Number(h.insert("test_samples", { action_key: a, label, position: pos }).lastInsertRowid);
         pos += 1;
-        for (const [name, value] of Object.entries(variables)) {
-          const n = strip(name || "");
-          if (n) h.insert("test_sample_vars", { sample_id: id, name: n, value: pyStrScalar(pyOr(value, "")) });
-        }
+        fillVars(id, variables);
         added += 1;
       }
     }
