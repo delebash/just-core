@@ -52,6 +52,22 @@ export function resolveFeaturePresetWithSource(featureKey, feature = null) {
   return resolveWithSource(layers);
 }
 
+/**
+ * The recipe a preset runs with — "local" or "frontier" (decided 2026-10-10, JustVoice's
+ * one-click plan §3: "Pick the recipe by kind of model, not size … frontier by default for cloud
+ * providers, local for the built-in engine, and editable"). The preset's own setting wins; ""
+ * follows its provider — a provider on this machine (`local`: the built-in engine, Ollama, LM
+ * Studio) is local, a metered cloud one frontier. No preset, or a provider no longer
+ * configured, reads as local, the recipe that asks least of a model.
+ */
+export function presetRecipe(preset) {
+  if (!preset) return "local";
+  if (preset.recipe === "local" || preset.recipe === "frontier") return preset.recipe;
+  const provider = preset.providerId ? stores.getProviderStore().get(preset.providerId) : null;
+  if (!provider) return "local";
+  return provider.local === false ? "frontier" : "local";
+}
+
 /** The engine preset an ACTION runs — its ref → its feature's ref (when given) → the global
  * default. `featureKey` is the ACTION id, so writerAI.continue and writerAI.tighten point
  * independently. */

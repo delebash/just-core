@@ -1523,6 +1523,11 @@
       "runsOn": "Runs on",
       "popHead": "Runs on {feature}",
       "thinking": "Thinking",
+      "recipe": "Recipe",
+      "recipeAuto": "From the provider — {recipe}",
+      "recipe_local": "Local",
+      "recipe_frontier": "Frontier",
+      "recipeTip": "How the app's AI steps ask this model: Local suits a smaller model on this machine, Frontier a large cloud model. From the provider: Local on this machine, Frontier on a cloud account.",
       "unlimited": "Unlimited ⚠ — this model has been observed to loop; may think until the context fills",
       "blast": "Changes the “{preset}” preset — used by {n} feature | Changes the “{preset}” preset — used by {n} features"
     },

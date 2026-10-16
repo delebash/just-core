@@ -92,6 +92,9 @@ const presetRow = ref(null); // the FULL EnginePresetRow, merged on save
 const memberCount = ref(0);
 const draftPin = ref(null); // { providerId, model } | null (LuModelPicker v-model)
 const draftThinking = ref(""); // "" (Off) | a level | THINKING_CUSTOM (display-only)
+// The preset's recipe (decided 2026-10-10, JustVoice's one-click plan §3): "" follows the provider
+// — on this machine local, a metered cloud one frontier — or the user's "local" / "frontier".
+const draftRecipe = ref("");
 const levelRows = ref([]); // the PROVIDER's reasoning-map rows [{ level, word, tokens }]
 
 // The options — the ONE shared builder (thinkingControl.js), identical to the Lab's:
@@ -105,6 +108,17 @@ const thinkingOptions = computed(() => thinkingOptionsFor({
 }));
 
 const presetName = computed(() => props.route?.presetName || t("kit.featureChip.thisPreset"));
+
+// What "" follows for the picked provider — the server's rule (preset_resolve.presetRecipe).
+const providerRecipe = computed(() => {
+  const p = providers.value.find((x) => x.id === (draftPin.value?.providerId || ""));
+  return p && p.local === false ? "frontier" : "local";
+});
+const recipeOptions = computed(() => [
+  { value: "", label: t("kit.featureChip.recipeAuto", { recipe: t(`kit.featureChip.recipe_${providerRecipe.value}`) }) },
+  { value: "local", label: t("kit.featureChip.recipe_local") },
+  { value: "frontier", label: t("kit.featureChip.recipe_frontier") },
+]);
 
 // ── local vs cloud (2026-07-16 — DISPLAY-ONLY since the preset tier) ─────────
 // Is the ROUTE's resolved provider the built-in runner? Uses the same
@@ -197,6 +211,7 @@ async function loadPopover() {
     // provider may be the dispatch fallback, not what the preset pins).
     presetRow.value = (presetsRes?.presets || []).find((p) => p.id === pid) || null;
     const p = presetRow.value;
+    draftRecipe.value = p?.recipe || "";
     draftPin.value = {
       providerId: p?.providerId || props.route?.providerId || "",
       model: p?.model || props.route?.model || "",
@@ -255,6 +270,7 @@ async function save() {
       providerId: draftPin.value?.providerId || "",
       model: draftPin.value?.model || "",
       ...thinkingControlToWire(draftThinking.value),
+      recipe: draftRecipe.value,
     };
     await request(`/v1/ai/engine-presets/${encodeURIComponent(presetRow.value.id)}`, {
       method: "PUT",
@@ -317,6 +333,14 @@ async function save() {
           <select class="lu-input afc-pop-sel" :value="draftThinking"
             @change="draftThinking = $event.target.value">
             <option v-for="o in thinkingOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+          </select>
+        </label>
+
+        <label class="afc-pop-field" :title="t('kit.featureChip.recipeTip')">
+          <span class="afc-pop-lbl">{{ t('kit.featureChip.recipe') }}</span>
+          <select class="lu-input afc-pop-sel" :value="draftRecipe"
+            @change="draftRecipe = $event.target.value">
+            <option v-for="o in recipeOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </label>
 

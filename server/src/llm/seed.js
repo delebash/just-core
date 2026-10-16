@@ -938,6 +938,7 @@ export function seedDefaultEnginePresets(h) {
       max_tokens: intOr(p, "max_tokens", 0),
       reasoning_effort: strOr(p, "reasoning_effort", ""),
       think: truthy(pyOr(get(p, "think"), false)),
+      recipe: strOr(p, "recipe", ""),
       position: intOr(p, "position", 0),
       built_in: true,
     });
@@ -1026,6 +1027,7 @@ export function resetPresetToFactory(presetId) {
         max_tokens: intOr(p, "max_tokens", 0),
         reasoning_effort: strOr(p, "reasoning_effort", ""),
         think: truthy(pyOr(get(p, "think"), false)),
+        recipe: strOr(p, "recipe", ""),
       },
       { id: presetId },
     );

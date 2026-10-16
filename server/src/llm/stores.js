@@ -560,6 +560,7 @@ const enginePresetToWire = (p, samplers) => ({
   maxTokens: p.max_tokens,
   reasoningEffort: p.reasoning_effort,
   think: p.think,
+  recipe: p.recipe ?? "",
   samplers: samplers.map((x) => ({ flagName: x.param_name, flagValue: x.value })),
   builtIn: p.built_in,
   position: p.position,
@@ -581,6 +582,9 @@ export function _deleteEnginePresetRows(h, ids) {
   h.run(`delete from feature_preset_refs where preset_id in (${inList(ids)})`, ids);
   h.run(`delete from engine_presets where id in (${inList(ids)})`, ids);
 }
+
+/** A preset's stored recipe: "" (follow the provider), "local" or "frontier". */
+export const RECIPES = ["", "local", "frontier"];
 
 export class EnginePresetStore {
   list() {
@@ -616,6 +620,7 @@ export class EnginePresetStore {
         max_tokens: p.maxTokens,
         reasoning_effort: p.reasoningEffort,
         think: p.think,
+        recipe: RECIPES.includes(p.recipe) ? p.recipe : "",
       };
       if (h.get("engine_presets", pid)) h.update("engine_presets", vals, { id: pid });
       else h.insert("engine_presets", { id: pid, position: h.count("engine_presets"), ...vals });

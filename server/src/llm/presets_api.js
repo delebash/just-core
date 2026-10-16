@@ -45,6 +45,10 @@ export const EnginePresetRow = T.Object({
   maxTokens: opt(T.Integer(), 0), // 0 → no cap
   reasoningEffort: opt(T.String(), ""), // "" | low | medium | high | xhigh | max
   think: opt(T.Boolean(), false), // STORED (U2-T3): thinking on/off, no longer derived from the level
+  // How an app's AI steps treat this model (decided 2026-10-10, JustVoice's one-click plan §3):
+  // "" follows the provider — a provider on this machine is "local", a metered cloud one
+  // "frontier" (preset_resolve.presetRecipe) — or "local" / "frontier" as the user sets it.
+  recipe: opt(T.String(), ""),
   samplers: opt(T.Array(PresetFlagRow), []), // long-tail Plane-2 samplers
   builtIn: opt(T.Boolean(), false),
   position: opt(T.Integer(), 0),

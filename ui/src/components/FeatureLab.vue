@@ -116,7 +116,7 @@ async function updatePreset(id, cfg) {
   if (!id || !cfg) return;
   const p = props.presets.find((x) => x.id === id);
   if (!p) return;  // preset not in the list (e.g. just deleted) → no-op, never silently rename
-  const r = await request(`/v1/ai/engine-presets/${id}`, { method: "PUT", body: cfgToEnginePreset(p.name, cfg) });
+  const r = await request(`/v1/ai/engine-presets/${id}`, { method: "PUT", body: { ...cfgToEnginePreset(p.name, cfg), recipe: p.recipe || "" } });
   emit("presets-changed", r.presets || []);
   pushToast({ message: t("kit.lab.presetSaved"), kind: "success" }); // after the await → success-only
 }

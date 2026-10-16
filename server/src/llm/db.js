@@ -30,6 +30,7 @@ export const ADDED_COLUMNS = [
   ["hardware_classes", "vram_bw_gbps", "REAL NOT NULL DEFAULT 0"],
   ["hardware_classes", "ram_bw_gbps", "REAL NOT NULL DEFAULT 0"],
   ["engine_presets", "think", "BOOLEAN NOT NULL DEFAULT 0"],
+  ["engine_presets", "recipe", "VARCHAR NOT NULL DEFAULT ''"],
   ["knob_catalog", "backends", "VARCHAR NOT NULL DEFAULT ''"],
   ["model_tunes", "backend", "VARCHAR NOT NULL DEFAULT ''"],
   ["model_measurements", "backend", "VARCHAR NOT NULL DEFAULT ''"],

@@ -4,7 +4,7 @@
 // the task tier is gone), the dangling fall-through, and the factory resets, over an
 // in-memory DB.
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { resolveFeaturePreset, resolveFeaturePresetWithSource } from "../src/llm/preset_resolve.js";
+import { presetRecipe, resolveFeaturePreset, resolveFeaturePresetWithSource } from "../src/llm/preset_resolve.js";
 import { makePresetsRouter } from "../src/llm/presets_api.js";
 import * as seed from "../src/llm/seed.js";
 import * as stores from "../src/llm/stores.js";
@@ -239,6 +239,7 @@ test("the presets router answers as FastAPI did", async () => {
     maxTokens: 0,
     reasoningEffort: "",
     think: false,
+    recipe: "",
     samplers: [],
     builtIn: false,
     position: 0,
@@ -276,4 +277,32 @@ test("reset_feature_ref restores the seeded ref and points it at the routing def
   stores.getFeaturePresetRefStore().set("other", "p_s");
   const r2 = await req("POST", "/v1/ai/preset-assignments/feature/other/reset");
   expect((await r2.json()).features).toEqual({ critique: "p_s" });
+});
+
+// The recipe (decided 2026-10-10, JustVoice's one-click plan §3): stored as set, "" by default,
+// anything else stored as "".
+test("a_presets_recipe_round_trips", async () => {
+  let r = await req("POST", "/v1/ai/engine-presets", { name: "F", recipe: "frontier" });
+  const id = await pid(r, "F");
+  let p = stores.getEnginePresetStore().list().find((x) => x.id === id);
+  expect(p.recipe).toBe("frontier");
+  r = await req("PUT", `/v1/ai/engine-presets/${id}`, { name: "F", recipe: "local" });
+  p = (await r.json()).presets.find((x) => x.id === id);
+  expect(p.recipe).toBe("local");
+  r = await req("PUT", `/v1/ai/engine-presets/${id}`, { name: "F", recipe: "huge" });
+  p = (await r.json()).presets.find((x) => x.id === id);
+  expect(p.recipe).toBe("");
+});
+
+// "" follows the provider: on this machine local, a metered cloud account frontier; the preset's
+// own setting wins; no preset or an unknown provider reads as local.
+test("a_blank_recipe_follows_the_provider", () => {
+  stores.getProviderStore().add({ id: "here", providerType: "openai-compat", local: true });
+  stores.getProviderStore().add({ id: "cloud", providerType: "anthropic", local: false });
+  expect(presetRecipe({ providerId: "here", recipe: "" })).toBe("local");
+  expect(presetRecipe({ providerId: "cloud", recipe: "" })).toBe("frontier");
+  expect(presetRecipe({ providerId: "cloud", recipe: "local" })).toBe("local");
+  expect(presetRecipe({ providerId: "here", recipe: "frontier" })).toBe("frontier");
+  expect(presetRecipe({ providerId: "gone", recipe: "" })).toBe("local");
+  expect(presetRecipe(null)).toBe("local");
 });
