@@ -2120,7 +2120,7 @@ export class RunnerService {
         this._router = null;
         this._resident.clear();
         this._cancelEvents.clear();
-        this._arbiter.clear(); // full teardown → drop the whole VRAM ledger
+        this._arbiter.releaseKind("llm"); // full teardown → drop the AI models' bookings, not an app's speech slots
         this._activeEntries.clear(); // T3: nothing resident → no loaded-with configs
         this._lastIniText = "";
         this._lastId = "";

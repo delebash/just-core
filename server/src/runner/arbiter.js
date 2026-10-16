@@ -278,6 +278,13 @@ export class VramArbiter {
     this._reservations.delete(key);
   }
 
+  /** Drop every booking of one owner kind — a full stop of the AI models releases theirs, while
+   * another owner's (an app's speech slots, "tts"/"stt") stay booked: dropping those made a
+   * speech model still on the card read as other programs' memory (JustVoice, 2026-10-15). */
+  releaseKind(kind) {
+    for (const [k, r] of [...this._reservations]) if (r.kind === kind) this._reservations.delete(k);
+  }
+
   /** Mark `key` most-recently-used (a generate/measure kept it warm) so it isn't the next LRU
    * eviction victim. No-op if not reserved. */
   touch(key) {

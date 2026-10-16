@@ -46,6 +46,19 @@ test("release_is_idempotent", () => {
   expect(a.count()).toBe(0);
 });
 
+test("release_kind_keeps_other_owners", () => {
+  // A full stop of the AI models drops their bookings only: an app's speech slot still on the
+  // card stays booked, or it reads as other programs' memory (JustVoice, 2026-10-15).
+  const a = arb();
+  a.reserve("gemma", 4000);
+  a.reserve("tts:kokoro", 1000, { kind: "tts" });
+  a.reserve("stt:asr", 500, { kind: "stt" });
+  a.releaseKind("llm");
+  expect(a.isReserved("gemma")).toBe(false);
+  expect(a.isReserved("tts:kokoro")).toBe(true);
+  expect(a.isReserved("stt:asr")).toBe(true);
+});
+
 test("reserve_replaces_same_key", () => {
   const a = arb(8000);
   a.reserve("chat", 5000);
