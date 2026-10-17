@@ -10,6 +10,64 @@
 > Items extracted from plan docs are marked **[verified]** (code-checked at
 > extraction) or **[attributed]** (the plan doc's claim, not re-verified).
 
+## A standard start for every new just app: a `/new-just-app` skill on the kit's `template/` [2026-10-17]
+STATE:  PARTLY DECIDED 2026-10-17 (session web-2a, run from `E:\Dev\Web`). The user, verbatim:
+        "we should have a standard for any just app or any new just app so when i start a project
+        you know how to create ai what questions to ask how to setup your self, what do you need to
+        to do to make setting up any just app standard, the app will use same framework and
+        everything sine it will be an app that uses ai" · "all of the apps have been and will be
+        written by you or other ai … all apps from now on are 100% don by ai, only human
+        interaction is limited testing". On the first rec: "i do not want ci on every push enabled
+        by default, that is a stupid design, think on it again a skill is fine or a template repo,
+        the questions ai where it runs well our standard llm runner offers both so that is a mute
+        question, think on your rec again".
+        The rec as shown the second time (not yet approved as a whole): "A skill, on top of the
+        template we already have. The files stay in `just-llm-runner/template/`. The skill holds
+        only the questions and the steps" — at user level (`~/.claude/skills/new-just-app/`,
+        because a new empty folder has no project skills), versioned in `claude-config` (how that
+        repo syncs to `~/.claude` is unchecked), pointing to app-structure §1 and §12 for the
+        rules. The questions: 1 the name (id, port and package names follow under §1); 2 what it
+        does — its features and who uses them, written to `docs/dev/SPEC.md`, each feature with
+        how it's proven; 3 any outside data or services; 4 anything that departs from the family
+        standard. Never asked: Quasar with web, desktop and phone; local and cloud AI through the
+        kit's runner; the Node server and SQLite, the kit's controls, Biome, plain JavaScript; the
+        MIT licence. Claude's own setup: CLAUDE.md from the template; the family-rules import
+        approved once per project (declined, it silently never loads — RESEARCH §6), which the
+        skill tells the user; a `.claude/settings.json` allowing the app's own commands. "The
+        check, run on commit": a git pre-commit hook (Husky) runs the line every CLAUDE.md marks
+        "must pass before a commit".
+        The user's answers: "1 what is this? 2 yes 3 it should be onluy run by hand please fix it
+        4 another session is still planning the app when its ready can it run the skill? can you
+        let that session handle it onces it ready and then we close this session".
+DECIDED: other AI tools (Codex, Cursor, Copilot) will work in these repos, so each needs an
+        `AGENTS.md` (answer 2). CI runs only by hand (answer 3): JustVoice's `ci.yml` is
+        `workflow_dispatch` only (JustVoice 0a0f6f8c).
+WHY:    every family app is written by AI and the human only tests a little. Today a new app is
+        "copy `template/`, follow §1 and §12", which each session finds and reads by itself, and the
+        questions asked change from session to session; just-house-paint (2026-10-17) has `docs/`
+        and `data/` but no git, no CLAUDE.md and no app.
+NOT:    CI on every push ("a stupid design") · a GitHub template repo (it can't ask the questions
+        or rename the id and port, and the template reaches the kit by a relative path; moving
+        `template/` out splits it from the kit the guard checks it against) · questions about AI,
+        platforms or licence (the runner offers local and cloud; the template carries web, desktop
+        and phone; the kit, JustWrite, JustVoice and the sync engine are MIT) · a Stop hook (it
+        fires at the end of every turn, even an answer) · an MCP server per app (the `/v1` API
+        already lets an agent drive everything) · the `/v1` malformed-input route test (kit work,
+        not new-app setup).
+OPEN:   1. The pre-commit hook — the user asked "what is this?" (explained in session web-2a);
+           needs a decision. It reverses the "a guard hook" half of the 2026-10-09 NOT list ("The
+           family standard…", below). Its cost: every commit waits for that line (JustVoice's
+           includes its tests, about 2½ minutes on 2026-10-17).
+        2. The `AGENTS.md` design, shown with its standard's link (agents.md): Claude Code reads
+           CLAUDE.md, other tools read AGENTS.md and don't follow `@` imports, so `family-rules.md`
+           can't reach them through an import as it reaches Claude.
+        3. The skill: not built, no go yet.
+        4. Its first real run: just-house-paint, by that app's planning session once its plan is
+           ready (answer 4).
+        5. `just-sqlite-sync`'s `ci.yml` still runs on push and pull requests — not named in the
+           go; ask.
+GO:     given 2026-10-17 for answer 3 (JustVoice's CI) only.
+
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp
         and the AI model's door"): llama.cpp at b11239 uses mapped CPU weights in place, but the
