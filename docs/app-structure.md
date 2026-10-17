@@ -94,7 +94,7 @@ every app. Its fields (the template's file is the reference; the guard checks th
 
 | Field | What |
 |---|---|
-| `id` | the kebab name — the `app://` host, the tray id, `com.<id>.app` |
+| `id` | `just<name>` — lowercase letters and digits, no hyphens (an Android applicationId allows only `[a-zA-Z0-9_]`; the template's is `familytemplate`) — the `app://` host, the tray id, `com.<id>.app` |
 | `appName` | the data folder's name under the OS fallback (Q.8) |
 | `productName` | shown in the tray and dialogs |
 | `port` | the app's registered server port (§1) |
@@ -325,7 +325,7 @@ Chromium keeps its files there locked and the watcher fails on them (EBUSY).
 | `build:spa` | `quasar build` — the browser build (`dist/spa`), served by the server for headless use |
 | `build:unpacked` | `quasar build -m electron --skip-pkg` — the desktop app unpackaged (`dist/electron/UnPackaged`), what the e2e harness drives |
 | `build:android` | `quasar build -m capacitor -T android` — where the app has a phone app |
-| `server` · `test:server` | `node scripts/node24.js server/src/serve.js serve` · vitest the same way — on Electron's own Node 24, the runtime the server ships on (`scripts/node24.js` runs `src-electron`'s Electron with `ELECTRON_RUN_AS_NODE=1`), never the `node` first on PATH |
+| `server` · `test:server` | `node scripts/node24.js server/src/serve.js serve` · vitest the same way — on Electron's own Node 24, the runtime the server ships on (`scripts/node24.js` runs `src-electron`'s Electron with `ELECTRON_RUN_AS_NODE=1`), never the `node` first on PATH. `test:server` is every app's; the template has no server tests, so no script |
 | `lint` | `biome check .` |
 
 `npm install` installs the root and the `server/` workspace; `src-electron/` (and
@@ -339,6 +339,11 @@ Chromium keeps its files there locked and the watcher fails on them (EBUSY).
   exactly as Q.9 (`server` through `scripts/node24.js`); no `tauri` script.
 - **server** (check 4): `server/src/serve.js`; `server/package.json` named `<app>-server` with
   `"type": "module"`; tests in `server/tests/*.test.js` (not for the template).
+- **the theme**: `postcss.config.js` runs the kit's `quasarBaseLayer()`;
+  `src/css/quasar.variables.scss` imports `@delebash/llm-ui/quasar/variables.scss`;
+  `quasar.config.js`'s `framework.config` sets `ripple: false` (Q.4).
+- **ports**: the desktop main's `port` matches `APP_PORTS`; `devServer` (and its HMR port, where
+  set) matches `DEV_PORTS` (§1).
 - **desktop main** (check 14): `src-electron/electron-main.js` imports `runDesktopApp` from the
   kit's shell and nothing but `node:*` and `'#q-app/electron/main'`, passes the required fields
   and the registry port; `src-electron/electron-preload.js` imports the kit's preload.
@@ -419,16 +424,25 @@ The template is the reference.
 
 - **Start from the family template**: a new app is a copy of this repo's `template/` (§Q),
   renamed — the official Quasar scaffold already made into the family shape, every change from
-  Quasar's default listed in its README.
-- **Names, one per layer**: the repo name (any style) · the shell's `id` (the `app://` host)
-  and the identifier `com.<id>.app` · the server package `<app>-server` (§Q.3) · the headless
-  launcher `<app>-server`, never the app executable's name (§Q.3).
-- **Port registry** (a new app claims the next): JW **17495** · JV **17494** ·
-  i18n-docgen **8742** · the template **17490**. (This registry said "JV 8741" until
-  2026-08-04 while JV listened on 17494 — the registry records reality; verify against the
-  `port` the app's desktop main passes before repeating it.) The app's OWN server port is the
-  only one it claims — the bundled engine's router port is **allocated at spawn**, never
-  registered and never assumed (§8), so two family apps can run at once.
+  Quasar's default listed in its README. Copy only its tracked files (`git ls-files template`)
+  and regenerate the lockfiles. (A `/new-just-app` skill that does all of this is being built —
+  this repo's TASKS, "A standard start for every new just app".)
+- **Names, one per layer** — every new app is `just-<name>` (the user, 2026-10-17; the existing
+  apps keep their names): the repo `just-<name>` · the shell's `id` `just<name>` (the `app://`
+  host; no hyphens, Q.2) and the identifier `com.<id>.app` · the server package
+  `just-<name>-server` (§Q.3) · the headless launcher `just-<name>-server`, never the app
+  executable's name (§Q.3).
+- **Port registry** — in the guard, `scripts/check-family.js`: `APP_PORTS` (the server) and
+  `DEV_PORTS` (the dev server and its HMR port). Server: JW **17495** · JV **17494** ·
+  i18n-docgen **8742** · the template **17490**. Dev: JW **1420** · JV **1430**/1431 · docgen
+  **1450**/1451 · the template **9000**. A new app takes the next free ones — not 17496 (JW's
+  smoke scratch port) or 1440 (JV's second renderer) — and is added to both, and to `APPS`, once
+  it passes the guard. (The server registry said "JV 8741" until 2026-08-04 while JV listened on
+  17494 — the registry records reality; the guard checks it against the `port` the desktop main
+  passes and the dev server's port.) The app's OWN ports are the only ones it claims — the
+  bundled engine's router port is **allocated at spawn**, never registered and never assumed
+  (§8), so two family apps can run at once. The dev port is set in three places that must agree:
+  `quasar.config.js` `devServer`, the server's dev origins, and `installLlmUi`'s `devPorts`.
 - **Env vars**: data dir `<SNAKE_NAME_UPPER>_DATA_DIR` (e.g. `JUSTWRITE_DATA_DIR`).
 
 ## 2 · Root files — the exact contract
@@ -436,7 +450,8 @@ The template is the reference.
 **The npm script NAMES are the contract** (`npm run dev` opens the DESKTOP APP in every repo;
 getting this wrong is the #1 confusion) — §Q.9.
 
-- **biome.json** — copy from a sibling verbatim, including the `**/*.vue`
+- **biome.json** — the template's, byte-identical to every app's (the guard compares the apps'),
+  including the `**/*.vue`
   override that turns `noUnusedImports`/`noUndeclaredVariables` OFF for SFCs (Biome cannot
   see template usage; without the override every view file is a false positive).
 - **index.html** — the app's real `<title>`; no scaffold logos; the family CSP `<meta>` (§Q.5),
@@ -453,8 +468,9 @@ getting this wrong is the #1 confusion) — §Q.9.
 
 ## 3 · quasar.config.js — the kit consumption contract
 
-The kit's UI is consumed as SOURCE from the sibling checkout — no publish step exists. The apps'
-`quasar.config.js` files are the reference:
+The kit's UI is consumed as SOURCE from the sibling checkout — no publish step exists. The
+template's `quasar.config.js` is the reference (§Q wins); this is the part every app carries — an
+app adds the `@renderer` alias with its tests (§14) and sets its registered dev ports (§1):
 
 ```js
 build: {
@@ -475,8 +491,9 @@ build: {
     viteConf.server.watch = { ignored: [ '**/server/**', '**/data/**', '**/dist/**' ] }
   },
 },
-devServer: { host: '127.0.0.1', port: 1430, strictPort: true, hmr: { port: 1431 } },
-// per-app: JW 1420 · JV 1430/1431 · docgen 1450/1451 — the ports installLlmUi's devPorts names
+devServer: { host: '127.0.0.1', port: 1430, strictPort: true, hmr: { port: 1431 }, open: false },
+// per-app (the guard's DEV_PORTS): JW 1420 · JV 1430/1431 · docgen 1450/1451 · template 9000 —
+// the ports installLlmUi's devPorts names
 ```
 
 NO `/v1` proxy: nothing requests a relative `/v1`. The kit's origin-aware resolver builds
@@ -577,7 +594,7 @@ The standard is `installLlm` — a few lines plus seeds, identical in every app
 `server/src/app.js` and `database/seed.js` are the reference). The server is §Q.3's.
 
 ```js
-app.register(runnerRouter);                               // the host's line (/v1/llm-runner/*)
+app.route("/", runnerRouter());                           // the host's line (/v1/llm-runner/*)
 await installLlm(app, { db, dataDir, product: PRODUCT,
   featureCatalog: FEATURES,                               // this app's actions
   featurePrompts: {} /* or PROMPTS */,                    // {} if the app builds its own
@@ -777,8 +794,8 @@ Server wiring is JW's lines, ring BEFORE app construction:
 ```js
 installLogRing();
 installFileLog(path.join(dataDir, "logs", "<kebab-name>.log"));
-app.register(makeLogsRouter(PRODUCT));
-app.register(makeDiskRouter(dataDir));
+app.route("/", makeLogsRouter(PRODUCT));
+app.route("/", makeDiskRouter(dataDir));
 ```
 
 The tray, keep-running, "Open log file" and the Storage verbs are the kit shell's (§Q.2).
@@ -916,6 +933,11 @@ docs campaign the same day):
   this repo's tracker, app work in the app's. One item, one home; cross-repo
   interest is a pointer, not a copy.
 - **`docs/dev/IDEAS.md`** holds unscheduled ideas — adding one is never starting it.
+- **`docs/dev/PRD.md`** (every app — ruled 2026-10-17) is what the app is for: who uses it, its
+  features and how each one is proven, the outside data, accounts or paid services it uses, and
+  what's out of scope. It is written from an interview with the user when the app is created; it
+  changes when the product does, like any doc, and a feature's detail lives in its plan doc, not
+  here.
 - **`docs/dev/RESEARCH.md` is the research register** (ruled 2026-10-04) — what is
   already known, by subject, one verified fact per bullet with how and when it was
   checked and where the proof is. **Read the subject's section before researching

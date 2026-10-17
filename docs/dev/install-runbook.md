@@ -13,56 +13,26 @@ exists because the à-la-carte version shipped silent breakage (four configure
 calls, hand-mounted hosts, a missing attribute — all measured failures,
 recorded in `ui/src/installLlmUi.js`'s header).
 
-## The server half — Python
+## The server half — Node (Hono)
 
-1. **Depend on the package.** Dev machines install it editable ONCE and never
-   pin it:
+The kit's server is plain JavaScript on Node 24 (Electron's) since the family's move off Python
+(2026-10-07); its recipe is the kit's `server/README.md` "Consume it", and app-structure §8 is
+the depth. In order:
 
-   ```bash
-   pip install -e ../just-llm-runner
-   ```
-
-   Do NOT make it a hard dependency of your app's `pyproject.toml` — a pin
-   there clobbers the editable checkout on every `pip install -e .` (the
-   JustVoice F1 lesson, recorded in its pyproject comment). A frozen bundle
-   pulls it from git via an extra instead. (app-structure §8)
-
-2. **Call `install_llm` on your FastAPI app** at startup, after your DB is
-   ready:
-
-   ```python
-   from llm_runner import install_llm
-
-   install_llm(
-       app,                          # None = headless boot: stores + seeds, no routes
-       engine=engine,                # your SQLAlchemy engine
-       session_factory=SessionLocal, # sessions must get their OWN connections
-       data_dir=data_dir,            # where the runner keeps its files
-       product="yourapp",
-   )
-   ```
-
-   That is the complete, legal minimal call — enforced by
-   `tests/test_install_llm.py` and `scripts/check-clean-install.py`. An app
-   with AI features adds `feature_catalog=` (its features/actions),
-   `feature_prompts=` (seeded template rows; `{}` = a promptless pipeline app),
-   `engine_presets=` / `feature_presets=`, and `prefer_local_features=`. Every
-   knob's meaning is in `llm_runner/llm/install.py:250`'s docstring.
-
-   **The storage caveat is load-bearing:** never hand it an in-memory
-   StaticPool DB — the backfill daemon thread will silently roll seeds back
-   (measured; the docstring carries the numbers). File-backed SQLite always.
-
-3. **What you now have, for free:** every `/v1/ai/*` and `/v1/llm-runner/*`
-   route (prompts, presets, routing, usage ledger, model catalog, Quick Setup,
-   the run + stream execution paths), the seeds, and the usage sink. Your app's
-   own AI endpoints call `run_action` / `stream_action` (import from
-   `llm_runner.llm`) — never a provider SDK directly. (app-structure §8)
-
-4. **Tests:** reset `lifecycle._service` and `seed._APP` per test; the
-   hermeticity reference is `just-llm-runner/tests/test_install_llm.py`.
-   After any shared-export change run `scripts/check-consumers.py`; after any
-   dep/`__init__` change, `scripts/check-clean-install.py`.
+1. **Depend on the package** — `"@delebash/llm-runner": "file:../just-llm-runner/server"` in the
+   app's `server/package.json` (and in `src-electron/package.json`, which packages it); no
+   publish step, no pin (app-structure §Q.3).
+2. **Mount and install, once** — inside `runServer({ envPrefix, build })`: `createServer()`,
+   `openDatabase(...)`, `app.route("/", runnerRouter())` (the host's `/v1/llm-runner/*`), then
+   `await installLlm(app, { db, dataDir, product, featureCatalog, … })`. Always pass `dataDir`
+   (the kit's CLAUDE.md, "What bites"); every route is under `/v1`; the router port is allocated,
+   never 8080 (app-structure §8).
+3. **One Hono** — import `Hono`, `stream` and `serveStatic` from
+   `@delebash/llm-runner/platform`, never `hono` itself (the guard's `checkOneHono`).
+4. **AI calls** go through `runAiFeature` / `withAiTask`, never `tasks.start` (app-structure §8,
+   "The AI-call convention").
+5. **Tests** stay hermetic: point `JUST_AI_HOME` at a scratch folder so the machine-wide cache
+   registry isn't written (the kit's CLAUDE.md, "What bites").
 
 ## The client half — Vue
 

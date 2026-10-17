@@ -3,21 +3,26 @@
 	"files": {
 		"includes": [
 			"src/**/*.{js,vue}",
-			"src-electron/**/*.js",
-			"server/src/**/*.js",
-			"quasar.config.js",
+			"!src/phone/worker-bundle",
 			"scripts/**/*.js",
+			"quasar.config.js",
+			"src-electron/**/*.js",
 			"!src-electron/node_modules",
-			"!server/node_modules"
+			"server/src/**/*.js",
+			"server/tests/**/*.js",
+			"server/scripts/**/*.js"
 		]
 	},
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"preset": "none",
+			"preset": "recommended",
 			"correctness": {
-				"noUndeclaredVariables": "error",
-				"noUnusedImports": "error"
+				"noUnusedImports": "error",
+				"noUnusedVariables": "warn"
+			},
+			"style": {
+				"useVueMultiWordComponentNames": "off"
 			}
 		}
 	},
@@ -28,19 +33,27 @@
 			}
 		}
 	},
-	"formatter": {
-		"enabled": false
-	},
+	"formatter": { "enabled": false },
 	"overrides": [
 		{
-			"includes": [
-				"**/*.vue"
-			],
+			"includes": ["server/**", "src-electron/**"],
+			"linter": {
+				"rules": {
+					"recommended": false,
+					"correctness": {
+						"noUndeclaredVariables": "error",
+						"noUnusedImports": "error"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["**/*.vue"],
 			"linter": {
 				"rules": {
 					"correctness": {
 						"noUnusedImports": "off",
-						"noUndeclaredVariables": "off"
+						"noUnusedVariables": "off"
 					}
 				}
 			}

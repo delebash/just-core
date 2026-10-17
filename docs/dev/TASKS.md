@@ -66,7 +66,64 @@ OPEN:   1. The pre-commit hook — the user asked "what is this?" (explained in 
            ready (answer 4).
         5. `just-sqlite-sync`'s `ci.yml` still runs on push and pull requests — not named in the
            go; ask.
-GO:     given 2026-10-17 for answer 3 (JustVoice's CI) only.
+GO:     given 2026-10-17 for answer 3 (JustVoice's CI) only. Then, in the just-house-paint session,
+        2026-10-17: "go on the skill stuff and rethink it to makes sure it is correct for creating
+        a new just family app" — a go to rethink the design against the family standard and build
+        the skill; the open choices inside it (the hook, the `AGENTS.md` design, the spec file's
+        name — PRD or SPEC) go back to the user with a rec each before those parts are built.
+        The rethink (RESEARCH §2, "Starting a new app") was shown with 8 recs; the user: "your rec on
+        all go" (2026-10-17). As shown:
+        1. Spec file name — "`docs/dev/PRD.md`, added to the docs rules (§13)".
+        2. `AGENTS.md` — "It holds the repo's instructions. CLAUDE.md = `@AGENTS.md` + the family-rules
+           import + Claude-only lines, the documented pattern. `AGENTS.md` also carries a copy of the
+           family rules, which the guard keeps identical, so other tools get them." (Flagged after the
+           go: with that copy, the separate import loads the rules twice — dropping it is put to the
+           user before `AGENTS.md` is built.)
+        3. Pre-commit hook — "Only the standard fast one: Husky + lint-staged running Biome on the
+           staged files (seconds). Never the guard or tests."
+        4. App ids — "No hyphens, as the template already does. Fix §Q.2's wording."
+        5. Ports — "Add a dev-port registry beside `APP_PORTS`. New apps take the next free ports,
+           skipping 17496 and 1440. just-house-paint: server 17497, dev 1460/1461."
+        6. Where the skill lives — "Source in the kit, next to the template it copies, so they version
+           together. A kit script installs it to `~/.claude/skills/new-just-app/`, which gives exactly
+           `/new-just-app`." The guard warns when the installed copy drifts.
+        7. Fix the template and docs first — "Template `biome.json` made identical to the apps'; LICENSE
+           and `.gitattributes` added; the `.gitignore` line; app-structure's stale Fastify/Python
+           lines, §3 sample, §Q.9 and §Q.10".
+        8. `just-sqlite-sync`'s CI — "Run by hand, like JustVoice's".
+        Order: kit fixes (7), then the skill (1–6), then its first real run on just-house-paint after
+        the PRD interview. The skill: 4 questions (name, what it does → PRD, outside data/services,
+        departures); copies only the template's tracked files, renames and re-points, regenerates
+        lockfiles, never overwrites existing files; adds what the template lacks; verifies (install,
+        lint, boot smoke, the guard on the new app) and only then registers the app in `APPS` /
+        `APP_PORTS`; git init, first commit, the GitHub repo after the user confirms.
+        Then (2026-10-17), the user: "- outside data or services; what is this for and why  all of
+        the just app should follow just-  so just-write just-voice yes we need to fix justovice your
+        rec on the rest". Decided:
+        - **Names: every just app is `just-<name>`** (just-write, just-voice, just-house-paint). The
+          skill derives: repo `just-<name>`, server package and launcher `just-<name>-server`, the
+          `id` `just<name>` (no hyphens — Android), `JUST_<NAME>_DATA_DIR`.
+        - "Outside data or services" is not its own question: one line in the PRD interview ("will it
+          use outside data, accounts or paid services?") — the rec as shown.
+        - `AGENTS.md`: CLAUDE.md = `@AGENTS.md` + Claude-only lines, no separate family-rules import
+          (the copy inside `AGENTS.md` carries the rules) — the rec as shown.
+NOT:    renaming the existing repos (JustVioce, justwrite-app, just_ai_i18n_docgen) — the user,
+        2026-10-17: "we dont need to changes repo names now, just leave them". The `just-<name>`
+        rule is for new apps.
+BUILT:  2026-10-17, the kit fixes (7) and the CI (8): the template's `biome.json` is the apps' (it
+        lints clean: 19 files), it has LICENSE (MIT), `.gitattributes`, the worker-bundle and
+        `.claude/settings.local.json` ignores, and a §3 `devServer` (127.0.0.1:9000, strictPort,
+        open: false) with the server/data/dist watch ignores (`quasar build` succeeds); the guard has
+        `DEV_PORTS` and `checkDevPorts` (passes for all four; a wrong dev or HMR port fails it —
+        shown); app-structure §Q.2 id, §1 names and ports, §2 biome, §3, §8/§11 `app.route`, §Q.9,
+        §Q.10, §13 PRD; install-runbook's server half for Node and Hono. just-sqlite-sync's CI runs
+        by hand (5d164dc; its lint and 70 tests pass).
+OPEN:   the §14 product skeleton. Once registered in `APPS`, a new app must pass the product-only
+        checks the template is exempt from: `src/services/helpDocs.js` (makeDocsHelpAdapter),
+        `src/stores/ui.js` (useUiStore), `src/boot.smoke.test.js` (registerBootSmoke),
+        `src/pages/HomePage.vue`, `vitest.config.js`, `server/vitest.config.js`,
+        `server/tests/*.test.js` (check-family.js:697-733, check 4). The approved design never said
+        where those come from — put to the user (rec: in the template) before the skill is built.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp
@@ -502,9 +559,10 @@ OPEN:   1. The kit's UI: Quasar's components replace its generic controls; the f
            `biome.json` lines in JustVoice and JustWrite, this repo's `stash@{0}`, docgen's
            held tree (now its `stash@{0}`, plus the restructure's build output `out/`, untracked)
            — remain. (JustVoice's `biome.json` now matches JustWrite's, 2a59eea.)
-        4. Docs that still name Python: `docs/dev/install-runbook.md`, `server/README.md` "Check
-           it" (the route diff against a Python server) — JustVoice's TASKS lists them with the
-           rest of the conversion's waiting work.
+        4. Docs that still name Python: `server/README.md` "Check it" (the route diff against a
+           Python server) — JustVoice's TASKS lists it with the rest of the conversion's waiting
+           work. (`docs/dev/install-runbook.md`'s server half was rewritten for Node and Hono on
+           2026-10-17, with the `/new-just-app` kit fixes.)
         5. DONE 2026-10-08 — Quasar's global disabled rule is removed from its stylesheet by the
            kit's PostCSS step `dropQuasarDisabledRule()` (`ui/src/quasar/postcss.js`, in every
            app's and the template's postcss.config.js; the guard checks it). Both apps' screens

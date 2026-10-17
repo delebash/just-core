@@ -1090,6 +1090,43 @@ GitHub API and raw files, unpkg; the plan:
 
 ---
 
+**Starting a new app — what the standard and the guard actually require** (*agent (read-only audit of
+the kit, the template and the three apps), 2026-10-17; the guard's app list, the port registry, the
+template's missing files and the biome.json difference re-checked by this session*):
+
+- The guard checks a hard-coded list: `APPS` = JustWrite, JustVoice, docgen (`scripts/check-family.js:43-47`)
+  plus `TEMPLATE` (:50); server ports in `APP_PORTS` (:57: JW 17495 · JV 17494 · docgen 8742 · template
+  17490). **A new app isn't checked until it's added to both.** Dev ports have no registry in code — only
+  prose (app-structure §3:479, §14:961: JW 1420 · JV 1430/1431 · docgen 1450/1451); 17496 is JW's smoke
+  scratch port and JV uses 1440 for a second renderer.
+- The template has no LICENSE, `.gitattributes`, `docs/`, server tests, vitest configs, `@renderer` alias,
+  kit peers (`marked`, `@vueuse/core`, `@floating-ui/dom`, `qrcode`), `installLlmUi` boot, AI stack, or
+  §11 chrome. Its `biome.json` differs from the apps' (JV == JW; the guard wants the apps' byte-identical).
+  Copy only `git ls-files template` (the working tree holds node_modules, dist, generated Android files)
+  and regenerate the three lockfiles rather than copy them (they name `family-template` and `../../server`).
+- Contradictions in app-structure.md: §Q.2:97 says the `id` is "the kebab name … `com.<id>.app`", but an
+  Android applicationId allows only `[a-zA-Z0-9_]` (developer.android.com) and the template uses
+  `familytemplate`; §2 says copy a sibling's biome.json while the template's differs; §2's .gitignore list
+  has `src/phone/worker-bundle/`, the template's lacks it; §3's sample doesn't match the template
+  (`open: true`, port 9000, `@/` imports); §8 and §11 still show Fastify's `app.register(...)` and
+  install-runbook.md:16-65 the Python server half (the current recipe is `server/README.md:16-43`, Hono);
+  §Q.9 lists `test:server`, which the template lacks; §Q.10 omits the `quasarBaseLayer()` / `ripple: false`
+  checks the guard runs (check-family.js:436-446).
+- No repo has a git hook (no `.husky`, no `hooksPath`). Only JustWrite has an `AGENTS.md` (stale: "No
+  formatter or linter"). JustWrite commits a `.claude/settings.json` allowing scripts that don't exist
+  (`build:vite`, `dev:vite`) and its `settings.local.json`. CI: JV `ci.yml` by hand (0a0f6f8c), JV `codeql.yml`
+  weekly, JV `release.yml` on `v*` tags; just-sqlite-sync `ci.yml` on push and pull requests.
+- `claude-config` doesn't sync to `~/.claude` (its README: "Nothing here provisions itself any more"); its
+  CLAUDE.md (22 lines, 2026-07-29) has drifted from the live one (66 lines).
+- External (*web via the agent, 2026-10-17*): agents.md — one Markdown file at the repo root (nested ones
+  per package, closest wins), no import syntax. Claude Code (memory docs) reads AGENTS.md natively since
+  v2.1.277 (installed: 2.1.302) **only when no CLAUDE.md exists**; the documented single-source pattern is
+  a CLAUDE.md containing `@AGENTS.md` plus Claude-only lines (on Windows, the import rather than a symlink).
+  A user skill (`~/.claude/skills/<name>/SKILL.md`) works in every project on the machine but not in cloud
+  sessions; a plugin marketplace shares skills across machines but namespaces them (`/<plugin>:<skill>`).
+  Husky 9.1.7 + lint-staged 17.6.0 is the standard pre-commit pair; Biome's recipe runs `biome check
+  --staged`. create-quasar 5.0.34, quasar 2.35.1, @quasar/app-vite 3.10.3, electron 44.9.0 (2026-10-15/17).
+
 ## 3 · AI tasks and the stream frames
 
 - `GET /v1/ai/resolved-route` rows carry `context` (since `1476549` + `b9ea75d`, 2026-10-11): the

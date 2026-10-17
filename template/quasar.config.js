@@ -82,7 +82,10 @@ export default defineConfig((/* ctx */) => {
         ]
         viteConf.server = viteConf.server || {}
         const ignored = [].concat(viteConf.server.watch?.ignored || [])
-        viteConf.server.watch = { ...(viteConf.server.watch || {}), ignored: [ ...ignored, '**/data/**' ] }
+        viteConf.server.watch = {
+          ...(viteConf.server.watch || {}),
+          ignored: [ ...ignored, '**/server/**', '**/data/**', '**/dist/**' ]
+        }
       },
       // viteVuePluginOptions: {},
 
@@ -97,9 +100,13 @@ export default defineConfig((/* ctx */) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
     devServer: {
-      // vueDevtools: true,
-      // https: true,
-      open: true // opens browser window automatically
+      // The app's registered dev port (the guard's DEV_PORTS, app-structure §1): the kit's
+      // origin-aware resolver knows it (installLlmUi devPorts) and the server's CSRF guard allows
+      // it (server/src/app.js). A new app takes the next free one.
+      host: '127.0.0.1',
+      port: 9000,
+      strictPort: true,
+      open: false
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework

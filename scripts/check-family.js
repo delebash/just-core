@@ -55,6 +55,16 @@ for (const app of [...APPS, TEMPLATE]) app.kind = kindOf(app);
 
 // The family port registry (app-structure §1) — an app's desktop main passes it as `port`.
 const APP_PORTS = { JustWrite: 17495, JustVoice: 17494, docgen: 8742, template: 17490 };
+// The dev-server ports (app-structure §1) — quasar.config.js `devServer.port`, and its HMR port
+// where the app sets one; installLlmUi's devPorts and the server's dev origins name the same
+// numbers. A new app takes the next free ones — not 17496 (JW's smoke scratch) or 1440 (JV's
+// second renderer).
+const DEV_PORTS = {
+  JustWrite: { dev: 1420 },
+  JustVoice: { dev: 1430, hmr: 1431 },
+  docgen: { dev: 1450, hmr: 1451 },
+  template: { dev: 9000 },
+};
 
 // Ruled exceptions. An entry here means a human looked and decided it is NOT a fork —
 // with the reason, so the next reader doesn't have to re-derive it. Keep this short: a
@@ -369,6 +379,23 @@ function checkDesktopMain(app) {
   const preload = join(app.dir, "src-electron", "electron-preload.js");
   if (!existsSync(preload) || !/import\s+["']@delebash\/llm-runner\/shell\/preload["']/.test(codeOf(preload))) {
     fail(app.name, "src-electron/electron-preload.js does not import the kit's preload (@delebash/llm-runner/shell/preload) — §Q.2");
+  }
+  return undefined;
+}
+
+// The dev server claims the app's registered ports (§1): devServer.port, and the HMR port where
+// the registry has one (JustVoice's reads an env override first, so only the number is matched).
+function checkDevPorts(app) {
+  const want = DEV_PORTS[app.name];
+  if (!want) return fail(app.name, "has no DEV_PORTS entry — every app registers its dev ports (§1)");
+  const conf = existsSync(join(app.dir, "quasar.config.js")) ? readFileSync(join(app.dir, "quasar.config.js"), "utf8") : "";
+  const block = conf.match(/devServer:\s*\{([\s\S]*?)\n\s*\}/)?.[1] || "";
+  const dev = block.match(/(?:^|[\s{,])port:\s*(\d+)/);
+  if (!dev) return fail(app.name, `quasar.config.js's devServer sets no port — the registry says ${want.dev} (§1)`);
+  if (Number(dev[1]) !== want.dev) fail(app.name, `quasar.config.js's devServer port is ${dev[1]} — the registry says ${want.dev} (§1)`);
+  if (want.hmr) {
+    const hmr = block.match(/hmr:\s*\{[^}]*?\b(\d{2,5})\b/);
+    if (!hmr || Number(hmr[1]) !== want.hmr) fail(app.name, `quasar.config.js's devServer HMR port is ${hmr?.[1] || "unset"} — the registry says ${want.hmr} (§1)`);
   }
   return undefined;
 }
@@ -1020,6 +1047,7 @@ for (const app of APPS) {
     checkRendererSkeleton(app);
     checkLauncher(app);
     checkDesktopMain(app);
+    checkDevPorts(app);
     checkQuasar(app);
     checkI18n(app, files);
   }
@@ -1043,6 +1071,7 @@ if (TEMPLATE.kind !== "quasar") {
   checkSkeleton(TEMPLATE);
   checkLauncher(TEMPLATE);
   checkDesktopMain(TEMPLATE);
+  checkDevPorts(TEMPLATE);
   checkQuasar(TEMPLATE);
   checkI18n(TEMPLATE, files);
   checkOneSaveDoor(TEMPLATE, files);
