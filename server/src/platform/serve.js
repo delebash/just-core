@@ -42,8 +42,12 @@ const SERVER_OPTIONS = { requestTimeout: 0, keepAliveTimeout: 72_000 };
 function listen(app, host, port) {
   return new Promise((resolve, reject) => {
     const server = serve(
-      // The platform's own Request/Response stay global (the kit's HTTP client relies on them).
-      { fetch: app.fetch, hostname: host, port, serverOptions: SERVER_OPTIONS, overrideGlobalObjects: false },
+      // The adapter's default: its Request/Response become the globals. They are what make
+      // `new Request(c.req.raw, …)` accept its lightweight request — hono/body-limit does that
+      // for a body with no Content-Length, and with the platform's globals kept
+      // (`overrideGlobalObjects: false`, until 2026-10-17) such a body answered 500. The kit's
+      // HTTP client is its own undici (http.js) and never used the globals.
+      { fetch: app.fetch, hostname: host, port, serverOptions: SERVER_OPTIONS },
       () => {
         server.off("error", reject);
         resolve(server);

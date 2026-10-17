@@ -1039,7 +1039,15 @@ GitHub API and raw files, unpkg; the plan:
   - `@hono/node-server`'s `serveStatic` takes an absolute root, answers `Range`, sends no
     `ETag`, and serves a file for ANY method (OPTIONS like HEAD) — mount it with `app.get` or put
     a 405 route before it. Its `serve()` replaces the global Request/Response unless
-    `overrideGlobalObjects: false`.
+    `overrideGlobalObjects: false`. Keep the default. The adapter hands the app a lightweight
+    request, and only the adapter's own `Request` subclass will build a new Request from it.
+    hono/body-limit builds one (`new Request(c.req.raw, …)`) for a body with no
+    Content-Length, chunked or empty. With the platform's globals kept, Node's undici rejects it:
+    "Cannot read private member #state from an object whose class did not declare it", a 500
+    on any JSON route. `app.request` hands the app a platform Request, so only a test through
+    the real server finds it (`tests/body_limit.test.js`). No upstream fix as of
+    @hono/node-server 2.1.5 and hono 4.13.13. — *measured 2026-10-17: `curl -X POST` with no
+    data to docgen's `/v1/llm-runner/stop` answered 500; with the default, 200.*
   - Node's own server defaults `requestTimeout` to 300 s (Fastify set 0) — kept at 0 so a large
     restore upload isn't cut off; Fastify's `keepAliveTimeout` 72 s kept.
   - Fastify validated a route's parts in the order params, body, querystring, headers and
