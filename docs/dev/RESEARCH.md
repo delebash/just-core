@@ -1207,6 +1207,37 @@ code.claude.com/docs/en/best-practices):
 - `/doctor prompt-audit` (v2.1.283 or later) reports outdated or conflicting instructions and
   references to files that don't exist, and changes nothing until asked.
 
+**Project setup, sessions and the cloud** (*agent (docs), 2026-10-17, not re-checked* —
+code.claude.com/docs: skills, sub-agents, hooks, settings, mcp, chrome, plugins/install,
+claude-code-on-the-web, cloud-environments, remote-control, worktrees, workflows, changelog):
+
+- Project skills live in `.claude/skills/<name>/SKILL.md` (frontmatter optional; `description`
+  decides when one loads; `disable-model-invocation: true` makes it manual-only); keep each under
+  500 lines. Project subagents live in `.claude/agents/*.md`. `/skill-doctor` (2.1.261) reports
+  each skill's context cost.
+- On Windows a command hook runs in Git Bash when installed, otherwise PowerShell; a hook's
+  `"shell"` field overrides it. The docs' auto-format recipe is PostToolUse on `Edit|Write`. A
+  Stop hook exiting 2 keeps Claude working (8 consecutive continuations at most).
+- Settings precedence, highest first: managed, `--settings`, `.claude/settings.local.json`,
+  `.claude/settings.json`, `~/.claude/settings.json`; `permissions.allow` lists merge. Auto mode is
+  the starting mode since 2.1.284 (2026-09-28); `defaultMode: "auto"` in a project file is ignored.
+  Native Windows has no sandbox (macOS, Linux, WSL2 only).
+- **Cloud sessions (Claude Code on the web) don't install plugins** that a repo's `enabledPlugins`
+  turns on, and don't carry `~/.claude/CLAUDE.md`, user skills, agents or user MCP servers. What
+  travels: the repo's `.claude/skills`, `.claude/agents`, `.claude/settings.json` hooks and
+  `.mcp.json`. Environment (network, env vars, a setup script) is set in claude.ai, not the repo;
+  GitHub is required. No GPU is documented for cloud VMs.
+- `claude --teleport` (or `/teleport`) pulls a cloud session to the terminal (clean git state,
+  branch pushed, same account); `claude --cloud "task"` sends one up.
+- **Remote Control** runs the session on this machine and drives it from claude.ai/code or the
+  Claude app: `claude --remote-control` / `/rc`, or `/config` → "Enable Remote Control for all
+  sessions". A project's `remoteControlAtStartup` is ignored (user scope only, 2.1.222).
+- Claude in Chrome needs claude.ai login and is enabled per machine (`/chrome`); a repo can't turn
+  it on. Playwright MCP is not on the docs' MCP, Chrome or best-practices pages (unconfirmed).
+- The docs' large-feature order: an AskUserQuestion interview → `SPEC.md` → a fresh session builds
+  from it; no PRD template. `/code-review` (local, effort levels) runs as a background subagent;
+  `/code-review ultra` is cloud and billed after 3 free runs.
+
 ---
 
 ## 7 · Cloud model adapters
