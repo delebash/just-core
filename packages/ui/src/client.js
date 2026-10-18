@@ -9,6 +9,7 @@
 // old per-app ProviderBackend adapter: one client, both apps, no forks — the
 // only thing injected is the base URL, not a data layer.
 
+import { parseProblem } from "./common/services/apiError.js";
 import { serverFetch } from "./common/services/transport.js";
 
 let _base = "";
@@ -71,6 +72,10 @@ function httpError(status, raw) {
   const err = new Error(`HTTP ${status}${human ? ` — ${human}` : ""}`);
   err.status = status;
   err.problem = problem;
+  // the field errors and the log reference, as serverApi.js's errors carry them (§15)
+  const { errors, requestId } = parseProblem(raw);
+  err.errors = errors;
+  err.requestId = requestId;
   return err;
 }
 

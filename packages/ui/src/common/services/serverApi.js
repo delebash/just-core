@@ -10,6 +10,7 @@
 // services/serverApi.js (JV's full transport; JW's resolver-only stub + its ~17
 // scattered hand-rolled fetch helpers) and services/connection.js.
 
+import { attachProblem, parseProblem } from "./apiError.js";
 import { serverFetch } from "./transport.js";
 import { ref } from "vue";
 
@@ -73,23 +74,12 @@ async function _doRequest(path, opts) {
     if (!res.ok) {
       const text = await res.text();
       // A HUMAN message, not the raw envelope (audit 2026-08-05: every toast
-      // built on e.message printed `400 Bad Request: {"detail":"…"}`). Same
-      // shaping as client.js httpError — FastAPI string detail, 422 detail
-      // arrays, problem+json title/detail, the 409 needsSetup object — and the
-      // status prefix stays: callers key on it (e.g. "409" → needsSetup).
-      let human = text;
-      try {
-        const j = JSON.parse(text);
-        if (j && typeof j.detail === "string") human = j.detail;
-        else if (j && Array.isArray(j.detail)) {
-          human = j.detail.map((d) => d?.msg || JSON.stringify(d)).join("; ");
-        } else if (j && j.detail && typeof j.detail === "object") {
-          human = j.detail.error || JSON.stringify(j.detail);
-        } else if (j && j.title) {
-          human = j.detail ? `${j.title} — ${j.detail}` : j.title;
-        }
-      } catch { /* not JSON — keep the text */ }
-      throw new Error(`${res.status} ${res.statusText}: ${human}`.trim());
+      // built on e.message printed `400 Bad Request: {"detail":"…"}`), shaped by
+      // apiError.js like client.js's — and the status prefix stays: callers key
+      // on it (e.g. "409" → needsSetup). The parts ride on the Error too
+      // (status, problem, errors, requestId — app-structure §15).
+      const parsed = parseProblem(text);
+      throw attachProblem(new Error(`${res.status} ${res.statusText}: ${parsed.human}`.trim()), res.status, parsed, res.headers);
     }
     const ct = res.headers.get("content-type") || "";
     if (ct.startsWith("audio/")) return await res.blob();

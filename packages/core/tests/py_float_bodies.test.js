@@ -61,7 +61,10 @@ test("bad JSON and an empty body answer as they do without the opt-in", async ()
     const a = app(opts);
     const bad = await a.request("/opt", { method: "POST", headers: json, body: '{"a": 1.0,' });
     const empty = await a.request("/free", { method: "POST", headers: json, body: "" });
-    answers.push([bad.status, await bad.json(), await empty.json()]);
+    // each request has its own id; the rest of the answer must match
+    const { requestId, ...badBody } = await bad.json();
+    expect(requestId).toEqual(expect.any(String));
+    answers.push([bad.status, badBody, await empty.json()]);
   }
   expect(answers[0]).toEqual(answers[1]);
   expect(answers[0][0]).toBe(422); // the kit's json_invalid, as FastAPI answers

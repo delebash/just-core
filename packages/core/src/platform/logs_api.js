@@ -279,6 +279,18 @@ export const LogDayRow = T.Object({
 });
 export const LogDaysResponse = T.Object({ days: T.Array(LogDayRow) });
 
+/** A renderer error the kit UI's installErrorReporting sends (app-structure §15). */
+export const ClientLogEntry = T.Object({
+  level: opt(T.Union([T.Literal("error"), T.Literal("warning"), T.Literal("info")]), "error"),
+  message: T.String({ minLength: 1, maxLength: 2000 }),
+  stack: opt(T.String({ maxLength: 8000 })),
+  url: opt(T.String({ maxLength: 500 })),
+  context: opt(T.String({ maxLength: 200 })),
+});
+
+/** At most this many renderer entries a minute reach the log — a loop in the page can't flood it. */
+export const CLIENT_LOG_PER_MINUTE = 20;
+
 const BadDate = () => new HttpError(400, "date must be YYYY-MM-DD");
 
 /** Build the shared /v1/logs router over the ring + the per-day files. */
@@ -315,6 +327,24 @@ export function makeLogsRouter(appName = "app") {
     // Tail-capped read: a day file can be large; the reader wants the recent end.
     const content = splitlines(readFileSync(row.path).toString("utf8"));
     return c.json(tail(content.slice(-Math.max(1, Math.min(lines, 20_000)))));
+  });
+
+  // Renderer errors into the same log (the kit UI's installErrorReporting posts what the window
+  // caught), so Settings → Logs shows the page's failures beside the server's. Over the rate the
+  // entry is dropped quietly (204 either way: the page never retries).
+  const rendererLog = getLogger("renderer");
+  const recent = [];
+  app.post("/v1/logs/client", input({ body: ClientLogEntry }), (c) => {
+    const now = Date.now();
+    while (recent.length && now - recent[0] > 60_000) recent.shift();
+    if (recent.length < CLIENT_LOG_PER_MINUTE) {
+      recent.push(now);
+      const { level, message, stack, url, context } = c.req.valid("json");
+      const line = [context ? `[${context}]` : "", message, url ? `(${url})` : ""].filter(Boolean).join(" ");
+      const levelno = level === "info" ? LEVELS.INFO : level === "warning" ? LEVELS.WARNING : LEVELS.ERROR;
+      rendererLog.log(levelno, line, stack ? { stack } : undefined);
+    }
+    return c.body(null, 204);
   });
 
   // Empty the on-screen tail (the RING). Stored day files are untouched — deleting

@@ -19,28 +19,12 @@
 // A free-form `dict` is `T.Record(T.String(), T.Any())`, never an empty `T.Object({})` —
 // unknown keys are dropped from objects, not from records.
 
-import Type from "typebox";
 import Value from "typebox/value";
 import { ajvToPydantic } from "./errors.js";
 import { PyFloat, pyClone } from "./pyjson.js";
 
-export const T = Type;
-
-/** A field with a default (pydantic `x: X = default`); no default → may be absent. */
-export function opt(schema, dflt) {
-  if (dflt === undefined) return Type.Optional(schema);
-  // A copy that keeps TypeBox's hidden (non-enumerable) markers, so none of them leaks
-  // into the JSON Schema ajv compiles.
-  const copy = Object.defineProperties({}, Object.getOwnPropertyDescriptors(schema));
-  copy.default = dflt;
-  return Type.Optional(copy);
-}
-
-/** `X | None`. */
-export const nullable = (schema) => Type.Union([schema, Type.Null()]);
-
-/** `Literal["a", "b"]`. */
-export const literal = (...values) => Type.Union(values.map((v) => Type.Literal(v)));
+// The schema helpers live in schema.js (browser-safe — a form shares them with its route).
+export { literal, nullable, opt, strictObject, T } from "./schema.js";
 
 /** `Schema(**value)` refused: pydantic's ValidationError text — the count and the model, then
  * each error's field path and reason (without pydantic's own type tags and docs links). */
@@ -164,9 +148,6 @@ export function clean(schema, v) {
  * `useDefaults` skips.
  */
 export const shapeRequest = (schema, v) => fillDefaults(schema, clean(schema, v));
-
-/** A model that forbids unknown fields (pydantic extra="forbid" — the runner's CamelModel). */
-export const strictObject = (props, options = {}) => Type.Object(props, { additionalProperties: false, ...options });
 
 /** `Schema(**value)`: defaults, lax conversion, unknown fields dropped, then checked. */
 export function model(schema, value, title) {

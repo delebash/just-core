@@ -1205,6 +1205,24 @@ re-checked by the session that saved them; paths are from before the just-core r
 
 ---
 
+**The error and validation contract, in the kit** (*code + test, 2026-10-18*; the plan
+[`../plans/2026-10-18-complete-template-and-standards.md`](../plans/2026-10-18-complete-template-and-standards.md),
+the standard app-structure §15):
+
+- Every error answer carries `requestId` (Hono 4.13.13's `hono/request-id`, added first in
+  `createServer`; an incoming `X-Request-Id` is kept) and a 422's errors carry `ctx` (the limit —
+  `{min_length: 3}`, `{le: 5}`); an unhandled exception answers problem+json 500 (`unhandledEnvelope`)
+  in both error modes. Only the kit's own tests compared whole error bodies (9 updated); no app test
+  did (`git grep` for `instance:` in the apps' server tests: 0 files).
+- `platform/schema.js` (`T`, `opt`, `nullable`, `literal`, `strictObject`) imports only `typebox`, so a
+  form can load the route's schema in the browser; `models.js` re-exports it.
+- New: `makeHealthRouter`, `readPackageVersion`, `migrate`/`schemaVersion` (PRAGMA user_version),
+  `POST /v1/logs/client` (≤ 20 a minute); in the UI kit `parseProblem`/`attachProblem`,
+  `schemaRules`/`fieldErrors`, `reportError`, `installErrorReporting`, and `kit.validation.*` /
+  `kit.errors.*` words. `packages/ui` gained `test` (Vitest) and the family Biome pin.
+
+---
+
 **The kit renamed just-core** (*measured + git, 2026-10-18*; the decision is TASKS, "The kit is renamed
 `just-core`"):
 

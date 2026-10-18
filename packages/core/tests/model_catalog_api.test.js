@@ -94,6 +94,7 @@ const problem = (status, title, slug, detail, instance) => ({
   status,
   detail,
   instance,
+  requestId: expect.any(String),
 });
 
 test("resolved defaults: origins, computed fit values, the baseline and the bool query", async () => {

@@ -9,10 +9,12 @@
 //     the status;
 //   - a request that fails validation → 422 problem+json carrying `errors: [{loc, msg,
 //     type}]` in pydantic's words.
-// Every handled error is logged, its level scaled to the status (4xx warn, 5xx error).
+// Every handled error is logged, its level scaled to the status (4xx warn, 5xx error), with the
+// request's id (Hono's requestId middleware, which `createServer` adds — the id also rides every
+// problem body as `requestId`, so a message on screen leads to its log line; app-structure §15).
 // A route nobody serves answers FastAPI's own `{"detail": "Not Found"}` (that one never
-// reached Python's handlers either), and an unhandled exception answers 500
-// `Internal Server Error` as plain text, as Starlette does.
+// reached Python's handlers either), and an unhandled exception answers the family's 500
+// envelope (`unhandledEnvelope` below) unless the app hands its own `onUnhandled`.
 
 import { getLogger } from "./log.js";
 import { pyRepr } from "./pyjson.js";
@@ -111,17 +113,30 @@ function requestPath(c) {
   }
 }
 
+/** The request's id, when the requestId middleware ran (createServer adds it). */
+export function requestIdOf(c) {
+  try {
+    return c.get("requestId") || null;
+  } catch {
+    return null;
+  }
+}
+
 function logError(c, status, detail) {
-  const line = `${c.req.method} ${requestPath(c)} -> ${status}: ${pyStr(detail).slice(0, 500)}`;
+  const id = requestIdOf(c);
+  const line = `${c.req.method} ${requestPath(c)} -> ${status}: ${pyStr(detail).slice(0, 500)}${id ? ` [${id}]` : ""}`;
   if (status >= 500) log.error(line);
   else log.warn(line);
 }
 
+// `ctx` (the limit a constraint set — `{min_length: 3}`) rides along when there is one, so a
+// client can word the message in its own language (app-structure §15).
 function jsonableErrors(errors) {
   return (errors || []).map((e) => ({
     loc: (e.loc || []).map((p) => String(p)),
     msg: String(e.msg || ""),
     type: String(e.type || ""),
+    ...(e.ctx ? { ctx: e.ctx } : {}),
   }));
 }
 
@@ -242,6 +257,8 @@ function validationErrors(err) {
       if (value !== null) continue;
     }
     const p = ajvToPydantic(e, root, data);
+    const ctx = pydanticCtx(e);
+    if (ctx) p.ctx = ctx;
     const key = JSON.stringify(p.loc);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -292,6 +309,29 @@ export function problem(c, status, body, headers = null) {
   return c.body(JSON.stringify(body), status, { ...(headers || {}), "Content-Type": "application/problem+json" });
 }
 
+/** `body` with the request's id added (when the middleware ran). */
+function withRequestId(c, body) {
+  const id = requestIdOf(c);
+  return id ? { ...body, requestId: id } : body;
+}
+
+/**
+ * The family's answer to an unhandled exception (app-structure §15): a problem+json 500 carrying
+ * the error's message (its first 300 characters, as the apps' own envelopes did) and the request
+ * id, logged at ERROR with the stack. The CORS middleware already stamped the response, so the
+ * browser sees the error instead of a CORS block.
+ */
+export function unhandledEnvelope(typeBase = "") {
+  return (err, c) => {
+    const detail = [...String(err instanceof Error ? err.message : err)].slice(0, 300).join("");
+    return problem(
+      c,
+      500,
+      withRequestId(c, { type: `${typeBase}internal`, title: "Internal Server Error", status: 500, detail, instance: requestPath(c) }),
+    );
+  };
+}
+
 /** The status of a refusal that isn't one of ours: a server error's own (`statusCode` — the
  * 413 of a body too large) or Hono's HTTPException (`status`). */
 const refusalStatus = (err) => err.statusCode ?? (typeof err.getResponse === "function" ? err.status : undefined);
@@ -305,13 +345,13 @@ export function installErrorHandlers(app, { typeBase, onUnhandled = null }) {
     const instance = requestPath(c);
     if (err instanceof ApiError) {
       logError(c, err.statusCode, err.detail);
-      const body = {
+      const body = withRequestId(c, {
         type: `${typeBase}${err.slug}`,
         title: err.title,
         status: err.statusCode,
         detail: err.detail,
         instance,
-      };
+      });
       for (const [k, v] of Object.entries(err.extra || {})) if (!(k in body)) body[k] = v;
       return problem(c, err.statusCode, body);
     }
@@ -321,13 +361,13 @@ export function installErrorHandlers(app, { typeBase, onUnhandled = null }) {
       return problem(
         c,
         err.statusCode,
-        {
+        withRequestId(c, {
           type: `${typeBase}${slug}`,
           title,
           status: err.statusCode,
           detail: pyStr(err.detail),
           instance,
-        },
+        }),
         err.headers,
       );
     }
@@ -340,14 +380,18 @@ export function installErrorHandlers(app, { typeBase, onUnhandled = null }) {
     }
     if (errors) {
       logError(c, 422, JSON.stringify(errors));
-      return problem(c, 422, {
-        type: `${typeBase}validation-error`,
-        title: "Validation Error",
-        status: 422,
-        detail: "Request body failed validation.",
-        errors: jsonableErrors(errors),
-        instance,
-      });
+      return problem(
+        c,
+        422,
+        withRequestId(c, {
+          type: `${typeBase}validation-error`,
+          title: "Validation Error",
+          status: 422,
+          detail: "Request body failed validation.",
+          errors: jsonableErrors(errors),
+          instance,
+        }),
+      );
     }
     const status = refusalStatus(err);
     if (status && status < 500) {
@@ -356,9 +400,9 @@ export function installErrorHandlers(app, { typeBase, onUnhandled = null }) {
       logError(c, status, err.message);
       return c.json({ detail: err.message }, status);
     }
-    log.error(`${c.req.method} ${instance} -> 500: unhandled`, err);
-    if (onUnhandled) return onUnhandled(err, c);
-    return c.text("Internal Server Error", 500);
+    const id = requestIdOf(c);
+    log.error(`${c.req.method} ${instance} -> 500: unhandled${id ? ` [${id}]` : ""}`, err);
+    return (onUnhandled || unhandledEnvelope(typeBase))(err, c);
   });
 
   app.notFound((c) => c.json({ detail: "Not Found" }, 404));
@@ -468,9 +512,9 @@ export function installFastapiErrorHandlers(app, { onUnhandled = null } = {}) {
     if (errors) return c.json({ detail: errors }, 422);
     const status = refusalStatus(err);
     if (status && status < 500) return c.json({ detail: err.message }, status);
-    log.error(`${c.req.method} ${requestPath(c)} -> 500: unhandled`, err);
-    if (onUnhandled) return onUnhandled(err, c);
-    return c.text("Internal Server Error", 500);
+    const id = requestIdOf(c);
+    log.error(`${c.req.method} ${requestPath(c)} -> 500: unhandled${id ? ` [${id}]` : ""}`, err);
+    return (onUnhandled || unhandledEnvelope(""))(err, c);
   });
   app.notFound((c) => c.json({ detail: "Not Found" }, 404));
 }

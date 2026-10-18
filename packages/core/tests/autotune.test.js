@@ -626,12 +626,20 @@ test("the auto-tune router answers as FastAPI did", async () => {
     detail: "Request body failed validation.",
     errors,
     instance: U,
+    requestId: expect.any(String),
   });
   expect(await send("POST", U)).toEqual([422, v422([{ loc: ["body"], msg: "Field required", type: "missing" }])]);
   expect(await send("POST", U, [1])).toEqual([422, v422([{ loc: ["body"], msg: "Input should be a valid dictionary", type: "dict_type" }])]);
   expect(await send("POST", U, {})).toEqual([
     400,
-    { type: "https://example.test/errors/bad-request", title: "Bad Request", status: 400, detail: "modelId required", instance: U },
+    {
+      type: "https://example.test/errors/bad-request",
+      title: "Bad Request",
+      status: 400,
+      detail: "modelId required",
+      instance: U,
+      requestId: expect.any(String),
+    },
   ]);
   const opts = (save, budgetSeconds) => ({ saveFn: saveTune, save, budgetSeconds, recordFn: null });
   expect(await send("POST", U, { modelId: "m", save: "false", budgetSeconds: [1] })).toEqual([200, { ok: "started" }]);

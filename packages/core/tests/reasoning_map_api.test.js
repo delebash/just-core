@@ -59,6 +59,7 @@ test("refusals answer as FastAPI did", async () => {
       status: 400,
       detail: "provider is required",
       instance: "/v1/ai/reasoning-map/ ",
+      requestId: expect.any(String),
     },
   ]);
   // Starlette's {provider} is one non-empty segment of the DECODED path

@@ -191,3 +191,33 @@ test("the_answers_match_the_python_router", async () => {
   expect(read(dated)).toBe("from-before\n");
   expect(read(base)).toContain("after-restart");
 });
+
+// ── renderer errors (app-structure §15): the kit UI's installErrorReporting posts here ──
+
+test("a renderer error lands in the same log, with its stack", async () => {
+  installLogRing();
+  const app = createServer({ typeBase: "https://example.test/errors/" });
+  app.route("/", makeLogsRouter("JustWrite"));
+  const send = (body) =>
+    app.request("/v1/logs/client", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const r = await send({ message: "boom-from-the-page-77", stack: "Error: boom\n    at render (Home.vue:3)", url: "#/home", context: "vue" });
+  expect(r.status).toBe(204);
+  const tail = await (await app.request("/v1/logs/tail?lines=50")).json();
+  expect(tail.text).toContain("[vue] boom-from-the-page-77 (#/home)");
+  expect(tail.text).toContain("at render (Home.vue:3)");
+  expect(tail.text).toMatch(/\[ERROR\] renderer/);
+  // the body is checked like any route's
+  expect((await send({ message: "" })).status).toBe(422);
+});
+
+test("renderer errors are capped per minute", async () => {
+  installLogRing();
+  const app = createServer({ typeBase: "https://example.test/errors/" });
+  app.route("/", makeLogsRouter("JustWrite"));
+  const send = (message) =>
+    app.request("/v1/logs/client", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message }) });
+  for (let i = 0; i < logsApi.CLIENT_LOG_PER_MINUTE + 5; i++) expect((await send(`flood-${i}-x`)).status).toBe(204);
+  const tail = await (await app.request(`/v1/logs/tail?lines=${logsApi.CLIENT_LOG_PER_MINUTE * 3}`)).json();
+  const seen = tail.text.split("\n").filter((l) => /flood-\d+-x/.test(l)).length;
+  expect(seen).toBe(logsApi.CLIENT_LOG_PER_MINUTE);
+});

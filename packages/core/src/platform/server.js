@@ -31,6 +31,7 @@ import Ajv from "ajv";
 import addFormats from "ajv-formats";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { requestId } from "hono/request-id";
 import { routePath } from "hono/route";
 
 // ONE Hono for the family. An app makes its routers with THIS `Hono` (and streams with this
@@ -293,11 +294,15 @@ export async function closeApp(app) {
  * `pyFloats`: off by default (plain JSON.parse bodies); `{routes}` turns on the request-body
  * float opt-in (`installPyFloatBodies` above), `routes` naming kit-built routes that opt in.
  * `onUnhandled(err, c)`: the app's own answer (a Response) to an unhandled exception; default
- * Starlette's plain-text 500.
+ * the family's problem+json 500 (errors.js `unhandledEnvelope`).
+ * Every request gets an id first (Hono's requestId middleware: an incoming `X-Request-Id` is
+ * kept, else a new one; the response carries it) — the error answers and their log lines name it
+ * (app-structure §15).
  */
 export function createServer({ typeBase, errors = "problem", onUnhandled = null, bodyLimit = BODY_LIMIT, pyFloats = null } = {}) {
   // FastAPI matches `/x` and `/x/` as different routes; Hono's strict default is the same.
   const app = new Hono();
+  app.use("*", requestId());
   if (pyFloats) installPyFloatBodies(app, { ...(pyFloats === true ? {} : pyFloats), bodyLimit });
   else app.use("*", familyMiddleware({ ...DEFAULTS, bodyLimit }));
   // The app's error answers: the kit's problem+json (JustVoice and JustWrite call

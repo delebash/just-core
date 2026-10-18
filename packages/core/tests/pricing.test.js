@@ -61,6 +61,7 @@ test("the pricing router answers as FastAPI did", async () => {
     detail: "Request body failed validation.",
     errors: [{ loc: ["body", "modelId"], msg: "Field required", type: "missing" }],
     instance: "/v1/ai/pricing",
+    requestId: expect.any(String),
   });
   r = await put({ modelId: "  " });
   expect(r.status).toBe(400);

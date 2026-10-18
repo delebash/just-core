@@ -194,7 +194,9 @@ test("the provider router answers as FastAPI did", async () => {
   );
   r = await c.post("/v1/llm-providers", { name: "", providerType: "openai" });
   expect(r.status).toBe(422);
-  expect((await r.json()).errors).toEqual([{ loc: ["body", "name"], msg: "String should have at least 1 character", type: "string_too_short" }]);
+  expect((await r.json()).errors).toEqual([
+    { loc: ["body", "name"], msg: "String should have at least 1 character", type: "string_too_short", ctx: { min_length: 1 } },
+  ]);
   r = await c.post("/v1/llm-providers", { name: "  ++Weird Name!! ", providerType: "openai" });
   expect((await r.json()).id).toBe("weird-name");
   r = await c.post("/v1/llm-providers", { name: "ollama box", providerType: "ollama" });

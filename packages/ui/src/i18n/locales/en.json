@@ -1841,6 +1841,31 @@
     },
     "time": {
       "justNow": "just now"
+    },
+    "validation": {
+      "required": "Required",
+      "minLength": "At least {min} character | At least {min} characters",
+      "maxLength": "At most {max} character | At most {max} characters",
+      "pattern": "That isn't in the expected form",
+      "email": "That isn't an email address",
+      "uri": "That isn't a web address",
+      "number": "Must be a number",
+      "integer": "Must be a whole number",
+      "min": "Must be {min} or more",
+      "max": "Must be {max} or less",
+      "gt": "Must be more than {min}",
+      "lt": "Must be less than {max}",
+      "oneOf": "Pick one of the choices",
+      "minItems": "Pick at least {min} | Pick at least {min}",
+      "maxItems": "Pick at most {max} | Pick at most {max}"
+    },
+    "errors": {
+      "title": "Something went wrong",
+      "offline": "Can't reach the server",
+      "server": "The server couldn't finish this",
+      "refused": "That wasn't accepted",
+      "seeLogs": "Details are in Settings → Logs",
+      "reference": "Reference {id}"
     }
   }
 }

@@ -35,5 +35,6 @@ test("extra_never_overrides_a_standard_member", async () => {
 
 test("a_plain_error_has_no_extras", async () => {
   const body = await (await boom(badRequest("nope"))).json();
-  expect(new Set(Object.keys(body))).toEqual(new Set(["type", "title", "status", "detail", "instance"]));
+  // requestId is the family's member (app-structure §15), not an ApiError extra
+  expect(new Set(Object.keys(body))).toEqual(new Set(["type", "title", "status", "detail", "instance", "requestId"]));
 });

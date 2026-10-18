@@ -62,6 +62,13 @@ export { renderHelpMarkdown, slugifyHeading } from "./services/helpMarkdown.js";
 // shared toasts — the imperative bridge (Quasar's Notify under the hood)
 export { pushToast, clearToasts } from "./services/toastBridge.js";
 
+// the error and validation contract (app-structure §15): one way to show a failure, form rules
+// from the route's own schema, field errors under their fields, renderer errors into the log
+export { attachProblem, parseProblem } from "./services/apiError.js";
+export { fieldErrors, fieldMessage, schemaRules } from "./services/forms.js";
+export { errorMessage, reportError } from "./services/reportError.js";
+export { installErrorReporting } from "./services/errorReporting.js";
+
 // shared external-link opener — kit anchors route clicks through openExternal;
 // the host wires its shell's openers via configureExternal (services/native.js).
 // openPath/canOpenPath are the same seam for LOCAL folders ("Open folder").

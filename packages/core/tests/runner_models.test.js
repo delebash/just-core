@@ -639,6 +639,7 @@ test("the runner router answers as FastAPI did", async () => {
       detail: "Request body failed validation.",
       errors,
       instance,
+      requestId: expect.any(String),
     },
     calls: [],
   });
@@ -666,6 +667,7 @@ test("the runner router answers as FastAPI did", async () => {
     status: 400,
     detail: "modelId required",
     instance: L,
+    requestId: expect.any(String),
   });
   r = await send("POST", L, { json: { modelId: "a", nGpuLayers: "12" } });
   expect(r.status).toBe(200);
