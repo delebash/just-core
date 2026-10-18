@@ -560,7 +560,7 @@
   --ui-toast-warning-bg: hsl(49, 100%, 97%); --ui-toast-warning-border: hsl(49, 91%, 84%); --ui-toast-warning-text: hsl(31, 92%, 45%);
   --ui-toast-error-bg: hsl(359, 100%, 97%); --ui-toast-error-border: hsl(359, 100%, 94%); --ui-toast-error-text: hsl(360, 100%, 45%);
   --ui-toast-bg: var(--ui-toast-normal-bg); --ui-toast-border: var(--ui-toast-normal-border); --ui-toast-text: var(--ui-toast-normal-text);
-  position: relative; display: flex; align-items: center; gap: 6px;
+  position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   width: 356px; max-width: calc(100vw - 32px); min-height: 0; margin: 10px 0 0; padding: 16px;
   background: var(--ui-toast-bg); color: var(--ui-toast-text); border: 1px solid var(--ui-toast-border);
   border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -585,7 +585,9 @@
   width: 16px; height: 16px; flex: 0 0 16px; margin: 0 4px 0 -3px; font-size: 20px;
 }
 .ui-toast .q-notification__icon > svg { width: 20px; height: 20px; margin-left: -1px; flex-shrink: 0; }
-.ui-toast .q-notification__message { display: flex; flex-direction: column; gap: 2px; padding: 0; font-weight: 500; line-height: 1.5; }
+/* The message keeps at least 180px of the row: a long action label wraps under it (pushed right
+   by its margin-left: auto) instead of squeezing the words into a narrow column. */
+.ui-toast .q-notification__message { display: flex; flex-direction: column; flex: 1 1 180px; min-width: 0; gap: 2px; padding: 0; font-weight: 500; line-height: 1.5; }
 .ui-toast .q-notification__caption { font-size: inherit; font-weight: 400; line-height: 1.4; opacity: 1; }
 .ui-toast .ui-toast__close {
   position: absolute; left: 0; top: 0; z-index: 1; transform: translate(-35%, -35%);

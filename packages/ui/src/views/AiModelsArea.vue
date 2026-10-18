@@ -580,7 +580,7 @@ async function checkHardwareChange() {
     if (!stored) return; // baseline seeded — never toast a first sight
     pushToast({
       title: t("kit.aiArea.hwChanged.title"),
-      message: t("kit.aiArea.hwChanged.body"),
+      description: t("kit.aiArea.hwChanged.body"),
       kind: "info",
       duration: 30000,
       action: { label: t("kit.quickSetup.runButton"), fn: () => qsRef.value?.openWizard?.() },

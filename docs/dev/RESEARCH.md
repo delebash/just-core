@@ -835,6 +835,14 @@ step Q3):
   `--ui-toast-*`); a 20px round ✕ at the top-left, translated −35%; the action button 24px high in
   the normal colours; the kinds' icons are Heroicons. The Toaster puts its palette on its own list,
   so a host's custom properties on an ancestor never reach the toasts.
+- **A toast's long action label squeezed its message** (*measured*, JustWrite's AI page in Spanish,
+  2026-10-18): the toast is one 356px flex row — icon, message, action (Notify's wrappers are
+  `display: contents`) — so "Ejecutar configuración rápida" (190px) left the message 110px. With
+  the row wrapping and the message at `flex: 1 1 180px`, the Spanish action sits on its own line
+  under a 303px message; English "Run Quick Setup" (115px) stays beside a 182px one, and an Undo
+  toast keeps its button beside a one-line message ("Undo" 53px, "Deshacer" 77px; 50px high). And `pushToast` shows `message ?? title` as the bold line and `description` as the
+  caption, so a call passing `title` and `message` lost its title — the hardware-changed notice
+  was the one such call (`AiModelsArea.vue`).
 - **Chrome's native range with `accent-color`** (*measured*, Playwright's Chromium 149.0.7827, 2026-10-09 — the
   look `UiSlider` keeps): the track is an 8px pill with a 1px edge, inset 1px from the input's
   ends; the 16px thumb's centre travels from 8px inside one end to 8px inside the other; a click
