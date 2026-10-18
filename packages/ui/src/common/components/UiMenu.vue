@@ -20,7 +20,11 @@
 // focus stayed on the trigger and the keys did little). A control the menu holds (a select, a chip's own popover) keeps its own
 // keys: the list's keys apply only on the list and its items. The items and the trigger carry Reka's
 // state attributes (data-highlighted, data-disabled, data-state), so the hosts' styles still read
-// them. The look is the caller's (its trigger and content classes).
+// them. The list's LOOK is the kit's own (`.lu-mmenu`, common/styles.css) unless the caller passes a
+// content class — an app gets the family's menu without writing CSS (2026-10-18: just-house-paint
+// hand-rolled one, not knowing the kit had it). Items and separators do the same (`.lu-mmi`,
+// `.lu-mmsep`). The trigger's look stays the caller's: pass the kit's button classes
+// ("ui-btn ui-btn--secondary ui-btn--small") for a button.
 import { QMenu } from "quasar";
 import { provide, ref } from "vue";
 import { MENU_KEY } from "./menuContext.js";
@@ -131,7 +135,7 @@ provide(MENU_KEY, { close, focusList: () => focus(listEl()) });
       v-model="open"
       role="menu"
       :aria-labelledby="triggerId"
-      :class="contentClass"
+      :class="contentClass ?? 'lu-mmenu'"
       style="pointer-events: auto"
       :anchor="align === 'end' ? 'bottom right' : 'bottom left'"
       :self="align === 'end' ? 'top right' : 'top left'"

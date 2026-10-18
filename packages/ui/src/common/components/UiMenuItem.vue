@@ -7,7 +7,7 @@
 // keys (JustWrite's shift-click asks for three variations) — Reka's item event carried it too. The pointer moving over
 // an item focuses it, and the focused item carries data-highlighted (its look is the host's); a
 // `disabled` item carries data-disabled, stays in the list and is skipped by the keys.
-import { inject, ref } from "vue";
+import { computed, inject, ref, useAttrs } from "vue";
 import { MENU_KEY } from "./menuContext.js";
 
 const props = defineProps({
@@ -17,6 +17,9 @@ const emit = defineEmits(["select"]);
 const menu = inject(MENU_KEY, null);
 const el = ref(null);
 const highlighted = ref(false);
+// the kit's item look (.lu-mmi) unless the caller gives its own class
+const attrs = useAttrs();
+const kitClass = computed(() => (attrs.class ? null : "lu-mmi"));
 
 function select(originalEvent) {
   if (props.disabled) return;
@@ -42,6 +45,7 @@ function onPointerLeave() {
   <div
     ref="el"
     role="menuitem"
+    :class="kitClass"
     tabindex="-1"
     :aria-disabled="disabled ? 'true' : undefined"
     :data-disabled="disabled ? '' : undefined"

@@ -3,8 +3,12 @@
 // Shared Settings → Appearance rows — JV's donor rows lifted into the ONE kit
 // surface both consumers (JustVoice, just_ai_i18n_docgen) mount (the
 // 2026-08-04 shared-surface ruling). The host keeps its own card/section
-// chrome and its `.setting-row*` / `.accent-preview` styles — this panel
-// ships no CSS so each app's existing look applies unchanged.
+// chrome. The rows' look is the kit's (`:where(.setting-row…)` in
+// common/styles.css — zero specificity, so JustVoice's and docgen's own
+// `.setting-row*` / `.accent-preview` rules still win) — an app that styles
+// nothing gets laid-out rows and a hue slider in the accent colour, live as
+// it moves (2026-10-18: the template had no copy of those rules, so its
+// slider stayed the system blue).
 //
 // Rows: Theme · Interface size · UI font · Accent hue (swatch + slider) ·
 // Language. The Language row renders only when the host passes `locales` —
