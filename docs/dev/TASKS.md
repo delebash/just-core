@@ -10,6 +10,37 @@
 > Items extracted from plan docs are marked **[verified]** (code-checked at
 > extraction) or **[attributed]** (the plan doc's claim, not re-verified).
 
+## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
+STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning
+        that the kit holds the shared server platform, not only the LLM runner: "ok so we need to just
+        rename the repo to just-core then we have the platform, llm runner, ui and any other common
+        things that need thier own sub folder what do you think?" · "think on it again but yes i think
+        this is correct, give me y9our rec again" · on the rec below: "your rec on rename, go finish it
+        completely," · after a context compaction: "you have go on rename".
+        The rec as shown:
+            just-core/  (repo + folder; GitHub keeps redirecting the old URL)
+            ├── packages/core/   @delebash/core   ← was server/ (@delebash/llm-runner)
+            │   └── src/ platform/ · llm/ + runner/ · shell/   (already split by concern — unchanged)
+            │        imports: @delebash/core/platform · @delebash/core/llm · @delebash/core/shell
+            ├── packages/ui/     @delebash/ui     ← was ui/ (@delebash/llm-ui)
+            ├── template/ · docs/ · scripts/ (the guard)
+        Order, each step verified before the next: 1 the kit — move and rename the folders and packages,
+        add the `/llm` entry point; its tests, lint and the guard pass. 2 Rename the GitHub repo and the
+        local folder. 3 Each app in turn — replace the import names and paths; `npm install`, including
+        `src-electron`; lint, server tests, unit tests, browser build, the guard; start its server and
+        check `/v1/health`. 4 The outside references — the global CLAUDE.md (1 line), settings.json
+        (4 lines), 2 memory notes, Claude's memory folder `E--Dev-Web-just-llm-runner`. 5 One commit per
+        repo; nothing pushed until all three apps pass. Standards: npm workspaces
+        (docs.npmjs.com/cli/using-npm/workspaces), Node subpath exports
+        (nodejs.org/api/packages.html#subpath-exports), GitHub's rename redirects.
+WHY:    the name undersold the repo (LLM runner, server platform, desktop shell, UI controls, template,
+        the family standard, the guard) and confused both the user and Claude; done before the template
+        work so the template and the new standards are written once with the final names.
+NOT:    one package per concern (they depend on each other; every app would pin 4–5) · moving
+        `just-sqlite-sync` or audio.cpp in · renaming the app repos ("just leave them", below) ·
+        rewriting dated plan docs (they keep the old names as history; RESEARCH §2 records the rename).
+OPEN:   building it (2026-10-17).
+
 ## A standard start for every new just app: a `/new-just-app` skill on the kit's `template/` [2026-10-17]
 STATE:  PARTLY DECIDED 2026-10-17 (session web-2a, run from `E:\Dev\Web`). The user, verbatim:
         "we should have a standard for any just app or any new just app so when i start a project
@@ -135,6 +166,10 @@ DIRECTION (the user, 2026-10-17, verbatim — after being told the template has 
           only domain differences liket get all book but all the other common stuff like server health
           stats all should be standard, same for app code and gui, make sure this is in the template
           and that the ai needs to know these standards and stick to them when codding"
+        - On the coverage map's gap 4 (RESEARCH §2, "The complete template"), quoting it: "Request
+          validation and the error format as a written contract.  yes all gui should have standar
+          erorr msg and contract rqured min lenght and so on, make sure our app uses best standards
+          from server to form validation and error hadnling and loggin"
         So: the template becomes a COMPLETE family app — Quasar, the LLM stack (+ §11 chrome: AI area,
         task status, logs, settings), help docs, the §14 skeleton, tests at every level (server, unit,
         e2e) — verified green and checked by the guard as a product; the skill's parts are yes/no
@@ -148,12 +183,12 @@ DIRECTION (the user, 2026-10-17, verbatim — after being told the template has 
         Process: fresh inventory (standard, the three apps, industry standards) → draft →
         several adversarial reviews → the plan with its blast radius to the user for a go → build →
         prove every script green.
-OPEN:   the §14 product skeleton. Once registered in `APPS`, a new app must pass the product-only
-        checks the template is exempt from: `src/services/helpDocs.js` (makeDocsHelpAdapter),
-        `src/stores/ui.js` (useUiStore), `src/boot.smoke.test.js` (registerBootSmoke),
-        `src/pages/HomePage.vue`, `vitest.config.js`, `server/vitest.config.js`,
-        `server/tests/*.test.js` (check-family.js:697-733, check 4). The approved design never said
-        where those come from — put to the user (rec: in the template) before the skill is built.
+OPEN:   the plan — the complete template and a written standard per part — waits on the just-core
+        rename (item above) so it is written once with the final names. Its inputs are in RESEARCH §2,
+        "The complete template" (the apps' shared pieces, the standards coverage map and its 14 gaps,
+        industry practice; the reports verbatim in `docs/plans/2026-10-17-complete-template-research.md`).
+        The §14 product skeleton (the product-only checks the template is exempt from:
+        check-family.js:697-733, check 4) comes with the template, per the DIRECTION above.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp

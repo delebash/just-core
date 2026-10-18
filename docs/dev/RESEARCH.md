@@ -1099,9 +1099,9 @@ template's missing files and the biome.json difference re-checked by this sessio
   17490). **A new app isn't checked until it's added to both.** Dev ports have no registry in code — only
   prose (app-structure §3:479, §14:961: JW 1420 · JV 1430/1431 · docgen 1450/1451); 17496 is JW's smoke
   scratch port and JV uses 1440 for a second renderer.
-- The template has no LICENSE, `.gitattributes`, `docs/`, server tests, vitest configs, `@renderer` alias,
-  kit peers (`marked`, `@vueuse/core`, `@floating-ui/dom`, `qrcode`), `installLlmUi` boot, AI stack, or
-  §11 chrome. Its `biome.json` differs from the apps' (JV == JW; the guard wants the apps' byte-identical).
+- The template has no `docs/`, server tests, vitest configs, `@renderer` alias, kit peers (`marked`,
+  `@vueuse/core`, `@floating-ui/dom`, `qrcode`), `installLlmUi` boot, AI stack, or §11 chrome (was: also no
+  LICENSE or `.gitattributes`, and a `biome.json` different from the apps' — until 2026-10-17, 5dfc3ab).
   Copy only `git ls-files template` (the working tree holds node_modules, dist, generated Android files)
   and regenerate the three lockfiles rather than copy them (they name `family-template` and `../../server`).
 - Contradictions in app-structure.md: §Q.2:97 says the `id` is "the kebab name … `com.<id>.app`", but an
@@ -1126,6 +1126,78 @@ template's missing files and the biome.json difference re-checked by this sessio
   sessions; a plugin marketplace shares skills across machines but namespaces them (`/<plugin>:<skill>`).
   Husky 9.1.7 + lint-staged 17.6.0 is the standard pre-commit pair; Biome's recipe runs `biome check
   --staged`. create-quasar 5.0.34, quasar 2.35.1, @quasar/app-vite 3.10.3, electron 44.9.0 (2026-10-15/17).
+
+---
+
+**The complete template — what the apps share, what is written down, and industry practice** (*agent ×3,
+read-only, 2026-10-17; the reports verbatim in
+[`../plans/2026-10-17-complete-template-research.md`](../plans/2026-10-17-complete-template-research.md); not
+re-checked by the session that saved them; paths are from before the just-core rename*):
+
+- **Shared by all three apps and missing from the template**, ranked: the server's AI half (§8: a SQLite
+  handle, `installLlm` + `runnerRouter`, seeding at start, a feature catalog and presets); the server's
+  family surface (log ring + file log; the logs, disk, data, prefs and server-auth routers; the health base
+  fields; the error envelope; app_state, paths, version, auth; `locateUiDir`; `defaultDataDir`); server
+  tests (csrf, prefs, CORS with an `Origin:` header, logs content); `boot/<app>.js` + `services/native.js`;
+  the §11 chrome (MainLayout, the TitleBar with `AiStatusButton`, the AI-tasks row spreading `navAttrs`, the
+  tray handlers, keep-running); pages (Home, `/ai`, Settings with 7 sections + `settingsSections.js` +
+  `settingsCanon.test.js`, `/offline`); `stores/ui.js`, `services/appearance.js`; help (`helpDocs.js`, the
+  5 required docs, `toc.json`, whats-new feeding Updates); renderer tests (`vitest.config.js`,
+  `boot.smoke.test.js`); `e2e/` with §10's `test`/`screenshots`; `docs/dev`; the `#app-boot` plate; desktop
+  (tray.png, icon.ico, `electronFuses`, the nsis include, `perMachine:false`, the better-sqlite3 excludes).
+  The smallest donors are docgen's (serve.js, app.js:357-437, MainLayout, SettingsPage.vue:205-397, `e2e/`,
+  server/tests/app.test.js:32-140).
+- **The template carries what no app has:** a lazily loaded layout route, Quasar's scaffold pages and its
+  roboto/material-icons extras, the ssr/ssg/pwa/cordova/bex blocks, two pnpm-workspace.yaml files,
+  `engines`, and a `/v1/health` of `{ok, app, product}` (all three apps answer `{status, product, version,
+  apiVersion}`).
+- **Common pieces each app still writes itself** (no kit factory): health (`api/health_api.js`), the Storage,
+  Server and About settings sections, and the app version (JW `VITE_APP_VERSION`, its server saying 0.0.1
+  against package.json's 1.0.0; JV reads package.json through `/v1/health`; docgen hard-codes 0.1.0).
+- **Deviations found:** JW has no logs-content test (§11) and a non-hermetic e2e; JV has no `e2e/` (unlisted)
+  and no `/settings/:section?`; JW's Appearance section is hand-built; docgen's id has hyphens (§Q.2) and it
+  has no `/v1/shutdown`; JW sets no devServer host; JW's alias is `#phone` (§Q.7: `#in-app-server`); JV
+  gitignores its native phone projects; the shell sends three tray events where §11 says four; no app has
+  `PRD.md`.
+- **Written standards, per part** (C complete · P partial · A one app only · N none): **C** — layout,
+  auth/CSRF/CORS, backups, headless/CLI, installing the AI stack, features → presets, the AI-call convention,
+  the model cache, shell/tray, the phone worker, definition of done, lint, the guard. **P** — tokens/theme,
+  components, page patterns, navigation, forms, dialogs/toasts, help docs, routes and wire format, the error
+  envelope, validation, seeds, settings/prefs, background jobs, logging, the data folder, adopting sync, API
+  key storage, the memory arbiter, updates, installers, testing, security, the docs convention,
+  AGENTS.md, commits/CI. **A** — keyboard shortcuts, database and migrations, releases. **N** —
+  accessibility, client-side form validation, image/vision models, performance budgets, signing.
+- **Validation, errors and logging today:** the error envelope is written down only in the header of
+  `server/src/platform/errors.js` (RFC 7807 problem+json, a pydantic-style 422, a FastAPI-style 404), in two
+  shapes (`errors: "problem" | "fastapi"`; docgen uses fastapi, a listed deviation). Server validation is
+  described only in the Hono plan §5/§9/§10 (`input()`, TypeBox schemas via `platform/models.js`, ajv with
+  Fastify's options). No doc says how a form validates input or shows errors. Logging: the wiring is §11;
+  `errors.js` sets the level from the status code; no policy on levels or on what to log.
+- **Stale docs found:** the kit's `ui/README.md` (Python core, tells hosts to call `configureLlmUi`) and
+  `docs/dev/README.md` (venv, `.py` checks); `feature-model-system.md` (12 of 13 code pointers are `.py`);
+  `serving-design.md` and §1 here (`llm_runner/runner/*.py`); install-runbook's client half (vite.config.js,
+  main.js, Tauri); the Hono plan's header ("Nothing is coded yet"); `scripts/capture-schema.py`, cited but
+  tracked in no repo; JV's design-decisions §2 and code-map (77 `.py` lines); JW's AGENTS §2 (`runAiStream`)
+  and §4 (`_toast()`); the global CLAUDE.md's `styles.css` and "Biome for lint and format" (every biome.json
+  turns the formatter off).
+- **Industry practice** (*web via the agent, 2026-10-17*): components on Vitest + `@vue/test-utils`
+  (vuejs.org/guide/scaling-up/testing); `@quasar/testing-unit-vitest` 3.0.0 (happy-dom,
+  `installQuasarPlugin()`); Hono routes through `app.request` (hono.dev/docs/guides/testing) plus one test
+  through the real server; Playwright's `_electron` is "experimental" and can't launch an app whose
+  `EnableNodeCliInspectArguments` fuse is off, so e2e drives the unfused `dist/electron/UnPackaged` with
+  `workers: 1`; `@axe-core/playwright` 4.14.0 (MPL-2.0, test-only); v8 coverage needs `coverage.include`.
+  Current: vitest 5.0.5, @vue/test-utils 2.5.1, playwright 1.64.1, electron 44.9.0 (45 in beta), Capacitor
+  8.5.3 (keep its https scheme; cleartext and mixed content off). npm 12.2.0 blocks install scripts by
+  default; `engines` is advisory, `devEngines` enforced; Node 24 enters maintenance 2026-10-20, Node 26
+  becomes LTS 2026-10-28. Husky inside `template/` (no `.git`) prints ".git can't be found" and exits 0, so it
+  installs on the first `npm install` after `git init`. Biome 2.5's `html.experimentalFullSupportEnabled`
+  lints Vue templates (accessibility rules fire; the template's 13 files lint clean). No type-check gate for
+  plain JS (TypeScript 7 has no API for Vue's tooling yet). The kit's logger (`platform/log.js`, ring + daily
+  files) is not pino, the standard Node logger (10.4.0).
+- **Put to the user by that report** (not decided): an update bot (Renovate in approval mode, Dependabot, or
+  none); Biome's full Vue support (it changes the family biome.json); axe's MPL-2.0; the app-id domain
+  (`com.<id>.app` names a domain we may not own, permanent once on Play); JV's weekly CodeQL against the
+  by-hand ruling.
 
 ## 3 · AI tasks and the stream frames
 
