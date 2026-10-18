@@ -219,9 +219,11 @@ OPEN:   follow-ups the first real app found, each for its own go:
           lists `{ name, ddl }` (`tableDefs` over its migrations) and orders with `sortedTables`. The
           template could do the same so every app gets it. (A restore is safe either way: the kit's
           restore copies with foreign keys off.)
-        - a picture loaded by `<img src=serverUrl(...)>` carries no bearer token — on a headless server
-          with access tokens the pictures don't show; the kit has `requestBlob` (an object URL) but no
-          image helper;
+        - BUILT 2026-10-18 under "your rec on all go" (just-house-paint): `UiServerImage` / `useServerImage`
+          — a server picture through the kit's transport (requestBlob → an object URL), so it carries the
+          token and reaches the phone's in-app server. Found with it: NO app passes a token to
+          `configureServerApi({ authToken })`, so a browser UI against a server that requires tokens gets
+          401 on every call — the tokens serve other programs today; a UI that signs in is open;
         - the kit's UI package has no mount harness (jsdom, Vue Test Utils): UiNumber's fix is proved by
           just-house-paint's `src/components/settings/GeneralSection.test.js`;
         - the AGENTS.md rollout to JustWrite, JustVoice and docgen, and their §15 GUI half (the open

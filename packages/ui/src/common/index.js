@@ -48,6 +48,9 @@ export { default as SettingsShell } from "./components/SettingsShell.vue";
 // SettingsShell's strip, on its own — for a view that owns its own scroller and
 // would inherit a second one by taking the whole shell.
 export { default as UiTabStrip } from "./components/UiTabStrip.vue";
+// a picture the app's server holds, through the kit's transport (the bearer token, the phone's in-app server)
+export { default as UiServerImage } from "./components/UiServerImage.vue";
+export { useServerImage } from "./composables/useServerImage.js";
 export { promptDialog, confirmDialog, dialogState, _resolveDialog } from "./services/dialog.js";
 export { tooltipDirective } from "./services/tooltip.js";
 
