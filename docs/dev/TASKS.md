@@ -432,7 +432,7 @@ NEXT:   database-seeded words — BUILT 2026-10-18 under the user's "your rec on
         what the second look changed). Open: JustVoice's rows (the plan's Task 4), when its screens
         are translated.
 OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (each ticked in the
-        plan with its commit; the follow-ups' words are in JustWrite's TASKS). The ⚠️ hit closed
+        plan with its commit; the follow-ups' words are in JustWrite's TASKS until `8918584` (closed there; `git show 8918584^:docs/dev/TASKS.md` in JustWrite)). The ⚠️ hit closed
         2026-10-13. Task 3 under way: steps 2–4 done 2026-10-13 (the plan says what landed, with
         commits). The five questions of 2026-10-13 are ruled (above) and built: the CORS
         message, the two layout faults, the shared tables, the marked exemptions; the
@@ -443,13 +443,13 @@ OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (eac
         asked to hold it). Task 3 step 6's and Task 4 step 3's gates run 2026-10-15 (the user:
         "you have a go on it all get it all done"), all but D3's pseudo-locale check, which
         awaits its own word (the plan has what ran and what was fixed). Ruled 2026-10-15 ("your
-        rec on all go"; the words as shown are in JustWrite's TASKS): D3 no — vue-i18n's own
+        rec on all go"; the words as shown are in JustWrite's TASKS until `8918584`): D3 no — vue-i18n's own
         `missing` hook in the smoke's build instead (the plan, D3); Task 6 with the context
         sentences as drafted, neutral Latin American Spanish with "tú", the glossary of the plan's
         four names plus the other product and format names in the catalogs, run unattended, the
         GPU only when JustVoice's session says it is free. The kit's catalog has its project at
         `ui/just-ai-i18n-docgen/config.json`. Task 6's three lists staged 2026-10-15 (JustWrite
-        2,980, the kit 1,453 of 1,454, docgen 278 — JustWrite's TASKS). Reviewed and applied
+        2,980, the kit 1,453 of 1,454, docgen 278 — JustWrite's TASKS until `8918584`). Reviewed and applied
         2026-10-17 by an agentic review instead of by hand (the decision and the run are in
         JustWrite's TASKS, "Automated testing"): the kit's `packages/ui/src/i18n/locales/es.json`
         has all 1,480 strings (was 62; the 27 added since 2026-10-15, `kit.validation.*` and
