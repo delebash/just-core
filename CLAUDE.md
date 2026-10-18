@@ -22,6 +22,7 @@ The family rules every family repo follows, this one included: @docs/family-rule
 ```bash
 cd packages/core && npm test          # vitest on Electron's own Node 24 (scripts/node24.js), never PATH's node
 cd packages/core && npm run lint      # Biome: src, tests, scripts
+cd packages/ui && npm install           # its tools AND the fonts every app bundles (common/fonts.css) — an app build needs them
 cd packages/ui && npm run lint          # Biome: src
 cd packages/ui && npm run check:pickers # fails a hand-coded copy of a shared picker
 node scripts/check-family.js   # the family guard: the three apps + the template against the kit

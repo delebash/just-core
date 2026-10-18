@@ -14,7 +14,7 @@ an app made from it is for.
 ## Commands
 
 ```bash
-npm install            # the renderer and the server/ workspace; once each: (cd src-electron && npm install), (cd e2e && npm install)
+npm install            # the renderer and the server/ workspace; once each: (cd src-electron && npm install), (cd e2e && npm install), and the kit's fonts (cd ../packages/ui && npm install)
 npm run dev            # the desktop app, live (the shell starts the server on <repo>/data)
 npm run dev:spa        # the renderer alone in a browser tab on :9000 (run `npm run server` beside it)
 npm run server         # the server alone (headless) on :17490, the built UI at /

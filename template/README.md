@@ -8,7 +8,7 @@ skill (`../skills/new-just-app/`, `../scripts/new-app.js`) copies its tracked fi
 `just-<name>` app and renames it. The standard it follows is `../docs/app-structure.md` (§Q wins);
 the plan that made it complete is `../docs/plans/2026-10-18-complete-template-and-standards.md` §6.
 
-Run it: `npm install` (then once `cd src-electron && npm install` and `cd e2e && npm install`), and
+Run it: `npm install` (then once `cd src-electron && npm install` and `cd e2e && npm install`, and `cd ../packages/ui && npm install` for the fonts the kit bundles), and
 `npm run dev`. The instructions for an AI are `AGENTS.md`.
 
 ## The shape
