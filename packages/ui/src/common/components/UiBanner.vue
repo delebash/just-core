@@ -14,14 +14,17 @@ import { computed } from "vue";
 import Icon from "./Icon.vue";
 
 const props = defineProps({
-  intent: { type: String, default: "danger" }, // danger
+  intent: { type: String, default: "danger" }, // danger | info
+  // the action beside the words (the default) or under them — a narrow panel's banner with two
+  // buttons stacks them, so the words keep their width (just-house-paint's design offer, 2026-10-18)
+  inlineActions: { type: Boolean, default: true },
 });
 const ICONS = { danger: "Alert" };
 const classes = computed(() => ["ui-banner", `ui-banner--${props.intent}`]);
 </script>
 
 <template>
-  <QBanner :class="classes" dense inline-actions>
+  <QBanner :class="classes" dense :inline-actions="inlineActions">
     <template #avatar><Icon :name="ICONS[intent] || 'Alert'" :size="13" /></template>
     <slot />
     <template v-if="$slots.action" #action><slot name="action" /></template>

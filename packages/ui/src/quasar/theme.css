@@ -66,6 +66,7 @@
 .ui-banner .q-banner__content { font: inherit; letter-spacing: inherit; }
 .ui-banner .q-banner__avatar:not(:empty) + .q-banner__content { padding-left: 8px; }
 .ui-banner .q-banner__actions.col-auto { padding-left: 10px; }
+.ui-banner--info { --ui-banner-bg: var(--info-bg, color-mix(in oklab, var(--accent) 10%, transparent)); --ui-banner-ink: var(--info, var(--ink)); }
 .ui-banner--danger { --ui-banner-bg: color-mix(in oklab, var(--danger-ink, #b91c1c) 12%, transparent); --ui-banner-ink: var(--danger-ink, #b91c1c); }
 
 /* ── Chip (UiChip on QChip) ────────────────────────────────────────────── */
