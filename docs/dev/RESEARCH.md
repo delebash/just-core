@@ -1631,7 +1631,7 @@ English".
 ## 9 · Downloads
 
 - **Every file download in the family goes through one path:** the downloader
-  (`packages/core/src/runner/download.js`, a chunk queue — 8 connections by default, each pulling
+  (`packages/core/src/runner/download.js`, a chunk queue — 8 connections, each pulling
   fixed-size parts, resumable from `<file>.json`) on the kit's one HTTP client
   (`packages/core/src/platform/http.js`). No app calls `fetch` for a download itself (a grep of
   JustVoice, JustWrite and docgen's `server/src` finds only comments). The AI providers' calls use
@@ -1659,6 +1659,13 @@ English".
   from that byte, on a resume and on a retry — as aria2's control file and `curl -C -` do.
   `download.test.js` "resume_continues_each_unfinished_chunk_from_where_it_stopped". After the
   fix, the app's own download of the rest ran at 113 MB/s. — *code + measured, 2026-10-18*.
+- **No download settings since 2026-10-18:** the "Faster downloads" group (on/off, connections,
+  split size, retries) left AI Settings' engine panel, the engine-config API, the stored settings
+  and the seed in every app — the user: "realistically a user should never need to touch download
+  settings it should just work at the best possible speed". A download's connections (8) and
+  retries (3) are the downloader's own (`download.CONNECTIONS`, `RETRIES`); `downloadMaxConcurrent`
+  (files at once, 4) stays. Rows already in a database are ignored until its next reset. — *code,
+  2026-10-18*.
 
 ## Records not yet distilled
 

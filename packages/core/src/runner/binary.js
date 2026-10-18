@@ -866,7 +866,7 @@ export async function acquireBinary(
     );
   }
 
-  return self._stageAndSwap(asset, dest, hardware.platform, download.downloadKwargs(config), {
+  return self._stageAndSwap(asset, dest, hardware.platform, {}, {
     onProgress,
     cancelCheck,
     probeArgvs,

@@ -12,8 +12,9 @@
 // at 1–4 MB/s while a single connection ran 20–26 MB/s.)
 //
 // Concurrency at BOTH levels:
-//   * per FILE — `segments` worker connections pulling chunks off the queue (default 8, from
-//     the config via `downloadKwargs`);
+//   * per FILE — `CONNECTIONS` (8) worker connections pulling chunks off the queue; not a
+//     setting (decided 2026-10-18: downloads just work at the line's full speed — 74 MB/s
+//     measured, the kit's RESEARCH §9);
 //   * across FILES — each model download runs as its own task with its own `streamDownload`
 //     call (lifecycle, up to `download_max_concurrent` at once).
 //
@@ -37,14 +38,16 @@ import { AsyncEvent, sleep, TimeoutError } from "../platform/asyncutil.js";
 import * as http from "../platform/http.js";
 import { HttpStatusError } from "../platform/http.js";
 import { getLogger } from "../platform/log.js";
-import { floorDiv, pyFloatParse, pyInt, pyRound, pySorted, RuntimeError, truthy, ValueError } from "../platform/py.js";
+import { floorDiv, pyFloatParse, pyInt, pyRound, pySorted, RuntimeError, ValueError } from "../platform/py.js";
 import { pyJson } from "../platform/pyjson.js";
-import { MAX_DOWNLOAD_SEGMENT_COUNT, MAX_DOWNLOAD_SEGMENT_RETRIES } from "./config.js";
 import * as self from "./download.js";
 
 const log = getLogger("llm_runner.runner.download");
 
 export const DEFAULT_CHUNK_SIZE = 8 * 1024 * 1024; // floor — see the request-count scaling in streamDownload
+// Connections a download pulls chunks over, and the retries each chunk gets on a fresh one.
+export const CONNECTIONS = 8;
+export const RETRIES = 3;
 const CONNECT_TIMEOUT = 15.0;
 const READ_TIMEOUT = 60.0; // a dead connection errors here → the chunk retries fresh
 
@@ -223,19 +226,6 @@ export class RateGate {
   }
 }
 
-/** Per-download options from a RunnerConfig — ONE place that collapses the `enabled` flag
- * into the connection count (off → 1 → a plain single stream), clamped to the config
- * ceilings (#10). Used by BOTH the engine archive and the model GGUFs. Spread it into
- * `streamDownload`'s options. `downloadSegmentMinBytes` is RETIRED (the downloader falls back
- * to a single stream by itself); the DB field stays inert for back-compat. */
-export function downloadKwargs(config) {
-  const attr = (k, d) => (config != null && k in config ? config[k] : d);
-  const enabled = truthy(attr("downloadSegmentsEnabled", true));
-  const rawCount = attr("downloadSegmentCount", 8);
-  const count = Math.max(1, Math.min(MAX_DOWNLOAD_SEGMENT_COUNT, pyInt(truthy(rawCount) ? rawCount : 1)));
-  const retries = Math.max(0, Math.min(MAX_DOWNLOAD_SEGMENT_RETRIES, pyInt(attr("downloadSegmentRetries", 3))));
-  return { segments: enabled ? count : 1, retries };
-}
 
 /** Range-probe: [total size, etag] when the server honours byte ranges, else [0, ""]. A
  * 1-byte ranged GET (not HEAD — some CDNs answer HEAD without range headers).
@@ -518,8 +508,8 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
  * across that change restarts clean: the resume validator records chunkSize.)
  *
  * Options mirror Python's keywords: `{onProgress, cancelCheck, segments, retries, chunkSize,
- * pollInterval (seconds), headers}` — `streamDownload(url, dest, {onProgress, cancelCheck,
- * ...downloadKwargs(cfg)})`.
+ * pollInterval (seconds), headers}`. `segments` and `retries` are the downloader's own
+ * (CONNECTIONS, RETRIES) — no setting changes them; a test passes its own.
  */
 export async function streamDownload(
   url,
@@ -527,8 +517,8 @@ export async function streamDownload(
   {
     onProgress = null,
     cancelCheck = null,
-    segments = 8,
-    retries = 3,
+    segments = CONNECTIONS,
+    retries = RETRIES,
     chunkSize = DEFAULT_CHUNK_SIZE,
     pollInterval = 0.3,
     headers = null,

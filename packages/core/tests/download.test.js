@@ -4,9 +4,10 @@
 // chunked (work-stealing) output is bytes-identical · single-stream fallback when the server
 // has no Range support · segments=1 is a plain browser-style GET · the unlink-first guard ·
 // cancel → DownloadCancelled · resume of a cancelled chunked download from its completed
-// chunks · a chunk that exhausts retries → RuntimeError · the `downloadKwargs` shape +
-// clamps · rate limiting (the 2026-07-24 StyleTune 429) · headers (the HF bearer token) ride
-// every request · chunk COUNT is bounded. All 17 Python tests are ported.
+// chunks, and of an unfinished chunk from its own byte · a chunk that exhausts retries →
+// RuntimeError · rate limiting (the 2026-07-24 StyleTune 429) · headers (the HF bearer token)
+// ride every request · chunk COUNT is bounded · the downloader's own connections and retries
+// (no settings since 2026-10-18).
 //
 // Chunk-path tests pass a SMALL `chunkSize` so the ~2 MB payload genuinely chunks (the
 // production default is 8 MB, which would make this payload a single chunk).
@@ -17,9 +18,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { sleep } from "../src/platform/asyncutil.js";
 import { RuntimeError } from "../src/platform/py.js";
-import { MAX_DOWNLOAD_SEGMENT_COUNT, MAX_DOWNLOAD_SEGMENT_RETRIES } from "../src/runner/config.js";
 import * as dl from "../src/runner/download.js";
-import { DownloadCancelled, downloadKwargs, streamDownload } from "../src/runner/download.js";
+import { CONNECTIONS, DownloadCancelled, RETRIES, streamDownload } from "../src/runner/download.js";
 
 // ~2 MB + an odd tail so segment splits don't land on round boundaries.
 const PAYLOAD = Buffer.alloc(2 * 1024 * 1024 + 137);
@@ -356,22 +356,13 @@ test("chunk_count_is_bounded_by_request_discipline", async () => {
   expect(rangeGets(server).length).toBeLessThanOrEqual(1 + 2 * 4); // the probe + at most segments×4 chunk GETs
 });
 
-// ── downloadKwargs — the {segments, retries} shape + the clamps (MODEL path) ─────────
+// ── the downloader's own connections and retries — not settings (2026-10-18) ─────────
 
-test("download_kwargs_shape_and_collapse", () => {
-  const c = { downloadSegmentsEnabled: true, downloadSegmentCount: 6, downloadSegmentRetries: 2 };
-  expect(downloadKwargs(c)).toEqual({ segments: 6, retries: 2 }); // min_bytes is RETIRED — gone from the shape
-  c.downloadSegmentsEnabled = false;
-  expect(downloadKwargs(c).segments).toBe(1); // off → the single stream
-});
-
-test("download_kwargs_clamps_count_and_retries", () => {
-  const over = { downloadSegmentsEnabled: true, downloadSegmentCount: 200, downloadSegmentRetries: 99 };
-  const kw = downloadKwargs(over);
-  expect(kw.segments).toBe(MAX_DOWNLOAD_SEGMENT_COUNT); // 200 → the ceiling
-  expect(kw.retries).toBe(MAX_DOWNLOAD_SEGMENT_RETRIES);
-  expect("segmentMinBytes" in kw || "segment_min_bytes" in kw).toBe(false); // the retired knob leaks nowhere
-  const under = { downloadSegmentsEnabled: true, downloadSegmentCount: 0, downloadSegmentRetries: -5 };
-  const kw2 = downloadKwargs(under);
-  expect(kw2.segments === 1 && kw2.retries === 0).toBe(true); // floor: single stream, no negative retries
+test("connections_and_retries_are_the_downloaders_own", async () => {
+  expect([CONNECTIONS, RETRIES]).toEqual([8, 3]);
+  // No options: 8 connections pull the chunks (the probe + more than one range at once).
+  const dest = join(tmpPath, "defaults.bin");
+  await streamDownload(url(server), dest, { chunkSize: CHUNK, pollInterval: 0.02 });
+  expect(readFileSync(dest).equals(PAYLOAD)).toBe(true);
+  expect(rangeGets(server).length).toBeGreaterThan(CONNECTIONS);
 });

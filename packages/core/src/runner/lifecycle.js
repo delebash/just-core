@@ -105,7 +105,7 @@ import * as bandwidth from "./bandwidth.js";
 import * as binary from "./binary.js";
 import { pyPath } from "./cache_registry.js";
 import { DEFAULT_DOWNLOAD_MAX_CONCURRENT, DEFAULT_PINNED_BUILD, defaultConfig, MAX_DOWNLOAD_CONCURRENT } from "./config.js";
-import { DownloadCancelled, downloadKwargs } from "./download.js";
+import { DownloadCancelled } from "./download.js";
 import * as fitMod from "./fit.js";
 import * as gguf from "./gguf.js";
 import * as hardware from "./hardware.js";
@@ -2733,7 +2733,6 @@ export class RunnerService {
       cacheRoot: path.join(this._cacheRoot, "hf"),
       onProgress,
       ...cancelKw,
-      ...downloadKwargs(this._configFn()),
     });
     const p = path.join(String(snapshot), file);
     if (!existsSync(p)) throw new FileNotFoundError(`MTP draft downloaded but not found in the snapshot: ${pyRepr(file)}`);
@@ -2986,7 +2985,6 @@ export class RunnerService {
       cacheRoot: path.join(this._cacheRoot, "hf"),
       onProgress,
       ...cancelKw,
-      ...downloadKwargs(this._configFn()),
     });
     const ggufPath = this._mainGguf(snapshot, model.quant);
     // Integrity gate (fail-fast): a corrupt / incomplete download is purged + thrown as an

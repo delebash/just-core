@@ -281,7 +281,6 @@ export class Calibrator {
       await download.streamDownload(url, dest, {
         onProgress: progress,
         cancelCheck: () => this._cancel,
-        ...download.downloadKwargs(cfg),
       });
     } catch (e) {
       if (e instanceof download.DownloadCancelled) throw new Cancelled();

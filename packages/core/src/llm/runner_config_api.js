@@ -16,7 +16,7 @@ import { model, nullable, opt, T } from "../platform/models.js";
 import { pyInt } from "../platform/py.js";
 import { pyFloat } from "../platform/pyjson.js";
 import { input } from "../platform/server.js";
-import { MAX_DOWNLOAD_CONCURRENT, MAX_DOWNLOAD_SEGMENT_COUNT, MAX_DOWNLOAD_SEGMENT_RETRIES } from "../runner/config.js";
+import { MAX_DOWNLOAD_CONCURRENT } from "../runner/config.js";
 
 export const RunnerBinaryRow = T.Object({
   platform: T.String(),
@@ -54,11 +54,6 @@ export const EngineConfig = T.Object({
   ramHeadroomMb: opt(T.Integer(), 4096),
   modelsMax: T.Integer(), // router: how many models may stay co-resident (>= 1)
   sleepIdleSeconds: T.Integer(), // router: idle-unload TTL in seconds (0 = never)
-  // Segmented downloads (DL-2): N parallel byte-ranges per file.
-  downloadSegmentsEnabled: opt(T.Boolean(), true),
-  downloadSegmentCount: opt(T.Integer(), 8), // keep in step with config.DEFAULT_DOWNLOAD_SEGMENT_COUNT
-  downloadSegmentMinBytes: opt(T.Integer(), 64 * 1024 * 1024), // RETIRED/inert; kept for back-compat
-  downloadSegmentRetries: opt(T.Integer(), 3),
   downloadMaxConcurrent: opt(T.Integer(), 4), // CONCURRENT model downloads (2026-07-20)
   // "off" | "notify". Notify = the UI surfaces "update available" and the bump is a
   // deliberate click; NEVER auto-applied — the pin is a VERIFIED pin.
@@ -99,10 +94,6 @@ export const EngineConfigUpdate = T.Object({
   ramHeadroomMb: opt(nullable(T.Integer()), null),
   modelsMax: opt(nullable(T.Integer()), null),
   sleepIdleSeconds: opt(nullable(T.Integer()), null),
-  downloadSegmentsEnabled: opt(nullable(T.Boolean()), null),
-  downloadSegmentCount: opt(nullable(T.Integer()), null),
-  downloadSegmentMinBytes: opt(nullable(T.Integer()), null),
-  downloadSegmentRetries: opt(nullable(T.Integer()), null),
   downloadMaxConcurrent: opt(nullable(T.Integer()), null),
   warmDefaultOnStartup: opt(nullable(T.Boolean()), null), // warm the default local chat model into VRAM on startup
   binaries: opt(nullable(T.Array(RunnerBinaryRow)), null), // each upserted by (platform, gpu)
@@ -195,31 +186,8 @@ export function makeRunnerConfigRouter(getStore) {
     if (body.sleepIdleSeconds != null) {
       store.setSetting("sleep_idle_seconds", intText(pyMax2(0, pyInt(body.sleepIdleSeconds))));
     }
-    if (body.downloadSegmentsEnabled != null) {
-      store.setSetting("download_segments_enabled", body.downloadSegmentsEnabled ? "1" : "0");
-    }
-    if (body.downloadSegmentCount != null) {
-      // #10 (2026-07-17): clamp to [1, MAX] — a bare "20" spawned 20 parallel Range
-      // requests; >~8 only loads the CDN, no speed. saveKnobs re-reads the returned config,
-      // so the field snaps back to the clamped value the user sees.
-      store.setSetting(
-        "download_segment_count",
-        intText(pyMax2(1, pyMin2(MAX_DOWNLOAD_SEGMENT_COUNT, pyInt(body.downloadSegmentCount)))),
-      );
-    }
-    if (body.downloadSegmentMinBytes != null) {
-      // RETIRED/inert (the downloader falls back to single-stream itself) — still accepted
-      // + persisted so an existing UI/DB round-trips without a 422; nothing reads it.
-      store.setSetting("download_segment_min_bytes", intText(pyMax2(0, pyInt(body.downloadSegmentMinBytes))));
-    }
-    if (body.downloadSegmentRetries != null) {
-      store.setSetting(
-        "download_segment_retries",
-        intText(pyMax2(0, pyMin2(MAX_DOWNLOAD_SEGMENT_RETRIES, pyInt(body.downloadSegmentRetries)))),
-      );
-    }
     if (body.downloadMaxConcurrent != null) {
-      // Clamp to [1, MAX] — the same ONE-source belt as the segment knobs; the lifecycle
+      // Clamp to [1, MAX] (config.MAX_DOWNLOAD_CONCURRENT, ONE source); the lifecycle
       // gate re-clamps on read too, so a raw DB poke can't spawn more than MAX parallel
       // downloads.
       store.setSetting(

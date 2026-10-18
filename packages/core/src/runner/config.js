@@ -124,30 +124,15 @@ export const DEFAULT_LOAD_ROWS_KEEP = 3;
 export const DEFAULT_MODELS_MAX = 2;
 export const DEFAULT_SLEEP_IDLE_SECONDS = 900;
 
-// Concurrent downloads — N connections pull CHUNKS off a shared work queue (download.js; the
-// IDM/aria2 "dynamic segmentation" design). ONE setting for EVERY download (engine + models,
-// no per-host special cases): work-stealing means a slow connection only delays the single
-// chunk it holds. HuggingFace rate-limits by REQUEST COUNT (anonymous: 3,000 resolver hits
-// per 5-min window/IP — the 2026-07-24 StyleTune 429), so chunk COUNT is bounded in
-// streamDownload (≤ segments × 4 requests per file) and 429/503 park all connections on a
-// shared gate for the server-declared wait. Capped at MAX_DOWNLOAD_SEGMENT_COUNT (16).
-export const DEFAULT_DOWNLOAD_SEGMENTS_ENABLED = true;
-export const DEFAULT_DOWNLOAD_SEGMENT_COUNT = 8;
-// RETIRED 2026-07-20: the downloader decides single- vs multi-connection itself from the
-// server's Range support + size, so this floor is inert. Kept (and the DB row / config-API
-// field) for back-compat — `downloadKwargs` no longer reads it.
-export const DEFAULT_DOWNLOAD_SEGMENT_MIN_BYTES = 64 * 1024 * 1024;
-export const DEFAULT_DOWNLOAD_SEGMENT_RETRIES = 3;
+// A download's own connections and retries are the downloader's (download.js), not settings
+// (decided 2026-10-18: "a user should never need to touch download settings it should just work
+// at the best possible speed"; the "Faster downloads" settings were removed).
 // CONCURRENT model downloads (2026-07-20): how many model downloads may run in parallel.
 // Read LIVE at admission so the knob is tunable without a restart.
 export const DEFAULT_DOWNLOAD_MAX_CONCURRENT = 4;
-// Upper bounds for the count knobs (#10, 2026-07-17). Past ~4-8 segments only piles load on
-// the CDN edge without adding speed; retries past ~10 just prolong a genuinely-dead segment;
-// >10 concurrent whole-model downloads thrash the disk + CDN. The write path (engine-config
-// PUT) and the read paths (downloadKwargs / the lifecycle admission gate) all clamp to these
-// — ONE source, so a raw DB poke can't route around them either.
-export const MAX_DOWNLOAD_SEGMENT_COUNT = 16;
-export const MAX_DOWNLOAD_SEGMENT_RETRIES = 10;
+// Its upper bound (#10, 2026-07-17): >10 concurrent whole-model downloads thrash the disk + CDN.
+// The write path (engine-config PUT) and the lifecycle admission gate both clamp to it — ONE
+// source, so a raw DB poke can't route around it either.
 export const MAX_DOWNLOAD_CONCURRENT = 10;
 
 // Prebuilt llama-server distributions, selected by (platform, gpu). We never install a CUDA

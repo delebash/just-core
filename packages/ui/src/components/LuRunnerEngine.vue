@@ -17,7 +17,6 @@ import UiButton from "../common/components/UiButton.vue";
 import UiInput from "../common/components/UiInput.vue";
 import DownloadBar from "../common/components/DownloadBar.vue";
 import UiSelect from "../common/components/UiSelect.vue";
-import UiToggle from "../common/components/UiToggle.vue";
 import LuRunnerBinaries from "./LuRunnerBinaries.vue";
 import LuEngineInstallButton from "./LuEngineInstallButton.vue";
 import LuEngineUpdateButton from "./LuEngineUpdateButton.vue";
@@ -93,14 +92,6 @@ const sleepIdleSeconds = ref(null); // owned by the user until Save (no poll clo
 const savingKnobs = ref(false);
 const knobErr = ref("");
 
-// Segmented downloads (DL-2) — the four DB-backed settings, drafts seeded ONCE
-// from GET /engine-config at mount (same owned-until-Save rule as the knobs
-// above). The min-bytes setting is presented in MB (stored in bytes).
-const MB = 1024 * 1024;
-const dlSegmentsEnabled = ref(null);
-const dlSegmentCount = ref(null);
-const dlSegmentMinMb = ref(null);
-const dlSegmentRetries = ref(null);
 // The fit/speed knobs (fit-redesign §13.17 as AMENDED at the Phase 3 go — the
 // user's word, verbatim: "move the margin and cap nd the new fields under
 // loaded models where Models kept loaded at once live, not under engine
@@ -120,13 +111,10 @@ const bandDeadzonePct = ref(null);
 const speedFloorGracePct = ref(null);
 const ramHeadroomMb = ref(null);
 
-async function loadDownloadKnobs() {
+// The fit/speed drafts, seeded ONCE from GET /engine-config at mount (owned until Save).
+async function loadConfigKnobs() {
   try {
     const r = await request("/v1/ai/engine-config");
-    if (dlSegmentsEnabled.value === null) dlSegmentsEnabled.value = !!r.downloadSegmentsEnabled;
-    if (dlSegmentCount.value === null) dlSegmentCount.value = r.downloadSegmentCount;
-    if (dlSegmentMinMb.value === null) dlSegmentMinMb.value = Math.round((r.downloadSegmentMinBytes || 0) / MB);
-    if (dlSegmentRetries.value === null) dlSegmentRetries.value = r.downloadSegmentRetries;
     if (safetyMarginMb.value === null) safetyMarginMb.value = r.safetyMarginMb;
     if (ctxCapTokens.value === null) ctxCapTokens.value = r.ctxCapTokens;
     if (bandFastToks.value === null) bandFastToks.value = r.bandFastToks;
@@ -137,17 +125,6 @@ async function loadDownloadKnobs() {
     if (ramHeadroomMb.value === null) ramHeadroomMb.value = r.ramHeadroomMb;
   } catch {
     // transient — the drafts stay null and Save simply omits them (partial PUT)
-  }
-}
-
-// The on/off choice applies on flip (the updatePolicy select precedent in this
-// same form); the three numbers ride the form's Save.
-async function setDlSegmentsEnabled(v) {
-  dlSegmentsEnabled.value = v;
-  try {
-    await request("/v1/ai/engine-config", { method: "PUT", body: { downloadSegmentsEnabled: !!v } });
-  } catch (e) {
-    knobErr.value = e.message || t("kit.engine.err.save");
   }
 }
 
@@ -200,11 +177,8 @@ async function saveKnobs() {
   try {
     // Send ONLY this form's knobs — a partial PUT. Never echo a full config, or it
     // would clobber the binaries / pinned build / VRAM margin the binaries editor
-    // owns. Download drafts still null (a failed seed fetch) are simply omitted.
+    // owns. Drafts still null (a failed seed fetch) are simply omitted.
     const body = { modelsMax: Number(modelsMax.value), sleepIdleSeconds: Number(sleepIdleSeconds.value) };
-    if (dlSegmentCount.value !== null) body.downloadSegmentCount = Number(dlSegmentCount.value);
-    if (dlSegmentMinMb.value !== null) body.downloadSegmentMinBytes = Math.round(Number(dlSegmentMinMb.value) * MB);
-    if (dlSegmentRetries.value !== null) body.downloadSegmentRetries = Number(dlSegmentRetries.value);
     if (safetyMarginMb.value !== null) body.safetyMarginMb = Number(safetyMarginMb.value) || 0;
     if (ctxCapTokens.value !== null) body.ctxCapTokens = Number(ctxCapTokens.value) || 0;
     if (bandFastToks.value !== null) body.bandFastToks = Number(bandFastToks.value) || 0;
@@ -216,9 +190,6 @@ async function saveKnobs() {
     const r = await request("/v1/ai/engine-config", { method: "PUT", body });
     modelsMax.value = r.modelsMax; // re-sync from the server (reflects the clamps)
     sleepIdleSeconds.value = r.sleepIdleSeconds;
-    dlSegmentCount.value = r.downloadSegmentCount;
-    dlSegmentMinMb.value = Math.round((r.downloadSegmentMinBytes || 0) / MB);
-    dlSegmentRetries.value = r.downloadSegmentRetries;
     safetyMarginMb.value = r.safetyMarginMb;
     ctxCapTokens.value = r.ctxCapTokens;
     bandFastToks.value = r.bandFastToks;
@@ -244,7 +215,7 @@ onMounted(() => {
   checkForUpdate(); // A5 — policy-gated; feeds the panel's own Update-available slot
   refreshResident();
   startResPoll();
-  loadDownloadKnobs();
+  loadConfigKnobs();
 });
 </script>
 
@@ -403,31 +374,6 @@ onMounted(() => {
               :options="[{ value: 'notify', label: t('kit.engine.updateNotify') }, { value: 'off', label: t('kit.engine.updateOff') }]"
               @update:model-value="setUpdatePolicy" />
           </label>
-          <!-- Segmented downloads (DL-2; #9 2026-07-17): its own sub-group so the
-               "Faster downloads" master toggle reads as a SECTION HEADER above the three
-               connection fields, not an inline knob mistaken for part of Engine-updates.
-               The on/off applies on flip (the update-policy precedent); the numbers ride
-               Save. Ranges in the captions mirror the server clamp (#10). -->
-          <div class="lu-eng-dlgroup">
-            <div class="lu-eng-dlgroup-head">
-              <span class="lu-eng-dlgroup-title">{{ t('kit.engine.dl.title') }}</span>
-              <UiToggle :model-value="!!dlSegmentsEnabled" @update:model-value="setDlSegmentsEnabled" />
-            </div>
-            <div v-if="dlSegmentsEnabled" class="lu-eng-dlgroup-fields">
-              <label class="lu-eng-knob">
-                <span class="lu-eng-knob-cap">{{ t('kit.engine.dl.connections') }}</span>
-                <UiInput v-model="dlSegmentCount" type="number" width="token" />
-              </label>
-              <label class="lu-eng-knob">
-                <span class="lu-eng-knob-cap">{{ t('kit.engine.dl.split') }}</span>
-                <UiInput v-model="dlSegmentMinMb" type="number" width="token" />
-              </label>
-              <label class="lu-eng-knob">
-                <span class="lu-eng-knob-cap">{{ t('kit.engine.dl.retries') }}</span>
-                <UiInput v-model="dlSegmentRetries" type="number" width="token" />
-              </label>
-            </div>
-          </div>
           <UiButton intent="primary" size="small" :loading="savingKnobs" @click="saveKnobs">{{ t('kit.common.save') }}</UiButton>
         </div>
         <p v-if="knobErr" class="lu-eng-err">{{ knobErr }}</p>
@@ -542,8 +488,7 @@ onMounted(() => {
 .lu-eng-knobs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .lu-eng-knob { display: flex; flex-direction: column; gap: 3px; }
 .lu-eng-knob-cap { font-size: 11.5px; color: var(--lu-ink-2, var(--ink-2, #666)); }
-/* #9 (2026-07-17): the "Faster downloads" toggle + its three fields as a distinct
-   sub-group on its own full-width row (breaks the flex-wrap flow of .lu-eng-knobs). */
+/* A titled sub-group of knobs (the speed bands): its title over its fields, a rule above. */
 .lu-eng-dlgroup { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--lu-border, var(--border, #e5e5e5)); }
 .lu-eng-dlgroup-head { display: flex; align-items: center; gap: 10px; }
 .lu-eng-dlgroup-title { font-size: 12px; font-weight: 700; letter-spacing: .01em; color: var(--lu-ink-1, var(--ink-1, #222)); }

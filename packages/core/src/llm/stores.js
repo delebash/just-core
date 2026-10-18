@@ -848,10 +848,6 @@ export class RunnerConfigStore {
       ramHeadroomMb: ramHeadroom,
       modelsMax: cfg.modelsMax,
       sleepIdleSeconds: cfg.sleepIdleSeconds,
-      downloadSegmentsEnabled: cfg.downloadSegmentsEnabled,
-      downloadSegmentCount: cfg.downloadSegmentCount,
-      downloadSegmentMinBytes: cfg.downloadSegmentMinBytes,
-      downloadSegmentRetries: cfg.downloadSegmentRetries,
       downloadMaxConcurrent: cfg.downloadMaxConcurrent,
       updatePolicy: policy,
       ackHwFingerprint: ackFp,
@@ -952,10 +948,6 @@ export class RunnerConfigStore {
         ["sleep_idle_seconds", String(c.DEFAULT_SLEEP_IDLE_SECONDS)],
         ["preferred_gpu", ""],
         ["class_key_override", ""],
-        ["download_segments_enabled", c.DEFAULT_DOWNLOAD_SEGMENTS_ENABLED ? "1" : "0"],
-        ["download_segment_count", String(c.DEFAULT_DOWNLOAD_SEGMENT_COUNT)],
-        ["download_segment_min_bytes", String(c.DEFAULT_DOWNLOAD_SEGMENT_MIN_BYTES)],
-        ["download_segment_retries", String(c.DEFAULT_DOWNLOAD_SEGMENT_RETRIES)],
         ["download_max_concurrent", String(c.DEFAULT_DOWNLOAD_MAX_CONCURRENT)],
         ["warm_default_on_startup", "1"],
       ];
@@ -1660,12 +1652,6 @@ export function buildRunnerConfig() {
       throw e;
     }
   };
-  const bool = (key, dflt) => {
-    const raw = strip(get(key) || "").toLowerCase();
-    if (["1", "true", "on", "yes"].includes(raw)) return true;
-    if (["0", "false", "off", "no"].includes(raw)) return false;
-    return dflt;
-  };
   const float = (key, dflt) => {
     try {
       return pyFloatParse(get(key) || dflt);
@@ -1695,10 +1681,6 @@ export function buildRunnerConfig() {
     modelsMax: int("models_max", c.DEFAULT_MODELS_MAX),
     sleepIdleSeconds: int("sleep_idle_seconds", c.DEFAULT_SLEEP_IDLE_SECONDS),
     preferredGpu: get("preferred_gpu") || "",
-    downloadSegmentsEnabled: bool("download_segments_enabled", c.DEFAULT_DOWNLOAD_SEGMENTS_ENABLED),
-    downloadSegmentCount: int("download_segment_count", c.DEFAULT_DOWNLOAD_SEGMENT_COUNT),
-    downloadSegmentMinBytes: int("download_segment_min_bytes", c.DEFAULT_DOWNLOAD_SEGMENT_MIN_BYTES),
-    downloadSegmentRetries: int("download_segment_retries", c.DEFAULT_DOWNLOAD_SEGMENT_RETRIES),
     downloadMaxConcurrent: int("download_max_concurrent", c.DEFAULT_DOWNLOAD_MAX_CONCURRENT),
   });
 }

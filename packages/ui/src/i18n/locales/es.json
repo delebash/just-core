@@ -1281,12 +1281,6 @@
       "updates": "Actualizaciones del motor",
       "updateNotify": "Notificar",
       "updateOff": "Desactivado",
-      "dl": {
-        "title": "Descargas más rápidas (conexiones paralelas)",
-        "connections": "Conexiones por descarga (1–16)",
-        "split": "Dividir archivos mayores a (MB)",
-        "retries": "Reintentos por conexión (0–10)"
-      },
       "phase": {
         "downloading": "Descargando el motor",
         "settingUp": "Configurándolo",

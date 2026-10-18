@@ -586,9 +586,9 @@ export function cachedGgufPath(repo, quant, { cacheRoot, mmproj = null } = {}) {
  * Writes the canonical HF cache layout (blobs + snapshot symlink/copy + refs). Idempotent: a
  * blob already on disk at the right size is skipped. `onProgress(cumulative, total)` receives
  * cumulative bytes across ALL selected files against the summed grand total (one smooth
- * bar); `cancelCheck` is polled per file and passed to the stream. `segments`/`retries` are
- * the per-file knobs threaded down from `downloadKwargs`; the on-disk blob size is the
- * integrity check.
+ * bar); `cancelCheck` is polled per file and passed to the stream. `segments`/`retries` pass
+ * through to `streamDownload` (its own CONNECTIONS / RETRIES when not given); the on-disk blob
+ * size is the integrity check.
  *
  * `acquireModel(repo, quant, mmproj, {revision, cacheRoot, onProgress, cancelCheck,
  * segments, retries})`.

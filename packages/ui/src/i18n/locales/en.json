@@ -1281,12 +1281,6 @@
       "updates": "Engine updates",
       "updateNotify": "Notify",
       "updateOff": "Off",
-      "dl": {
-        "title": "Faster downloads (parallel connections)",
-        "connections": "Connections per download (1–16)",
-        "split": "Split files larger than (MB)",
-        "retries": "Retries per connection (0–10)"
-      },
       "phase": {
         "downloading": "Downloading the engine",
         "settingUp": "Setting it up",

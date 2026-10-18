@@ -443,13 +443,6 @@ export const DEFAULT_RUNNER_SETTINGS = [
   // Router mode (P1e): DB-editable co-resident cap + idle-unload TTL.
   { key: "models_max", value: String(c.DEFAULT_MODELS_MAX) },
   { key: "sleep_idle_seconds", value: String(c.DEFAULT_SLEEP_IDLE_SECONDS) },
-  // Segmented downloads (DL-2).
-  { key: "download_segments_enabled", value: c.DEFAULT_DOWNLOAD_SEGMENTS_ENABLED ? "1" : "0" },
-  { key: "download_segment_count", value: String(c.DEFAULT_DOWNLOAD_SEGMENT_COUNT) },
-  // download_segment_min_bytes is RETIRED (the downloader falls back to single-stream
-  // itself) but the row is kept — an existing DB keeps its value; inert.
-  { key: "download_segment_min_bytes", value: String(c.DEFAULT_DOWNLOAD_SEGMENT_MIN_BYTES) },
-  { key: "download_segment_retries", value: String(c.DEFAULT_DOWNLOAD_SEGMENT_RETRIES) },
   // CONCURRENT model downloads (2026-07-20): parallel per-model download cap.
   { key: "download_max_concurrent", value: String(c.DEFAULT_DOWNLOAD_MAX_CONCURRENT) },
   // Warm the default local chat model into VRAM on app startup. Default ON — but the
