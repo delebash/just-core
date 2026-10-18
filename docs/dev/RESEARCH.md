@@ -1216,7 +1216,7 @@ the standard app-structure §15):
   did (`git grep` for `instance:` in the apps' server tests: 0 files).
 - `platform/schema.js` (`T`, `opt`, `nullable`, `literal`, `strictObject`) imports only `typebox`, so a
   form can load the route's schema in the browser; `models.js` re-exports it.
-- New: `makeHealthRouter`, `readPackageVersion`, `migrate`/`schemaVersion` (PRAGMA user_version),
+- New: `makeHealthRouter`, `migrate`/`schemaVersion` (PRAGMA user_version),
   `POST /v1/logs/client` (≤ 20 a minute); in the UI kit `parseProblem`/`attachProblem`,
   `schemaRules`/`fieldErrors`, `reportError`, `installErrorReporting`, and `kit.validation.*` /
   `kit.errors.*` words. `packages/ui` gained `test` (Vitest) and the family Biome pin.

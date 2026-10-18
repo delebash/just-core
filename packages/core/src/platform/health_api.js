@@ -12,7 +12,7 @@ import { Hono } from "hono";
 /**
  * Build the /v1/health router.
  *   - `product`  — the app's product name (the shell matches it).
- *   - `version`  — the app's version (`readPackageVersion` in version.js reads it).
+ *   - `version`  — the app's version (its server/src/version.js: a JSON import of package.json).
  *   - `extras(c)` — optional, sync or async: the app's extra fields.
  */
 export function makeHealthRouter({ product, version, apiVersion = "v1", extras = null, path = "/v1/health" }) {

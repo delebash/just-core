@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: MIT
-// The kit's shared /v1/health router, the package-version reader and the user_version
-// migrations (app-structure §14, §16).
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+// The kit's shared /v1/health router and the user_version migrations (app-structure §14, §16).
+import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { afterEach, expect, test } from "vitest";
 import { makeHealthRouter } from "../src/platform/health_api.js";
 import { migrate, schemaVersion } from "../src/platform/migrate.js";
 import { openDatabase } from "../src/platform/sql.js";
-import { readPackageVersion } from "../src/platform/version.js";
 
 const tmp = [];
 const dbs = [];
@@ -38,14 +35,6 @@ test("health merges the app's extras after the base fields", async () => {
   const extras = async () => ({ dbReady: true, engines: [] });
   const r = await makeHealthRouter({ product: "Demo", version: "1", extras }).request("/v1/health");
   expect(await r.json()).toEqual({ status: "ok", product: "Demo", version: "1", apiVersion: "v1", dbReady: true, engines: [] });
-});
-
-test("readPackageVersion finds the nearest package.json above the module", () => {
-  const root = scratch();
-  writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "x", version: "4.5.6" }));
-  mkdirSync(path.join(root, "src", "deep"), { recursive: true });
-  const mod = pathToFileURL(path.join(root, "src", "deep", "version.js")).href;
-  expect(readPackageVersion(mod)).toBe("4.5.6");
 });
 
 const MIGRATIONS = [

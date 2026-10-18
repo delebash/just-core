@@ -18,4 +18,3 @@ export { attachment, closeApp, createServer, Hono, input, installPyFloatBodies, 
 export { runServer, serveStatic } from "./serve.js";
 export { makeShutdownRouter, SHUTDOWN_PATH } from "./shutdown_api.js";
 export { openDatabase } from "./sql.js";
-export { readPackageVersion } from "./version.js";

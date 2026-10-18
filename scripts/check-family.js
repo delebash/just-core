@@ -34,6 +34,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { installedSkillDrift } from "./install-skills.js";
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FAMILY = resolve(KIT, "..");
@@ -198,6 +199,37 @@ function checkScripts(app) {
     if (scripts[name] && !re.test(scripts[name])) fail(app.name, `"${name}" runs \`${scripts[name]}\` — §Q.9 says \`${text}\``);
   }
   return undefined;
+}
+
+// ── the common server parts (app-structure §14, §15) ─────────────────────────────
+// Sameness by construction (the kit's TASKS, "A standard start…", DIRECTION 2026-10-17): the parts
+// every server has in common come from the kit — /v1/health is the kit's makeHealthRouter, an
+// unhandled exception is the kit's family envelope (no app passes its own onUnhandled), and the
+// version is the package's, never a literal typed into code; the app's and the server's
+// package.json versions agree.
+function checkCommonServer(app) {
+  const src = join(app.dir, "server", "src");
+  const files = walk(src).filter((f) => f.endsWith(".js"));
+  const text = (f) => readFileSync(f, "utf8");
+  if (!files.some((f) => /\bmakeHealthRouter\s*\(/.test(text(f)))) {
+    fail(app.name, "server/src mounts no makeHealthRouter — /v1/health is the kit's shared router (§14)");
+  }
+  for (const f of files) {
+    if (/createServer\s*\(\s*\{[^}]*\bonUnhandled\s*:/.test(text(f))) {
+      fail(app.name, `${relative(app.dir, f).replace(/\\/g, "/")} passes its own onUnhandled — an unhandled exception is the kit's family envelope (§15)`);
+    }
+  }
+  const versionFile = join(src, "version.js");
+  if (existsSync(versionFile) && /\bVERSION\s*=\s*["'`]/.test(text(versionFile))) {
+    fail(app.name, 'server/src/version.js types its VERSION — read it from package.json (`import pkg from "../package.json" with { type: "json" }`, §14)');
+  }
+  const rootPkg = join(app.dir, "package.json");
+  const serverPkg = join(app.dir, "server", "package.json");
+  if (existsSync(rootPkg) && existsSync(serverPkg)) {
+    const a = JSON.parse(readFileSync(rootPkg, "utf8")).version;
+    const b = JSON.parse(readFileSync(serverPkg, "utf8")).version;
+    if (a !== b) fail(app.name, `package.json is ${a} but server/package.json is ${b} — one version for the app (§14)`);
+  }
 }
 
 // ── check 4 · the server layout (app-structure §Q.3) ──────────────────────────
@@ -1043,6 +1075,7 @@ for (const app of APPS) {
   } else {
     checkScripts(app);
     checkServer(app);
+    checkCommonServer(app);
     checkSkeleton(app);
     checkRendererSkeleton(app);
     checkLauncher(app);
@@ -1087,6 +1120,8 @@ checkRetired("kit", KIT, KIT_RETIRED);
 checkSkeletonKit();
 checkI18nKit();
 checkResearchRegister("kit", KIT);
+// The /new-just-app skill runs from ~/.claude/skills — advisory when that copy differs from the kit's.
+for (const d of installedSkillDrift()) info("kit", `the installed skill ${d.name}/${d.file} differs from the kit's skills/ — run node scripts/install-skills.js`);
 
 const showInfo = process.argv.includes("--info");
 console.log(`\nfamily check — ${APPS.length} apps + the template against the kit (${exports_.size} kit exports)`);

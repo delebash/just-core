@@ -39,7 +39,7 @@ Changing the default 500 to problem+json breaks no client: every reader takes `t
 
 `makeHealthRouter({ product, version, extras })` answers `GET /v1/health` with the family's base wire
 `{status, product, version, apiVersion}` plus the app's extras (JW `dataDir`/`dbReady`, JV
-`engines`…); `readPackageVersion(url)` reads the server package's version. Each app's
+`engines`…); the version is the server package's, read as a JSON import (`import pkg from "../package.json" with { type: "json" }` — JustVoice's way; it works in the phone's bundle too, where a file read doesn't; a kit `readPackageVersion` was added and removed the same day for that reason). Each app's
 `api/health_api.js` becomes one call; the guard checks every app mounts it and that the root and
 server `package.json` versions match (JW's server says 0.0.1 while its app is 1.0.0).
 Attacked: a "health check standard" exists (the IETF draft `application/health+json`, never
