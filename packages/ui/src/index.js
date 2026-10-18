@@ -66,6 +66,7 @@ export { runAiFeature, runAiFeatureStream } from "./services/aiFeature.js";
 // owns a task lifecycle directly (check-family check 11).
 export { runAiEndpoint, runAiEndpointStream, toTaskUsage, withAiTask } from "./services/appTask.js";
 export { friendlyAiError } from "./services/aiErrors.js";
+export { keyedText, presetDisplayName, providerDisplayName } from "./services/seededWords.js";
 export { default as AiTaskStrip } from "./components/AiTaskStrip.vue";
 export { default as AiStatusPanel } from "./components/AiStatusPanel.vue";
 export { default as AiStatusButton } from "./components/AiStatusButton.vue";

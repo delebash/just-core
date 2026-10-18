@@ -47,6 +47,7 @@ import UiButton from "../common/components/UiButton.vue";
 import UiCheckbox from "../common/components/UiCheckbox.vue";
 import UiInput from "../common/components/UiInput.vue";
 import UiSelect from "../common/components/UiSelect.vue";
+import { presetDisplayName } from "../services/seededWords.js";
 
 // QC-23 ("what happend to the shared ai progress bar?"): each column instance
 // gets a stable id, stamped into its runAiFeature task registration's `meta` so
@@ -651,7 +652,7 @@ defineExpose({ run, cancel });
     <div class="cc-presets">
       <span class="cc-eyebrow">{{ t('kit.configColumn.preset') }}</span>
       <UiSelect width="name" :model-value="selPreset"
-        :options="[{ value: '', label: t('kit.configColumn.startFresh') }, ...presets.map((p) => ({ value: p.id, label: p.name }))]"
+        :options="[{ value: '', label: t('kit.configColumn.startFresh') }, ...presets.map((p) => ({ value: p.id, label: presetDisplayName(p) }))]"
         @update:model-value="onApplyPreset" />
       <span v-if="selPreset && selPreset === productionPresetId" class="cc-inprod" :title="t('kit.configColumn.inProdTitle')">{{ t('kit.configColumn.inProd') }}</span>
       <UiButton v-if="selPreset && selPreset !== productionPresetId" intent="success" size="small"

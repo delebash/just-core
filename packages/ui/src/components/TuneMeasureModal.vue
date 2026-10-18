@@ -47,6 +47,7 @@ import LuGlobalSwitches from "./LuGlobalSwitches.vue";
 import LuMeasureHistory from "./LuMeasureHistory.vue";
 import UiButton from "../common/components/UiButton.vue";
 import UiTag from "../common/components/UiTag.vue";
+import { presetDisplayName } from "../services/seededWords.js";
 
 const props = defineProps({
   model: { type: Object, required: true }, // { id, name } — the model being tuned
@@ -192,7 +193,7 @@ async function affectedPresets() {
     for (const pid of Object.values(asg.features || {})) if (pid) countByPreset[pid] = (countByPreset[pid] || 0) + 1;
     return (ep.presets || [])
       .filter((p) => p.model === props.model.id)
-      .map((p) => ({ name: p.name || p.id, count: countByPreset[p.id] || 0 }));
+      .map((p) => ({ name: presetDisplayName(p), count: countByPreset[p.id] || 0 }));
   } catch {
     return null;
   }

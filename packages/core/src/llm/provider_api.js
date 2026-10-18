@@ -17,6 +17,7 @@ import { errText, isJsonObject, strip, strRepr, truthy } from "../platform/py.js
 import { input } from "../platform/server.js";
 import { construct, getLlmRegistry } from "./registry.js";
 import { LLMProviderConfig } from "./schema.js";
+import { DEFAULT_PROVIDERS } from "./seed.js";
 
 const log = getLogger("llm_runner.llm.provider_api");
 
@@ -50,6 +51,9 @@ export const LLMProviderResponse = T.Object({
   registered: T.Boolean(), // true if the adapter is live in the registry
   timeoutSeconds: opt(T.Integer(), 60),
   local: opt(T.Boolean(), true), // the stored Local/Online choice — drives UI grouping
+  // The kit's catalog key for a seeded provider still under its seeded name — a screen shows the
+  // name in its own language; null once renamed, or for a brand name (seededNameKey).
+  nameKey: opt(nullable(T.String()), null),
 });
 
 export const LLMProviderList = T.Object({
@@ -85,10 +89,28 @@ export const DetectLocalResponse = T.Object({
   detected: T.Array(DetectedLocalProvider),
 });
 
+// Seeded providers whose names are words, not brands (the seeded-words plan, 2026-10-18). The
+// stored name stays the seed's English — what syncs and what a renamed row is compared with.
+const SEEDED_NAME_KEYS = {
+  "local-llamacpp": "kit.provider.seeded.builtIn",
+  "openai-compat-local": "kit.provider.seeded.ollama",
+  lmstudio: "kit.provider.seeded.lmStudio",
+  unsloth: "kit.provider.seeded.unsloth",
+  openrouter: "kit.provider.seeded.openRouter",
+};
+const SEEDED_NAMES = new Map(DEFAULT_PROVIDERS.map((p) => [p.id, p.name]));
+
+/** The catalog key for a provider's name while it is still the seeded one, else null. */
+export function seededNameKey(cfg) {
+  const key = SEEDED_NAME_KEYS[cfg.id];
+  return key && SEEDED_NAMES.get(cfg.id) === cfg.name ? key : null;
+}
+
 function toResponse(cfg, registered) {
   return model(LLMProviderResponse, {
     id: cfg.id,
     name: cfg.name,
+    nameKey: seededNameKey(cfg),
     providerType: cfg.providerType,
     baseUrl: cfg.baseUrl,
     defaultModel: cfg.defaultModel,

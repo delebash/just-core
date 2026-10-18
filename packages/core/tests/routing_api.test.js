@@ -66,3 +66,17 @@ test("put_response_is_the_merged_view", async () => {
   expect(body.default.llmId).toBe("x");
   expect(body.features.length).toBe(2); // catalog still rendered
 });
+
+test("a feature's catalog keys ride along, empty when the host names none", async () => {
+  // The seeded-words plan (2026-10-18): the kit's AI page shows a feature in the app's language.
+  const store = new MemStore();
+  const app = createServer({ typeBase: "https://example.test/errors/" });
+  const catalog = [
+    FeatureCatalogEntry({ key: "critique", label: "Critique", hint: "line notes", group: "Analysis", labelKey: "ai.critique", hintKey: "ai.critiqueHint", groupKey: "ai.analysis" }),
+    FeatureCatalogEntry({ key: "brainstorm", label: "Brainstorm" }),
+  ];
+  app.route("/", makeRoutingRouter(() => store, () => catalog));
+  const rows = (await (await app.request("/v1/ai/routing")).json()).features;
+  expect(rows[0]).toMatchObject({ labelKey: "ai.critique", hintKey: "ai.critiqueHint", groupKey: "ai.analysis" });
+  expect(rows[1]).toMatchObject({ labelKey: "", hintKey: "", groupKey: "" });
+});

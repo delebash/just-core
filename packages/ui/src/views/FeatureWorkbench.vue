@@ -27,6 +27,7 @@ import { request } from "../client.js";
 import { confirmDialog } from "../common/services/dialog.js";
 import { featurePanelFor, featurePanelMetaFor, sectionedFeature } from "../services/labAdapters.js";
 import { pushToast } from "../common/services/toastBridge.js";
+import { keyedText, presetDisplayName } from "../services/seededWords.js";
 
 const props = defineProps({
   runStream: { type: Function, default: null },
@@ -62,7 +63,11 @@ watch(() => props.initialAction, (a) => {
   else if ((routing.value?.features || []).some((f) => f.key === a)) selectFeature(a);
 });
 
-const featMeta = computed(() => Object.fromEntries((routing.value?.features || []).map((f) => [f.key, f])));
+// Display copies: a feature's label and hint in the app's language when the host names keys for
+// them (seededWords.js keyedText). Grouping and everything saved keep the raw values.
+const featMeta = computed(() => Object.fromEntries((routing.value?.features || []).map((f) => [
+  f.key, { ...f, label: keyedText(f.labelKey, f.label), hint: keyedText(f.hintKey, f.hint) },
+])));
 
 const { t, d } = useI18n();
 const navGroups = computed(() => {
@@ -70,6 +75,7 @@ const navGroups = computed(() => {
   const GROUP_FALLBACK = t("kit.workbench.otherGroup");
   const order = [];
   const byGroup = {};
+  const groupLabel = {};
   for (const f of routing.value?.features || []) {
     const actions = prompts.value.filter((p) => p.feature === f.key);
     // A feature with NO prompt rows still ROUTES (feature -> engine preset). Apps
@@ -78,8 +84,8 @@ const navGroups = computed(() => {
     // rendered "Routing by feature" EMPTY for the whole app (found live 2026-08-03).
     // They stay, and select a routing-only pane instead of a FeatureLab.
     const grp = f.group || GROUP_FALLBACK;
-    if (!(grp in byGroup)) { byGroup[grp] = []; order.push(grp); }
-    byGroup[grp].push({ key: f.key, label: f.label, actions });
+    if (!(grp in byGroup)) { byGroup[grp] = []; order.push(grp); groupLabel[grp] = f.group ? keyedText(f.groupKey, f.group) : grp; }
+    byGroup[grp].push({ key: f.key, label: featMeta.value[f.key].label, actions });
   }
   const known = new Set((routing.value?.features || []).map((f) => f.key));
   for (const p of prompts.value) {
@@ -92,7 +98,7 @@ const navGroups = computed(() => {
   return order.map((c) => {
     const features = byGroup[c];
     const merged = features.length === 1 && features[0].actions.length > 1 ? features[0] : null;
-    return { label: c, features, merged };
+    return { label: groupLabel[c] ?? c, features, merged };
   });
 });
 
@@ -138,7 +144,7 @@ function ml(level) { return level ? { marginLeft: `${level * 18}px` } : {}; }
 const action = computed(() => prompts.value.find((p) => p.key === selAction.value) || null);
 
 function actionLabel(p) {
-  if (p.label) return p.label;
+  if (p.label) return keyedText(p.labelKey, p.label);
   const f = p.feature;
   if (p.key === f) return featMeta.value[f]?.label || f;
   let s = p.key;
@@ -148,7 +154,7 @@ function actionLabel(p) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : p.key;
 }
 function actionDesc(a) {
-  return a?.description || featMeta.value[a?.feature]?.hint || "";
+  return keyedText(a?.descriptionKey, a?.description) || featMeta.value[a?.feature]?.hint || "";
 }
 function subGroups(actions) {
   const order = [];
@@ -158,7 +164,7 @@ function subGroups(actions) {
     if (!(g in map)) { map[g] = []; order.push(g); }
     map[g].push(a);
   }
-  return order.map((g) => ({ label: g, items: map[g] }));
+  return order.map((g) => ({ label: g ? keyedText(map[g][0].groupKey, g) : g, items: map[g] }));
 }
 
 async function load() {
@@ -217,7 +223,10 @@ function onPromptChanged({ key, jsonMode }) {
 // resolution (2026-07-15, one source; the FEATURE layer joined 2026-08-06 —
 // the pieces rework): the action's ref → its feature's ref → the global
 // default. Mirrors the server cascade (preset_resolve.py) exactly.
-const presetName = (id) => enginePresets.value.find((p) => p.id === id)?.name || "—";
+const presetName = (id) => {
+  const p = enginePresets.value.find((x) => x.id === id);
+  return p ? presetDisplayName(p) : "—";
+};
 const presetExists = (id) => !!id && enginePresets.value.some((p) => p.id === id);
 function refPid(key) {
   const id = presetAssign.value.features?.[key];

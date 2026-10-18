@@ -1,6 +1,8 @@
 # Seeded words in the user's language — plan (2026-10-18)
 
-**Status: PLAN — waits for the user's go.** The i18n standard left this for its own go: "Not in
+**Status: BUILT 2026-10-18** (Tasks 1–3 and 5; Task 4 waits for JustVoice's screens) — the user's
+go: "your rec on all go dont stop dont ask me again do it all untill all your tasks are done … take
+your on rec go on all" (2026-10-18). What building changed is in §5. The i18n standard left this for its own go: "Not in
 this plan (next, each its own go): … database-seeded words (July decision 4: English for now)"
 (`2026-10-12-i18n-standard.md`), and the 2026-10-13 ruling kept "a new project's starter content
 ('Part One', the starting statuses, the worldbuilding categories)" English (TASKS, "Every app and
@@ -79,3 +81,40 @@ sidebar and search (a fixed set, shown by key as the page does); a new tag-vocab
 | The keys and their Spanish | vue-i18n (https://vue-i18n.intlify.dev/); docgen and the agentic review |
 
 Nothing is NOT STANDARD.
+
+## 5. As built (2026-10-18)
+
+**Where the "not renamed" test runs — the server, beside the seed.** The stored name and its seed
+both live on the server, so the kit's routes put the key on the row and a screen only reads it.
+That replaces §1's one UI helper `seededLabel(stored, seedEnglish, key)`: the UI never sees the
+seed's English, so it could not make the test without a second copy of every seed.
+- Providers: `nameKey` on `/v1/llm-providers` — `seededNameKey(cfg)` (`provider_api.js`), for the
+  five seeded names that describe a provider ("Built-in provider — llama.cpp", "Ollama (local)",
+  "LM Studio (local)", "Unsloth Studio (local)", "OpenRouter (aggregator)"; `kit.provider.seeded.*`)
+  while the stored name is still the seed's. A brand's own name (OpenAI, Anthropic …) has no key.
+- Engine presets: `nameKey` on `/v1/ai/engine-presets`, `presetNameKey` on the resolved route —
+  `seededPresetNameKey(row)` (`seed.js`): the host's preset spec names its `nameKey`, shown while
+  the row's name equals the spec's.
+- Features, actions, groups: code tables nobody renames — the host's catalog names `labelKey`,
+  `hintKey`, `groupKey` (the feature catalog) and `descriptionKey` (an action), passed through
+  `/v1/ai/routing` and `/v1/ai/prompts`.
+- The screens: `keyedText`, `providerDisplayName`, `presetDisplayName`
+  (`packages/ui/src/services/seededWords.js`; `tests/seeded_words.test.js`) — the key's text when a
+  catalog has it, else the stored name. Used by the AI page (Workbench, Lab, Quick Setup, Tune &
+  measure, the providers list), the model picker, the routing chip and JustWrite's AI chip.
+
+**JustWrite's statuses and worldbuilding categories** live in the book, which the renderer holds as
+the server's snapshot, so the store makes the test there: `statusLabelShown`, `categoryLabelShown`
+and the getters `statusById`, `statusesShown`, `categoriesShown` return display copies; the stored
+rows are untouched (`src/stores/seededLabels.test.js`). Every screen reads them — the sidebar, the
+pages' status filters, Home, Analysis, Trash, the delete messages. Settings' name fields show the
+shown name and save what the writer types. A status or category the writer adds starts with the
+catalog's word (`defaults.status`, `defaults.category` — a new-thing name, the 2026-10-13 ruling). A
+note's empty tag stays empty on save (`server/src/book_io.js`, tested in `book_io.test.js`).
+
+**The second look changed:**
+- Knob help and measurement-run labels stay English, for the reason the model catalog's
+  descriptions do (ruled, `LuModelCatalog.vue:845-846`): technical text that names llama.cpp's
+  flags and units, read beside llama.cpp's own docs and logs.
+- docgen: its features and presets the same way (`server/src/app.js`), Spanish included.
+- JustVoice (Task 4) waits for its screens to be translated, as §2 says.

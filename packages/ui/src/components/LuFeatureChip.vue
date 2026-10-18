@@ -49,6 +49,7 @@ import {
 } from "../thinkingControl.js";
 import { LOCAL_RUNNER_ID } from "../services/modelApply.js";
 import LuModelPicker from "./LuModelPicker.vue";
+import { keyedText } from "../services/seededWords.js";
 
 const props = defineProps({
   // Feature key, for aria/copy only (e.g. "writerAI", "critique").
@@ -107,7 +108,7 @@ const thinkingOptions = computed(() => thinkingOptionsFor({
   customValue: draftIsLocal.value ? props.route?.value : null,
 }));
 
-const presetName = computed(() => props.route?.presetName || t("kit.featureChip.thisPreset"));
+const presetName = computed(() => keyedText(props.route?.presetNameKey, props.route?.presetName) || t("kit.featureChip.thisPreset"));
 
 // What "" follows for the picked provider — the server's rule (preset_resolve.presetRecipe).
 const providerRecipe = computed(() => {

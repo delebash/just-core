@@ -1145,6 +1145,13 @@
         "xai": "xAI (Grok)",
         "mistral": "Mistral"
       },
+      "seeded": {
+        "builtIn": "Proveedor integrado — llama.cpp",
+        "ollama": "Ollama (local)",
+        "lmStudio": "LM Studio (local)",
+        "unsloth": "Unsloth Studio (local)",
+        "openRouter": "OpenRouter (agregador)"
+      },
       "noModels": "No se devolvieron modelos; comprueba la URL / la clave / que haya un modelo cargado.",
       "fetchFailed": "Error al obtener los datos.",
       "test": {

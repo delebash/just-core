@@ -44,6 +44,7 @@ import {
 import { httpxRequest, LLMMessage, TransportError } from "./base.js";
 import * as dispatch from "./dispatch.js";
 import * as presetResolve from "./preset_resolve.js";
+import { seededPresetNameKey } from "./seed.js";
 import * as pricing from "./pricing.js";
 import * as reasoning from "./reasoning.js";
 
@@ -170,6 +171,10 @@ export const PromptOut = T.Object({
   label: opt(T.String(), ""),
   description: opt(T.String(), ""),
   group: opt(T.String(), ""),
+  // the host's catalog keys for the words (the seeded-words plan, 2026-10-18): a screen shows them in the app's language; empty = show the words as given
+  labelKey: opt(T.String(), ""),
+  descriptionKey: opt(T.String(), ""),
+  groupKey: opt(T.String(), ""),
 });
 
 export const PromptList = T.Object({ prompts: T.Array(PromptOut) });
@@ -190,8 +195,11 @@ export const PromptUpdate = T.Object({
   group: opt(T.String(), ""),
 });
 
-function out(r) {
+function out(r, spec = null) {
   return model(PromptOut, {
+    labelKey: specStr(spec, "labelKey"),
+    descriptionKey: specStr(spec, "descriptionKey"),
+    groupKey: specStr(spec, "groupKey"),
     key: r.key,
     feature: r.feature,
     system: r.system,
@@ -219,13 +227,13 @@ const KEY_PARAMS = T.Object({ key: T.String() });
 export function makePromptRouter(getStore, defaults) {
   const defaultOf = (key) => (has(defaults, key) ? defaults[key] : null);
   const app = new Hono();
-  app.get("/v1/ai/prompts", (c) => c.json(model(PromptList, { prompts: getStore().list().map(out) })));
+  app.get("/v1/ai/prompts", (c) => c.json(model(PromptList, { prompts: getStore().list().map((r) => out(r, defaultOf(r.key))) })));
 
   app.get("/v1/ai/prompts/:key", input({ params: KEY_PARAMS }), (c) => {
     const { key } = c.req.valid("param");
     const row = getStore().get(key);
     if (row == null) throw new HttpError(404, `unknown prompt ${strRepr(key)}`);
-    return c.json(out(row));
+    return c.json(out(row, defaultOf(key)));
   });
 
   // Lab edit (or create). A key present in the seed catalog stays builtIn (so it can be
@@ -262,7 +270,7 @@ export function makePromptRouter(getStore, defaults) {
         group,
       }),
     );
-    return c.json(out(getStore().get(key)));
+    return c.json(out(getStore().get(key), defaultOf(key)));
   });
 
   // Restore a built-in prompt to its seeded default (overwrites the row).
@@ -284,7 +292,7 @@ export function makePromptRouter(getStore, defaults) {
         group: specStr(dflt, "group"),
       }),
     );
-    return c.json(out(getStore().get(key)));
+    return c.json(out(getStore().get(key), defaultOf(key)));
   });
   return app;
 }
@@ -353,6 +361,7 @@ export const ResolvedRouteResponse = T.Object({
   model: opt(T.String(), ""),
   presetId: opt(T.String(), ""),
   presetName: opt(T.String(), ""),
+  presetNameKey: opt(T.String(), ""), // the host's key for a seeded preset's name (seed.seededPresetNameKey)
   presetSource: opt(T.String(), ""), // which tier won: "assigned" | "default" | ""
   // Reasoning (U2-T6): what this run's thinking resolves to RIGHT NOW — think on/off, the
   // ask level, the resolved effort word, and the emitted budget value + the layer it came
@@ -925,6 +934,7 @@ export function makeFeatureRouter(getStore, getConfig) {
         action,
         presetId: preset ? preset.id : "",
         presetName: preset ? preset.name : "",
+        presetNameKey: preset ? seededPresetNameKey(preset) : "",
         presetSource,
       };
       // A Lab column's route override wins over the preset's (cap-hint pick).

@@ -56,6 +56,9 @@ export const EnginePresetRow = T.Object({
   // at (the app's registered library, by id; "" for user-created presets). Clients use it to
   // tell "differs from factory" honestly — writes ignore it.
   factoryModel: opt(T.String(), ""),
+  // The host's catalog key for a seeded preset still under its seeded name — a screen shows the
+  // name in the app's language; "" once renamed (the seeded-words plan, 2026-10-18).
+  nameKey: opt(T.String(), ""),
 });
 
 export const FeatureAssignment = T.Object({
@@ -107,6 +110,7 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
       seed.appEnginePresets().map((p) => [pyStrScalar(pyOr(p.id, "")), pyStrScalar(pyOr(p.model, ""))]),
     );
     for (const r of rows) r.factoryModel = factory.get(r.id) ?? "";
+    for (const r of rows) r.nameKey = seed.seededPresetNameKey(r);
     return model(PresetsResponse, { presets: rows });
   };
 

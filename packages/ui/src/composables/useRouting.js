@@ -12,6 +12,7 @@
 import { computed, ref } from "vue";
 
 import { request } from "../client.js";
+import { providerDisplayName } from "../services/seededWords.js";
 
 export function useRouting() {
   const routing = ref(null);     // {default, features:[…]}
@@ -19,7 +20,7 @@ export function useRouting() {
 
   const byId = computed(() => Object.fromEntries(providers.value.map((p) => [p.id, p])));
   const featMeta = computed(() => Object.fromEntries((routing.value?.features || []).map((f) => [f.key, f])));
-  const providerName = (id) => byId.value[id]?.name || id || "—";
+  const providerName = (id) => (byId.value[id] ? providerDisplayName(byId.value[id]) : id || "—");
 
   async function loadRouting() {
     const [r, pl] = await Promise.all([

@@ -414,10 +414,11 @@ WHY:    the July design (every app and the kit on vue-i18n, docgen the translato
         in JustWrite; the kit grew a side door instead, and JustVoice and docgen never converted.
 DETAIL: the plan; RESEARCH.md §8; JustWrite's `docs/dev/RESEARCH.md` "Translation: what still
         shows in English".
-NEXT:   database-seeded words — the plan's "next, each its own go": written 2026-10-18,
-        `docs/plans/2026-10-18-seeded-words-in-the-users-language.md` (show an unrenamed seeded row
-        by key; the inventory of all four repos). Waits for the user's go (JustWrite's TASKS,
-        "Automated testing", OPEN 2).
+NEXT:   database-seeded words — BUILT 2026-10-18 under the user's "your rec on all go dont stop dont
+        ask me again … take your on rec go on all": the kit, JustWrite and docgen
+        (`docs/plans/2026-10-18-seeded-words-in-the-users-language.md` §5 says what was built and
+        what the second look changed). Open: JustVoice's rows (the plan's Task 4), when its screens
+        are translated.
 OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (each ticked in the
         plan with its commit; the follow-ups' words are in JustWrite's TASKS). The ⚠️ hit closed
         2026-10-13. Task 3 under way: steps 2–4 done 2026-10-13 (the plan says what landed, with

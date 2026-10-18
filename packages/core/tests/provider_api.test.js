@@ -187,6 +187,7 @@ test("the provider router answers as FastAPI did", async () => {
     registered: true,
     timeoutSeconds: 60,
     local: true,
+    nameKey: null, // the seeded-name key (2026-10-18) — a renamed or non-seeded row has none
   });
   r = await c.post("/v1/llm-providers", { name: "x", providerType: "nope" });
   expect((await r.json()).detail).toBe(
@@ -211,4 +212,17 @@ test("the provider router answers as FastAPI did", async () => {
   r = await c.post("/v1/llm-providers", { id: "n5", name: 5, providerType: "openai" });
   expect(r.status).toBe(422);
   expect((await r.json()).errors).toEqual([{ loc: ["body", "name"], msg: "Input should be a valid string", type: "string_type" }]);
+});
+
+test("a seeded provider under its seeded name carries the catalog key; renamed or a brand, none", async () => {
+  // The seeded-words plan (2026-10-18): a screen shows the name in its own language by the key.
+  const store = new MemStore();
+  store.add({ id: "local-llamacpp", name: "Built-in provider — llama.cpp", providerType: "local-llamacpp", local: true });
+  store.add({ id: "lmstudio", name: "My LM Studio", providerType: "openai-compat", local: true });
+  store.add({ id: "openai", name: "OpenAI", providerType: "openai", local: false });
+  const rows = (await (await client(store).get("/v1/llm-providers")).json()).providers;
+  const key = (id) => rows.find((p) => p.id === id).nameKey;
+  expect(key("local-llamacpp")).toBe("kit.provider.seeded.builtIn");
+  expect(key("lmstudio"), "renamed").toBe(null);
+  expect(key("openai"), "a brand").toBe(null);
 });

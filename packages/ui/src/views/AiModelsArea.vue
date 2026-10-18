@@ -32,6 +32,7 @@ import LuEngineUpdateButton from "../components/LuEngineUpdateButton.vue";
 import LuWarmStartupToggle from "../components/LuWarmStartupToggle.vue";
 import { pushToast } from "../common/services/toastBridge.js";
 import { request } from "../client.js";
+import { providerDisplayName } from "../services/seededWords.js";
 import { useHardware } from "../composables/useHardware.js";
 import { useModelApply } from "../services/modelApply.js";
 import { useEngine } from "../composables/useEngine.js";
@@ -538,7 +539,7 @@ async function applySetDefault() {
     // write would rewrite the identical value, so it is skipped (the dialog line
     // says "already runs here — unchanged"). Online rows still repoint it.
     if (sdEmbedModel.value && !sdIsBuiltin.value) await setAsEmbedding(pid, sdEmbedModel.value);
-    pushToast({ message: t("kit.aiArea.setDefault.done", { name: p.name || p.id, model: sdModel.value }) });
+    pushToast({ message: t("kit.aiArea.setDefault.done", { name: providerDisplayName(p), model: sdModel.value }) });
     setDefaultFor.value = null;
   } catch (e) {
     pushToast({ message: t("kit.aiArea.setDefault.failed", { error: e?.message || e }) });
@@ -742,7 +743,7 @@ onMounted(() => {
             </span>
             <div class="lu-prow-info">
               <div class="lu-prow-name">
-                <b>{{ p.name || p.id }}</b><span v-for="c in capList(p)" :key="c" class="lu-cap">{{ c }}</span>
+                <b>{{ providerDisplayName(p) }}</b><span v-for="c in capList(p)" :key="c" class="lu-cap">{{ c }}</span>
                 <!-- 2026-07-19: the built-in is a normal row now, so the ONE thing that
                      still marks it out is this tag (same .lu-cap badge, no new style). -->
                 <span v-if="isBuiltin(p)" class="lu-cap">{{ t('kit.aiArea.providers.builtin') }}</span>
@@ -812,7 +813,7 @@ onMounted(() => {
              offer; other rows: set the Default model in Edit first). -->
         <AppModal v-if="setDefaultFor" :title="t('kit.aiArea.setDefault.title')" :max-width="'480px'" @close="setDefaultFor = null">
           <template v-if="sdModel">
-            <i18n-t keypath="kit.aiArea.setDefault.becomes" tag="p" class="lu-sd-line" scope="global"><template #name><b>{{ setDefaultFor.name || setDefaultFor.id }}</b></template><template #model><b>{{ sdModel }}</b></template></i18n-t>
+            <i18n-t keypath="kit.aiArea.setDefault.becomes" tag="p" class="lu-sd-line" scope="global"><template #name><b>{{ providerDisplayName(setDefaultFor) }}</b></template><template #model><b>{{ sdModel }}</b></template></i18n-t>
             <!-- QC-21: the built-in's embedding lives in the routing default already —
                  say so instead of the false "no embedding model set". The WHOLE embed
                  block hides in a no-embeddings host (llmUiCapabilities — the docgen

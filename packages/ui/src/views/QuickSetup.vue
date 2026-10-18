@@ -43,6 +43,7 @@ import UiSelect from "../common/components/UiSelect.vue";
 import UiProgress from "../common/components/UiProgress.vue";
 import AppModal from "../common/components/AppModal.vue";
 import DownloadBar from "../common/components/DownloadBar.vue";
+import { presetDisplayName } from "../services/seededWords.js";
 
 const emit = defineEmits(["changed", "closed"]);
 // inline (user, 2026-07-06: "the orginal text to be to th right of the button" · "quick setup
@@ -1066,13 +1067,13 @@ defineExpose({ openWizard });
           <template v-if="repointedPresets.length">
             <ul class="lu-qs-rlist">
               <li v-for="p in repointedPresets" :key="p.id">
-                <b>{{ p.name }}</b> <i18n-t keypath="kit.quickSetup.confirm.repoints" tag="span" class="lu-muted" scope="global"><template #from><code>{{ p.model }}</code></template><template #to><code>{{ pick.default }}</code></template></i18n-t>
+                <b>{{ presetDisplayName(p) }}</b> <i18n-t keypath="kit.quickSetup.confirm.repoints" tag="span" class="lu-muted" scope="global"><template #from><code>{{ p.model }}</code></template><template #to><code>{{ pick.default }}</code></template></i18n-t>
               </li>
             </ul>
           </template>
           <p v-else class="lu-muted">{{ t('kit.quickSetup.confirm.noRouting') }}</p>
           <p v-if="keptPresets.length" class="lu-muted lu-qs-hint">
-            {{ t('kit.quickSetup.confirm.kept', { names: keptPresets.map((p) => p.name).join(", ") }) }}
+            {{ t('kit.quickSetup.confirm.kept', { names: keptPresets.map((p) => presetDisplayName(p)).join(", ") }) }}
           </p>
           <p class="lu-muted lu-qs-hint">{{ t('kit.quickSetup.confirm.tunesKept') }}</p>
         </section>

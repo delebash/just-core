@@ -36,6 +36,10 @@ export const FeatureRow = T.Object({
   label: T.String(),
   hint: opt(T.String(), ""),
   group: opt(T.String(), ""), // the catalog's nav grouping (display-only), e.g. "Writing", "Analysis"
+  // the host's catalog keys for the words (the seeded-words plan, 2026-10-18): a screen shows them in the app's language; empty = show the words as given
+  labelKey: opt(T.String(), ""),
+  hintKey: opt(T.String(), ""),
+  groupKey: opt(T.String(), ""),
 });
 
 export const RoutingResponse = T.Object({
@@ -52,8 +56,8 @@ export const RoutingResponse = T.Object({
  * and the nav group it belongs to (`group`, display-only; NOT a routing key — routing is
  * owned by the action's preset).
  */
-export function FeatureCatalogEntry({ key, label, hint = "", group = "" }) {
-  return { key, label, hint, group };
+export function FeatureCatalogEntry({ key, label, hint = "", group = "", labelKey = "", hintKey = "", groupKey = "" }) {
+  return { key, label, hint, group, labelKey, hintKey, groupKey };
 }
 
 /** Build the /v1/ai/routing GET+PUT router over a host RoutingStore and the host's feature
@@ -62,7 +66,10 @@ export function makeRoutingRouter(getStore, getCatalog) {
   const app = new Hono();
   const response = () => {
     const cfg = getStore().getRouting();
-    const rows = getCatalog().map((e) => ({ key: e.key, label: e.label, hint: e.hint, group: e.group }));
+    const rows = getCatalog().map((e) => ({
+      key: e.key, label: e.label, hint: e.hint, group: e.group,
+      labelKey: e.labelKey || "", hintKey: e.hintKey || "", groupKey: e.groupKey || "",
+    }));
     return model(RoutingResponse, { default: cfg.default, features: rows });
   };
 

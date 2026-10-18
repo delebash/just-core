@@ -13,6 +13,7 @@ import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useProviderModels } from "../composables/useProviderModels.js";
 import LuCombobox from "./LuCombobox.vue";
+import { providerDisplayName } from "../services/seededWords.js";
 
 const { t } = useI18n();
 const props = defineProps({
@@ -97,7 +98,7 @@ function setModel(model) {
       <span v-if="labels" class="lu-mp-lbl">{{ t('kit.modelPicker.provider') }}</span>
       <select class="lu-input lu-mp-sel" :value="route" :aria-label="t('kit.modelPicker.provider')" @change="setRoute($event.target.value)">
         <option value="">{{ inheritLabel || t('kit.common.inheritDefault') }}</option>
-        <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.name }}</option>
+        <option v-for="p in providers" :key="p.id" :value="p.id">{{ providerDisplayName(p) }}</option>
       </select>
     </div>
     <div class="lu-mp-field">

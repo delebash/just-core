@@ -497,7 +497,7 @@ test("resolved_route_without_preset_falls_to_dispatch", async () => {
   expect(body.presetId).toBe("");
   // The whole answer, in the model's field order (checked against the Python router).
   expect(text).toBe(
-    '{"feature":"greet","action":"","providerId":"fake","model":"m","presetId":"","presetName":"","presetSource":"",' +
+    '{"feature":"greet","action":"","providerId":"fake","model":"m","presetId":"","presetName":"","presetNameKey":"","presetSource":"",' +
       '"think":false,"level":"","reasoningWord":"","value":null,"valueSource":"","configured":true,"detail":"",' +
       '"context":null,"alwaysThinks":false}',
   );
@@ -735,7 +735,9 @@ test("the prompt and feature routers answer as FastAPI did", async () => {
   let r = await editor.get("/v1/ai/prompts/greet");
   expect(await r.text()).toBe(
     '{"key":"greet","feature":"greet","system":"You are {{role}}.","userTemplate":"Hi {{name}}","builtIn":true,' +
-      '"jsonMode":false,"jsonSchema":"","label":"","description":"","group":""}',
+      '"jsonMode":false,"jsonSchema":"","label":"","description":"","group":"",' +
+      // the host's catalog keys for the words (2026-10-18) — this seed names none
+      '"labelKey":"","descriptionKey":"","groupKey":""}',
   );
   r = await editor.get("/v1/ai/prompts/nope");
   expect((await r.json()).detail).toBe("unknown prompt 'nope'");
@@ -796,4 +798,16 @@ test("stream frames are json.dumps text: thinking, floats and escapes", async ()
       'data: {"done": true, "promptTokens": 2, "completionTokens": 4, "model": "m", "cost": 0.0, "finishReason": ""}\n\n' +
       "data: [DONE]\n\n",
   );
+});
+
+test("an action's catalog keys come from the host's seed spec, on the list and on one row", async () => {
+  // The seeded-words plan (2026-10-18): the AI page shows an action in the app's language.
+  const keyed = { ...DEFAULTS, greet: { ...DEFAULTS.greet, labelKey: "ai.greet", descriptionKey: "ai.greetDesc", groupKey: "ai.chat" } };
+  const app = createServer({ typeBase: "https://example.test/errors/" });
+  app.route("/", makePromptRouter(() => new MemPromptStore(), keyed));
+  const c = wrap(app);
+  const list = (await (await c.get("/v1/ai/prompts")).json()).prompts;
+  expect(list.find((p) => p.key === "greet")).toMatchObject({ labelKey: "ai.greet", descriptionKey: "ai.greetDesc", groupKey: "ai.chat" });
+  expect(list.find((p) => p.key === "farewell")).toMatchObject({ labelKey: "", descriptionKey: "", groupKey: "" });
+  expect(await (await c.get("/v1/ai/prompts/greet")).json()).toMatchObject({ labelKey: "ai.greet" });
 });

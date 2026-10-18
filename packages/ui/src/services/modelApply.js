@@ -103,7 +103,7 @@ export async function applyPreview() {
   ]);
   const { dominant, taskPresets } = dominantOf(asg, pr.presets || []);
   const presets = taskPresets.map((p) => ({
-    id: p.id, name: p.name || p.id, model: p.model || "", factoryModel: p.factoryModel || "",
+    id: p.id, name: p.name || p.id, nameKey: p.nameKey || "", model: p.model || "", factoryModel: p.factoryModel || "",
   }));
   const currentModels = [...new Set(presets.map((p) => p.model).filter(Boolean))];
   let tunedCurrent = false;

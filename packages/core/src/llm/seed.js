@@ -145,6 +145,13 @@ export const appFeatureCatalog = () => cfg._APP.feature_catalog;
 export const appFeaturePrompts = () => cfg._APP.feature_prompts;
 /** The host's built-in engine presets (list of seed objects) — the factory preset library. */
 export const appEnginePresets = () => cfg._APP.engine_presets;
+/** The host's catalog key for a seeded preset's name while the row still carries that name —
+ * a screen shows it in the app's language (the seeded-words plan, 2026-10-18); "" once renamed,
+ * or for a preset the user made. */
+export function seededPresetNameKey(row) {
+  const s = row ? appEnginePresets().find((p) => p.id === row.id) : null;
+  return s?.nameKey && s.name === row.name ? s.nameKey : "";
+}
 /** The host's per-ACTION preset refs (action → preset_id) — seeded into `feature_preset_refs`. */
 export const appFeaturePresets = () => cfg._APP.feature_presets;
 /** The host's global default preset id — seeded fill-if-empty into `default_preset_id`. */

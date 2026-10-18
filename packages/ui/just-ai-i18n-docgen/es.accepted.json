@@ -255,6 +255,14 @@
     "by": "Claude (AI review, 2026-10-17)",
     "at": "2026-10-18"
   },
+  "4e9d200a306c1ca4": {
+    "key": "kit.provider.seeded.unsloth",
+    "code": "untranslated",
+    "src": "Unsloth Studio (local)",
+    "dst": "Unsloth Studio (local)",
+    "by": "Claude (AI review, 2026-10-18)",
+    "at": "2026-10-18"
+  },
   "5012355e49870601": {
     "key": "kit.appearance.tint.neutral",
     "code": "untranslated",
@@ -293,6 +301,14 @@
     "src": "{gb} GB",
     "dst": "{gb} GB",
     "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "5cf4a5e2a26ff6d8": {
+    "key": "kit.provider.seeded.ollama",
+    "code": "untranslated",
+    "src": "Ollama (local)",
+    "dst": "Ollama (local)",
+    "by": "Claude (AI review, 2026-10-18)",
     "at": "2026-10-18"
   },
   "5f1b05c6d2f112fe": {
@@ -661,6 +677,14 @@
     "src": "OpenAI",
     "dst": "OpenAI",
     "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "de0621a0c1f8bbf9": {
+    "key": "kit.provider.seeded.lmStudio",
+    "code": "untranslated",
+    "src": "LM Studio (local)",
+    "dst": "LM Studio (local)",
+    "by": "Claude (AI review, 2026-10-18)",
     "at": "2026-10-18"
   },
   "dea02d36be5c2777": {

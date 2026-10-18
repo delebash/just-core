@@ -244,6 +244,7 @@ test("the presets router answers as FastAPI did", async () => {
     builtIn: false,
     position: 0,
     factoryModel: "",
+    nameKey: "", // the seeded-name key (2026-10-18) — a preset the user made has none
   });
   expect(body.presets[0].id).toMatch(/^[0-9a-f]{12}$/);
   // pydantic's lax conversion of a JSON body: "0.5" → 0.5, "7" → 7, "yes" → true
