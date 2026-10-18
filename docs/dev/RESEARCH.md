@@ -1214,6 +1214,20 @@ re-checked by the session that saved them; paths are from before the just-core r
 
 ---
 
+**The template against the family standards** (*agent, 2026-10-18*; evidence and the agent's report verbatim:
+[`../plans/2026-10-18-template-audit.md`](../plans/2026-10-18-template-audit.md); asked for by just-house-paint's user
+after two standards the template never carried — the AI progress bar, the hue slider's colour):
+
+- A standard reaches a generated app only as kit code or template code; prose in app-structure, or one older app's
+  code, doesn't. Found as prose-only or one-app-only: the font picker's fonts (only JustWrite ships font files —
+  elsewhere every choice falls back to the system font), the AI status button's look (only JustWrite styles it),
+  self-update (JustWrite, JustVoice), the phone's in-app server (JustWrite), dates and numbers in the app's language,
+  help on a failed warm start (JustVoice). Untested in the template: the connection page, the tray listeners, the
+  Settings Storage/Server/About copies, the boot wiring, the chrome's mounts, help-key → doc. A kit bug: LuCombobox's
+  Fetch button uses classes nothing defines. Fixes: the kit's TASKS ("THE TEMPLATE AUDIT").
+
+---
+
 **The error and validation contract, in the kit** (*code + test, 2026-10-18*; the plan
 [`../plans/2026-10-18-complete-template-and-standards.md`](../plans/2026-10-18-complete-template-and-standards.md),
 the standard app-structure §15):
