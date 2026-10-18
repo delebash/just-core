@@ -1223,6 +1223,31 @@ the standard app-structure §15):
 
 ---
 
+**The complete template, built** (*agent (measured on this machine), 2026-10-18*; commits 6ab99da · 7e212f8 ·
+e5c2cfb · cc8d672 · e53dc21; not re-run by this session):
+
+- Checks: lint (68 files), i18n:lint 0, i18n:report (only 3 dynamic kit keys), test:server 46, test:unit 18,
+  build:spa, the server's health / 405 / a 422 with `ctx` and `requestId` / shutdown, build:unpacked + the e2e
+  smoke 12 pass (5 contract, 7 smoke), screenshots 13, coverage renderer 46.6 % / server 92.4 % lines, `npm run
+  dev` (the shell started the server from source), `npm run build` (nsis, oneClick false, perMachine false,
+  fuses applied) and the packaged `family-template-server.cmd serve` serving the UI from the asar. The guard's
+  product checks pass on it (run from a scratch copy with the template in `APPS`).
+- **`build:unpacked` (`--skip-pkg`) leaves `dist/electron/UnPackaged` with no `node_modules`**: the unpacked app
+  finds the kit's shell in the checkout's, but its own server can't start from there — JustWrite's note
+  ("use `npm run build`" for a shell-started server) is right (research B's open question, settled).
+- A package's `"exports": { "./schemas/*": "./src/schemas/*.js" }` resolves `notes.js` to `notes.js.js` — the
+  working pattern is `"./schemas/*.js": "./src/schemas/*.js"` (Node's subpath pattern).
+- Vite dev serves the shared schema through `server.fs.allow` including the kit's `packages/core` (measured with
+  it; not tried without): `/server/src/schemas/notes.js` → `/@fs/…/packages/core/src/platform/schema.js` →
+  pre-bundled `typebox`.
+- Vitest with `@vue/test-utils` doesn't auto-import Quasar's components (`q-page`, `q-form` render unresolved);
+  the kit's `createTestApp` registers none — the template registers every `Q*` export itself.
+- Husky 9 inside `template/` (no `.git`) prints ".git can't be found" and exits 0. Vite inlines the SVG boot plate
+  as a `data:` URI. The kit's `UiToggle` drops `label` (a toggle's text isn't clickable); `.ui-field { margin:
+  10px 0 }` pushes a row's button off its input. The kit's CORS preflight answers 204 (Starlette: 200).
+
+---
+
 **The kit renamed just-core** (*measured + git, 2026-10-18*; the decision is TASKS, "The kit is renamed
 `just-core`"):
 

@@ -325,7 +325,7 @@ Chromium keeps its files there locked and the watcher fails on them (EBUSY).
 | `build:spa` | `quasar build` — the browser build (`dist/spa`), served by the server for headless use |
 | `build:unpacked` | `quasar build -m electron --skip-pkg` — the desktop app unpackaged (`dist/electron/UnPackaged`), what the e2e harness drives |
 | `build:android` | `quasar build -m capacitor -T android` — where the app has a phone app |
-| `server` · `test:server` | `node scripts/node24.js server/src/serve.js serve` · vitest the same way — on Electron's own Node 24, the runtime the server ships on (`scripts/node24.js` runs `src-electron`'s Electron with `ELECTRON_RUN_AS_NODE=1`), never the `node` first on PATH. `test:server` is every app's; the template has no server tests, so no script |
+| `server` · `test:server` | `node scripts/node24.js server/src/serve.js serve` · vitest the same way — on Electron's own Node 24, the runtime the server ships on (`scripts/node24.js` runs `src-electron`'s Electron with `ELECTRON_RUN_AS_NODE=1`), never the `node` first on PATH. `test:server` is every app's, the template's included |
 | `lint` | `biome check .` |
 
 `npm install` installs the root and the `server/` workspace; `src-electron/` (and
@@ -338,7 +338,7 @@ Chromium keeps its files there locked and the watcher fails on them (EBUSY).
 - **scripts** (check 3): `dev`, `build`, `build:spa`, `server`, `lint` present, the first four
   exactly as Q.9 (`server` through `scripts/node24.js`); no `tauri` script.
 - **server** (check 4): `server/src/serve.js`; `server/package.json` named `<app>-server` with
-  `"type": "module"`; tests in `server/tests/*.test.js` (not for the template).
+  `"type": "module"`; tests in `server/tests/*.test.js`.
 - **the theme**: `postcss.config.js` runs the kit's `quasarBaseLayer()`;
   `src/css/quasar.variables.scss` imports `@delebash/ui/quasar/variables.scss`;
   `quasar.config.js`'s `framework.config` sets `ripple: false` (Q.4).
@@ -362,7 +362,7 @@ Chromium keeps its files there locked and the watcher fails on them (EBUSY).
 - **the headless launcher** (Q.3): `build/launcher/` holds a `<name>-server` launcher, the builder
   copies it beside the exe (`extraResources`), `builder.win.executableName` is set, and no
   launcher shares the exe's name.
-- **§14's renderer** (products, not the template): the lanes `boot/ components/ css/ layouts/
+- **§14's renderer** (every app and the template): the lanes `boot/ components/ css/ layouts/
   pages/ router/ services/ stores/` (+ `composables/` in JW and JV); the skeleton files
   (`css/tokens.css`, `css/app.scss`, `pages/HomePage.vue`, `boot.smoke.test.js`,
   `services/helpDocs.js`, `stores/ui.js`, `.gitattributes`, `biome.json`, `vitest.config.js`,
@@ -379,8 +379,8 @@ Chromium keeps its files there locked and the watcher fails on them (EBUSY).
   `src/`; `eslint.i18n.config.js` byte-identical to the kit's `packages/ui/eslint.i18n.config.js` (an app
   without one is advisory until docgen and JustVoice have theirs — the i18n plan's Tasks 4 and 5).
 
-The template is checked against all of it (check 4's tests aside) plus the shell doors (checks
-11–13); the docs and skeleton-lane checks are for products, not the template.
+Since 2026-10-18 the template is a complete app and is checked as a product, like every app — plus
+`checkCommonServer` (§14, §15) and the AGENTS.md family-rules copy (§2).
 
 ### Q.11 · Words — vue-i18n
 
@@ -409,7 +409,8 @@ The template is the reference.
   `packages/ui/eslint.i18n.config.js`) with two rules at error — `no-raw-text` (@intlify) for template text,
   `no-literal-string` (eslint-plugin-i18next) for the strings code builds, in `.js` files and in a
   `.vue` file's script and bound attributes: `npm run i18n:lint` (`src/**/*.{js,vue}`) at zero, and
-  `npm run i18n:report` with no key missing from the English catalogs — English is the source;
+  `npm run i18n:report` with no key missing from the English catalogs (its `--languageFiles` names the
+  kit's `en.json` too, or every `kit.*` key reads as missing) — English is the source;
   other languages fill through docgen and show English until then (decided 2026-10-13: the kit's
   TASKS, "Every app and the kit on vue-i18n"). Neither rule reads a template literal inside a
   template attribute, nor a table in an UPPER_CASE declaration — such a table names its keys
@@ -425,8 +426,8 @@ The template is the reference.
 - **Start from the family template**: a new app is a copy of this repo's `template/` (§Q),
   renamed — the official Quasar scaffold already made into the family shape, every change from
   Quasar's default listed in its README. Copy only its tracked files (`git ls-files template`)
-  and regenerate the lockfiles. (A `/new-just-app` skill that does all of this is being built —
-  this repo's TASKS, "A standard start for every new just app".)
+  and regenerate the lockfiles. The `/new-just-app` skill does all of this (`skills/new-just-app/`;
+  its generator `scripts/new-app.js`; `node scripts/install-skills.js` puts it in `~/.claude/skills/`).
 - **Names, one per layer** — every new app is `just-<name>` (the user, 2026-10-17; the existing
   apps keep their names): the repo `just-<name>` · the shell's `id` `just<name>` (the `app://`
   host; no hyphens, Q.2) and the identifier `com.<id>.app` · the server package
@@ -462,9 +463,12 @@ getting this wrong is the #1 confusion) — §Q.9.
   `.quasar/`, Capacitor's web copy (`src-capacitor/www`) and the in-app server's bundle
   (`src/phone/worker-bundle/`); the native projects (`src-capacitor/android`, `/ios`) are
   committed (§Q.7).
-- **CLAUDE.md** — every app has one, started from the template's `CLAUDE.md`: what it is, the
-  import line `@../just-core/docs/family-rules.md`, the command block, "what bites", a
-  Where-to-look table whose FIRST row points at this document.
+- **AGENTS.md + CLAUDE.md** (decided 2026-10-17) — `AGENTS.md` holds the repo's instructions for any AI
+  (agents.md): what it is, the commands, "must pass before a commit", "what bites", a Where-to-look
+  table whose FIRST row points at this document, and a copy of `family-rules.md` between
+  `<!-- family-rules:start -->` and `<!-- family-rules:end -->` (the guard keeps it identical).
+  `CLAUDE.md` is `@AGENTS.md` plus the Claude-only lines. Both start from the template's. (The three
+  older apps still have the 2026-10-09 shape — a CLAUDE.md importing `@../just-core/docs/family-rules.md`.)
 
 ## 3 · quasar.config.js — the kit consumption contract
 
@@ -712,13 +716,17 @@ stays on — from `e2e/`, the same shape in every app:
   e2e/capture-direct.js"` — same names in every app.
 - **Hermetic by default**: the smoke suite sets `<ID_UPPER>_DEV_NO_SERVER=1` so a test run
   never evicts your dev server or spawns strays; capture does the same so shots can use a
-  demo-data server you started deliberately.
+  demo-data server you started deliberately. The template's harness (the reference) runs its own
+  server on the app's port with a temp data folder and `JUST_AI_HOME` there, and refuses to run while
+  that port is in use.
 - **What smoke asserts is the CONTRACT, not pixels**: shell mounts, nav works, and
   any user-ruled UI behaviour holds (e.g. i18n's "the whole Setup form is visible with
   an explicit Check-path button") — rulings become assertions so they cannot silently
   regress.
 
-Its launch target is the unpackaged desktop build in `dist/electron/UnPackaged` (§Q.9).
+Its launch target is the unpackaged desktop build in `dist/electron/UnPackaged` (§Q.9) — which
+`build:unpacked` leaves without `node_modules`, so the shell can't start the app's own server from it:
+the harness starts the server itself (the template's), or drives a full `npm run build` (JustWrite's).
 
 ## 11 · The standard app chrome — every app carries these, no exceptions
 
@@ -914,9 +922,15 @@ assert the marker (a 200 from an empty ring proves nothing).
 - [ ] Run an LLM feature and LOOK: tokens on the strip, one indicator total,
       the trigger button disabled (not spinning) while it runs
 - [ ] A batch shows real n/m; a polled job's percent reaches the strip
-- [ ] CLAUDE.md present (from the template's), importing `family-rules.md`, first Where-to-look
-      row → this document
-- [ ] `docs/dev/TASKS.md` + `docs/dev/IDEAS.md` + `docs/dev/RESEARCH.md` present per §13
+- [ ] AGENTS.md (with the family rules' copy) + CLAUDE.md (`@AGENTS.md`), from the template's; first
+      Where-to-look row → this document (§2)
+- [ ] `docs/dev/PRD.md` + `TASKS.md` + `IDEAS.md` + `RESEARCH.md` present per §13
+- [ ] §15: every route that takes input has a schema; forms use `schemaRules` / `fieldErrors`;
+      failures show through `reportError`; the boot file calls `installErrorReporting`
+- [ ] §16: the schema is `database/schema.js` migrations; ids random text; seeds insert-if-missing
+- [ ] §17: every loading screen has its loading, empty and failed states
+- [ ] §18: tests at every level — routes (happy, 422, refusal), the real socket, stores, the
+      mounted pages, the boot smoke, the e2e smoke
 - [ ] Any deviation: flagged to the user AND listed under Open deviations
 
 ## 13 · The docs convention — every repo, including this one
@@ -1010,7 +1024,8 @@ exception answers the family's problem+json 500 (`unhandledEnvelope`) — an app
   `literal`, `strictObject`). The route checks it with the kit's `input({ body, querystring, params
   })` and reads `c.req.valid("json")`. Every route that takes input has a schema; limits a user
   meets (lengths, ranges) are in it, not in code after it.
-- The server package exports its schemas (`"exports": { "./schemas/*": "./src/schemas/*.js" }`) and
+- The server package exports its schemas (`"exports": { "./schemas/*.js": "./src/schemas/*.js" }` — the
+  `.js` on both sides; `"./schemas/*"` resolves `notes.js` to `notes.js.js`) and
   the renderer imports the same object (`import { NoteIn } from "<app>-server/schemas/notes.js"`).
 - A form is Quasar's `QForm` with the kit's inputs, `lazy-rules`, and `:rules` from the kit's
   `schemaRules(NoteIn)` — required, min/max length (counted in characters, as the server counts),

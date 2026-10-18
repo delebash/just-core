@@ -47,8 +47,9 @@ const APPS = [
   { name: "docgen", dir: process.env.FAMILY_DOCGEN_DIR || join(FAMILY, "just_ai_i18n_docgen") },
 ];
 
-/** The §Q reference app (`template/`), checked against §Q's layout rules only. */
-const TEMPLATE = { name: "template", dir: join(KIT, "template"), template: true };
+/** The reference app (`template/`) — a complete family app since 2026-10-18, checked as a product
+ * like the apps (the kit's TASKS, "A standard start…": "checked by the guard as a product"). */
+const TEMPLATE = { name: "template", dir: join(KIT, "template") };
 
 /** "quasar" (§Q), or "unknown" — which is a violation. */
 const kindOf = (app) => (existsSync(join(app.dir, "quasar.config.js")) ? "quasar" : "unknown");
@@ -201,6 +202,28 @@ function checkScripts(app) {
   return undefined;
 }
 
+// ── AGENTS.md carries the family rules (the kit's TASKS, "A standard start…", decision 2) ────
+// Other AI tools read AGENTS.md and follow no @ imports, so the file holds a copy of
+// docs/family-rules.md between two markers; the copy must stay identical to the kit's. An app that
+// hasn't moved to AGENTS.md yet is an advisory; the template must have it.
+const RULES_START = "<!-- family-rules:start -->";
+const RULES_END = "<!-- family-rules:end -->";
+function checkAgentsRules(app) {
+  const file = join(app.dir, "AGENTS.md");
+  const text = existsSync(file) ? readFileSync(file, "utf8").replace(/\r\n/g, "\n") : "";
+  const a = text.indexOf(RULES_START);
+  const b = text.indexOf(RULES_END);
+  if (a < 0 || b < a) {
+    const msg = `AGENTS.md ${text ? "has no family-rules block" : "missing"} — it carries docs/family-rules.md between ${RULES_START} and ${RULES_END} (§2)`;
+    if (app === TEMPLATE) fail(app.name, msg);
+    else info(app.name, msg);
+    return;
+  }
+  const copy = text.slice(a + RULES_START.length, b).trim();
+  const rules = readFileSync(join(KIT, "docs", "family-rules.md"), "utf8").replace(/\r\n/g, "\n").trim();
+  if (copy !== rules) fail(app.name, "AGENTS.md's family-rules block differs from the kit's docs/family-rules.md — copy it again, verbatim");
+}
+
 // ── the common server parts (app-structure §14, §15) ─────────────────────────────
 // Sameness by construction (the kit's TASKS, "A standard start…", DIRECTION 2026-10-17): the parts
 // every server has in common come from the kit — /v1/health is the kit's makeHealthRouter, an
@@ -260,7 +283,6 @@ function checkServer(app) {
       }
     }
   }
-  if (app.template) return undefined; // the template's server has no tests of its own
   const testsDir = join(serverDir, "tests");
   const jsTests = existsSync(testsDir) ? readdirSync(testsDir).filter((f) => f.endsWith(".test.js")) : [];
   if (!jsTests.length) fail(app.name, `no server/tests/*.test.js — the server's tests are vitest files (${section})`);
@@ -1063,7 +1085,7 @@ function checkI18nKit() {
 }
 
 const perApp = [];
-for (const app of APPS) {
+for (const app of [...APPS, TEMPLATE]) {
   if (!existsSync(app.dir)) { fail(app.name, `not found at ${app.dir}`); continue; }
   const files = walk(join(app.dir, "src"));
   perApp.push([app.name, files]);
@@ -1093,24 +1115,7 @@ for (const app of APPS) {
   checkOneHono(app, [...walk(join(app.dir, "server", "src")), ...walk(join(app.dir, "server", "tests"))]);
   checkNoWindowGlobal(app, files);
   checkResearchRegister(app.name, app.dir);
-}
-// The §Q reference app: the layout checks and the shell doors only (it is not a product).
-if (TEMPLATE.kind !== "quasar") {
-  fail(TEMPLATE.name, `${TEMPLATE.dir} has no quasar.config.js — the template is the §Q reference app`);
-} else {
-  const files = walk(join(TEMPLATE.dir, "src"));
-  checkScripts(TEMPLATE);
-  checkServer(TEMPLATE);
-  checkSkeleton(TEMPLATE);
-  checkLauncher(TEMPLATE);
-  checkDesktopMain(TEMPLATE);
-  checkDevPorts(TEMPLATE);
-  checkQuasar(TEMPLATE);
-  checkI18n(TEMPLATE, files);
-  checkOneSaveDoor(TEMPLATE, files);
-  checkOneShellDoor(TEMPLATE, files);
-  checkOneHono(TEMPLATE, walk(join(TEMPLATE.dir, "server", "src")));
-  checkNoWindowGlobal(TEMPLATE, files);
+  checkAgentsRules(app);
 }
 checkCrossAppTwins(perApp, kitFiles);
 checkDocsCrossApp();
