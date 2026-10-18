@@ -1,9 +1,10 @@
 {
   "name": "family-template",
   "version": "0.0.1",
-  "description": "A Quasar Project",
+  "description": "The family's reference app — every new family app starts as a copy of it.",
   "productName": "Family Template",
   "author": "delebash",
+  "license": "MIT",
   "type": "module",
   "private": true,
   "workspaces": [
@@ -17,42 +18,49 @@
     "build:unpacked": "quasar build -m electron --skip-pkg",
     "build:android": "quasar build -m capacitor -T android",
     "postinstall": "quasar prepare --silent",
-    "lint": "biome check .",
+    "prepare": "husky",
     "server": "node scripts/node24.js server/src/serve.js serve",
+    "lint": "biome check .",
+    "test:server": "node scripts/node24.js node_modules/vitest/vitest.mjs run --config server/vitest.config.js",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage && node scripts/node24.js node_modules/vitest/vitest.mjs run --config server/vitest.config.js --coverage",
+    "test": "npm test --prefix e2e",
+    "screenshots": "node e2e/capture-direct.js",
     "i18n:lint": "eslint -c eslint.i18n.config.js \"src/**/*.{js,vue}\"",
     "i18n:report": "vue-i18n-extract report --vueFiles \"src/**/*.?(js|vue)\" --languageFiles \"src/i18n/locales/en.json\" --exclude kit."
   },
   "dependencies": {
-    "pinia": "^4.0.3",
+    "@floating-ui/dom": "^1.8.0",
     "@quasar/extras": "^2.1.0",
+    "@vueuse/core": "^15.0.0",
+    "marked": "^18.1.0",
+    "pinia": "^4.0.3",
     "quasar": "^2.35.0",
     "vue": "^3.5.43",
-    "vue-router": "^5.4.0",
-    "vue-i18n": "^11.4.14"
+    "vue-i18n": "^11.4.14",
+    "vue-router": "^5.4.0"
   },
   "devDependencies": {
-    "@eslint/compat": "^2.1.1",
-    "@quasar/app-vite": "^3.10.2",
-    "autoprefixer": "^10.6.1",
-    "postcss": "^8.5.29",
     "@biomejs/biome": "2.5.15",
+    "@eslint/compat": "^2.1.1",
     "@intlify/eslint-plugin-vue-i18n": "^4.5.1",
+    "@quasar/app-vite": "^3.10.2",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "@vitest/coverage-v8": "^5.0.3",
+    "@vue/test-utils": "^2.5.1",
+    "autoprefixer": "^10.6.1",
     "eslint": "^10.12.0",
     "eslint-plugin-i18next": "^6.1.5",
+    "husky": "^9.1.7",
+    "jsdom": "^30.1.2",
+    "lint-staged": "^17.6.0",
+    "postcss": "^8.5.29",
+    "vitest": "^5.0.3",
     "vue-eslint-parser": "^10.4.1",
     "vue-i18n-extract": "^2.0.7"
   },
-  "keywords": [
-    "quasar",
-    "quasar-app",
-    "quasar-cli",
-    "quasar-app-vite",
-    "vite",
-    "vue",
-    "vuejs"
-  ],
-  "engines": {
-    "node": ">= 26 || ^24 || ^22.12"
+  "lint-staged": {
+    "*.{js,vue}": "biome check --files-ignore-unknown=true --no-errors-on-unmatched"
   },
   "allowScripts": {
     "electron": true,

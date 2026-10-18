@@ -3,13 +3,11 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "The template app's Node server — every family app's server has this shape: Hono on the kit's platform, run by the desktop app in a utilityProcess, headless as `<app>-server serve`, or `npm run server` in development.",
+  "description": "The template app's Node server — every family app's server has this shape: Hono on the kit's platform, run by the desktop app in a utilityProcess, headless as `family-template-server serve`, or `npm run server` in a checkout. Its own package because the packaged app installs only what src-electron/package.json names (app-structure §Q.3).",
+  "license": "MIT",
   "exports": {
     "./serve": "./src/serve.js",
-    "./app": "./src/app.js"
-  },
-  "scripts": {
-    "start": "node src/serve.js serve"
+    "./schemas/*": "./src/schemas/*.js"
   },
   "dependencies": {
     "@delebash/core": "file:../../packages/core"
