@@ -233,6 +233,15 @@ OPEN:   follow-ups the first real app found, each for its own go:
           models, and no Storage screen said so: the template's confirm now does (2026-10-18, found on
           just-house-paint, which shares JustWrite's 272 GB cache); JustWrite, JustVoice and docgen have
           their own Storage code and need the same line — left to their sessions.
+        - the OWNER of a shared cache gets no warning (found by the JustWrite session, 2026-10-18): the kit's
+          `cacheShared` is true only for an app whose cache lives OUTSIDE its data root, so JustWrite — whose
+          cache just-house-paint now uses — would clear house-paint's models without a word. The family
+          registry (`%LOCALAPPDATA%\just-ai\caches.json`) records each app's cacheRoot; my rec: the disk
+          route reports `sharedWith` from the registry's other products on the same root whose dataDir still
+          exists, and the Storage confirm names them. For a go.
+        - the generator's RESERVED ports miss JustWrite's eval (17497) and flow tests (17498) — just-house-paint
+          got 17497 (found by the JustWrite session, 2026-10-18); the fix and the app's move are in
+          just-house-paint's TASKS ("The server's port clashes with JustWrite's eval"), for a go.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp
