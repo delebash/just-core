@@ -31,6 +31,8 @@ export default defineConfig(() => {
     // alias), then the app's, so the app's rules win a tie with the kit's (JustWrite's order).
     css: [
       'tokens.css',
+      // every font the Appearance picker offers, bundled (the kit's Fontsource set)
+      '~@delebash/ui/common/fonts.css',
       '~@delebash/ui/styles.css',
       '~@delebash/ui/common/styles.css',
       '~@delebash/ui/quasar/theme.css',

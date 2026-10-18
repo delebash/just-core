@@ -13,4 +13,10 @@ licence notice of each is kept in the file named; the family rule is `docs/famil
   License, Copyright (c) Tailwind Labs, Inc.) as vue-sonner 2.0.9 shipped them. MIT License,
   Copyright (c) 2022 Yunwei Xiao.
 
+- **`packages/ui/src/common/fonts.css`** — bundles font files from the Fontsource packages it imports (Inter,
+  Spline Sans, Geist, Hanken Grotesk, Albert Sans, Manrope, DM Sans, Atkinson Hyperlegible, Fraunces, Source Serif 4,
+  Newsreader, Libre Caslon Text, Playfair Display, EB Garamond, Spectral, Spline Sans Mono). Each font is under the
+  SIL Open Font License 1.1; its copyright and licence are in the package's `LICENSE` file
+  (`packages/ui/node_modules/@fontsource/<family>/LICENSE`), and the OFL requires shipping that notice with the fonts.
+
 The apps that bundle the kit list these in their own `NOTICE.md` too.

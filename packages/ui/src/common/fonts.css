@@ -1,0 +1,102 @@
+/* SPDX-License-Identifier: MIT */
+/* SELF-HOSTED FONTS — every family the Appearance picker offers, bundled with the app (Fontsource:
+ * the font files on disk, no network, available at first paint, offline too). Promoted to the kit
+ * 2026-10-18 from JustWrite's src/css/fonts.css (its 2026-07-24 "self host fonts" decision; read that
+ * file's header for the WHY and the static-vs-variable choice), after the template audit found the
+ * picker did nothing in any app but JustWrite — no font files, so every choice fell back to the
+ * system font (docs/plans/2026-10-18-template-audit.md).
+ *
+ * An app lists it in quasar.config.js's `css`, before the kit's styles:
+ *   '~@delebash/ui/common/fonts.css',
+ * The packages are the kit's own dependencies (packages/ui/package.json), resolved from here. The
+ * families: the 8 UI_FONTS + 7 DISPLAY_FONTS in common/services/appearance.js, plus Spline Sans Mono
+ * for --font-mono; the weights are JustWrite's. The fonts are under the SIL Open Font License 1.1
+ * (each package carries its LICENSE; NOTICE.md). `font-display: swap` and the unicode-range subsets
+ * come from Fontsource itself, so a family's files load only when it is used.
+ */
+
+/* ── UI families (UI_FONTS — appearance.js) ──────────────────────────────────── */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+
+@import "@fontsource/spline-sans/400.css";
+@import "@fontsource/spline-sans/500.css";
+@import "@fontsource/spline-sans/600.css";
+
+@import "@fontsource/geist/400.css";
+@import "@fontsource/geist/500.css";
+@import "@fontsource/geist/600.css";
+@import "@fontsource/geist/700.css";
+
+@import "@fontsource/hanken-grotesk/400.css";
+@import "@fontsource/hanken-grotesk/500.css";
+@import "@fontsource/hanken-grotesk/600.css";
+
+@import "@fontsource/albert-sans/400.css";
+@import "@fontsource/albert-sans/500.css";
+@import "@fontsource/albert-sans/600.css";
+
+@import "@fontsource/manrope/400.css";
+@import "@fontsource/manrope/500.css";
+@import "@fontsource/manrope/600.css";
+@import "@fontsource/manrope/700.css";
+
+@import "@fontsource/dm-sans/400.css";
+@import "@fontsource/dm-sans/500.css";
+@import "@fontsource/dm-sans/600.css";
+@import "@fontsource/dm-sans/700.css";
+
+/* Atkinson Hyperlegible — the accessibility face; italic is part of its point. */
+@import "@fontsource/atkinson-hyperlegible/400.css";
+@import "@fontsource/atkinson-hyperlegible/400-italic.css";
+@import "@fontsource/atkinson-hyperlegible/700.css";
+
+/* ── Display families (DISPLAY_FONTS — appearance.js) ────────────────────────── */
+/* Fraunces is the default display face AND the boot splash's — the flicker fix lives here. */
+@import "@fontsource/fraunces/300.css";
+@import "@fontsource/fraunces/400.css";
+@import "@fontsource/fraunces/500.css";
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/fraunces/300-italic.css";
+@import "@fontsource/fraunces/400-italic.css";
+@import "@fontsource/fraunces/500-italic.css";
+@import "@fontsource/fraunces/600-italic.css";
+
+@import "@fontsource/source-serif-4/400.css";
+@import "@fontsource/source-serif-4/500.css";
+@import "@fontsource/source-serif-4/600.css";
+@import "@fontsource/source-serif-4/400-italic.css";
+@import "@fontsource/source-serif-4/500-italic.css";
+
+@import "@fontsource/newsreader/400.css";
+@import "@fontsource/newsreader/500.css";
+@import "@fontsource/newsreader/600.css";
+@import "@fontsource/newsreader/400-italic.css";
+@import "@fontsource/newsreader/500-italic.css";
+@import "@fontsource/newsreader/600-italic.css";
+
+@import "@fontsource/libre-caslon-text/400.css";
+@import "@fontsource/libre-caslon-text/400-italic.css";
+@import "@fontsource/libre-caslon-text/700.css";
+
+@import "@fontsource/playfair-display/400.css";
+@import "@fontsource/playfair-display/600.css";
+@import "@fontsource/playfair-display/400-italic.css";
+@import "@fontsource/playfair-display/600-italic.css";
+
+@import "@fontsource/eb-garamond/400.css";
+@import "@fontsource/eb-garamond/500.css";
+@import "@fontsource/eb-garamond/600.css";
+@import "@fontsource/eb-garamond/400-italic.css";
+
+@import "@fontsource/spectral/400.css";
+@import "@fontsource/spectral/500.css";
+@import "@fontsource/spectral/600.css";
+@import "@fontsource/spectral/400-italic.css";
+
+/* ── Mono (--font-mono in tokens.css: model ids, code, figures) ──────────────── */
+@import "@fontsource/spline-sans-mono/400.css";
+@import "@fontsource/spline-sans-mono/500.css";
+
