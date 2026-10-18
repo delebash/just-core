@@ -13,8 +13,9 @@ defineProps({
 });
 
 const { t } = useI18n();
-// The app's source repository — a new app names its own.
-const SOURCE_URL = "https://github.com/delebash/just-core";
+// The app's source repository: just-<name> once generated (the template itself lives in
+// just-core/template, so in the template this names no repository yet).
+const SOURCE_URL = "https://github.com/delebash/family-template";
 const electron = shellVersion();
 </script>
 

@@ -7,7 +7,7 @@
 //     or writes your real data or the family's cache registry;
 //   - the harness starts the app's own server on that folder itself (from source, on Electron's
 //     Node — scripts/node24.js) and stops it after (POST /v1/shutdown);
-//   - the app runs with FAMILYTEMPLATE_DEV_NO_SERVER=1 (§10), so the shell never starts, evicts or
+//   - the app runs with the shell's <ID>_DEV_NO_SERVER=1 (§10), so the shell never starts, evicts or
 //     strands a server of its own.
 // The window talks to the registered port (17490): a run refuses to start while something already
 // listens there — your dev server, say — rather than touch it.
@@ -32,6 +32,10 @@ export const REPO_ROOT = path.resolve(here, "../..");
 const APP_ROOT = path.join(REPO_ROOT, "dist", "electron", "UnPackaged");
 // Electron is the desktop app's dependency, installed in src-electron/ (Quasar's Electron mode).
 const ELECTRON = createRequire(path.join(REPO_ROOT, "src-electron", "package.json"))("electron");
+
+/** The shell's id (src-electron/electron-main.js) — its switch is <ID>_DEV_NO_SERVER. */
+const ID = "familytemplate";
+const NO_SERVER = `${ID.toUpperCase()}_DEV_NO_SERVER`;
 
 /** The registered server port (app-structure §1) — where the window looks for its server. */
 export const PORT = 17490;
@@ -89,7 +93,7 @@ export class Driver {
 
   async launch() {
     if (!this.server) await this.startServer();
-    const env = { ...process.env, FAMILYTEMPLATE_DEV_NO_SERVER: "1", FAMILY_TEMPLATE_DATA_DIR: this.dataDir };
+    const env = { ...process.env, [NO_SERVER]: "1", FAMILY_TEMPLATE_DATA_DIR: this.dataDir };
     delete env.ELECTRON_RUN_AS_NODE;
     delete env.DEV_URL; // the built UI, from app://
     this.app = await _electron.launch({ executablePath: ELECTRON, args: [APP_ROOT], cwd: REPO_ROOT, env });

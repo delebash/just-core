@@ -4,7 +4,7 @@
 // from the app's root (app-structure §10). docgen's capture-direct.js is the donor.
 //
 // Hermetic like the smoke (lib/driver.js): a temp data folder with one example note, the harness's
-// own server, FAMILYTEMPLATE_DEV_NO_SERVER=1 — the shots never show or change your own data.
+// own server, the shell's <ID>_DEV_NO_SERVER=1 — the shots never show or change your own data.
 
 import fs from "node:fs";
 import path from "node:path";

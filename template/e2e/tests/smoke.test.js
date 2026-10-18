@@ -4,7 +4,7 @@
 // nav works, the AI status button and the AI-tasks toggle behave, a note is created through the
 // window and reaches the server, the once-ever AI offer comes once, Settings shows the family's
 // sections in their order. Hermetic (lib/driver.js): a temp data folder, the harness's own server,
-// FAMILYTEMPLATE_DEV_NO_SERVER=1. One launch shared by the tests, in order.
+// the shell's <ID>_DEV_NO_SERVER=1. One launch shared by the tests, in order.
 //
 // Before: `npm run build:unpacked` (the harness drives what was last built). Run: `npm test` from
 // the app's root.

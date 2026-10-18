@@ -18,7 +18,7 @@ npm run build:unpacked      # from the app's root — the harness drives the BUI
 Every run gets a temp folder: the data folder lives there and `JUST_AI_HOME` points there, so
 nothing reads or writes your data or the family's cache registry. The harness starts the app's own
 server on that folder (from source, on Electron's Node) and stops it after; the app runs with
-`FAMILYTEMPLATE_DEV_NO_SERVER=1`, so its shell starts no server of its own. The window looks for its
+the shell's `<ID>_DEV_NO_SERVER=1`, so it starts no server of its own. The window looks for its
 server on the registered port, **17490**: a run refuses to start while something listens there
 (your dev server, say) rather than touch it.
 

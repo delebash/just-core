@@ -1,31 +1,10 @@
-# The family template app
+@AGENTS.md
 
-The reference Quasar app every family app starts from (`README.md` lists every difference from
-Quasar's default). A new app is a copy of this folder, and its CLAUDE.md starts as this file:
-rename it, say what the app is, and re-point the two kit paths below (`../` becomes
-`../just-core/`), the same way the kit dependencies are re-pointed.
+## For Claude
 
-The family rules every family repo follows: @../docs/family-rules.md
-
-## Commands
-
-```bash
-npm install          # the renderer and the server/ workspace; once: cd src-electron && npm install
-npm run dev          # the desktop app, live
-npm run dev:spa      # the renderer alone in a browser tab (start the server yourself)
-npm run server       # the server alone (headless), the UI at /
-npm run build        # the installer
-npm run lint && npm run i18n:lint && node ../scripts/check-family.js   # must pass before a commit
-```
-
-## What bites
-
-Each app lists here what its code does that isn't self-evident, one line each.
-
-## Where to look
-
-| For | Read |
-|---|---|
-| The family layout | `../docs/app-structure.md` §Q |
-| Open work | `docs/dev/TASKS.md` |
-| What is already known | `docs/dev/RESEARCH.md` |
+- `AGENTS.md` (imported above) holds this repo's instructions and the family rules; this file adds
+  only what is Claude Code's own. Keep both short: conventions and pointers, never tasks or status.
+- Before researching anything, read the subject's section of `docs/dev/RESEARCH.md` (the shared
+  stack's: `../docs/dev/RESEARCH.md`); new facts land there in the same change.
+- A decision goes into `docs/dev/TASKS.md` as the exact text the user approved.
+- `.claude/settings.local.json` is this machine's and never committed.
