@@ -258,6 +258,13 @@ OPEN:   follow-ups the first real app found, each for its own go:
           renderer tests pass against it. OPEN for the apps' sessions: adopt `useSurfaceTask` (check 17's advisories),
           then promote check 17 to fail() for them; JustVoice's renamed fork (TaskStrip.vue / PageTaskStrips.vue)
           doesn't claim its tasks, so they also show in the stack until it uses the kit's AiTaskStrip.
+        - THE TEMPLATE AUDIT (2026-10-18; evidence: docs/plans/2026-10-18-template-audit.md) — every standard of
+          app-structure against the template: where it lives (kit code / template code + test / prose only), what a
+          generated app lacks. Found, most visible first: the font picker does nothing outside JustWrite (no font
+          files); the AI status button's look is the host's (a native box in the template); no self-update in the
+          template; the phone offered but unworkable; dates/numbers in the browser's language; untested chrome
+          (connection page, tray, Settings copies); LuCombobox's Fetch button unstyled (a kit bug). GO: just-house-paint's
+          user, verbatim: "your rec go" (1. fix what the template audit finds, here and in the template). STATE: fixing.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp
