@@ -986,9 +986,128 @@ ranges), lint script `biome check .` so the includes actually gate · the `@rend
 `quasar.config.js` AND `vitest.config.js` · `.gitattributes` ×4 (`* text=auto`, `.bat/.cmd`
 CRLF, `.sh` LF).
 
+## 15 · Validation, errors and logging — one contract from the server to the form
+
+Decided 2026-10-18 — the user: "all gui should have standar erorr msg and contract rqured min lenght
+and so on, make sure our app uses best standards from server to form validation and error hadnling
+and loggin" (the plan: `plans/2026-10-18-complete-template-and-standards.md` §1). The template's
+`notes` area is the reference for every rule below.
+
+**Every error answer is problem+json** (RFC 9457 — rfc-editor.org/rfc/rfc9457, which obsoletes 7807
+with the same members): `type` (`<typeBase><slug>`), `title`, `status`, `detail`, `instance`, and the
+request's `requestId`. A 422 adds `errors: [{loc, msg, type, ctx?}]` — `loc` the part and field
+(`["body", "title"]`), `msg` the server's English words, `type` the kind (`missing`,
+`string_too_short`, …), `ctx` the limit it broke (`{min_length: 3}`). The kit's `createServer` does
+all of it: Hono's `requestId()` middleware gives each request an id (the `X-Request-Id` header; an
+incoming one is kept), the error handlers put it in the body and in the log line, and an unhandled
+exception answers the family's problem+json 500 (`unhandledEnvelope`) — an app passes no
+`onUnhandled` of its own. A refusal the app decides is the kit's `ApiError` (or `badRequest`,
+`notFound`, `conflict`, … in `platform/errors`) — never a hand-built JSON error.
+
+**Validation is the route's schema, shared with its form.**
+- A request schema is TypeBox (JSON Schema) in the server package, `server/src/schemas/<area>.js`,
+  importing only the kit's browser-safe `@delebash/core/platform/schema` (`T`, `opt`, `nullable`,
+  `literal`, `strictObject`). The route checks it with the kit's `input({ body, querystring, params
+  })` and reads `c.req.valid("json")`. Every route that takes input has a schema; limits a user
+  meets (lengths, ranges) are in it, not in code after it.
+- The server package exports its schemas (`"exports": { "./schemas/*": "./src/schemas/*.js" }`) and
+  the renderer imports the same object (`import { NoteIn } from "<app>-server/schemas/notes.js"`).
+- A form is Quasar's `QForm` with the kit's inputs, `lazy-rules`, and `:rules` from the kit's
+  `schemaRules(NoteIn)` — required, min/max length (counted in characters, as the server counts),
+  pattern, email/uri formats, number, whole number, min/max, choices — worded from the kit's
+  catalog (`kit.validation.*`) in the app's language. The submit button is disabled while the save
+  runs; the form never trims or rewrites what the user typed behind their back.
+- What only the server can know comes back as a 422 or a refusal: the form shows
+  `fieldErrors(err)` — each field's message under its field, in the app's words (from `type` +
+  `ctx`) — and anything not tied to a field through `reportError`.
+
+**One way to show a failure.** The kit's `reportError(err)` — a Quasar Notify toast through
+`pushToast`: the server's own title and detail for a refusal (4xx), "The server couldn't finish
+this" plus `Reference <requestId>` for a server fault (5xx), "Can't reach the server" when the
+request never arrived; a cancel shows nothing. A screen's empty / loading / failed states are §17's.
+The kit's transports put the parts on every Error they throw — `status`, `problem`, `errors`,
+`requestId` — beside the message they always built.
+
+**Renderer errors reach the server's log.** The boot file calls the kit's
+`installErrorReporting(app)`: Vue's `app.config.errorHandler` and the window's `error` /
+`unhandledrejection` post each failure to the kit's `POST /v1/logs/client` (deduped, ≤ 20 a minute
+on both sides) and tell the user once per distinct message. Settings → Logs shows them beside the
+server's lines (logger `renderer`).
+
+**The logging policy** — the kit's `getLogger(<area>)` (`platform/log`); levels follow RFC 5424:
+- **error** — a failure the user didn't cause (a 5xx, a crash, an engine that died), with the stack;
+- **warning** — a refused request (the error handler logs every 4xx) or a degraded fallback;
+- **info** — lifecycle: start, stop, a model loaded, a download, a migration, a setting changed;
+- **debug** — per-request detail; off by default (`serve --log-level debug`).
+Never log a secret (API keys, tokens, `Authorization`, passwords) or the user's content (their
+texts, photos, file contents) at info or above. Every error line for a request names its id.
+
+## 16 · Data — SQLite, schema changes, seeds and ids
+
+One database per app: `<dataDir>/<app>.db`, opened with the kit's `openDatabase` (better-sqlite3 —
+github.com/WiseLibs/better-sqlite3; one synchronous connection; say `foreignKeys: true`), only by
+the server (family rule 2). The template's `server/src/database/` is the reference:
+- `schema.js` — the `MIGRATIONS` list, newest last. Version 1 creates the tables; every later change
+  is a new migration, never an edit to an applied one. `index.js` opens the database and runs the
+  kit's `migrate(db, MIGRATIONS)` — keyed on SQLite's own counter, `PRAGMA user_version`
+  (sqlite.org/pragma.html#pragma_user_version), each migration in one transaction with the counter,
+  so a failure leaves the file as it was; a database newer than the code is refused.
+- **Ids** are random text (`crypto.randomUUID()`) — never `AUTOINCREMENT` for a table that may sync
+  (just-sqlite-sync's rule). **Times** are ISO-8601 UTC text. **Columns** are typed and queryable —
+  a JSON column only for an opaque blob nothing filters on.
+- **Seeds** (`seed.js`) are idempotent insert-if-missing and ship facts and defaults the user can
+  change (family rule 1); a re-run never overwrites the user's edit.
+- **Settings** — the app's own (thresholds, names, presets) are rows of its `settings` table, read
+  and written through `/v1/settings` with a schema per key; the renderer's preferences are the kit's
+  `/v1/prefs` (`makePrefsRouter`). Backups are the kit's `makeDataRouter` over the same file.
+- The stores (`server/src/<area>_store.js` or `database/<area>.js`) are the only code with SQL; a
+  route calls a store, never `db` itself.
+JustWrite and JustVoice drop and reseed instead of migrating (an open deviation, below).
+
+## 17 · Screens and forms
+
+- A page is `q-page` with the kit's `pageFill` / `pageFlow` (§Q.1); its header is the kit's
+  `PaneHeader`; a list is `UiTable` (QTable) or `q-list`; a dialog is `AppModal` (QDialog); a menu
+  `UiMenu`. Nothing hand-rolled that Quasar or the kit ships (family rule 3).
+- **States, every screen that loads:** loading — `q-inner-loading` (or Quasar's `QSkeleton` for a
+  first paint); empty — the kit's `EmptyState` with the one action that fills it; failed — the kit's
+  `UiBanner` with the reason and Retry. A list never shows "nothing here" while it is still loading.
+- **Forms** — §15. One primary button per form, on the right of the button row; Cancel beside it.
+- **Destructive actions:** an irreversible one asks first through the kit's `confirmDialog` (naming
+  what is lost); a reversible one acts at once and offers Undo in its toast.
+- **Sizes** (the user's global rule): every control is sized to its content — a row ends where its
+  content ends, nothing stretches to the page width; prose fields are about 60 characters wide
+  (`--w-prose`); a button on a row of labelled fields aligns with the inputs. Type, spacing and
+  colors come from `tokens.css` — no literal colors or pixel font sizes in a page.
+- **Words** — every word is a vue-i18n key (§Q.11), in the user's terms (§11's copy law).
+- A long task (an AI call, a download, an export) runs through a kit runner and shows on the task
+  strip (§8's AI-call convention); its trigger button is disabled while it runs.
+
+## 18 · Tests — every level, in every app
+
+| Level | What | Where · tool |
+|---|---|---|
+| Server routes | every route: its happy path, one 422 from its schema, one refusal; through `app.request` | `server/tests/<area>.test.js` · Vitest (hono.dev/docs/guides/testing) |
+| Server, real socket | the CORS answer to an `Origin:` header through the real listener (§Q.3), the logs-content test (§11) | `server/tests/` · Vitest + the kit's server |
+| Stores and services | the domain logic without HTTP | beside the file · Vitest |
+| Renderer units | stores, services, components (mounted with `@vue/test-utils` and Quasar) | beside the file (`*.test.js`) · Vitest (vuejs.org/guide/scaling-up/testing) |
+| Boot smoke | the boot steps by hand (`registerBootSmoke`) | `src/boot.smoke.test.js` |
+| Desktop e2e | the unpackaged app through Playwright's `_electron`, hermetic (§10) | `e2e/` · playwright-core |
+
+Every test is hermetic: a temp data folder, `JUST_AI_HOME` pointed there, no network, no real model
+unless an env flag asks for one (`<APP>_REAL_*=1`). **Must pass before a commit:** `npm run lint &&
+npm run test:server && npm run test:unit` and the guard; the pre-commit hook (Husky + lint-staged)
+runs Biome on the staged files. `npm run test:coverage` (Vitest's v8) reports coverage, with no gate.
+A bug fix lands with the test that would have caught it.
+
 ## Open deviations
 
 - **JustWrite's `/v1/settings`** still mixes operator rows with the renderer document behind the
   mapped `/v1/prefs` door (recorded 2026-08-08, not re-checked).
 - **docgen's problem+json handler adoption and the alias sweep** (`plans/archive/target-tree.md`
   §3b) stayed parked (recorded 2026-08-08, not re-checked).
+- **§15–§18 in JustWrite, JustVoice and docgen** (recorded 2026-10-18): the kit gives all three the
+  request ids, the 422 limits and the family 500 at once; their forms predate `schemaRules` /
+  `fieldErrors` and their boot files don't call `installErrorReporting` yet.
+- **§16 in JustWrite and JustVoice** (recorded 2026-10-18): both drop and reseed rather than migrate
+  (JW `docs/dev/ARCHITECTURE.md` "Storage policy"; JV `database/session.js`).
