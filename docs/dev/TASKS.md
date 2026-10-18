@@ -202,6 +202,14 @@ GO:     2026-10-18, the user, verbatim, after the rename was reported done: "kee
         skill, and just-house-paint end to end, each rec attacked before it is built; NOT STANDARD
         pieces still named with their evidence (the user's 2026-10-17 "im ok with non standard as long
         as we have done the researcch and this is the best way").
+BUILDING (2026-10-18, under the GO above; plan `docs/plans/2026-10-18-complete-template-and-standards.md`):
+        - DONE: the kit's half of the error/validation contract (e5814a4: request ids, 422 `ctx`, one
+          problem+json 500, browser-safe schema helpers, makeHealthRouter, readPackageVersion,
+          migrate, POST /v1/logs/client; UI: schemaRules, fieldErrors, reportError,
+          installErrorReporting) and the written standards §15–§18 (f23d2e5).
+        - IN PROGRESS: the complete template (an agent, following plan §6); then the guard checks
+          the template as a product; then the `/new-just-app` skill and its generator; then the three
+          apps adopt the kit's health router and drop their copied 500 envelope (sameness).
 OPEN:   the plan — the complete template and a written standard per part — is next: the just-core
         rename (item above) is done (2026-10-18), so it is written once with the final names. Its inputs are in RESEARCH §2,
         "The complete template" (the apps' shared pieces, the standards coverage map and its 14 gaps,
