@@ -57,7 +57,7 @@ const kindOf = (app) => (existsSync(join(app.dir, "quasar.config.js")) ? "quasar
 for (const app of [...APPS, TEMPLATE]) app.kind = kindOf(app);
 
 // The family port registry (app-structure §1) — an app's desktop main passes it as `port`.
-const APP_PORTS = { JustWrite: 17495, JustVoice: 17494, docgen: 8742, template: 17490, "just-house-paint": 17497 };
+const APP_PORTS = { JustWrite: 17495, JustVoice: 17494, docgen: 8742, template: 17490, "just-house-paint": 17499 };
 // The dev-server ports (app-structure §1) — quasar.config.js `devServer.port`, and its HMR port
 // where the app sets one; installLlmUi's devPorts and the server's dev origins name the same
 // numbers. A new app takes the next free ones — not 17496 (JW's smoke scratch) or 1440 (JV's

@@ -49,8 +49,9 @@ export const TEMPLATE_NAMES = {
   mark: "FT", // the title bar's brand mark (src/i18n/locales/en.json app.mark)
 };
 
-// Ports never handed out (§1): JW's smoke scratch port and JV's second renderer.
-const RESERVED = new Set([17496, 1440, 1441]);
+// Ports never handed out (§1): JW's smoke scratch port (17496), eval (17497) and flow tests (17498), and
+// JV's second renderer.
+const RESERVED = new Set([17496, 17497, 17498, 1440, 1441]);
 
 const BINARY = /\.(png|jpe?g|gif|ico|icns|webp|woff2?|ttf|otf|jar|keystore|zip|gz|bin|exe|dll|so|dylib|node|wasm|mp3|wav|ogg|pdf)$/i;
 const LOCKFILE = /(^|\/)package-lock\.json$/;

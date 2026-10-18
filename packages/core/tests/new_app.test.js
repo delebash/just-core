@@ -19,7 +19,7 @@ import {
 
 const GUARD_SRC = readFileSync(new URL("../../../scripts/check-family.js", import.meta.url), "utf8");
 const names = namesFor("house-paint");
-const ports = { port: 17497, devPort: 1460, hmrPort: 1461 };
+const ports = { port: 17499, devPort: 1460, hmrPort: 1461 };
 
 test("a slug gives every name (§1)", () => {
   expect(names).toEqual({
@@ -44,15 +44,16 @@ test("the next free ports skip the reserved ones", () => {
     appPorts: { JustWrite: 17495, JustVoice: 17494, docgen: 8742, template: 17490 },
     devPorts: { JustWrite: { dev: 1420, hmr: 1421 }, JustVoice: { dev: 1430, hmr: 1431 }, docgen: { dev: 1450, hmr: 1451 }, template: { dev: 9000 } },
   };
-  expect(nextPorts(before)).toEqual({ port: 17497, devPort: 1460, hmrPort: 1461 });
+  // 17496–17498 are JustWrite's (its smoke scratch port, eval and flow tests)
+  expect(nextPorts(before)).toEqual({ port: 17499, devPort: 1460, hmrPort: 1461 });
   // with that app registered, the following app gets the next ones
   const after = {
-    appPorts: { ...before.appPorts, "just-house-paint": 17497 },
+    appPorts: { ...before.appPorts, "just-house-paint": 17499 },
     devPorts: { ...before.devPorts, "just-house-paint": { dev: 1460, hmr: 1461 } },
   };
-  expect(nextPorts(after)).toEqual({ port: 17498, devPort: 1470, hmrPort: 1471 });
+  expect(nextPorts(after)).toEqual({ port: 17500, devPort: 1470, hmrPort: 1471 });
   // and the live guard's registries read the same way
-  expect(nextPorts(readRegistries(GUARD_SRC)).port).toBeGreaterThan(17496);
+  expect(nextPorts(readRegistries(GUARD_SRC)).port).toBeGreaterThan(17498);
 });
 
 test("the template's names and ports are renamed, a bare number is not", () => {
@@ -68,7 +69,7 @@ test("the template's names and ports are renamed, a bare number is not", () => {
     [
       'id: "justhousepaint", appName: "JustHousePaint", productName: "Just House Paint",',
       'serverEntry: path.join(here, "node_modules", "just-house-paint-server", "src", "serve.js"),',
-      'dataDirEnv: "JUST_HOUSE_PAINT_DATA_DIR", port: 17497, log: "just-house-paint.log", logger: "just_house_paint.app",',
+      'dataDirEnv: "JUST_HOUSE_PAINT_DATA_DIR", port: 17499, log: "just-house-paint.log", logger: "just_house_paint.app",',
       'devServer: { host: "127.0.0.1", port: 1460, strictPort: true }, origins: ["http://localhost:1460"],',
       "toast({ duration: 9000 }); devPorts: ['1460']",
       '"mark": "HP",',
@@ -107,7 +108,7 @@ test("registering adds the app to APPS, APP_PORTS and DEV_PORTS once", () => {
   const out = registerInGuard(GUARD_SRC, names, ports, "just-house-paint");
   expect(out).toContain('{ name: "just-house-paint", dir: process.env.FAMILY_HOUSE_PAINT_DIR || join(FAMILY, "just-house-paint") },');
   const regs = readRegistries(out);
-  expect(regs.appPorts["just-house-paint"]).toBe(17497);
+  expect(regs.appPorts["just-house-paint"]).toBe(17499);
   expect(regs.devPorts["just-house-paint"]).toEqual({ dev: 1460, hmr: 1461 });
   expect(registerInGuard(out, names, ports, "just-house-paint")).toBe(out);
 });

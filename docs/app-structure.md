@@ -435,9 +435,10 @@ The template is the reference.
   executable's name (§Q.3).
 - **Port registry** — in the guard, `scripts/check-family.js`: `APP_PORTS` (the server) and
   `DEV_PORTS` (the dev server and its HMR port). Server: JW **17495** · JV **17494** ·
-  i18n-docgen **8742** · the template **17490**. Dev: JW **1420** · JV **1430**/1431 · docgen
-  **1450**/1451 · the template **9000**. A new app takes the next free ones — not 17496 (JW's
-  smoke scratch port) or 1440 (JV's second renderer) — and is added to both, and to `APPS`, once
+  i18n-docgen **8742** · the template **17490** · just-house-paint **17499**. Dev: JW **1420** · JV
+  **1430**/1431 · docgen **1450**/1451 · the template **9000** · just-house-paint **1460**/1461. A new
+  app takes the next free ones — not 17496–17498 (JW's smoke scratch port, eval and flow tests) or
+  1440 (JV's second renderer) — and is added to both, and to `APPS`, once
   it passes the guard. (The server registry said "JV 8741" until 2026-08-04 while JV listened on
   17494 — the registry records reality; the guard checks it against the `port` the desktop main
   passes and the dev server's port.) The app's OWN ports are the only ones it claims — the

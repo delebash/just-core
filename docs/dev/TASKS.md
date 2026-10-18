@@ -239,9 +239,10 @@ OPEN:   follow-ups the first real app found, each for its own go:
           registry (`%LOCALAPPDATA%\just-ai\caches.json`) records each app's cacheRoot; my rec: the disk
           route reports `sharedWith` from the registry's other products on the same root whose dataDir still
           exists, and the Storage confirm names them. For a go.
-        - the generator's RESERVED ports miss JustWrite's eval (17497) and flow tests (17498) — just-house-paint
-          got 17497 (found by the JustWrite session, 2026-10-18); the fix and the app's move are in
-          just-house-paint's TASKS ("The server's port clashes with JustWrite's eval"), for a go.
+        - BUILT 2026-10-18 (just-house-paint's go, "your rec on all just think on it again go"): the generator's
+          RESERVED ports now hold JustWrite's eval (17497) and flow tests (17498), and just-house-paint moved to
+          17499 (the guard's APP_PORTS, app-structure §1) — found by the JustWrite session, which can drop its
+          JW_EVAL_PORT=17499 stopgap.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp
