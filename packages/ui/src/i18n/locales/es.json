@@ -220,7 +220,8 @@
       "done": {
         "applied": "Configuración aplicada.",
         "searchPending": "El modelo de búsqueda no terminó de descargarse — se descargará automáticamente en tu primera búsqueda, o puedes obtenerlo en cualquier momento desde el catálogo de modelos."
-      }
+      },
+      "doneBody": ""
     },
     "aiOffer": {
       "eyebrow": "Opcional",
