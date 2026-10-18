@@ -12,7 +12,7 @@
     "electron": true
   },
   "dependencies": {
-    "@delebash/llm-runner": "file:../../server",
+    "@delebash/core": "file:../../packages/core",
     "family-template-server": "file:../server"
   }
 }

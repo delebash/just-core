@@ -14,7 +14,7 @@ Where an item here is ambiguous, the template is the reference, then the three a
 A deviation is allowed only when flagged to the user AND listed under
 [Open deviations](#open-deviations) at the end of this document in the same change.
 
-This standard governs the family's APPS. The repo hosting it (`just-llm-runner`) is the shared
+This standard governs the family's APPS. The repo hosting it (`just-core`) is the shared
 LIBRARY: it follows §13 (docs) and its own CLAUDE.md and README, and is exempt from the
 app-shaped sections (§Q, §1, §2, §5, §10, §12). Its `template/` is checked against §Q. Section
 numbers skip (§0, §6, §7 and §9 are gone) so that citations elsewhere keep working.
@@ -76,7 +76,7 @@ template's, made with `npm init quasar`; the three apps moved to it 2026-10-09
 ├── scripts/node24.js         # runs a script on Electron's own Node (src-electron's electron)
 ├── src-electron/             # the desktop app (Q.2)
 │   ├── electron-main.js      # the kit's runDesktopApp({...}) — config, no logic
-│   ├── electron-preload.js   # import "@delebash/llm-runner/shell/preload" — that's all
+│   ├── electron-preload.js   # import "@delebash/core/shell/preload" — that's all
 │   ├── electron-assets/icons/
 │   └── package.json          # electron (exact), electron-builder, and the main process's
 │                             #   dependencies: the app's server package + the kit (file:)
@@ -87,8 +87,8 @@ template's, made with `npm init quasar`; the three apps moved to it 2026-10-09
 
 ### Q.2 · The desktop app — Electron mode on the kit's shell
 
-`src-electron/electron-main.js` calls `runDesktopApp` from `@delebash/llm-runner/shell` and nothing
-else — no logic in main: a need the shell can't meet is built in the kit's `server/src/shell/`, for
+`src-electron/electron-main.js` calls `runDesktopApp` from `@delebash/core/shell` and nothing
+else — no logic in main: a need the shell can't meet is built in the kit's `packages/core/src/shell/`, for
 every app. Its fields (the template's file is the reference; the guard checks the required ones —
 `id`, `appName`, `productName`, `port`, `serverEntry`, `dataDirEnv`, `repoRoot`, `distDir`):
 
@@ -153,7 +153,7 @@ port off the registry.
 ### Q.3 · The server — its own package
 
 `server/` is a package of its own (`"name": "<app>-server"`, `"type": "module"`, its runtime
-dependencies, `@delebash/llm-runner` as `file:`), because Quasar's packaged app installs only what
+dependencies, `@delebash/core` as `file:`), because Quasar's packaged app installs only what
 `src-electron/package.json` names: the server package goes there, and with it everything the
 server needs. It is also an **npm workspace** of the root (`"workspaces": ["server"]`), so one
 `npm install` installs both, with one copy of each package the renderer and the server share
@@ -171,7 +171,7 @@ from the kit's `createServer`, the family guards added outermost first and befor
 order added, for the routes added after it), the routers mounted with `app.route()`, the AI stack
 (where the app has one) mounted with `installLlm` (§8), the built UI (`dist/spa`) served at `/` for
 the headless path (the kit's `serveStatic`, GET only). **One Hono:** an app takes `Hono`, `stream`
-and `serveStatic` from the kit (`@delebash/llm-runner/platform`), never from `hono` itself — a
+and `serveStatic` from the kit (`@delebash/core/platform`), never from `hono` itself — a
 second copy's sub-apps answer errors with Hono's plain 500 (the kit's
 `docs/plans/2026-10-09-hono-standard.md` §10, which also has the route-by-route rules).
 The CSRF guard allows the window's `app://<id>` (the app's own origins), the phone's webview
@@ -207,17 +207,17 @@ origins (the kit's `CAPACITOR_ORIGINS`) and Quasar's dev server.
   and never rewrite views onto `q-*` tags; a shape the kit doesn't have uses Quasar's own component
   before anything hand-rolled. The rule of §4 is **"nothing hand-rolled that Quasar or the kit
   ships"**.
-- **The theme:** the kit's `ui/src/quasar/variables.scss` points Quasar's Sass variables at the
+- **The theme:** the kit's `packages/ui/src/quasar/variables.scss` points Quasar's Sass variables at the
   kit's live CSS variables (`$primary: var(--accent)`, …) so the CSS Quasar compiles follows
   Settings → Appearance at runtime (Quasar does no colour maths on them — checked 2026-10-08), and
   switches off Quasar's rules for the bare h1–h6 elements (`$h-tags: ()`: with them on, every
   JustWrite page header grew — a 6rem line-height). The app's `src/css/quasar.variables.scss` (the
-  file Quasar reads) is one line: `@import "@delebash/llm-ui/quasar/variables.scss";`. Measured on
+  file Quasar reads) is one line: `@import "@delebash/ui/quasar/variables.scss";`. Measured on
   JustWrite (2026-10-08): with it, ten screens match the Electron + Vite build to within 0.02 % of
   their pixels, except for one global Quasar rule, `.disabled, [disabled] { opacity: .6 !important;
   cursor: not-allowed !important }`, which no variable reaches and which outranks the apps' own
   disabled styles. **The kit's PostCSS step `dropQuasarDisabledRule()`
-  (`ui/src/quasar/postcss.js`) removes those rules from Quasar's stylesheet**, in every app's
+  (`packages/ui/src/quasar/postcss.js`) removes those rules from Quasar's stylesheet**, in every app's
   `postcss.config.js` (decided 2026-10-08 — the kit's TASKS, the Quasar item); with it both apps'
   screens match pixel for pixel. The design tokens the theme reads are the app's own
   (`tokens.css`, from the kit's `tokens.contract.css`; the template's `src/css/tokens.css`). The
@@ -289,7 +289,7 @@ by the package's `"imports"` with a `"browser"` condition (Node's subpath import
 `#runner/lifecycle`, JustWrite's `#app_state`, …):
 - the server: `server/src/phone.js` builds it on an open database handle (the routes the phone
   runs; no network door); `src/phone/server-worker.js` is the worker's entry, through the kit's
-  `serveInWorker` (`server/src/platform/worker/runtime.js`);
+  `serveInWorker` (`packages/core/src/platform/worker/runtime.js`);
 - the bundle: `scripts/phone-worker.js` (esbuild with the kit's `workerShims` plugin — Node's
   built-ins → browser stand-ins, `better-sqlite3` → the same API over SQLite WASM, a module's
   `<name>.phone.js` twin in its place — and the polyfills of Node's built-ins) into
@@ -302,7 +302,7 @@ by the package's `"imports"` with a `"browser"` condition (Node's subpath import
 
 ### Q.8 · The data folder, and the dev watcher
 
-ONE module finds the data folder — the kit's `server/src/platform/data_paths.js`, used by the shell
+ONE module finds the data folder — the kit's `packages/core/src/platform/data_paths.js`, used by the shell
 before the window opens and by the headless server (the user, 2026-08-14: "all that can be the
 same should be, this includes how data is stored"; nothing lands anywhere the user did not
 choose): the app's data-dir variable (`--data-dir` sets it) → the Change-folder pointer
@@ -340,7 +340,7 @@ Chromium keeps its files there locked and the watcher fails on them (EBUSY).
 - **server** (check 4): `server/src/serve.js`; `server/package.json` named `<app>-server` with
   `"type": "module"`; tests in `server/tests/*.test.js` (not for the template).
 - **the theme**: `postcss.config.js` runs the kit's `quasarBaseLayer()`;
-  `src/css/quasar.variables.scss` imports `@delebash/llm-ui/quasar/variables.scss`;
+  `src/css/quasar.variables.scss` imports `@delebash/ui/quasar/variables.scss`;
   `quasar.config.js`'s `framework.config` sets `ripple: false` (Q.4).
 - **ports**: the desktop main's `port` matches `APP_PORTS`; `devServer` (and its HMR port, where
   set) matches `DEV_PORTS` (§1).
@@ -376,7 +376,7 @@ Chromium keeps its files there locked and the watcher fails on them (EBUSY).
   `src/boot/i18n.js` calling the kit's `followQuasarLang`; `src/i18n/index.js` starting from
   `kitMessages()`; none of the kit's removed text doors (`configureFamilyLabels`, `setUiLocale`,
   `FAMILY_LABELS`, `familyLabels`, `quickSetupCopy`, `catalogCopy`, `configureDialog`) in
-  `src/`; `eslint.i18n.config.js` byte-identical to the kit's `ui/eslint.i18n.config.js` (an app
+  `src/`; `eslint.i18n.config.js` byte-identical to the kit's `packages/ui/eslint.i18n.config.js` (an app
   without one is advisory until docgen and JustVoice have theirs — the i18n plan's Tasks 4 and 5).
 
 The template is checked against all of it (check 4's tests aside) plus the shell doors (checks
@@ -406,7 +406,7 @@ The template is the reference.
 - **Dates and numbers in the app's language** — vue-i18n's `d()` and `n()`, or `Intl` given the
   i18n locale — never the browser's default.
 - **Checked:** `eslint.i18n.config.js` is the family's one file (a copy of the kit's
-  `ui/eslint.i18n.config.js`) with two rules at error — `no-raw-text` (@intlify) for template text,
+  `packages/ui/eslint.i18n.config.js`) with two rules at error — `no-raw-text` (@intlify) for template text,
   `no-literal-string` (eslint-plugin-i18next) for the strings code builds, in `.js` files and in a
   `.vue` file's script and bound attributes: `npm run i18n:lint` (`src/**/*.{js,vue}`) at zero, and
   `npm run i18n:report` with no key missing from the English catalogs — English is the source;
@@ -463,7 +463,7 @@ getting this wrong is the #1 confusion) — §Q.9.
   (`src/phone/worker-bundle/`); the native projects (`src-capacitor/android`, `/ios`) are
   committed (§Q.7).
 - **CLAUDE.md** — every app has one, started from the template's `CLAUDE.md`: what it is, the
-  import line `@../just-llm-runner/docs/family-rules.md`, the command block, "what bites", a
+  import line `@../just-core/docs/family-rules.md`, the command block, "what bites", a
   Where-to-look table whose FIRST row points at this document.
 
 ## 3 · quasar.config.js — the kit consumption contract
@@ -476,7 +476,7 @@ app adds the `@renderer` alias with its tests (§14) and sets its registered dev
 build: {
   alias: {
     '@renderer': path.join(root, 'src'),
-    '@delebash/llm-ui': path.join(kitUi, 'src'),   // kitUi: the sibling ../just-llm-runner/ui
+    '@delebash/ui': path.join(kitUi, 'src'),   // kitUi: the sibling ../just-core/packages/ui
   },
   extendViteConf (viteConf) {
     // ONE copy of every peer the kit imports, from this app's node_modules — Vue's
@@ -498,7 +498,7 @@ devServer: { host: '127.0.0.1', port: 1430, strictPort: true, hmr: { port: 1431 
 
 NO `/v1` proxy: nothing requests a relative `/v1`. The kit's origin-aware resolver builds
 ABSOLUTE URLs to the server port from dev, which is exactly why §Q.3's CORS is load-bearing. The
-kit's peer dependencies go in THIS app's `package.json` (`ui/package.json` lists them).
+kit's peer dependencies go in THIS app's `package.json` (`packages/ui/package.json` lists them).
 
 ## 4 · Frontend standards
 
@@ -510,7 +510,7 @@ kit's peer dependencies go in THIS app's `package.json` (`ui/package.json` lists
 - **`src/css/tokens.css`** — copy the reference block from the kit's
   `common/tokens.contract.css` and retune values; **`src/css/app.scss`** — the app's own
   classes: the `height:100%` chain (NEVER `100vh`), ONE scroller per area.
-- **Kit-first, always**: controls come from `@delebash/llm-ui` (`UiButton`, `UiInput`,
+- **Kit-first, always**: controls come from `@delebash/ui` (`UiButton`, `UiInput`,
   `UiSelect`, `UiMultiSelect`, `UiCheckbox`, `pushToast`…). **A missing capability is
   built IN THE KIT** on Quasar's components with the one-`intent` design contract —
   never app-local (UiMultiSelect is the precedent: born for i18n-docgen, owned by all).
@@ -536,7 +536,7 @@ kit's peer dependencies go in THIS app's `package.json` (`ui/package.json` lists
   (§Q.2), and the kit decides browser-vs-desktop from what it is handed. (The kit's Electron
   shell hands an `http(s)` `target=_blank` link or `window.open` to the system browser and
   refuses every other new window —
-  `setWindowOpenHandler` in `server/src/shell/main.js`.)
+  `setWindowOpenHandler` in `packages/core/src/shell/main.js`.)
 - **`<LlmUiHosts />` in the shell, and the AI-tasks row from `useAiTasksNav()`.** The
   hosts are one tag because the failure mode was mounting SOME of them: with no
   `<AppDialog/>`, `confirmDialog()`'s promise never settles and every confirmed action
@@ -590,7 +590,7 @@ the guard fails it (check 13), and fails a `window.appShell` read outside `nativ
 ## 8 · Adopting the shared LLM stack (llm-runner)
 
 The standard is `installLlm` — a few lines plus seeds, identical in every app
-(`../server/README.md` "Consume it" has the full tiers; this is the app recipe; JustWrite's
+(`../packages/core/README.md` "Consume it" has the full tiers; this is the app recipe; JustWrite's
 `server/src/app.js` and `database/seed.js` are the reference). The server is §Q.3's.
 
 ```js
@@ -648,7 +648,7 @@ loadFromConfigs(stores.getProviderStore().list());        // the registry from t
 - **Tests**: `installLlm` mutates process singletons (the storage handle, the seed
   registration, the usage ledger, the runner service) and starts a background backfill —
   snapshot and restore them per test, root `dataDir` in a temp folder and point
-  `JUST_AI_HOME` there. The kit's `server/tests/install_llm.test.js` is the hermeticity
+  `JUST_AI_HOME` there. The kit's `packages/core/tests/install_llm.test.js` is the hermeticity
   reference.
 - **After any shared-export change** build and test every consumer app — kit changes are
   additive by default, and only the consumers' builds prove it.
@@ -726,7 +726,7 @@ Ruled 2026-08-03 after the i18n rewrite shipped its workflow with NONE of this �
 user had to ask "are you bringing in the data directory, the style changer, the ai
 progress cancel, the logs?" The answer must never again be no. Each row names its
 canonical implementation; all of it is kit/platform code — the app writes wiring only.
-**Canonical WORDS live in the kit's catalog, `ui/src/i18n/locales/en.json` (`kit.*` keys),
+**Canonical WORDS live in the kit's catalog, `packages/ui/src/i18n/locales/en.json` (`kit.*` keys),
 never in this document** — this section names components and shapes; the kit's components
 read their words from that catalog through vue-i18n, in the app's language. (2026-08-04: §11
 stopped restating label words; 2026-10-12: FAMILY_LABELS became the catalog.)
@@ -900,7 +900,7 @@ assert the marker (a 200 from an empty ring proves nothing).
 - [ ] `npm run build` produces the installer, which installs and starts (§Q.2)
 - [ ] Closing the window stops the server (no orphan on :PORT)
 - [ ] All routes under `/v1/*`; wire shape camelCase
-- [ ] Kit-first UI; any new control landed in `@delebash/llm-ui`
+- [ ] Kit-first UI; any new control landed in `@delebash/ui`
 - [ ] Boot: static index.html plate (no spinner) → pre-mount `startWarmOnBoot()` →
       app splash hosting the kit `<BootModelLoad />` — ONE continuous splash
 - [ ] `installLlm` + seeds + registry boot per §8; presets own every tunable

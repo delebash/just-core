@@ -11,15 +11,15 @@
 The stack has exactly two installers, one per half. Each is ONE call, and each
 exists because the à-la-carte version shipped silent breakage (four configure
 calls, hand-mounted hosts, a missing attribute — all measured failures,
-recorded in `ui/src/installLlmUi.js`'s header).
+recorded in `packages/ui/src/installLlmUi.js`'s header).
 
 ## The server half — Node (Hono)
 
 The kit's server is plain JavaScript on Node 24 (Electron's) since the family's move off Python
-(2026-10-07); its recipe is the kit's `server/README.md` "Consume it", and app-structure §8 is
+(2026-10-07); its recipe is the kit's `packages/core/README.md` "Consume it", and app-structure §8 is
 the depth. In order:
 
-1. **Depend on the package** — `"@delebash/llm-runner": "file:../just-llm-runner/server"` in the
+1. **Depend on the package** — `"@delebash/core": "file:../just-core/packages/core"` in the
    app's `server/package.json` (and in `src-electron/package.json`, which packages it); no
    publish step, no pin (app-structure §Q.3).
 2. **Mount and install, once** — inside `runServer({ envPrefix, build })`: `createServer()`,
@@ -28,7 +28,7 @@ the depth. In order:
    (the kit's CLAUDE.md, "What bites"); every route is under `/v1`; the router port is allocated,
    never 8080 (app-structure §8).
 3. **One Hono** — import `Hono`, `stream` and `serveStatic` from
-   `@delebash/llm-runner/platform`, never `hono` itself (the guard's `checkOneHono`).
+   `@delebash/core/platform`, never `hono` itself (the guard's `checkOneHono`).
 4. **AI calls** go through `runAiFeature` / `withAiTask`, never `tasks.start` (app-structure §8,
    "The AI-call convention").
 5. **Tests** stay hermetic: point `JUST_AI_HOME` at a scratch folder so the machine-wide cache
@@ -41,13 +41,13 @@ the depth. In order:
 
    ```js
    // vite.config.js
-   resolve: { alias: { "@delebash/llm-ui": fileURLToPath(new URL("../just-llm-runner/ui/src", import.meta.url)) } }
+   resolve: { alias: { "@delebash/ui": fileURLToPath(new URL("../just-core/packages/ui/src", import.meta.url)) } }
    ```
 
 2. **Call `installLlmUi` in `main.js`** — one call, both transports, all hosts:
 
    ```js
-   import { installLlmUi } from "@delebash/llm-ui";
+   import { installLlmUi } from "@delebash/ui";
 
    installLlmUi(app, {
      devPorts: [1430],            // your vite dev port(s) → origin-aware resolver
@@ -61,7 +61,7 @@ the depth. In order:
    The installer feeds ONE resolved base URL to both the app transport
    (`configureServerApi`) and the kit client (`configureLlmUi`) — the invariant
    that, when broken, made every kit view render empty in the production
-   webview only. Signature: `ui/src/installLlmUi.js:91`.
+   webview only. Signature: `packages/ui/src/installLlmUi.js:91`.
 
 3. **Mount the two pieces of chrome** the installer cannot place for you:
    `<LlmUiHosts />` once in the app shell (toasts, dialogs, boot overlay —

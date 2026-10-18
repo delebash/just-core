@@ -52,7 +52,7 @@ rationale + provenance are distilled into §0 below (docs campaign 2026-08-04).
 - The preset also carries a **recipe** (since 2026-10-16, JustVoice's one-click plan §3): `""`
   follows its provider — a provider marked `local` reads as `local`, a metered cloud one as
   `frontier` — or `local` / `frontier` as set on a feature's chip. An app reads it with
-  `presetRecipe(preset)` (`server/src/llm/preset_resolve.js`) to pick how its steps ask the
+  `presetRecipe(preset)` (`packages/core/src/llm/preset_resolve.js`) to pick how its steps ask the
   model; JustVoice's speaker attribution gives a frontier model its Direct route.
 - At run time dispatch resolves the preset and overlays its provider/model/params onto the
   call (`prompts.py:474,534`; `dispatch.py:95-155`).

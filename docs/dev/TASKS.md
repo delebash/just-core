@@ -1,4 +1,4 @@
-# TASKS — the live open-work tracker (just-llm-runner: kit + shared server)
+# TASKS — the live open-work tracker (just-core: kit + shared server)
 
 > **THIS is the live tracker for the shared stack** — created 2026-08-04 by the docs
 > campaign (`just_ai_i18n_docgen/docs/plans/2026-08-04-docs-cleanup-campaign.md`),
@@ -9,6 +9,9 @@
 > `../JustVioce/docs/dev/TASKS.md`. A tracker line is a claim, not evidence.
 > Items extracted from plan docs are marked **[verified]** (code-checked at
 > extraction) or **[attributed]** (the plan doc's claim, not re-verified).
+> Items written before 2026-10-18 use the kit's old names: `just-llm-runner` is now `just-core`,
+> `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
+> (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning
@@ -39,7 +42,16 @@ WHY:    the name undersold the repo (LLM runner, server platform, desktop shell,
 NOT:    one package per concern (they depend on each other; every app would pin 4–5) · moving
         `just-sqlite-sync` or audio.cpp in · renaming the app repos ("just leave them", below) ·
         rewriting dated plan docs (they keep the old names as history; RESEARCH §2 records the rename).
-OPEN:   building it (2026-10-17).
+BUILT:  2026-10-18 — all of it (facts and checks: RESEARCH §2, "The kit renamed just-core"): the kit's
+        commit "The kit is just-core"; docgen e4487c6, JustWrite b539ba4, JustVoice adfd9502,
+        just-sqlite-sync 5cb8a15; outside the repos, the global CLAUDE.md, settings.json, every
+        project's memory notes and just-house-paint's docs. claude-config has only archived mentions
+        (left as history).
+OPEN:   found by the checks, not caused by the rename: JustWrite's lint error
+        (`src/services/aiDiff.test.js:37`, useIterableCallbackReturn, from c8914db); `packages/ui`'s
+        `npm run lint` has no Biome to run. Each repo's next Claude session asks once to approve the new
+        `@../just-core/docs/family-rules.md` import — declined, the family rules silently never load
+        (RESEARCH §6).
 
 ## A standard start for every new just app: a `/new-just-app` skill on the kit's `template/` [2026-10-17]
 STATE:  PARTLY DECIDED 2026-10-17 (session web-2a, run from `E:\Dev\Web`). The user, verbatim:
@@ -1084,7 +1096,7 @@ NOT:    NVML/rocm-smi probing · synthetic local GGUF · hidden catalog row ·
         calib-v1. Full record: plan §11.
 BUILT:  ALL FOUR ITEMS + the spike + the release, 2026-09-19 — plan §11
         (execution record, deviations, gates, rendered checks). Release:
-        https://github.com/delebash/just-llm-runner/releases/tag/calib-v1.
+        https://github.com/delebash/just-core/releases/tag/calib-v1.
         The real speed check ran end to end on the author's box: 29.18 GB/s
         in 24 s including the download (plan §11.9).
 OPEN:   the user's walks — Item 1 through a real Quick-setup Apply; Item 3

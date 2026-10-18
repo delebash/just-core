@@ -1,13 +1,15 @@
-# just-llm-runner
+# just-core
 
 The family's shared kit: the local-LLM runner (detects hardware, picks and downloads GGUF models
 and the right prebuilt llama.cpp, spawns `llama-server`), the shared AI stack, the platform
-pieces every app server uses, and the desktop shell — all in `server/` (`@delebash/llm-runner`,
-plain JavaScript). The Vue UI kit is `ui/` (`@delebash/llm-ui`, on Quasar). `template/` is the
-reference Quasar app every family app starts from.
+pieces every app server uses, and the desktop shell — all in `packages/core/` (`@delebash/core`,
+plain JavaScript, imported by subpath: `/platform`, `/llm`, `/shell`). The Vue UI kit is
+`packages/ui/` (`@delebash/ui`, on Quasar). `template/` is the reference Quasar app every family app
+starts from. Renamed from `just-llm-runner` on 2026-10-18 — older docs and plans say `server/`
+(`@delebash/llm-runner`) and `ui/` (`@delebash/llm-ui`).
 
-**Internal — never published.** Apps consume `server/` as
-`"@delebash/llm-runner": "file:../just-llm-runner/server"` and `ui/` as a source alias in their
+**Internal — never published.** Apps consume `packages/core/` as
+`"@delebash/core": "file:../just-core/packages/core"` and `packages/ui/` as a source alias in their
 `quasar.config.js` (app-structure §3) — no build or publish step.
 
 The family rules every family repo follows, this one included: @docs/family-rules.md
@@ -18,15 +20,15 @@ The family rules every family repo follows, this one included: @docs/family-rule
 ## Commands
 
 ```bash
-cd server && npm test          # vitest on Electron's own Node 24 (scripts/node24.js), never PATH's node
-cd server && npm run lint      # Biome: src, tests, scripts
-cd ui && npm run lint          # Biome: src
-cd ui && npm run check:pickers # fails a hand-coded copy of a shared picker
+cd packages/core && npm test          # vitest on Electron's own Node 24 (scripts/node24.js), never PATH's node
+cd packages/core && npm run lint      # Biome: src, tests, scripts
+cd packages/ui && npm run lint          # Biome: src
+cd packages/ui && npm run check:pickers # fails a hand-coded copy of a shared picker
 node scripts/check-family.js   # the family guard: the three apps + the template against the kit
 ```
 
 **After any change to a shared export, build and test every app that uses it** — nothing here
-checks the consumers. `tests/process_job.test.js` proves the Windows kill-on-close job for real
+checks the consumers. `packages/core/tests/process_job.test.js` proves the Windows kill-on-close job for real
 only with `KIT_REAL_SPAWN=1`; `tests/realrouter_smoke.test.js` needs `JW_REALROUTER=1` and a real
 engine.
 
@@ -34,13 +36,13 @@ engine.
 
 - **Dependencies stay light — no ML packages.** The three vendor SDKs (openai, anthropic,
   google-genai) were an explicit ruling, not a precedent for adding more.
-- **`ui/package.json` `peerDependencies` must list everything the kit imports.** A missing peer
+- **`packages/ui/package.json` `peerDependencies` must list everything the kit imports.** A missing peer
   still resolves through the app's own `node_modules` by luck (`quasar` was missing until
   2026-10-09). The kit's controls take one `intent` prop for role AND style — never add
   `severity` / `outlined` / `text`.
 - **A module with a `<name>.phone.js` twin** (`runner/lifecycle.phone.js`) is swapped for it in
   the phone's worker bundle (app-structure §Q.7) — change both.
-- **The desktop shell is `server/src/shell/`** (`runDesktopApp`, the preload, the data-root
+- **The desktop shell is `packages/core/src/shell/`** (`runDesktopApp`, the preload, the data-root
   ladder). A new shell command goes in main's `COMMANDS` and the preload's list, never in an app.
 - **An unwired catalog is not an empty one.** The runner's models response carries
   `catalogWired`; JustVoice once sat for months on "no host wired a catalog" reading as "empty".
@@ -78,7 +80,7 @@ read the subject's section of `docs/dev/RESEARCH.md`** (the family rule, 2026-10
 | For | Read |
 |---|---|
 | **THE family app structure — every app** | `docs/app-structure.md` (§Q is the layout; `template/` the reference app) |
-| Installing the stack in an app | `docs/dev/install-runbook.md` · app-structure §8 · `server/README.md` "Consume it" |
+| Installing the stack in an app | `docs/dev/install-runbook.md` · app-structure §8 · `packages/core/README.md` "Consume it" |
 | How launch flags derive | `README.md` "the 4-tier doctrine" |
 | Open work — the tracker for this repo (kit + shared server) | `docs/dev/TASKS.md`; unscheduled ideas in `docs/dev/IDEAS.md` |
 | Model verdicts, licensing, measured serving numbers | `docs/dev/model-research.md` · `docs/dev/serving-design.md` |

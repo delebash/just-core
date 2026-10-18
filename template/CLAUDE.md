@@ -3,7 +3,7 @@
 The reference Quasar app every family app starts from (`README.md` lists every difference from
 Quasar's default). A new app is a copy of this folder, and its CLAUDE.md starts as this file:
 rename it, say what the app is, and re-point the two kit paths below (`../` becomes
-`../just-llm-runner/`), the same way the kit dependencies are re-pointed.
+`../just-core/`), the same way the kit dependencies are re-pointed.
 
 The family rules every family repo follows: @../docs/family-rules.md
 

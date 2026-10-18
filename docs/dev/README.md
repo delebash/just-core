@@ -1,7 +1,7 @@
-# Dev docs — start here (just-llm-runner: the shared stack)
+# Dev docs — start here (just-core: the shared stack)
 
 The library every family app embeds: the Python LLM/runner core + the
-`@delebash/llm-ui` Vue kit. Read in this order (closed history lives in
+`@delebash/ui` Vue kit. Read in this order (closed history lives in
 `../plans/archive/`):
 
 1. **`../../CLAUDE.md`** — commands (the suite runs on JustWrite's venv), the
@@ -20,7 +20,7 @@ The library every family app embeds: the Python LLM/runner core + the
    `model-research.md` (licensing laws, model verdicts, measured serving numbers) ·
    `serving-design.md` (router/arbiter/cancel invariants) ·
    `../llama-cpp-watch.md` (the upstream adoption ledger + pin history).
-6. **The kit**: `../../ui/README.md` — layers, peer deps, the design contract.
+6. **The kit**: `../../packages/ui/README.md` — layers, peer deps, the design contract.
 
 Checks that must run at the right moments: `check-clean-install.py` after any
 dep/`__init__`/`install_llm` change · `check-consumers.py` after any shared-export

@@ -4,7 +4,7 @@
 // `kit.*` key here rewords the kit's. A language is a file in ./locales/. The instance is exported,
 // not created in the boot file, because non-component code translates too.
 import { createI18n } from 'vue-i18n'
-import { catalogsFromFiles, kitMessages } from '@delebash/llm-ui/i18n/index.js'
+import { catalogsFromFiles, kitMessages } from '@delebash/ui/i18n/index.js'
 
 const own = catalogsFromFiles(import.meta.glob('./locales/*.json', { eager: true }))
 

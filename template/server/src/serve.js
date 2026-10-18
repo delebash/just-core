@@ -4,7 +4,7 @@
 // `<app>-server serve`, and `node src/serve.js serve` in development.
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { runServer } from "@delebash/llm-runner/platform";
+import { runServer } from "@delebash/core/platform";
 import { createApp } from "./app.js";
 
 export const DEFAULT_PORT = 17490; // the family port registry: JW 17495 · JV 17494 · docgen 8742 · template 17490

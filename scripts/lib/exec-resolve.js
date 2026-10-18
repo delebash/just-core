@@ -8,7 +8,7 @@
 //   JustWrite  tests/lib/smoke-common.js
 //   JustVoice  scripts/lib/smoke-common.js
 // The sibling-checkout layout (E:\Dev\Web\<repo>) is already load-bearing for the renderer
-// (the @delebash/llm-ui alias).
+// (the @delebash/ui alias).
 //
 // WHY one home: both JW and JV independently learned that per-script copies of
 // findChrome() rot — JW counted 20 intra-repo copies before extracting its shared version

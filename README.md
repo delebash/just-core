@@ -1,4 +1,4 @@
-# just-llm-runner
+# just-core
 
 The family's shared kit — **JustWrite**, **JustVoice**, **just-ai-i18n-docgen** and any new app
 built from `template/`.
@@ -12,11 +12,12 @@ pieces (Hono, errors, the spawn door, the data folder, backup, logs, ZIP), the
 desktop shell, and the shared Vue UI.
 
 **Internal library — NOT published to npm.** An app consumes the server package as
-`"@delebash/llm-runner": "file:../just-llm-runner/server"` and the UI through a Vite source
-alias to `ui/` (`@delebash/llm-ui`); electron-builder packs them. The end user never installs
+`"@delebash/core": "file:../just-core/packages/core"` and the UI through a Vite source
+alias to `packages/ui/` (`@delebash/ui`); electron-builder packs them. The end user never installs
 it. Plain JavaScript (`"type": "module"`) on Node 24 — the Python core this repo began with was
 ported (`docs/plans/2026-10-07-kit-in-javascript.md`) and removed with the family's move to
-Electron and a Node server (2026-10-08).
+Electron and a Node server (2026-10-08). Renamed from `just-llm-runner` on 2026-10-18 (the
+packages were `server/` = `@delebash/llm-runner` and `ui/` = `@delebash/llm-ui`).
 
 ## How a model's launch config derives (the 4-tier doctrine, 2026-07-06)
 
@@ -52,13 +53,14 @@ Every local llama-server launch resolves its flags in four tiers, strongest last
 
 ## What's here
 
-- **`server/` — `@delebash/llm-runner`**, the server kit: `installLlm` (the whole LLM stack in
+- **`packages/core/` — `@delebash/core`**, the server kit, imported by subpath
+  (`@delebash/core/platform`, `/llm`, `/shell`): `installLlm` (the whole LLM stack in
   one call), the runner (`runner/` — hardware, binary, download, models, gguf, lifecycle, the
   router), the platform (`platform/` — the Hono server and its guards, errors, the spawn door,
   the data-folder ladder, SQLite, backup, logs, ZIP, `serve.js` for the desktop and headless
   paths, the phone's worker runtime) and the desktop shell (`shell/` — `runDesktopApp`, the
-  preload bridge). How to consume and check it: [`server/README.md`](server/README.md).
-- **`ui/` — `@delebash/llm-ui`**, the shared Vue UI (below).
+  preload bridge). How to consume and check it: [`packages/core/README.md`](packages/core/README.md).
+- **`packages/ui/` — `@delebash/ui`**, the shared Vue UI (below).
 - **`template/`** — the reference app every family app is shaped like (`docs/app-structure.md`
   §Q): a Quasar app whose Electron mode is the desktop app and Capacitor mode the phone app, with
   its server as its own package.
@@ -68,10 +70,10 @@ Every local llama-server launch resolves its flags in four tiers, strongest last
 - **`docs/`** — the family rules (`family-rules.md`), the app layout (`app-structure.md`), the
   research register (`dev/RESEARCH.md`), the tracker (`dev/TASKS.md`) and the plans.
 
-The shared Vue GUI lives here too: **`ui/` (`@delebash/llm-ui`)** — plain-JS Vue
+The shared Vue GUI lives here too: **`packages/ui/` (`@delebash/ui`)** — plain-JS Vue
 SFCs the apps consume via a Vite source alias (peer deps: vue, quasar, pinia,
-marked, …; see `ui/package.json`). It ships the LLM views (providers /
-models / prompts / usage), the `Ui*` primitive + shell layer (`ui/src/common/`,
+marked, …; see `packages/ui/package.json`). It ships the LLM views (providers /
+models / prompts / usage), the `Ui*` primitive + shell layer (`packages/ui/src/common/`,
 built on Quasar's components — `docs/plans/2026-10-09-kit-controls-on-quasar.md`),
 and the shared AI task queue — the `useAiTasksStore` in-flight registry (Pinia),
 the `runAiFeature`/`runAiFeatureStream` wrappers over `/v1/ai/run`+`/v1/ai/stream`,
@@ -84,7 +86,7 @@ cache — one cache + one endpoint accessor kit-wide), the presentational
 ## Consume it
 
 ```js
-import { installLlm, router as runnerRouter } from "@delebash/llm-runner";
+import { installLlm, runnerRouter } from "@delebash/core/llm";
 
 app.route("/", runnerRouter());                  // /v1/llm-runner/* — the runner's process API
 await installLlm(app, { db, dataDir, product: "My App" /* , featureCatalog, enginePresets, … */ });
@@ -95,7 +97,7 @@ per-action AI features is a first-class consumer. You get provider CRUD + regist
 per-feature routing, engine presets, the model catalog, tunes + autotune, the knob catalog, the
 usage ledger, and the bundled runner wired to the database's catalog. `app = null` is the
 headless boot (every store, seed and seam wired, nothing mounted). The full server shape:
-[`server/README.md`](server/README.md) and `template/server/`.
+[`packages/core/README.md`](packages/core/README.md) and `template/server/`.
 
 **Always pass `dataDir`.** Without it the engine and every downloaded GGUF land outside the app's
 data folder, so uninstalling the app strands the weights and a backup silently misses them.
@@ -103,7 +105,7 @@ data folder, so uninstalling the app strands the weights and a backup silently m
 ## Status
 
 Live in JustWrite, JustVoice and docgen. Open work: `docs/dev/TASKS.md` (this repo's tracker);
-per-task history in `docs/plans/`. The server suite: `cd server && npm test` — 1,136 passed,
+per-task history in `docs/plans/`. The server suite: `cd packages/core && npm test` — 1,136 passed,
 2 expected failures, 12 skipped (2026-10-09).
 
 SPDX-License-Identifier: MIT

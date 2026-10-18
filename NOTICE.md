@@ -5,11 +5,11 @@ licence notice of each is kept in the file named; the family rule is `docs/famil
 
 ## The UI kit (`ui/`)
 
-- **`ui/src/common/components/tableRows.js`** — UiTable's global filter, sort functions, automatic
+- **`packages/ui/src/common/components/tableRows.js`** — UiTable's global filter, sort functions, automatic
   sort choice, first direction and click cycle, ported from TanStack Table's table-core 8
   (`sortingFns`, `features/RowSorting`, `utils/getSortedRowModel`, `features/GlobalFiltering`).
   MIT License, Copyright (c) 2016 Tanner Linsley.
-- **`ui/src/common/services/toastBridge.js`** — the toasts' four kind icons, Heroicons paths (MIT
+- **`packages/ui/src/common/services/toastBridge.js`** — the toasts' four kind icons, Heroicons paths (MIT
   License, Copyright (c) Tailwind Labs, Inc.) as vue-sonner 2.0.9 shipped them. MIT License,
   Copyright (c) 2022 Yunwei Xiao.
 

@@ -1,4 +1,4 @@
-# IDEAS — the backlog (just-llm-runner: kit + shared server)
+# IDEAS — the backlog (just-core: kit + shared server)
 
 The holding pen for unscheduled ideas about the shared stack — same charter as JW's
 `docs/dev/IDEAS.md`. Adding an idea is never starting it. Committed work lives in

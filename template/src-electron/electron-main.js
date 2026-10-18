@@ -4,7 +4,7 @@
 // with this app's names. Quasar builds this file (Rolldown, ESM) and runs it in Electron's main
 // process; nothing app-specific lives here but the settings below.
 import path from "node:path";
-import { runDesktopApp } from "@delebash/llm-runner/shell";
+import { runDesktopApp } from "@delebash/core/shell";
 import { resolveElectronAssetsPath } from "#q-app/electron/main";
 
 const here = import.meta.dirname;

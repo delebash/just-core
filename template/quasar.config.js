@@ -57,7 +57,7 @@ export default defineConfig((/* ctx */) => {
       // The kit's UI, from the kit's own source (this repo's ui/) — every family app aliases it the
       // same way; the family theme (src/css/quasar.variables.scss) imports through it.
       alias: {
-        '@delebash/llm-ui': path.resolve(import.meta.dirname, '../ui/src'),
+        '@delebash/ui': path.resolve(import.meta.dirname, '../packages/ui/src'),
       },
       // vueRouterBase,
 

@@ -5,7 +5,7 @@
 // imported by its path: the kit's index brings every kit view and their peer packages, which an app
 // that installs the kit's UI (installLlmUi) has and this template doesn't.
 import { defineBoot } from '#q-app'
-import { followQuasarLang } from '@delebash/llm-ui/quasar/lang.js'
+import { followQuasarLang } from '@delebash/ui/quasar/lang.js'
 import { i18n } from '../i18n/index.js'
 
 export default defineBoot(({ app }) => {

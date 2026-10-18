@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: MIT -->
-# Research register — what we already know, and where the proof is (just-llm-runner)
+# Research register — what we already know, and where the proof is (just-core)
 
 **Read the section for your subject before researching anything** — before reading code to
 answer a question, before measuring, before briefing an agent. Then grep `docs/plans` for
@@ -43,6 +43,10 @@ One fact per bullet, then *how it was checked and when*, then where the proof is
   fact standing beside its correction.
 - A fact cites code by `file:line`. If that file changed after the fact's date, re-check that
   one fact — don't redo the research.
+- **Entries dated before 2026-10-18 use the kit's old names:** the repo `just-llm-runner` is now
+  `just-core`, its `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), its
+  `ui/` (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`) — §2, "The kit renamed just-core".
+  Read an old path through that map; the files themselves didn't change in the move.
 
 Subjects: [1 · Memory: the arbiter and the probes](#1--memory-the-arbiter-and-the-probes) ·
 [2 · The family stack: Electron, Node, phones](#2--the-family-stack-electron-node-phones) ·
@@ -1198,6 +1202,37 @@ re-checked by the session that saved them; paths are from before the just-core r
   none); Biome's full Vue support (it changes the family biome.json); axe's MPL-2.0; the app-id domain
   (`com.<id>.app` names a domain we may not own, permanent once on Play); JV's weekly CodeQL against the
   by-hand ruling.
+
+---
+
+**The kit renamed just-core** (*measured + git, 2026-10-18*; the decision is TASKS, "The kit is renamed
+`just-core`"):
+
+- The repo `delebash/just-llm-runner` is `delebash/just-core` (`gh repo rename`; GitHub redirects the old
+  URL — the `calib-v1` release asset in `runner/config.js` answers 302 under the new name); the folder is
+  `E:\Dev\Web\just-core`; Claude's project folder `E--Dev-Web-just-llm-runner` moved to
+  `E--Dev-Web-just-core`.
+- `server/` is `packages/core/` (`@delebash/core`) and `ui/` is `packages/ui/` (`@delebash/ui`). The
+  package root (`.`) is gone: its two exports live in `@delebash/core/llm`, which now also exports
+  `runnerRouter` (the old `router` alias is dropped). Apps import `/platform`, `/llm`, `/shell`,
+  `/shell/preload` and the `llm/*`, `runner/*`, `platform/*`, `shell/*` subpaths.
+- **Not renamed — runtime names:** the default model cache `~/.cache/just-llm-runner` and
+  `LLM_RUNNER_CACHE` (renaming would orphan downloaded models), the runner's routes `/v1/llm-runner/*`,
+  the logger names `llm_runner.*`. Dated plan docs, archives and quoted user words keep the old names.
+- **Every app's `node_modules/@delebash/core` is a junction with an absolute target**
+  (`/e/Dev/Web/just-core/packages/core`), so moving the kit's folder breaks every app until `npm install`
+  runs in the app root and in `src-electron`. The regenerated lockfiles changed by the name and path, plus
+  dependencies they hadn't recorded yet (the kit's `electron-updater` and `proper-lockfile`; JustVoice's
+  server's `diff` and `lru-cache`).
+- The kit root is not an npm workspaces root: each package keeps its own install and lockfile, as before.
+- `packages/ui`'s `npm run lint` finds no Biome — the package never listed it (pre-existing); core's
+  Biome lints `packages/ui/src` clean (146 files).
+- Checked after the move: kit tests 1,199 passed (2 expected failures, 12 skipped), core lint clean,
+  `check:pickers`; the template's lint, `quasar build` and server health; docgen lint, 162 server tests,
+  3 unit, `build:spa`, health; JustWrite 166 server, 713 unit, `build:spa`, health on its real data folder
+  (its lint has one error that predates the rename: `src/services/aiDiff.test.js:37`, from c8914db);
+  JustVoice lint, 1,359 server (1 skipped), 259 unit, `build:spa`, health; just-sqlite-sync lint and 70
+  tests; the guard: no violations, 29 advisory findings (29 before).
 
 ## 3 · AI tasks and the stream frames
 

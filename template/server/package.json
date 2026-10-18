@@ -12,6 +12,6 @@
     "start": "node src/serve.js serve"
   },
   "dependencies": {
-    "@delebash/llm-runner": "file:../../server"
+    "@delebash/core": "file:../../packages/core"
   }
 }

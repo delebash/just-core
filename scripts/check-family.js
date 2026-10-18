@@ -112,7 +112,7 @@ function kitExports() {
       }
     }
   };
-  read(join(KIT, "ui/src/index.js"));
+  read(join(KIT, "packages/ui/src/index.js"));
   return names;
 }
 
@@ -127,7 +127,7 @@ function checkForks(app, files, exports_) {
     if (!exports_.has(stem)) continue;
     if (ALLOW.has(`${app.name}/${basename(file)}`)) continue;
     const src = readFileSync(file, "utf8");
-    const wraps = new RegExp(`import[^;]*\\b${stem}\\b[^;]*from\\s+["']@delebash/llm-ui["']`, "s").test(src);
+    const wraps = new RegExp(`import[^;]*\\b${stem}\\b[^;]*from\\s+["']@delebash/ui["']`, "s").test(src);
     const rel = file.slice(app.dir.length + 1).replace(/\\/g, "/");
     if (wraps) info(app.name, `${rel} wraps the kit's ${stem} — OK`);
     else fail(app.name, `${rel} redefines ${stem}, which the kit exports (and does not import it)`);
@@ -307,7 +307,7 @@ function checkOneHono(app, files) {
     if (!rel.startsWith("server/")) continue;
     const code = codeOf(file);
     if (/\bfrom\s+["'](hono|hono\/[^"']+|@hono\/[^"']+)["']/.test(code)) {
-      fail(app.name, `${rel} imports Hono itself — one Hono for the family: take Hono, stream and serveStatic from "@delebash/llm-runner/platform" (§Q.3)`);
+      fail(app.name, `${rel} imports Hono itself — one Hono for the family: take Hono, stream and serveStatic from "@delebash/core/platform" (§Q.3)`);
     }
     if (/\bfrom\s+["'](fastify|@fastify\/(static|multipart|cors|formbody))["']/.test(code)) {
       fail(app.name, `${rel} imports Fastify — the family's servers are Hono (§Q.3)`);
@@ -348,20 +348,20 @@ function checkNoWindowGlobal(app, files) {
 }
 
 // check 14 · there is ONE shell, the kit's `runDesktopApp`. An app's desktop main,
-// src-electron/electron-main.js (§Q.2), imports it from `@delebash/llm-runner/shell`, passes
+// src-electron/electron-main.js (§Q.2), imports it from `@delebash/core/shell`, passes
 // the required config fields, claims its registered port, and imports nothing else but
 // `node:*` and `#q-app/electron/main` (for the icon path) — no logic in main. The preload is
 // the kit's too: src-electron/electron-preload.js imports it.
 const MAIN_REQUIRED_FIELDS = ["id", "appName", "productName", "port", "serverEntry", "dataDirEnv", "repoRoot", "distDir"];
-const DESKTOP_MAIN = { rel: "src-electron/electron-main.js", section: "§Q.2", allowed: ["@delebash/llm-runner/shell", "#q-app/electron/main"] };
+const DESKTOP_MAIN = { rel: "src-electron/electron-main.js", section: "§Q.2", allowed: ["@delebash/core/shell", "#q-app/electron/main"] };
 
 function checkDesktopMain(app) {
   const { rel, section, allowed } = DESKTOP_MAIN;
   const mainPath = join(app.dir, rel);
   if (!existsSync(mainPath)) return fail(app.name, `${rel} missing — the desktop app is the kit's runDesktopApp (${section})`);
   const code = codeOf(mainPath);
-  if (!/import\s*\{[^}]*\brunDesktopApp\b[^}]*\}\s*from\s*["']@delebash\/llm-runner\/shell["']/.test(code)) {
-    fail(app.name, `${rel} does not import runDesktopApp from @delebash/llm-runner/shell — the family's one shell (${section})`);
+  if (!/import\s*\{[^}]*\brunDesktopApp\b[^}]*\}\s*from\s*["']@delebash\/core\/shell["']/.test(code)) {
+    fail(app.name, `${rel} does not import runDesktopApp from @delebash/core/shell — the family's one shell (${section})`);
   }
   for (const [, spec] of code.matchAll(/(?:^|\n)\s*import\s+(?:[^"';]*?\s+from\s+)?["']([^"']+)["']/g)) {
     if (spec.startsWith("node:") || allowed.includes(spec)) continue;
@@ -377,8 +377,8 @@ function checkDesktopMain(app) {
     fail(app.name, `${rel} passes port ${port[1]} — the registry says ${APP_PORTS[app.name]} (§1)`);
   }
   const preload = join(app.dir, "src-electron", "electron-preload.js");
-  if (!existsSync(preload) || !/import\s+["']@delebash\/llm-runner\/shell\/preload["']/.test(codeOf(preload))) {
-    fail(app.name, "src-electron/electron-preload.js does not import the kit's preload (@delebash/llm-runner/shell/preload) — §Q.2");
+  if (!existsSync(preload) || !/import\s+["']@delebash\/core\/shell\/preload["']/.test(codeOf(preload))) {
+    fail(app.name, "src-electron/electron-preload.js does not import the kit's preload (@delebash/core/shell/preload) — §Q.2");
   }
   return undefined;
 }
@@ -464,8 +464,8 @@ function checkQuasar(app) {
     fail(name, "postcss.config.js doesn't run the kit's quasarBaseLayer() — Quasar's stylesheet would compete with the kit's and the app's rules by specificity and load order (§Q.4)");
   }
   const variables = read("src/css/quasar.variables.scss") || "";
-  if (!/@delebash\/llm-ui\/quasar\/variables\.scss/.test(variables)) {
-    fail(name, "src/css/quasar.variables.scss doesn't import the kit's @delebash/llm-ui/quasar/variables.scss — the family theme (§Q.4)");
+  if (!/@delebash\/ui\/quasar\/variables\.scss/.test(variables)) {
+    fail(name, "src/css/quasar.variables.scss doesn't import the kit's @delebash/ui/quasar/variables.scss — the family theme (§Q.4)");
   }
   const qconf = read("quasar.config.js") || "";
   if (!/framework:\s*\{[\s\S]*?config:\s*\{[^}]*\bripple:\s*false/.test(qconf)) {
@@ -983,19 +983,19 @@ function checkTaskLifecycle(app, files) {
 // ── run ───────────────────────────────────────────────────────────────────────
 const exports_ = kitExports();
 const kitFiles = new Map();
-for (const f of walk(join(KIT, "ui/src"))) kitFiles.set(basename(f), f);
+for (const f of walk(join(KIT, "packages/ui/src"))) kitFiles.set(basename(f), f);
 
 // ── check 16 · words go through vue-i18n (app-structure §Q.11; the i18n plan, Task 2) ────────
 // Every app — the template included — installs vue-i18n the way Quasar's i18n preset does (a boot
 // file named 'i18n' in quasar.config.js), starts its catalog from the kit's (kitMessages()), and
 // has Quasar's own words follow the language (the kit's followQuasarLang). The kit's old side
 // doors, deleted in Task 1, must not come back in an app's code. The i18n lint is the family's
-// one file, byte-identical to the kit's ui/eslint.i18n.config.js: compared wherever an app has
+// one file, byte-identical to the kit's packages/ui/eslint.i18n.config.js: compared wherever an app has
 // one. An app WITHOUT one is advisory for now — docgen gets its file in the plan's Task 4 and
 // JustVoice in Task 5; promote that line to fail() once both have it, as check 9's note says of
 // its own advisories.
 const I18N_DOORS = /\b(configureFamilyLabels|setUiLocale|FAMILY_LABELS|familyLabels|quickSetupCopy|catalogCopy|configureDialog)\b/;
-const KIT_I18N_LINT = join(KIT, "ui", "eslint.i18n.config.js");
+const KIT_I18N_LINT = join(KIT, "packages", "ui", "eslint.i18n.config.js");
 function checkI18n(app, files) {
   const name = app.name;
   const read = (rel) => (existsSync(join(app.dir, rel)) ? readFileSync(join(app.dir, rel), "utf8") : null);
@@ -1016,16 +1016,16 @@ function checkI18n(app, files) {
     });
   }
   const lint = join(app.dir, "eslint.i18n.config.js");
-  if (!existsSync(lint)) info(name, "no eslint.i18n.config.js — the family's i18n lint, a copy of the kit's ui/eslint.i18n.config.js (§Q.11)");
-  else if (hash(lint) !== hash(KIT_I18N_LINT)) fail(name, "eslint.i18n.config.js differs from the kit's ui/eslint.i18n.config.js — one file, byte-identical (§Q.11)");
+  if (!existsSync(lint)) info(name, "no eslint.i18n.config.js — the family's i18n lint, a copy of the kit's packages/ui/eslint.i18n.config.js (§Q.11)");
+  else if (hash(lint) !== hash(KIT_I18N_LINT)) fail(name, "eslint.i18n.config.js differs from the kit's packages/ui/eslint.i18n.config.js — one file, byte-identical (§Q.11)");
 }
 function checkI18nKit() {
-  if (!existsSync(KIT_I18N_LINT)) fail("kit", "ui/eslint.i18n.config.js missing — the family's i18n lint (§Q.11)");
-  for (const file of walk(join(KIT, "ui", "src"))) {
+  if (!existsSync(KIT_I18N_LINT)) fail("kit", "packages/ui/eslint.i18n.config.js missing — the family's i18n lint (§Q.11)");
+  for (const file of walk(join(KIT, "packages", "ui", "src"))) {
     if (!/\.(js|vue)$/.test(file)) continue;
     readFileSync(file, "utf8").split("\n").forEach((line, i) => {
       const m = line.match(I18N_DOORS);
-      if (m) fail("kit", `ui/src/${file.slice(join(KIT, "ui", "src").length + 1).replace(/\\/g, "/")}:${i + 1} names ${m[1]} — removed in the i18n plan's Task 1 (§Q.11)`);
+      if (m) fail("kit", `packages/ui/src/${file.slice(join(KIT, "packages", "ui", "src").length + 1).replace(/\\/g, "/")}:${i + 1} names ${m[1]} — removed in the i18n plan's Task 1 (§Q.11)`);
     });
   }
 }

@@ -7,7 +7,7 @@
 // guards first, then the routes, then the UI.
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { bearerAuth, createServer, csrfOrigin, serveStatic, starletteCors } from "@delebash/llm-runner/platform";
+import { bearerAuth, createServer, csrfOrigin, serveStatic, starletteCors } from "@delebash/core/platform";
 
 const TYPE_BASE = "https://family-template.local/errors/";
 /** The desktop window's origin (the kit's shell loads app://<id>). */

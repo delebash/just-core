@@ -14,7 +14,7 @@
 // back with `metadata.finishReason` "length", for the app's checks to fail.
 //
 //   providers:
-//     - id: file://../../just-llm-runner/scripts/evals/app-provider.js
+//     - id: file://../../just-core/scripts/evals/app-provider.js
 //       config: { providerId: local-llamacpp, model: gemma-4-26b-a4b-qat }
 
 export default class AppServerProvider {
