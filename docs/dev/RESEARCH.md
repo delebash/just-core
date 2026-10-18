@@ -1604,6 +1604,15 @@ English".
 - **Four other checkouts load the kit from source** (`JustVioce-round3`, `justvoice-quasar`,
   `justwrite-quasar`, `docgen-quasar`): a change to the kit's API reaches them too. —
   *code, 2026-10-12*.
+- **What a Spanish screen still shows in English, once the catalogs are complete, is seeded data
+  and code tables:** statuses, worldbuilding categories, provider and engine-preset names, the AI
+  page's feature and action labels, knob help, measurement labels (JustWrite, the kit, docgen);
+  JustVoice's effect presets and "Narrator". The inventory with file:line, and the plan to show an
+  unrenamed seeded row by key, is
+  [`../plans/2026-10-18-seeded-words-in-the-users-language.md`](../plans/2026-10-18-seeded-words-in-the-users-language.md)
+  (waits for the user's go). The family already shows a seeded row by key in three places: hardware
+  classes (`classKeyLabel`), the global launch bundles (`LuGlobalSwitches.vue:30-33`), JustWrite's
+  Architecture documents. — *code, a read-only sweep of the four repos, 2026-10-18*.
 
 ---
 
