@@ -1,14 +1,14 @@
 {
   "kit": {
     "nav": {
-      "appSettings": "Ajustes de la aplicación",
-      "aiSettings": "Ajustes de AI",
-      "aiTasks": "Tareas de AI",
+      "appSettings": "Configuración de la aplicación",
+      "aiSettings": "Configuración de IA",
+      "aiTasks": "Tareas de IA",
       "help": "Ayuda"
     },
     "dialog": {
       "confirm": "Confirmar",
-      "ok": "OK",
+      "ok": "Aceptar",
       "defaultTitle": "¿Estás seguro?"
     },
     "aiTabs": {
@@ -23,18 +23,51 @@
       "generatedNote": "construido por la aplicación en cada ejecución real — solo prueba; nada de esto se guarda ni se aplica",
       "editCopies": "Editar copias para esta prueba",
       "lockCopies": "Bloquear copias",
-      "restoreGenerated": "Restaurar generado",
-      "changeData": "Cambiar lo que dice este prompt:"
+      "restoreGenerated": "Restaurar lo generado",
+      "changeData": "Cambia lo que dice este prompt:",
+      "counter": "{words} palabras · {chars} caracteres · ~{tokens} tokens",
+      "presetSaved": "Preajuste guardado.",
+      "jsonOn": "La salida JSON está activada para esta función.",
+      "jsonOff": "La salida JSON está desactivada para esta función.",
+      "err": {
+        "json": "No se pudo guardar el ajuste de salida JSON.",
+        "item": "No se pudo cargar ese elemento.",
+        "compose": "No se pudo componer desde este libro."
+      },
+      "insertFrom": "Insertar desde {source}…",
+      "sampleMismatch": "Los campos de esa muestra no coinciden con las variables de este prompt.",
+      "itemMismatch": "Los campos de ese {kind} no coinciden con las variables de este prompt.",
+      "item": "elemento",
+      "composedMismatch": "La entrada compuesta no coincide con las variables de este prompt.",
+      "tuneTitle": "Ajustar preajustes",
+      "tuneSubGenerated": "ejecuta el prompt generado REAL de esta función · Guarda una columna como preajuste (aparecerá en los menús desplegables)",
+      "tuneSub": "ejecuta el prompt de esta función en una entrada de prueba · Guarda una columna como preajuste (aparece en los menús desplegables)",
+      "refreshTitle": "Reconstruye el prompt con los datos actuales del proyecto (contexto · glosario · notas)",
+      "restoreTitle": "Vuelve a generar las columnas de prueba desde este prompt generado — descarta las ediciones de prueba de las columnas, sin volver a obtener datos",
+      "lockTitle": "Ocultar las copias editables en las columnas",
+      "editTitle": "Mostrar las copias editables del prompt en las columnas — se ejecutan una vez y nunca se guardan; cada ejecución real reconstruye su propio prompt",
+      "systemGenerated": "Sistema — generado",
+      "userGenerated": "Usuario — generado",
+      "testInput": "Entrada de prueba",
+      "testInputHint": "el {hint} que el prompt completa — compartido entre columnas",
+      "composeTitle": "Crea la entrada real de esta función desde tu libro — la misma composición que usa una ejecución en vivo",
+      "fromBook": "Desde este libro",
+      "sampleNextTitle": "Rellena con una muestra de la aplicación — haz clic de nuevo para la siguiente",
+      "sampleTitle": "Rellena con los datos de muestra de la aplicación",
+      "sample": "Muestra"
     },
     "downloadBar": {
       "ready": "Listo ✓"
     },
     "connectionError": {
-      "title": "No se puede conectar con el servidor de {appName}"
+      "title": "No se puede conectar con el servidor de {appName}",
+      "body": "{appName} necesita su servidor para {need}. No responde en {url}.",
+      "need": "cargar y guardar tu trabajo",
+      "theApp": "la aplicación"
     },
     "quickSetup": {
       "runButton": "Ejecutar configuración rápida",
-      "bandScope": "Configura solo el proveedor integrado llama.cpp",
+      "bandScope": "Configura solo el proveedor llama.cpp integrado",
       "applyButton": "Aplicar configuración",
       "cancelButton": "Cancelar",
       "closeButton": "Cerrar",
@@ -44,22 +77,162 @@
       "rerunButton": "Volver a ejecutar la configuración rápida",
       "alreadyTitle": "Ya está configurado",
       "changeModelButton": "Cambiar modelo",
-      "checkTitle": "¿Comprobar la velocidad real de IA de este equipo?",
+      "checkTitle": "¿Comprobar la velocidad real de IA de esta PC?",
       "checkRunButton": "Ejecutar la comprobación de 1 minuto",
       "checkSkipButton": "Omitir — usar estimaciones",
       "checkRetryButton": "Intentar de nuevo",
-      "checkContinueButton": "Continuar"
+      "checkContinueButton": "Continuar",
+      "bandSub": "Detecta tu hardware, elige el mejor modelo local gratuito que se adapte y establécelo como predeterminado.",
+      "headSub": "Detecta tu hardware, elige el mejor modelo local gratuito que se adapte y establécelo como predeterminado — todo es editable.",
+      "confirmTitle": "Configuración recomendada — solo para el proveedor local integrado",
+      "modelHint": "Un buen modelo ejecuta cada función: escritura, chat, extracción, juicio. Las elecciones por función se encuentran en Enrutamiento por función; esto establece el valor predeterminado compartido.",
+      "chatRole": "escribe + chatea",
+      "embedRole": "potencia la búsqueda + Pregúntale al libro",
+      "checkBody": "Ningún preajuste coincide con este hardware, por lo que el modelo recomendado en la siguiente pantalla se elegiría a partir de estimaciones. Una comprobación de un minuto descarga un pequeño modelo de prueba ({size}, una sola vez), lo ejecuta brevemente de dos maneras y mide qué tan rápido mueve realmente los datos del modelo esta PC; el número que decide qué modelos se ejecutan a velocidad de lectura.",
+      "checkSkipNote": "Omítelo y la recomendación se estimará a partir de las especificaciones de tu hardware en su lugar. En ningún caso cambia nada más.",
+      "checkDoneNote": "Medido — la recomendación en la siguiente pantalla ahora utiliza la velocidad real de esta PC.",
+      "aModel": "un modelo",
+      "title": "Configuración rápida",
+      "cache": {
+        "anotherApp": "otra aplicación",
+        "anotherAppCap": "Otra aplicación",
+        "share": "Compartir los archivos de IA de {who} ({size} ya descargados)",
+        "keepSeparate": "Mantener una copia separada para esta aplicación",
+        "nextStart": "Esto se aplicará la próxima vez que se inicie la aplicación.",
+        "switchFailed": "No se pudieron cambiar los archivos de IA: {error}",
+        "offer": "{app} en esta PC ya tiene {n} modelo de IA y el motor — {size} descargados. | {app} en esta PC ya tiene {n} modelos de IA y el motor — {size} descargados.",
+        "sharingHint": "Compartir significa que un modelo que ya tienes se descarga de nuevo en un instante y no ocupa espacio extra en el disco. De cualquier forma, nada se mueve ni se elimina, y puedes cambiar esto más tarde en Configuración."
+      },
+      "embed": {
+        "onGpu": "Se ejecutará en tu GPU junto con el modelo de escritura.",
+        "onCpu": "Se ejecuta en la CPU de esta PC; la GPU se queda con tu modelo de escritura.",
+        "powers": "Potencia la búsqueda semántica + el chat con base en datos.",
+        "bundled": "Se ejecuta en el ejecutor incluido junto con tu modelo de chat; un modelo de embedding más pequeño está bien."
+      },
+      "hw": {
+        "vram": "{gb} GB de VRAM",
+        "ram": "{gb} GB de RAM",
+        "cpuOnly": "Solo CPU"
+      },
+      "verdict": {
+        "ok": "Esta máquina ejecuta la configuración local completa.",
+        "tight": "Esta máquina ejecuta la configuración; es justo lo que cabe, pero funciona."
+      },
+      "err": {
+        "readHardware": "No se pudo leer el hardware / catálogo: {error}",
+        "serverSilent": "el servidor no respondió en {s}s",
+        "readSetup": "No se pudo terminar de leer tu configuración — {error}",
+        "apply": "Error al aplicar: {error}"
+      },
+      "check": {
+        "starting": "Iniciando…",
+        "startFailed": "No se pudo iniciar la comprobación.",
+        "cancelled": "Comprobación cancelada."
+      },
+      "opt": {
+        "stillRunning": "La optimización aún se está ejecutando",
+        "closeBody": "El ajuste automático aún está midiendo la configuración de inicio más rápida para esta máquina, y mantiene ocupada la GPU, por lo que otras funciones de IA están en pausa. ¿Cerrar ahora y detenerlo? No se guardará ninguna configuración ajustada.",
+        "closeAndStop": "Cerrar y detener",
+        "keepOptimizing": "Continuar optimizando",
+        "applyBody": "Un barrido de optimización aún está midiendo la configuración de inicio y mantiene ocupada la GPU. Aplicar ahora lo detendrá; no se guardará ninguna configuración ajustada.",
+        "stopAndApply": "Detener y aplicar",
+        "startFailed": "No se pudo iniciar la optimización.",
+        "measuring": "midiendo…",
+        "overwriteTitle": "¿Sobrescribir la configuración ajustada de esta máquina?",
+        "overwriteBody": "Esta máquina ya tiene una configuración de inicio medida para este modelo. Volver a optimizar ejecuta un nuevo barrido y reemplaza la configuración guardada solo si se encuentra una configuración estrictamente más rápida.",
+        "reoptimize": "Volver a optimizar",
+        "tunedAlready": "Esta máquina ya tiene ajustes de inicio medidos para este modelo; vuelve a ejecutar el barrido solo si cambiaste tu hardware.",
+        "classApplied": "Se aplicaron los ajustes optimizados para tu hardware ✓",
+        "classNote": "Las PC con esta cantidad de memoria de video y RAM vienen ya medidas, por lo que no es necesario un barrido. Opcional: un barrido completo de medición aún puede ajustar con precisión esta máquina exacta; puede tardar 10 minutos o más; otras funciones de IA se pausan mientras se ejecuta.",
+        "optimizePc": "Optimizar para esta PC",
+        "untuned": "Aún no hay ajustes medidos para esta PC; funciona con el ajuste automático de memoria del motor, lo cual sirve pero puede no ser lo más rápido.",
+        "quick": "Optimización de 2 minutos",
+        "full": "Optimización completa",
+        "quickVsFull": "La pasada de 2 minutos prueba los ajustes más probables y conserva los mejores; la optimización completa sigue midiendo (10 minutos o más) y suele ser varias veces más rápida hasta el primer token. Ambas son el mismo barrido medido que Ajustar y medir del modelo, con el ganador guardado automáticamente. Otras funciones de IA se pausan mientras se ejecuta un barrido.",
+        "quickRunning": "Optimización de 2 minutos — midiendo…",
+        "fullRunning": "Optimizando para esta PC…",
+        "elapsed": "{time} transcurridos",
+        "quickEta": "Esta pasada tiene un tiempo límite de unos 2 minutos; prueba los ajustes más probables y conserva el mejor encontrado. Tu GPU estará ocupada mientras se ejecuta, por lo que otras funciones de IA se pausarán hasta que termine o tú la detengas.",
+        "fullEta": "Esto ejecuta una secuencia de pruebas de carga y medición y puede tardar 10 minutos o más; más tiempo para modelos más grandes. Tu GPU estará ocupada mientras se ejecuta, por lo que otras funciones de IA se pausarán hasta que termine o tú lo detengas.",
+        "trialSkipped": "omitido",
+        "trialFailed": "fallido",
+        "skip": "Omitir",
+        "skipHint": "Omitir mantiene todo configurado; puedes optimizar más tarde desde el diálogo Ajustar y medir del modelo.",
+        "optimized": "Optimizado ✓ {speed}",
+        "saved": "guardado para esta máquina.",
+        "quickNothing": "la pasada de 2 minutos no encontró nada más rápido — la Optimización completa o el diálogo Ajustar y medir del modelo pueden buscar más a fondo.",
+        "alreadyFastest": "tu inicio actual ya es el más rápido — no es necesario guardar nada.",
+        "saveFailed": "error al guardar — abre Ajustar y medir para guardarlo.",
+        "cancelled": "Optimización cancelada.",
+        "failed": "Error en la optimización."
+      },
+      "apply": {
+        "engineCancelled": "La instalación del motor se canceló — instálalo arriba y luego esto continuará.",
+        "engineFailed": "El motor no se instaló — reinténtalo arriba y luego esto continuará.",
+        "engineFirstModel": "Configurando tu modelo — instalando el motor primero, luego tu modelo.",
+        "engineFirstModels": "Configurando tus modelos — instalando el motor primero, luego tus modelos.",
+        "bothDownload": "Configurando tus modelos — ambos se descargan a la vez.",
+        "settingUpModel": "Configurando tu modelo.",
+        "settingUpModels": "Configurando tus modelos.",
+        "waitingEngine": "Esperando al motor…",
+        "stopped": "La configuración se detuvo — no se descargó nada.",
+        "stoppedNote": "Atrás te regresa a tus opciones; Aplicar allí reinicia las descargas. Cerrar sale de la configuración; {rerun} la abre de nuevo en cualquier momento.",
+        "sizeNote": "Un modelo pesa varios gigabytes, por lo que la primera ejecución puede tardar unos minutos; cada uno solo se descarga una vez. Cancelar detiene la descarga; Reintentar la inicia de nuevo.",
+        "back": "Atrás"
+      },
+      "step": {
+        "probing": "Sondeando tu hardware…",
+        "stopped": "Configuración detenida",
+        "settingUp": "Configurando…",
+        "allSet": "Todo listo",
+        "reading": "Leyendo GPU + catálogo de modelos…"
+      },
+      "configured": {
+        "line": "{model} es el modelo local predeterminado; todo está configurado.",
+        "hint": "La Configuración rápida solo configura el proveedor llama.cpp integrado. Cambia el modelo para repetir la configuración con una opción diferente; nada cambia hasta que apliques los cambios."
+      },
+      "confirm": {
+        "requirements": "Requisitos: una tarjeta de video con al menos 8 GB de VRAM y 32 GB de RAM del sistema.",
+        "detected": "Detectado",
+        "readingCatalog": "Leyendo el catálogo…",
+        "defaultModel": "Modelo predeterminado",
+        "aboutModel": "Acerca de este modelo:",
+        "goodToKnow": "Conviene saber:",
+        "qatNote": "estos son modelos QAT (entrenados de forma consciente de la cuantización) — aproximadamente 3–4× más ligeros en memoria que los de precisión completa, manteniendo una calidad cercana a la original. Así es como un modelo capaz cabe en tu tarjeta.",
+        "emptyCatalog": "No hay modelos seleccionados — añade uno o conecta un proveedor. Esta aplicación no incluye una lista de modelos ya preparada: añade un modelo al catálogo ({edit} el proveedor integrado → {add} — cualquier enlace GGUF de Hugging Face funciona), o conecta un {online}. Todas las funciones de IA funcionan en ambos casos.",
+        "edit": "Editar",
+        "addModel": "Añadir un modelo",
+        "onlineProvider": "proveedor en línea",
+        "noLocal": "Ningún modelo local puede ejecutarse bien en esta máquina — generar solo con la CPU es demasiado lento para escribir. Aún puedes usar todas las funciones de IA conectando un {online} abajo: tu trabajo permanece en tu disco y solo se envía el texto que la función necesita. La búsqueda local sigue ejecutándose en tu CPU.",
+        "embedding": "Embedding",
+        "whatHappens": "Qué sucede cuando haces clic en Aplicar",
+        "becomesDefault": "se convierte en el modelo de cada preajuste, excepto los que hayas cambiado tú mismo en Enrutamiento por función.",
+        "downloadsNow": "Se {now} si aún no está en el disco y luego se carga como el modelo activo.",
+        "downloadsNowWords": "descarga ahora",
+        "searchModel": "El modelo de búsqueda queda configurado en {name} — también se {now} (potencia la búsqueda + Pregúntale al libro) y se ejecuta junto a tu modelo principal.",
+        "alreadyTitle": "Esta máquina ya está configurada — lo que Aplicar cambiará",
+        "repoints": "redirige de {from} a {to}",
+        "noRouting": "Todas las tareas ya usan este modelo — Aplicar no cambia el enrutamiento de ninguna tarea.",
+        "kept": "Se mantienen como los configuraste: {names}.",
+        "tunesKept": "Tus ajustes de máquina guardados nunca son modificados por Aplicar.",
+        "setUpOnline": "Configurar un proveedor en línea"
+      },
+      "done": {
+        "applied": "Configuración aplicada.",
+        "searchPending": "El modelo de búsqueda no terminó de descargarse — se descargará automáticamente en tu primera búsqueda, o puedes obtenerlo en cualquier momento desde el catálogo de modelos."
+      }
     },
     "aiOffer": {
       "eyebrow": "Opcional",
       "title": "Configurar funciones de IA",
-      "body": "La IA de {appName} se ejecuta donde tú elijas: en este PC, de forma privada y gratuita, o a través de un proveedor en línea. Puedes configurar esto en cualquier momento desde la página de IA.",
-      "bodyOnline": "La IA de {appName} funciona a través del proveedor en línea que tú elijas, con tu propia clave. Puedes configurar esto en cualquier momento desde la página de IA.",
+      "body": "La IA de {appName} se ejecuta donde tú elijas — en esta PC, de forma privada y gratuita, o a través de un proveedor en línea. Puedes configurar esto en cualquier momento desde la página de IA.",
+      "bodyOnline": "La IA de {appName} se ejecuta a través de un proveedor en línea que tú elijas, con tu propia clave. Puedes configurar esto en cualquier momento desde la página de IA.",
       "quickSetup": "Ejecutar configuración rápida",
-      "quickSetupSub": "Local: usa este PC, privado y gratuito",
+      "quickSetupSub": "Local — usa esta PC, privado y gratuito",
       "connectProvider": "Conectar un proveedor en línea",
       "connectProviderSub": "Endpoint compatible con OpenAI",
-      "skip": "Omitir por ahora"
+      "skip": "Omitir por ahora",
+      "thisApp": "Esta aplicación"
     },
     "settingsSections": {
       "appearance": "Apariencia",
@@ -76,17 +249,1622 @@
       "total": "Total",
       "clearShort": "Borrar…"
     },
+    "catalog": {
+      "chatSectionLabel": "Modelos de chat y escritura",
+      "chatSectionHint": "escribe prosa, chatea, extrae — elige uno como tu modelo General",
+      "generalUse": "Escribe prosa, chatea, extrae",
+      "slotsFootnote": "La aplicación ejecuta estos dos en paralelo: el modelo General escribe y chatea; el modelo de Embedding potencia la búsqueda. Cada uno se carga automáticamente la primera vez que se necesita; Cargar ahora simplemente omite esa primera espera."
+    },
+    "modelCatalog": {
+      "col": {
+        "model": "Modelo",
+        "type": "Tipo",
+        "license": "Licencia",
+        "bench": "Benchmark",
+        "fit": "Compatibilidad",
+        "status": "Estado",
+        "actions": "Acciones"
+      },
+      "embedSection": "Modelos de embedding",
+      "embedSectionHint": "potencian la búsqueda semántica + el chat con base en datos — elige uno como tu modelo de embedding",
+      "err": {
+        "setDefault": "No se pudo establecer el predeterminado.",
+        "unload": "No se pudo quitar de la memoria.",
+        "setEmbedding": "No se pudo establecer el embedding.",
+        "load": "No se pudo cargar.",
+        "listFiles": "No se pudieron listar los archivos del repo.",
+        "repoFirst": "Primero ingresa el repo de Hugging Face.",
+        "readLink": "No se pudo leer el modelo desde el enlace.",
+        "loadModel": "No se pudo cargar el modelo.",
+        "nameRequired": "Se requiere un nombre (para el id).",
+        "save": "Error al guardar.",
+        "repoint": "No se pudieron reasignar las referencias; no se eliminó nada.",
+        "delete": "Error al eliminar.",
+        "redownload": "Error al volver a descargar.",
+        "freeDownload": "No se pudo liberar la descarga.",
+        "reset": "Error al restablecer."
+      },
+      "speed": {
+        "measured": "Medido en esta PC: {tokS} tok/s.",
+        "estimated": "Velocidad estimada: ~{tokS} tok/s — una ejecución real reemplazará esta estimación.",
+        "mtp": "Puede ejecutarse más rápido con decodificación especulativa (MTP)."
+      },
+      "fit": {
+        "embedCpuRam": "Se ejecuta en la CPU de esta PC — la GPU se mantiene con tu modelo de escritura. Necesita ~{gb} GB de RAM.",
+        "embedCpu": "Se ejecuta en la CPU de esta PC — la GPU se mantiene con tu modelo de escritura. Necesita la RAM del sistema, no VRAM.",
+        "embedGpu": "Se ejecuta en tu GPU aquí — cabe en los ~{gb} GB restantes junto a tu modelo de escritura.",
+        "noGpu": "No se detectó GPU — se ejecuta en la CPU (más lento).",
+        "vramUnknown": "Requisito de VRAM desconocido para este modelo.",
+        "estimated": "Estimado — requiere ~{gb} GB de VRAM",
+        "youHave": "tienes {gb} GB",
+        "untested": "aún no probado en tu clase de PC"
+      },
+      "runsOn": {
+        "computed": "Calculado a partir del archivo del modelo: {vram} MB de VRAM · {ram} MB de RAM.",
+        "classes": "Clases de PC en las que se ejecuta este modelo: {names}",
+        "none": "Ninguna clase de PC de fábrica lo admite — es para máquinas más grandes que las que cubre la lista de clases."
+      },
+      "openFolderDesktop": "Abrir carpeta requiere la aplicación de escritorio.",
+      "tag": {
+        "embedding": "Embedding",
+        "recommended": "Recomendado para esta PC",
+        "recommendedTitle": "Lo que la Configuración rápida elegiría para esta máquina — un modelo con una configuración de clase de PC para tu clase primero, luego la regla de la velocidad mínima",
+        "mtp": "MTP",
+        "mtpTitle": "Predicción multitoken — la decodificación especulativa se habilita de forma predeterminada",
+        "embed": "Embed",
+        "embedTitle": "Modelo de embedding — potencia la búsqueda semántica + el chat con base en datos"
+      },
+      "tune": {
+        "auto": "Esta PC ejecuta tu configuración aplicada — producida por el barrido de ajuste automático",
+        "hand": "Esta PC ejecuta tu configuración aplicada — establecida manualmente en Ajustar y medir",
+        "class": "No hay configuración aplicada en esta PC — los inicios comienzan desde la configuración de clase de PC para tu clase",
+        "classRange": "No hay configuración aplicada en esta PC — los inicios comienzan desde la configuración de clase de PC para tu clase ({range})",
+        "elsewhere": "Nada ajustado para tu clase de PC — pero este modelo tiene una configuración de clase de PC en {n} otra clase. Los inicios usan los valores predeterminados por capas. | Nada ajustado para tu clase de PC — pero este modelo tiene una configuración de clase de PC en {n} otras clases. Los inicios usan los valores predeterminados por capas.",
+        "elsewhereRange": "Nada ajustado para tu clase de PC ({range}) — pero este modelo tiene una configuración de clase de PC en {n} otra clase. Los inicios usan los valores predeterminados por capas. | Nada ajustado para tu clase de PC ({range}) — pero este modelo tiene una configuración de clase de PC en {n} otras clases. Los inicios usan los valores predeterminados por capas.",
+        "untuned": "Nadie ha ajustado este modelo en ninguna clase de PC todavía — los inicios usan los valores predeterminados por capas.",
+        "otherClasses": "{label} — {n} otra clase de PC | {label} — {n} otras clases de PC"
+      },
+      "mtp": {
+        "builtin": "integrado — cabezas de predicción en el archivo",
+        "separate": "separado — archivo de borrador externo (descarga separada)",
+        "unloadable": "este modelo incluye un borrador MTP, pero ninguno que el motor integrado pueda cargar — marca MTP abajo para pegar un borrador compatible",
+        "otherRepo": "separado — borrador externo de otro repo (descarga separada)",
+        "mayWork": "la familia base puede admitir MTP — hay un modelo borrador ya rellenado; marca MTP abajo para probarlo o pega el tuyo",
+        "none": "no disponible"
+      },
+      "custom": "Personalizado…",
+      "none": "Ninguno",
+      "draftUnsupported": "{arch} no es compatible con tu motor",
+      "draftUnsupportedArch": "su arquitectura",
+      "del": {
+        "removeTitle": "¿Eliminar \"{name}\" del catálogo?",
+        "removeBody": "Elimina la entrada del catálogo y borra sus pesos descargados del disco. Restablecer restaura las entradas integradas; los pesos se vuelven a descargar según sea necesario.",
+        "usedPresets": "{n} preajuste de tarea | {n} preajustes de tarea",
+        "usedEmbedSlot": "el espacio de embedding",
+        "usedBoth": "{presets} y {slot}",
+        "title": "¿Eliminar {name}?",
+        "repointBody": "Está en uso por {used}. Se redirigirán a {repl}, luego se eliminará la entrada y sus pesos descargados se borrarán del disco.",
+        "noReplChatBody": "Está en uso por {used} y no hay otro modelo de chat disponible para redirigir. Eliminar de todos modos hará que todo lo que apunte a él muestre \"eliminado del catálogo\" hasta que elijas un reemplazo. Sus pesos descargados se borrarán del disco.",
+        "noReplEmbedBody": "Está en uso por {used} y no hay otro modelo de embedding disponible para redirigir. Eliminar de todos modos hará que todo lo que apunte a él muestre \"eliminado del catálogo\" hasta que elijas un reemplazo. Sus pesos descargados se borrarán del disco.",
+        "repointConfirm": "Redirigir y eliminar",
+        "anyway": "Eliminar de todos modos"
+      },
+      "free": {
+        "title": "¿Eliminar el modelo descargado \"{name}\"?",
+        "body": "Borra sus pesos descargados del disco. El modelo permanece en tu catálogo y se vuelve a descargar según sea necesario. Primero se quita de la memoria el modelo cargado."
+      },
+      "reset": {
+        "title": "¿Restablecer el catálogo de modelos a los valores de fábrica?",
+        "body": "Restaura los modelos integrados. Tus modelos añadidos se conservan."
+      },
+      "slot": {
+        "general": "Modelo general",
+        "embedding": "Modelo de embedding",
+        "removed": "{id} — eliminado del catálogo",
+        "choose": "Elige un modelo…",
+        "chooseEmbed": "Elige un modelo de embedding…",
+        "generalGone": "Tus tareas todavía apuntan a él, pero ya no está; elige un reemplazo aquí.",
+        "generalSet": "{use} — todas las tareas lo usan a menos que sobrescribas una tarea. Cambiarlo reemplaza el modelo cargado.",
+        "generalRecommend": "{use} — recomendamos {model} para esta PC.",
+        "generalPick": "{use} — elige uno para comenzar.",
+        "embedGone": "La búsqueda todavía apunta a él, pero ya no está; elige un reemplazo aquí.",
+        "embedSet": "Potencia la búsqueda semántica + el chat con base en datos, junto con tu modelo General. Cambiarlo reemplaza el modelo cargado.",
+        "embedRecommend": "Potencia la búsqueda semántica + el chat con base en datos — recomendamos {model} para esta PC.",
+        "embedPick": "Potencia la búsqueda semántica + el chat con base en datos — elige uno para comenzar."
+      },
+      "state": {
+        "loaded": "● cargado",
+        "unloading": "Quitando de la memoria…",
+        "slotLoadFailed": "error al cargar — consulta su fila abajo",
+        "loadsOnFirstUse": "○ se carga al primer uso",
+        "loadsOnFirstSearch": "○ se carga en la primera búsqueda",
+        "slotNotDownloaded": "no descargado — mira su fila abajo",
+        "working": "Trabajando…",
+        "failed": "Fallido — mira abajo",
+        "downloaded": "Descargado",
+        "notDownloaded": "No descargado"
+      },
+      "btn": {
+        "loadNow": "Cargar ahora",
+        "loadNowTitle": "Cárgalo en la memoria ahora para que tu primera escritura no tenga que esperar la carga",
+        "loadNowEmbedTitle": "Cárgalo en la memoria ahora, junto con tu modelo de chat",
+        "unload": "Quitar de la memoria",
+        "unloadTitle": "Quitar de la memoria — libera VRAM; se cargará de nuevo en el próximo uso",
+        "unloadEmbedTitle": "Quitar de la memoria — libera VRAM; se cargará de nuevo en la próxima búsqueda",
+        "reset": "Restablecer catálogo",
+        "add": "Añadir modelo",
+        "editTitle": "Editar campos del catálogo",
+        "unloadModel": "Quitar de la memoria",
+        "unloadModelTitle": "Libera la memoria (VRAM) de este modelo; se volverá a cargar en el próximo uso",
+        "loadModel": "Cargar modelo",
+        "loadModelTitle": "Carga este modelo en la memoria ahora para que la primera ejecución no tenga que esperar",
+        "isDefault": "Predeterminado ✓",
+        "setDefault": "Establecer como predeterminado",
+        "setEmbedTitle": "Haz que este sea el modelo de embedding para la búsqueda semántica + el chat con base en datos. Se carga la primera vez que una búsqueda lo necesita, o presiona Cargar modelo para precargarlo ahora.",
+        "setDefaultTitle": "Haz que este sea el modelo predeterminado para cada tarea. Se carga en el primer uso, o presiona Cargar modelo para precargarlo ahora."
+      },
+      "title": "Catálogo de modelos",
+      "thisPc": "Esta PC",
+      "pcClass": "Clase de PC {name}",
+      "search": "Buscar modelos…",
+      "loading": "Cargando catálogo…",
+      "noMatch": "No hay modelos que coincidan con “{query}”.",
+      "empty": "No hay modelos en el catálogo; {add} para añadir los tuyos o {reset} para restaurar los integrados.",
+      "noFit": "No cabe en esta máquina — {n} más",
+      "sizeTitle": "Tamaño de descarga en disco",
+      "sizeOnDisk": "Tamaño en disco · {size}",
+      "needs": "Requiere {vram} GB de VRAM · {ram} GB de RAM",
+      "needsUnknown": "Requisitos de hardware desconocidos — edita el modelo para establecer sus requisitos",
+      "yourNotes": "Tus notas: {notes}",
+      "benchTitle": "Posición en un benchmark publicado de propósito general (menor = mejor); “—” = sin clasificar",
+      "measuredTitle": "Medido en esta PC — reemplaza la estimación",
+      "tokS": "{n} tok/s",
+      "menu": {
+        "more": "Más acciones",
+        "tune": "Ajustar y medir",
+        "redownload": "Volver a descargar",
+        "openFolder": "Abrir carpeta",
+        "viewHf": "Ver en Hugging Face",
+        "deleteDownload": "Eliminar modelo descargado",
+        "deleteCatalog": "Eliminar del catálogo"
+      },
+      "foot": "Los modelos se descargan desde {hub} — el hub de modelos abiertos. Los modelos se cargan automáticamente cuando una tarea los utiliza; tu chat predeterminado y el embedding pueden ejecutarse al mismo tiempo.",
+      "footHub": "Hugging Face ↗",
+      "form": {
+        "editTitle": "Editar {name}",
+        "name": "Nombre",
+        "idLine": "id: {id}",
+        "sourceTitle": "Origen de la descarga",
+        "sourceBody": "desde donde se descarga el GGUF. Lo único que debes configurar; el resto se lee del propio modelo.",
+        "repo": "Repo de Hugging Face",
+        "cardLink": "ficha del modelo ↗",
+        "cardLinkTitle": "Abre la ficha del modelo en tu navegador: detalles completos, archivos, licencia",
+        "inspect": "Cargar info del modelo desde HF",
+        "inspectHint": "lista las cuantizaciones del repo (tamaños · QAT/IQ) + lee el encabezado GGUF",
+        "quant": "Cuantización",
+        "quantPh": "elige una cuantización",
+        "chooseFromList": "elige de la lista",
+        "autoTitle": "Detectado automáticamente desde el archivo",
+        "autoBody": "leído del encabezado GGUF (al leer desde el enlace, o confirmado al descargar)",
+        "architecture": "Arquitectura",
+        "experts": "{n} expertos",
+        "sizeFile": "Tamaño (archivo)",
+        "trainedCtx": "Contexto entrenado",
+        "tokens": "{n} tokens",
+        "samplers": "Muestreadores recomendados",
+        "downloadSize": "Tamaño de descarga",
+        "estVram": "≈ {mb} MB VRAM (GPU completa · ctx 8K)",
+        "pooling": "Agrupación de embeddings: {pooling}",
+        "poolingBody": "cómo se combinan los vectores de tokens del modelo en un solo embedding (media · cls · último). Definido para cada modelo de embedding; es de solo lectura aquí porque una agrupación incorrecta degrada la calidad de la búsqueda.",
+        "whatTitle": "Qué es este modelo",
+        "whatBody": "detectado automáticamente desde el archivo; cámbialo si sabes más.",
+        "moe": "MoE",
+        "moeHint": "mezcla de expertos (mueve expertos a la RAM)",
+        "mtpHint": "predicción de múltiples tokens (decodificación especulativa). Marca para habilitar + configurar abajo.",
+        "embeddingHint": "un modelo de RAG/búsqueda, no un LLM de chat",
+        "mtpOff": "MTP desactivado — el borrador de este repo usa una arquitectura que tu motor no puede cargar.",
+        "mtpOffArch": "MTP desactivado: el borrador de este repo usa una arquitectura que tu motor no puede cargar ({arch}).",
+        "moeNote": "los expertos se mueven a la RAM del sistema; el inicio fija las capas en la GPU y libera VRAM mediante capas MoE en la CPU (añade {noMmap} al cargar). Ajusta {nCpuMoe} para cada máquina en {tune}.",
+        "mtpConfig": "Configuración de MTP",
+        "mtpBuiltinNote": "cabezas de predicción integradas; no se necesita un borrador externo.",
+        "mtpExternalNote": "se ejecuta mediante un archivo de borrador de decodificación especulativa externo (una descarga aparte).",
+        "mtpEnabling": "Al activarlo se añade {spec} al cargar; desmarca para desactivar MTP.",
+        "draftFile": "Archivo de borrador",
+        "draftFileBuiltin": "opcional — MTP integrado",
+        "draftFileHint": "el modelo de decodificación especulativa (alimenta --model-draft)",
+        "draftRepo": "Repo de borrador",
+        "draftRepoHint": "opcional — en blanco = el mismo repo que el modelo",
+        "borrowed": "Borrador oficial prestado: {repo} / {file} — este modelo no incluye ninguno propio, por lo que usa el de la familia base.",
+        "tplTitle": "Plantillas de tareas",
+        "tplBody": "algunos modelos de embedding necesitan una instrucción alrededor del texto (el espacio es {'{'}text{'}'}; déjalo vacío si el modelo no la necesita). Cambiar esto requiere reconstruir el índice del libro.",
+        "docTpl": "Plantilla de documento",
+        "docTplHint": "se aplica al indexar",
+        "queryTpl": "Plantilla de consulta",
+        "queryTplHint": "aplicada a preguntas/búsquedas",
+        "fitTitle": "Estimación de compatibilidad",
+        "fitBody": "calculada a partir del propio archivo del modelo (lee el enlace una vez y la aplicación sabrá lo que el archivo necesita); no tienes que resolver nada aquí. Los modelos de embedding mantienen mínimos establecidos manualmente: guían al asistente, no a la insignia.",
+        "totalParams": "Total de parámetros",
+        "activeParams": "Parámetros activos",
+        "moeOnly": "Solo MoE",
+        "minVram": "VRAM mín. (MB)",
+        "minRam": "RAM mín. (MB)",
+        "needsComputed": "Requiere {vram} GB de VRAM · {ram} GB de RAM — calculado desde el archivo, se actualiza al leer.",
+        "licenseHint": "ID de SPDX (Apache-2.0 · MIT · Llama-Community · …)",
+        "useLimited": "Licencia de uso limitado",
+        "useLimitedHint": "no es gratuita para uso comercial/sin restricciones; muestra la insignia ⚠",
+        "descTitle": "Descripción y tus notas",
+        "descBody": "la descripción se actualiza con los datos del archivo al leer el enlace; las notas son solo tuyas y nunca se modifican con lecturas, descargas ni restablecimientos.",
+        "description": "Descripción",
+        "descriptionHint": "generado a partir de la tarjeta de información de HF",
+        "descriptionPh": "Qué es este modelo — actualizado desde los datos del archivo",
+        "notes": "Notas",
+        "notesHint": "tuyas — mediciones, gustos, política de uso",
+        "notesPh": "p. ej. TTFT de escritura medido de 1.6 s en mi máquina; mi favorito para escenas oscuras",
+        "bench": "Posición en el benchmark",
+        "benchHint": "orden de benchmark general publicado; menor = mejor; 100 = sin clasificar (se ordena al final)"
+      },
+      "license": {
+        "word": "licencia",
+        "limited": "{license} — de uso limitado: no es gratuito para uso comercial/sin restricciones, nunca es el predeterminado. El catálogo solo lo enumera; los pesos se descargan en tu máquina.",
+        "permissive": "{license} — permisiva (libre de uso).",
+        "unknown": "licencia desconocida"
+      },
+      "quantSpecial": "especial",
+      "compose": {
+        "embedding": "modelo de embedding",
+        "moe": "modelo de mezcla de expertos",
+        "model": "modelo",
+        "withParams": "{params} {kind}",
+        "context": "{n}k de contexto",
+        "mtpDraft": "borrador MTP para una generación más rápida",
+        "mtpBuiltin": "MTP para una generación más rápida"
+      }
+    },
+    "fit": {
+      "ok": "Cabe",
+      "tight": "Justo",
+      "cpu": "CPU",
+      "no": "No cabe",
+      "gpu": "GPU",
+      "recommended": "Recomendado",
+      "warning": "La estimación indica que esta PC no tiene la memoria suficiente. Aun así puedes cargarlo; el motor lo intentará y se detendrá si la carga falla."
+    },
+    "speedBand": {
+      "fast": "rápido",
+      "fine": "aceptable",
+      "slow": "lento",
+      "painful": "muy lento",
+      "predicted": "~{n} tok/s"
+    },
+    "tune": {
+      "classLayer": "configuración de clase de PC",
+      "badge": {
+        "auto": "Ajustado automáticamente",
+        "hand": "Ajustado manualmente",
+        "class": "Ajustado por @:kit.tune.classLayer",
+        "elsewhere": "No ajustado aquí",
+        "untuned": "No ajustado"
+      }
+    },
+    "source": {
+      "preset": "este preajuste",
+      "tune": "tu configuración aplicada",
+      "class": "@:kit.tune.classLayer",
+      "base": "predeterminado global",
+      "default": "predeterminado integrado",
+      "invalid": "valor no válido"
+    },
+    "aiArea": {
+      "lede": "Conecta proveedores de IA —ya sean locales gratuitos o en la nube con pago por uso— y gestiona qué modelos impulsan cada función.",
+      "hw": {
+        "os": "SO",
+        "cpu": "CPU",
+        "memory": "Memoria",
+        "gpu": "GPU",
+        "acceleration": "Aceleración",
+        "vram": "{size} VRAM",
+        "inUse": "{rt} (en uso)",
+        "supported": "{rt} (compatible)",
+        "threads": "{n} hilos",
+        "cpuOnly": "Solo CPU"
+      },
+      "mem": {
+        "vramReserved": "VRAM reservada",
+        "memoryReserved": "Memoria reservada",
+        "vramUsed": "VRAM usada",
+        "memoryUsed": "Memoria usada",
+        "ofTotal": "{gb} de {total} GB",
+        "gb": "{gb} GB",
+        "free": "Libre",
+        "reservedTitle": "Esta máquina no tiene un sondeo de memoria por proceso; estas son las reservas que lleva el registro, no una medición",
+        "usedTitle": "Ocupación medida: lo que la tarjeta contiene realmente en este momento",
+        "llm": "LLM",
+        "loaded": "cargado",
+        "asleep": "en reposo",
+        "llmTitle": "La memoria reservada por el ejecutor de IA para sus modelos cargados",
+        "asleepTitle": "Inactivo, por lo que su memoria ha sido liberada; se recargará en la próxima solicitud",
+        "otherApps": "Otras aplicaciones",
+        "otherAppsTitle": "Memoria retenida por procesos que esta aplicación no gestiona (navegador, compositor de escritorio, juegos)",
+        "hide": "ocultar",
+        "showApps": "mostrar aplicaciones"
+      },
+      "gpuApps": {
+        "readFailed": "No se pudo leer la lista de procesos: {error}",
+        "title": "Usando la GPU en este momento",
+        "reading": "Leyendo los contadores de la GPU del sistema…",
+        "none": "Ningún proceso está reteniendo memoria de la GPU en este momento.",
+        "pid": "pid {pid}",
+        "thisApp": "esta aplicación",
+        "nvidiaNote": "Reportado por nvidia-smi, que solo detecta cargas de trabajo de cómputo; las aplicaciones que usan la GPU puramente para gráficos no aparecerán aquí.",
+        "sumNote": "Estos suman un poco menos que el total anterior: la sobrecarga del controlador y del escritorio no se asigna a ningún proceso en particular."
+      },
+      "clipboardFailed": "No se pudo acceder al portapapeles; selecciona y copia desde la consola en su lugar.",
+      "debug": {
+        "title": "Copia el estado de IA de esta máquina —hardware, controlador, versión del motor, claves de ajuste, VRAM, modelos cargados— para un informe de errores",
+        "copy": "Copiar información de depuración"
+      },
+      "usage": {
+        "colCalls": "Llamadas",
+        "colPrompt": "Prompt",
+        "colCompletion": "Respuesta",
+        "colCost": "Costo",
+        "colFeature": "Función",
+        "colProvider": "Proveedor",
+        "sub": "Tokens + costo estimado en cada llamada de IA. Los proveedores locales se registran a $0.",
+        "reset": "Restablecer registro",
+        "calls": "llamadas",
+        "tokens": "tokens",
+        "prompt": "prompt",
+        "completion": "respuesta",
+        "cost": "costo est.",
+        "byFeature": "Por función",
+        "byProvider": "Por proveedor",
+        "none": "Aún no hay uso registrado."
+      },
+      "cap": {
+        "llm": "LLM",
+        "embed": "EMBED"
+      },
+      "status": {
+        "checking": "Comprobando…",
+        "ok": "Conectado",
+        "fail": "Fallido",
+        "unchecked": "No comprobado"
+      },
+      "setDefault": {
+        "done": "{name} es ahora el proveedor predeterminado; las tareas se ejecutan en {model}.",
+        "failed": "Error al establecer como predeterminado: {error}",
+        "title": "Establecer como proveedor predeterminado",
+        "becomes": "{name} pasa a ser el predeterminado para tus tareas de IA; se ejecutan en {model}.",
+        "embedUnchanged": "Tu embedding ({model}) ya se ejecuta aquí; no se ha cambiado.",
+        "embedAlso": "También se convierte en el proveedor de embeddings (búsqueda): {model}.",
+        "embedKept": "Los embeddings de búsqueda mantienen su proveedor actual; este proveedor no tiene ningún modelo de embedding configurado.",
+        "overwrite": "También sobrescribir los preajustes que personalicé",
+        "assignFirst": "Asigna un modelo de chat primero — elige uno en el Catálogo de modelos (Editar este proveedor) o ejecuta la Configuración rápida.",
+        "fillFirst": "Configura primero el modelo de chat de este proveedor — abre Editar y completa {field}.",
+        "defaultModelField": "Modelo predeterminado",
+        "editProvider": "Editar proveedor"
+      },
+      "hwChanged": {
+        "title": "Tu hardware gráfico ha cambiado",
+        "body": "Es posible que ahora un modelo diferente quepa en esta PC — ejecuta la Configuración rápida para volver a comprobarlo, o vuelve a ajustar tu modelo actual desde su diálogo Ajustar y medir (Editar el servidor integrado)."
+      },
+      "providers": {
+        "title": "Proveedores",
+        "configured": "{n} configurado | {n} configurados",
+        "add": "Añadir proveedor",
+        "builtin": "Integrado",
+        "chat": "chat:",
+        "embed": "embed:",
+        "keySet": "Clave de API establecida",
+        "noKey": "sin clave",
+        "test": "Probar",
+        "noLocal": "Aún no hay proveedores locales. Haz clic en “{add}” y apunta a {url}",
+        "noCloud": "No hay proveedores en la nube. Haz clic en “{add}” y pega una clave de OpenAI / Anthropic / OpenRouter.",
+        "isDefault": "Predeterminado ✓",
+        "setDefault": "Establecer como predeterminado"
+      },
+      "scope": {
+        "local": "Local · gratuito",
+        "localSub": "Se ejecuta en tu máquina — sin clave de API, sin costo por token",
+        "online": "En línea · con medición de uso",
+        "onlineSub": "Tu cuenta — clave de API + URL; paga por token"
+      }
+    },
     "common": {
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "copy": "Copiar",
+      "copied": "Copiado ✓",
+      "loading": "Cargando…",
+      "thisPc": "Esta PC",
+      "builtin": "Integrado",
+      "removeItem": "Quitar {item}",
+      "tag": "etiqueta",
+      "save": "Guardar",
       "cancel": "Cancelar",
       "close": "Cerrar",
       "retry": "Reintentar",
       "dismiss": "Descartar",
-      "refresh": "Actualizar"
+      "download": "Descargar",
+      "refresh": "Actualizar",
+      "remove": "Eliminar",
+      "saving": "Guardando…",
+      "resetDefaults": "Restablecer valores predeterminados",
+      "inheritDefault": "Heredar predeterminado",
+      "reset": "Restablecer",
+      "loadFailed": "No se pudo cargar: {error}"
+    },
+    "classTunes": {
+      "memType": {
+        "discrete": "GPU dedicada (VRAM independiente)",
+        "integrated": "GPU integrada (comparte la RAM del sistema)",
+        "unified": "Memoria unificada (Apple Silicon / SoC)"
+      },
+      "shortfall": "{model} necesita aproximadamente {vram} GB de VRAM y {ram} GB de RAM; más de lo que esta clase de PC tiene. Aún puedes guardar una configuración para él.",
+      "err": {
+        "load": "No se pudo cargar la biblioteca de la clase de PC.",
+        "setClass": "No se pudo establecer la clase para esta PC.",
+        "autoDetect": "No se pudo volver a la detección automática.",
+        "memoryGb": "Ingresa la memoria en GB enteros.",
+        "vramGb": "Ingresa la VRAM en GB enteros.",
+        "saveClass": "No se pudo guardar la clase de PC.",
+        "deleteClass": "No se pudo eliminar la clase de PC.",
+        "pickModel": "Elige el modelo para el cual es esta configuración.",
+        "oneSwitch": "Añade al menos un interruptor de inicio.",
+        "saveConfig": "No se pudo guardar la configuración.",
+        "deleteConfig": "No se pudo eliminar la configuración.",
+        "json": "Eso no es un JSON válido; pega una configuración copiada de este panel.",
+        "needsClassKey": "La configuración necesita una \"classKey\" y un objeto \"switches\" que no esté vacío.",
+        "needsModelId": "La configuración necesita un \"modelId\" aquí; este panel abarca todos los modelos.",
+        "import": "Error al importar."
+      },
+      "delClass": {
+        "title": "¿Eliminar esta clase de PC?",
+        "body": "¿Eliminar \"{name}\" y todas sus configuraciones de clase de PC? Las PC de esa clase volverán a la configuración automática del motor."
+      },
+      "saved": "Configuración de clase de PC guardada ✓",
+      "delConfig": {
+        "title": "¿Eliminar esta configuración de clase de PC?",
+        "body": "¿Eliminar la configuración de inicio de {model} para esta clase de PC?"
+      },
+      "title": "Clases de PC",
+      "titleSub": "perfiles de PC con nombre — cada uno contiene la configuración de clase de PC por modelo",
+      "help": "Una clase de PC agrupa PC con memoria similar. Cada clase almacena un conjunto de interruptores de inicio por modelo, que se usan automáticamente en cada PC de esa clase, a menos que esa máquina tenga su propia configuración ajustada.",
+      "helpOverride": "La detección elige tu clase; puedes cambiarla a continuación.",
+      "hwNotDetected": "hardware no detectado",
+      "notDetected": "no detectado",
+      "savingTo": "Guardando en la clase de PC",
+      "saveForClass": "Guardar para esta clase",
+      "setManually": "Configurar manualmente",
+      "useAutoDetect": "Usar detección automática",
+      "form": {
+        "name": "Nombre",
+        "nameHint": "(opcional — una etiqueta como \"Mi laptop\")",
+        "namePh": "p. ej. Mi PC",
+        "hwType": "Tipo de hardware",
+        "vram": "VRAM (GB)",
+        "systemRam": "RAM del sistema (GB)",
+        "memory": "Memoria (GB)",
+        "vramBw": "Ancho de banda de VRAM (GB/s)",
+        "vramBwHint": "(opcional — estimación de velocidad)",
+        "ramBw": "Ancho de banda de RAM (GB/s)",
+        "memoryBw": "Ancho de banda de memoria (GB/s)",
+        "optional": "(opcional)",
+        "savedAs": "Guardado como {name} — una clase cubre un rango de máquinas, por lo que los tamaños cercanos comparten una configuración.",
+        "saveClass": "Guardar clase",
+        "model": "Modelo"
+      },
+      "forClass": "Para la clase",
+      "saveConfig": "Guardar configuración",
+      "importPh": "Pega una configuración copiada de este panel — {'{'}\"modelId\": …, \"classKey\": …, \"switches\": {'{'}…{'}'}{'}'}",
+      "import": "Importar",
+      "empty": "Aún no hay clases de PC — añade una para tu PC, o mide una configuración en el diálogo Ajustar y medir de un modelo y usa \"Guardar para la clase de PC\".",
+      "useForThisPc": "Usar para esta PC",
+      "moreModels": "{n} modelo más en esta clase — sin interruptores aún | {n} modelos más en esta clase — sin interruptores aún",
+      "noSwitches": "sin interruptores",
+      "addSwitches": "Añadir interruptores",
+      "addModel": "Añadir modelo a esta clase",
+      "addClass": "Añadir clase de PC",
+      "importConfig": "Importar configuración…",
+      "key": {
+        "discrete": "{vram} GB VRAM · {ram} GB RAM",
+        "unified": "Memoria unificada · {gb} GB",
+        "integrated": "GPU integrada · {gb} GB"
+      }
+    },
+    "tuneModal": {
+      "group": {
+        "global": "Valores predeterminados globales de inicio",
+        "computed": "Calculado para esta PC",
+        "applied": "Tu configuración aplicada"
+      },
+      "badge": {
+        "onThisPc": "{label} en esta PC ✓",
+        "applied": "Aplicado en esta PC ✓",
+        "untuned": "{label} — usando los valores predeterminados por capas"
+      },
+      "refreshed": "Se cargaron los valores predeterminados de hoy en la cuadrícula; revísalos y luego haz clic en Aplicar para confirmar.",
+      "applying": "aplicando — recargando el modelo con la nueva configuración",
+      "apply": {
+        "more": "{names} +{n} más",
+        "everyPreset": "Cada preajuste que use este modelo en esta PC ejecutará estos interruptores.",
+        "presets": "Cada preajuste que use este modelo en esta PC ejecutará estos interruptores: {names}.",
+        "noPreset": "Ningún preajuste usa este modelo actualmente; la configuración surtirá efecto cada vez que se cargue.",
+        "title": "¿Aplicar a {model}?",
+        "body": "{scope} El modelo se recargará ahora si se está ejecutando. (La temperatura, los tokens y el pensamiento se mantienen por preajuste — sin cambios.)",
+        "button": "Aplicar",
+        "buttonTitle": "Configura los interruptores del motor de este modelo para cada tarea que lo use en esta PC; el modelo se recargará ahora si se está ejecutando",
+        "doneReloaded": "Aplicado ✓ — el modelo se recargó; cada preajuste que lo use ejecuta esta configuración ahora.",
+        "doneNextLoad": "Aplicado ✓ — cada preajuste que use este modelo ejecutará esta configuración a partir de su próxima carga."
+      },
+      "remove": {
+        "doneReloaded": "Eliminado — el modelo se recargó con sus valores predeterminados por capas.",
+        "doneNextLoad": "Eliminado ✓ — el modelo usará sus valores predeterminados por capas en su próxima carga.",
+        "title": "Eliminar la configuración aplicada a esta PC — el modelo volverá a sus valores predeterminados por capas (se recarga ahora si se está ejecutando)",
+        "button": "Eliminar configuración aplicada"
+      },
+      "err": {
+        "defaults": "No se pudieron cargar los valores predeterminados de hoy.",
+        "apply": "No se pudo aplicar la configuración.",
+        "remove": "No se pudo eliminar la configuración aplicada.",
+        "reset": "No se pudieron restablecer los valores predeterminados.",
+        "oneSwitch": "Primero añade al menos un interruptor.",
+        "saveClass": "No se pudo guardar la configuración de clase de PC.",
+        "load": "Error al cargar.",
+        "loadTimeout": "Se agotó el tiempo de espera mientras se cargaba el modelo.",
+        "measure": "Error en la medición.",
+        "autoTune": "Error en el ajuste automático.",
+        "autoTunePoll": "Error en el sondeo del ajuste automático.",
+        "autoTuneBusy": "El ajuste automático está ocupado.",
+        "autoTuneStart": "No se pudo iniciar el ajuste automático."
+      },
+      "auto": {
+        "confirmTitle": "¿Ejecutar el ajuste automático?",
+        "confirmBody": "Esto puede tardar mucho tiempo —de 4 a 30 minutos dependiendo de tu hardware— mientras carga y mide configuraciones reales. Por lo general, ofrece los mejores resultados para un modelo que aún no se ha ajustado. Puedes cancelar después de cualquier prueba.",
+        "button": "Ajuste automático",
+        "title": "Ejecuta un barrido medido (4–30 minutos dependiendo del hardware) y llena la cuadrícula con la configuración más rápida —revisa y luego haz clic en Aplicar",
+        "cancel": "Cancelar ajuste automático",
+        "cancelTitle": "Detener cuando termine la prueba actual",
+        "running": "Ajustando automáticamente — {detail}",
+        "working": "trabajando…",
+        "winner": "ganador → cuadrícula (revisa, luego Aplicar)"
+      },
+      "title": "Ajustar y medir — {model}",
+      "lede": "Cada sección muestra de dónde provienen sus interruptores: ajusta, mide y luego {apply}.",
+      "ledeSamplers": "Los parámetros como la temperatura se configuran en las pestañas de Tareas o de Enrutamiento por función.",
+      "drift": "Los valores predeterminados han cambiado desde que aplicaste esta configuración — {n} valor es diferente. | Los valores predeterminados han cambiado desde que aplicaste esta configuración — {n} valores son diferentes.",
+      "refreshTitle": "Carga los valores predeterminados de hoy en la cuadrícula —tu configuración aplicada se mantendrá hasta que presiones Aplicar",
+      "refresh": "Actualizar desde los valores predeterminados",
+      "unknown": {
+        "tag": "No reconocido",
+        "body": "{names} — no es un flag de motor conocido (error de escritura o eliminado por una actualización del motor). Elimínalo o corrígelo, o usa el prefijo “--” para un flag sin procesar."
+      },
+      "resetDefault": "Restablecer al valor predeterminado del modelo",
+      "classLibTitle": "Configuraciones de clase de PC de este modelo: los puntos de partida compartidos que utiliza una máquina sin su propia configuración aplicada",
+      "classLib": "Configuraciones de clase de PC ↗",
+      "globalLibTitle": "Los paquetes de interruptores siempre activos (todos los modelos · MoE · densos · decodificación especulativa) debajo de cada ajuste",
+      "globalLib": "Valores predeterminados globales de inicio ↗",
+      "measuring": "Midiendo la velocidad de decodificación…",
+      "result": {
+        "vram": "VRAM {gb} GB",
+        "ram": "RAM {gb} GB",
+        "cpu": "No se detectó GPU; se midió en CPU.",
+        "classSaved": "Guardado como la configuración de clase de PC para las PC como esta ({name}) ✓",
+        "offerClass": "¿Funciona bien? Conviértelo en el punto de partida para cada PC como esta ({name}); las máquinas con su propio ajuste guardado lo mantendrán.",
+        "saveClass": "Guardar para la clase de PC"
+      },
+      "classLibModal": "Configuraciones de clase de PC — {model}",
+      "measureAgain": "Medir de nuevo",
+      "loadMeasure": "Cargar y medir"
+    },
+    "sync": {
+      "theApp": "la aplicación",
+      "item": "elemento",
+      "items": "elementos",
+      "otherDevice": "el otro dispositivo",
+      "theFile": "el archivo",
+      "ago": {
+        "justNow": "hace un momento",
+        "min": "hace {n} min",
+        "h": "hace {n} h"
+      },
+      "kind": {
+        "file": "manualmente",
+        "folder": "carpeta en la nube",
+        "http": "red"
+      },
+      "toast": {
+        "unfinished": "La sincronización no terminó: {errors}",
+        "synced": "Sincronizado.",
+        "restart": "Reinicia {app} para que esto surta efecto.",
+        "restartReach": "Reinicia {app} para que tus otros dispositivos puedan conectarse.",
+        "codeCopied": "Código de emparejamiento copiado.",
+        "copyFailed": "No se pudo copiar; selecciona el código y cópialo.",
+        "paired": "Emparejado con {who}.",
+        "joined": "Te uniste a la biblioteca de {who}. {who} no respondió; los cambios llegan a través de la carpeta en la nube o cuando se pueda establecer conexión.",
+        "downloaded": "Archivo de sincronización descargado.",
+        "saved": "Archivo de sincronización guardado.",
+        "imported": "Importado desde {from}: {n} cambio. | Importado desde {from}: {n} cambios."
+      },
+      "folderOther": "Esta carpeta ya contiene otra biblioteca ({names}). Para unirte, empareja primero con un código de uno de esos dispositivos; de lo contrario, tus {units} iniciarán una segunda biblioteca en esta carpeta.",
+      "err": {
+        "export": "Error al exportar (HTTP {status}).",
+        "import": "Error al importar (HTTP {status})."
+      },
+      "save": {
+        "title": "Guardar {units} para otro dispositivo",
+        "filterName": "Archivo de sincronización de {app}"
+      },
+      "join": {
+        "title": "¿Unirte a otra biblioteca?",
+        "body": "Este archivo es de otra biblioteca. ¿Unirte? Tus {units} se fusionarán con esa biblioteca de ahora en adelante.",
+        "bodyFrom": "Este archivo es de otra biblioteca ({from}). ¿Unirte? Tus {units} se fusionarán con esa biblioteca de ahora en adelante.",
+        "confirm": "Unirse e importar"
+      },
+      "status": {
+        "synced": "Sincronizado {ago} · desde {from}",
+        "never": "Aún no sincronizado con otro dispositivo",
+        "thisDevice": "Este dispositivo: {name}."
+      },
+      "syncNow": "Sincronizar ahora",
+      "syncNowNeeds": "Elige una carpeta en la nube o empareja un dispositivo primero.",
+      "device": {
+        "title": "Este dispositivo",
+        "name": "Nombre",
+        "nameHint": "Tus otros dispositivos verán este nombre.",
+        "every": "Sincronizar automáticamente cada",
+        "minutes": "minutos",
+        "zero": "Con 0, solo se sincroniza cuando presionas Sincronizar ahora."
+      },
+      "others": {
+        "title": "Otros dispositivos",
+        "allow": "Permitir que mis otros dispositivos se conecten",
+        "allowHint": "Esta computadora acepta {app} en tus otros dispositivos — en la misma red Wi-Fi, o a través de Tailscale o ZeroTier. Se aplica cuando {app} se reinicie.",
+        "showCode": "Mostrar código de emparejamiento",
+        "codeAlt": "Código de emparejamiento",
+        "codeHint": "En el otro dispositivo: Configuración → Sincronización → Emparejar con un código, y pega o escanea esto. Contiene la clave de esta biblioteca; compártela solo con tus propios dispositivos.",
+        "copyCode": "Copiar código",
+        "hide": "Ocultar",
+        "phoneHint": "Empareja este dispositivo con una computadora: en la computadora, ve a Configuración → Sincronización → Otros dispositivos → Mostrar código de emparejamiento; luego escanéalo o pégalo aquí.",
+        "pairTitle": "Emparejar con un código",
+        "pastePh": "Pega el código de emparejamiento de tu otro dispositivo",
+        "pair": "Emparejar",
+        "scan": "Escanear código…"
+      },
+      "folder": {
+        "title": "Carpeta en la nube",
+        "hint": "Una carpeta que Dropbox, OneDrive u otra aplicación de sincronización mantiene igual en cada dispositivo. Cada dispositivo escribe sus propios archivos cifrados allí.",
+        "notHere": "Aún no está en este dispositivo; necesita iniciar sesión en OneDrive o Dropbox. Empareja con una computadora o traslada el archivo manualmente.",
+        "none": "No hay ninguna carpeta seleccionada.",
+        "pathPh": "La ruta completa de la carpeta",
+        "use": "Usar esta carpeta",
+        "change": "Cambiar carpeta…",
+        "choose": "Elegir carpeta…",
+        "stop": "Dejar de usarla"
+      },
+      "hand": {
+        "title": "Manualmente",
+        "hint": "Sin red ni cuenta: exporta un archivo, llévalo al otro dispositivo como prefieras e impórtalo allí. La importación combina los datos; importar el mismo archivo dos veces no cambia nada.",
+        "none": "Aún no hay {units}.",
+        "ticked": "Marcados: los {units} que cambiaron desde tu última exportación.",
+        "encrypt": "Cifrar el archivo con la clave de esta biblioteca",
+        "export": "Exportar…",
+        "import": "Importar…"
+      },
+      "devices": {
+        "title": "Dispositivos",
+        "none": "Aún no hay ninguno.",
+        "network": "Sincronizado por la red",
+        "beforeRestore": "{name} (antes de la restauración del {date})"
+      }
+    },
+    "configColumn": {
+      "inherit": "— heredar —",
+      "localBudget": "local: presupuesto de pensamiento {value} — {source}",
+      "labTask": "Prueba de laboratorio — {action}",
+      "cancelled": "Cancelado.",
+      "noLlm": "No hay ningún LLM conectado; configura un modelo arriba o conecta un proveedor.",
+      "runFailed": "Error al ejecutar.",
+      "removeColumn": "Eliminar columna",
+      "preset": "Preajuste",
+      "startFresh": "— empezar de cero —",
+      "inProd": "● en producción",
+      "inProdTitle": "Este preajuste está en producción para esta función",
+      "useProd": "Usar en producción",
+      "useProdTitle": "Haz que este preajuste sea el que utiliza esta función",
+      "saveTitle": "Guarda los cambios directamente en el preajuste cargado; \"Guardar como preajuste\" crea en cambio una copia nueva",
+      "namePh": "nombre — Enter",
+      "saveAs": "Guardar como preajuste",
+      "saveAsTitle": "Guarda esta configuración probada como un preajuste reutilizable",
+      "deleteTitle": "Eliminar este preajuste",
+      "providerModel": "Proveedor y modelo",
+      "engine": "Interruptores del motor ↗",
+      "engineTitle": "Abre Ajustar y medir para este modelo; los interruptores del motor se configuran una vez por modelo y se comparten con cada tarea que lo utiliza",
+      "engineHint": "compartidos por cada tarea que use este modelo — se configuran en Ajustar y medir",
+      "system": "Prompt del sistema",
+      "instruction": "Instrucción",
+      "instructionHint": "plantilla de usuario · marcadores de posición {hint}",
+      "temp": "Temp",
+      "topP": "Top-p",
+      "topPHint": "vacío=predet.",
+      "maxTok": "Máx. tok",
+      "maxTokHint": "0=ninguno",
+      "reasoning": "Razonamiento",
+      "json": "Salida como JSON",
+      "jsonTitle": "Salida como JSON — el modelo debe devolver un JSON válido para esta función. Actívalo cuando la aplicación necesite el resultado como datos estructurados en lugar de prosa. Guardado para esta función.",
+      "localBudgetTitle": "El reasoning_budget por capas del modelo en esta PC (Valores predeterminados globales de inicio → configuración de clase de PC → tu configuración aplicada) — edítalo en Ajustar y medir",
+      "samplers": "Muestreadores",
+      "samplersHint": "top_k · min_p · penalizaciones · mirostat … (principalmente local)",
+      "customOrder": "Orden personalizado de muestreadores",
+      "moveUp": "Mover arriba",
+      "moveDown": "Mover abajo",
+      "resetOrder": "Restablecer orden",
+      "resetOrderTitle": "Restaurar el orden predeterminado de muestreadores del motor",
+      "stop": "Secuencias de parada",
+      "stopHint": "una por línea; la generación se detiene en cualquiera",
+      "stopPh": "una cadena de parada por línea",
+      "preview": "Vista previa y tokens",
+      "tokens": "{n} tokens",
+      "tokensApprox": "≈{n} tokens",
+      "overWindow": "⚠ excede la ventana",
+      "empty": "(vacío)",
+      "tokensExact": "{n} tokens (exactos)",
+      "tokensEst": "≈ {n} tokens (est.)",
+      "count": "Contar con exactitud",
+      "countTitle": "Contar con el tokenizador del modelo local cargado",
+      "window": "ventana",
+      "windowAssumedTitle": "No se seleccionó ningún modelo local; este es un valor predeterminado asumido, edítalo para que coincida con la ventana real de tu modelo",
+      "windowModelTitle": "Desde la configuración de inicio resuelta del modelo (Ajustar y medir) / modelo cargado",
+      "windowSource": {
+        "set": "establecido",
+        "loaded": "cargado",
+        "model": "modelo",
+        "assumed": "asumido"
+      },
+      "over": "⚠ prompt ≈{prompt} + {out} de salida = {used} tok excede la ventana de {window} tokens; se truncará o dará error.",
+      "near": "⚠ prompt ≈{prompt} + {out} de salida está cerca de la ventana de {window} tokens.",
+      "run": "Ejecutar",
+      "running": "Ejecutando…",
+      "raw": "Salida bruta del modelo",
+      "model": "modelo",
+      "addSampler": "＋ Añadir muestreador personalizado",
+      "samplerPlaceholder": "muestreador (p. ej. top_k)"
+    },
+    "appearance": {
+      "pairing": {
+        "finePress": "Fine Press",
+        "calm": "Moderno tranquilo",
+        "editorial": "Editorial",
+        "classic": "Clásico"
+      },
+      "tint": {
+        "neutral": "Neutral",
+        "ivory": "Marfil",
+        "paperwhite": "Blanco papel",
+        "cool": "Gris frío",
+        "slate": "Pizarra"
+      },
+      "ink": {
+        "auto": "Auto",
+        "warm": "Cálido",
+        "neutral": "Neutral",
+        "cool": "Frío",
+        "sepia": "Sepia",
+        "soft": "Suave"
+      },
+      "scale": {
+        "compact": "Compacto",
+        "snug": "Ajustado",
+        "normal": "Normal",
+        "comfortable": "Cómodo",
+        "large": "Grande"
+      },
+      "style": {
+        "eyebrow": "Antetítulo",
+        "mono": "Mono",
+        "editorial": "Editorial",
+        "plain": "Sencillo",
+        "standard": "Estándar",
+        "bold": "Negrita"
+      },
+      "size": {
+        "xs": "XS",
+        "s": "S",
+        "m": "M",
+        "l": "L"
+      },
+      "color": {
+        "oxblood": "Sangre de buey",
+        "teal": "Verde azulado",
+        "rose": "Rosa",
+        "amber": "Ámbar",
+        "olive": "Oliva",
+        "indigo": "Índigo",
+        "plum": "Ciruela",
+        "green": "Verde",
+        "gold": "Oro",
+        "brass": "Latón",
+        "bronze": "Bronce",
+        "copper": "Cobre",
+        "sage": "Salvia",
+        "verdigris": "Cardenillo",
+        "slate": "Pizarra",
+        "mauve": "Malva",
+        "emerald": "Esmeralda",
+        "moss": "Musgo",
+        "red": "Rojo",
+        "crimson": "Carmesí",
+        "rust": "Óxido",
+        "ruby": "Rubí",
+        "blue": "Azul",
+        "sky": "Cielo",
+        "cyan": "Cian"
+      },
+      "radius": {
+        "sharp": "Recto",
+        "standard": "Estándar",
+        "rounded": "Redondeado",
+        "pill": "Píldora"
+      },
+      "density": {
+        "compact": "Compacto",
+        "comfy": "Cómodo"
+      },
+      "labelCase": {
+        "default": "Tipo oración",
+        "uppercase": "MAYÚSCULAS"
+      },
+      "panel": {
+        "localeDesc": "Idioma de la interfaz.",
+        "mode": {
+          "system": "Seguir el sistema",
+          "light": "Claro",
+          "dark": "Oscuro"
+        },
+        "theme": "Tema",
+        "themeDesc": "Claro, Oscuro o Seguir el sistema.",
+        "size": "Tamaño de la interfaz",
+        "sizeDesc": "Escala toda la interfaz —etiquetas, controles y paneles— en conjunto.",
+        "font": "Fuente de la interfaz",
+        "fontDesc": "La tipografía de la interfaz.",
+        "accent": "Tono de acento · {hue}°",
+        "accentDesc": "Arrastra para elegir un nuevo color de acento para toda la aplicación."
+      }
+    },
+    "provider": {
+      "type": {
+        "openai-compat": "Compatible con OpenAI",
+        "anthropic": "Anthropic (Claude)",
+        "gemini": "Gemini (Google)",
+        "ollama": "Ollama (nativo)",
+        "openai": "OpenAI",
+        "deepseek": "DeepSeek",
+        "openrouter": "OpenRouter",
+        "xai": "xAI (Grok)",
+        "mistral": "Mistral"
+      },
+      "noModels": "No se devolvieron modelos; comprueba la URL / la clave / que haya un modelo cargado.",
+      "fetchFailed": "Error al obtener los datos.",
+      "test": {
+        "testing": "Probando…",
+        "connected": "✓ conectado — {n} modelo | ✓ conectado — {n} modelos",
+        "noModels": "alcanzable, pero no hay modelos listados",
+        "failed": "fallido",
+        "button": "Probar conexión"
+      },
+      "err": {
+        "name": "El nombre es obligatorio.",
+        "save": "Error al guardar.",
+        "delete": "Error al eliminar."
+      },
+      "tasksNowRun": "Las tareas ahora se ejecutan en {model}.",
+      "embedNowRuns": "El embedding ahora se ejecuta en {model}.",
+      "level": {
+        "low": "Bajo",
+        "medium": "Medio",
+        "high": "Alto",
+        "xhigh": "Muy alto",
+        "max": "Máximo"
+      },
+      "presetsHead": "Comienza con un proveedor conocido — completa la URL · el tipo · dónde se ejecuta",
+      "where": "Dónde se ejecuta",
+      "whereBuiltin": "Local · gratis · integrado",
+      "lockedOnline": "Este tipo de proveedor es una API de la nube con facturación por uso — siempre se ejecuta en línea.",
+      "whereHint": "Local = en esta máquina, sin clave. En línea = tu cuenta de la nube con facturación por uso.",
+      "name": "Nombre",
+      "namePh": "Mi proveedor",
+      "baseUrl": "URL base",
+      "apiKey": "Clave de API",
+      "keySavedPh": "••••••••  (se guardó una clave)",
+      "keySaved": "🔒 Se guardó una clave de API (nunca se muestra). Déjala en blanco para mantenerla; escribir una nueva la reemplazará.",
+      "typeLabel": "Tipo de proveedor",
+      "builtinType": "llama.cpp · motor integrado",
+      "chatModel": "Modelo de chat predeterminado",
+      "chatModelPh": "Obtén o escribe un ID de modelo",
+      "hidden": "{n} modelo oculto | {n} modelos ocultos",
+      "showAll": "mostrar todo",
+      "chatModelHint": "Se obtiene del proveedor una vez conectado; cámbialo por función en Funciones.",
+      "embedModel": "Modelo de embedding",
+      "optional": "opcional",
+      "embedModelPh": "déjalo en blanco si no se usa",
+      "embedModelHint": "Llena el índice RAG / búsqueda semántica; obtén la lista del proveedor y elige su modelo de embedding.",
+      "reasoning": {
+        "button": "Niveles de razonamiento…",
+        "title": "Niveles de razonamiento",
+        "cap": "lo que se le pide a este proveedor en cada nivel: palabras de esfuerzo para los proveedores que las usan, presupuestos de tokens para el motor local",
+        "modelDefault": "Este proveedor ejecuta el pensamiento con el valor predeterminado del modelo; sin control por nivel.",
+        "level": "Nivel",
+        "word": "Palabra",
+        "tokens": "Tokens",
+        "hintBoth": "lo que se le pide a este proveedor en cada nivel — los modelos nuevos reciben la palabra, los modelos heredados el presupuesto de tokens",
+        "hintTokens": "el presupuesto de tokens de pensamiento que cada nivel le pide a este proveedor",
+        "hintWord": "la palabra de esfuerzo que cada nivel le pide a este proveedor"
+      },
+      "libs": {
+        "classTunes": "Configuraciones de clase de PC…",
+        "global": "Valores predeterminados globales de inicio…",
+        "cap": "las bibliotecas de configuración de inicio — puntos de partida por clase de PC y los paquetes de interruptores siempre activos bajo cada ajuste",
+        "classTunesTitle": "Configuraciones de clase de PC — la biblioteca"
+      },
+      "save": "Guardar proveedor",
+      "presetLocalEngine": "Motor local"
+    },
+    "engine": {
+      "family": {
+        "cuda": "NVIDIA CUDA",
+        "vulkan": "Vulkan",
+        "rocm": "AMD ROCm",
+        "metal": "Apple Metal"
+      },
+      "autoBackend": "Auto (recomendado)",
+      "willDownload": "{backend} — se descargará",
+      "budgetVram": "VRAM {used} / {total} MB · {free} MB libres",
+      "budgetMemory": "Memoria {used} / {total} MB · {free} MB libres",
+      "log": {
+        "none": "(aún no hay registro del motor; se escribirá cuando se inicie un modelo)",
+        "failed": "(no se pudo leer el registro)",
+        "hide": "Ocultar registro",
+        "view": "Ver registro"
+      },
+      "saved": "Configuración del motor guardada.",
+      "title": "Motor local",
+      "installing": "Instalando el motor llama.cpp…",
+      "installed": "Instalado",
+      "cudaMissing": "Faltan las DLL de tiempo de ejecución de CUDA",
+      "checking": "Comprobando el motor…",
+      "notInstalled": "No instalado; instálalo antes de cargar un modelo.",
+      "uninstall": "Desinstalar motor",
+      "uninstallTitle": "Eliminar los binarios del motor; los modelos se conservarán",
+      "reinstall": "Reinstalar",
+      "reinstallTitle": "Vuelve a descargar la versión del motor fijada",
+      "hideDetails": "Ocultar detalles ▴",
+      "details": "Detalles ▾",
+      "backend": "Backend de aceleración",
+      "runningOn": "ejecutándose en {backend}",
+      "loaded": "Modelos cargados",
+      "ctx": "ctx {n}",
+      "mb": "{n} MB",
+      "noneLoaded": "No hay modelos cargados en este momento.",
+      "loadsOnFirstUse": "El motor carga los modelos al primer uso; aún no se ha cargado nada.",
+      "knob": {
+        "maxModels": "Modelos que se mantienen cargados a la vez",
+        "idleUnload": "Quitar de la memoria un modelo inactivo después de (segundos · 0 = nunca)",
+        "vramMargin": "Margen de seguridad de VRAM (MB)",
+        "vramMarginTitle": "VRAM reservada al calcular cuánto de un modelo va a la GPU; espacio libre para la pantalla y otras aplicaciones.",
+        "ctxCap": "Límite de contexto predeterminado (tokens)",
+        "ctxCapTitle": "El máximo de contexto que recibe automáticamente un modelo sin ajustar; el contexto explícito de un ajuste siempre tiene prioridad. 0 = sin límite.",
+        "ramHeadroom": "Margen de RAM (MB)",
+        "ramHeadroomTitle": "RAM del sistema reservada al calcular el requisito de RAM de un modelo: espacio para el SO y tus otros programas."
+      },
+      "band": {
+        "title": "Rangos de velocidad (tokens/segundo)",
+        "fast": "Rápido desde ≥",
+        "fastTitle": "A este número de tokens por segundo o más, un modelo se etiqueta como \"rápido\".",
+        "fine": "Aceptable desde ≥",
+        "fineTitle": "Velocidad de lectura cómoda: a este nivel o superior, la etiqueta es \"aceptable\".",
+        "slow": "Lento desde ≥",
+        "slowTitle": "Por debajo de \"aceptable\" pero en este nivel o superior, la etiqueta es \"lento\"; cualquier valor inferior es \"muy lento\".",
+        "deadZone": "Mostrar el número dentro de (%)",
+        "deadZoneTitle": "Cuando una velocidad estimada está tan cerca de una de las líneas anteriores, el catálogo muestra la estimación misma (por ejemplo, \"~7.9 tok/s\") en lugar de una etiqueta que una pequeña diferencia podría cambiar. Una velocidad medida siempre mantiene su etiqueta. 0 desactiva esto.",
+        "floor": "Recomendar hasta (% por debajo de Aceptable)",
+        "floorTitle": "En una PC sin preajuste de hardware, la Configuración rápida no recomendará un modelo cuya velocidad caiga más de este margen por debajo de la línea \"aceptable\" (20 % con \"aceptable\" en 8 → nada por debajo de 6.4 tokens por segundo). El margen evita que un modelo que queda justo debajo de la línea sea reemplazado por uno mucho más débil. 0 = la línea \"aceptable\" misma."
+      },
+      "updates": "Actualizaciones del motor",
+      "updateNotify": "Notificar",
+      "updateOff": "Desactivado",
+      "dl": {
+        "title": "Descargas más rápidas (conexiones paralelas)",
+        "connections": "Conexiones por descarga (1–16)",
+        "split": "Dividir archivos mayores a (MB)",
+        "retries": "Reintentos por conexión (0–10)"
+      },
+      "phase": {
+        "downloading": "Descargando el motor",
+        "settingUp": "Configurándolo",
+        "cancelling": "Cancelando"
+      },
+      "err": {
+        "status": "No se pudo leer el estado del motor.",
+        "install": "Error en la instalación.",
+        "cancel": "No se pudo cancelar la instalación.",
+        "uninstall": "Error en la desinstalación.",
+        "backend": "No se pudo instalar ese backend.",
+        "backendSave": "No se pudo guardar la elección del backend.",
+        "warm": "No se pudo guardar el ajuste de precarga al iniciar.",
+        "policy": "No se pudo guardar la política de actualización.",
+        "update": "La actualización del motor no se completó.",
+        "updateFailed": "Error al actualizar.",
+        "save": "No se pudo guardar."
+      },
+      "removeTitle": "¿Eliminar el motor?",
+      "removeBody": "Elimina los binarios llama.cpp instalados. Tus modelos descargados se conservan; reinstala el motor en cualquier momento para volver a usarlos.",
+      "removeConfirm": "Desinstalar",
+      "restartTitle": "¿Reiniciar el motor para aplicar los cambios?",
+      "restartBody": "El nuevo backend de aceleración surtirá efecto la próxima vez que se inicie el motor. Reinicia ahora para cambiar inmediatamente — cualquier modelo cargado se quitará de la memoria y una generación en curso se detendrá — o déjalo así y se aplicará en la próxima carga de modelo.",
+      "restartConfirm": "Reiniciar motor",
+      "rolledBack": "{error} Tu motor se quedó en {build}.",
+      "noDownload": "{build} no tiene descargas para el tipo de gráficos de esta computadora ({gpu}). No se realizó ningún cambio.",
+      "update": {
+        "tipTested": "Actualiza el motor a {latest}, la versión con la que se probó esta aplicación (tienes la {current}) — la nueva versión se verifica antes de reemplazar la tuya, y la carpeta de la versión anterior se elimina solo una vez que se instala",
+        "tipStable": "Actualiza el motor a {latest}, el lanzamiento oficial {stable} de llama.cpp (tienes la {current}) — la nueva versión se verifica antes de reemplazar la tuya, y la carpeta de la versión anterior se elimina solo una vez que se instala",
+        "tipOfficial": "Actualiza el motor a {latest}, el lanzamiento oficial de llama.cpp (tienes la {current}) — la nueva versión se verifica antes de reemplazar la tuya, y la carpeta de la versión anterior se elimina solo una vez que se instala",
+        "button": "Actualizar a {latest}"
+      },
+      "install": {
+        "tip": "Descargar e instalar el motor llama.cpp para esta máquina",
+        "button": "Instalar motor"
+      }
+    },
+    "binaries": {
+      "err": {
+        "load": "No se pudo cargar la configuración del motor.",
+        "save": "Error al guardar.",
+        "required": "la plataforma y la GPU son obligatorias.",
+        "reset": "Error al restablecer."
+      },
+      "resetConfirm": "¿Restablecer los binarios del motor y la versión fijada a sus valores predeterminados de fábrica? Las filas personalizadas que añadiste se conservarán. (Los ajustes del motor, como el margen de VRAM, también se restablecen; se encuentran en Modelos cargados).",
+      "title": "Binarios del motor",
+      "titleSub": "URLs de descarga de llama.cpp · versión fijada · modelo de prueba de velocidad",
+      "help": "La aplicación detecta automáticamente tu sistema y descarga la versión de llama.cpp correspondiente. Si cambias la versión fijada, todas las URLs de descarga de abajo apuntarán automáticamente a esa versión. Si una descarga falla porque un recurso de la versión se movió o cambió de nombre, pega la URL correcta desde la {releases} (elige el recurso para tu SO + GPU). Windows CUDA necesita tanto la versión {build} como su URL de tiempo de ejecución {runtime} correspondiente.",
+      "releasesLink": "página de lanzamientos de llama.cpp ↗",
+      "pinned": "Versión fijada",
+      "col": {
+        "platform": "Plataforma",
+        "gpu": "GPU",
+        "asset": "URL del recurso",
+        "runtime": "URL de tiempo de ejecución (cudart)",
+        "exe": "Exe del servidor"
+      },
+      "docker": "docker",
+      "add": "Añadir",
+      "calib": {
+        "title": "Modelo de prueba de velocidad",
+        "body": "el pequeño modelo de prueba que la prueba de velocidad de un minuto de la Configuración rápida descarga y ejecuta. El archivo se verifica con su sha256 después de cada descarga; los dos tamaños describen ese archivo exacto (por token, los pesos de experto que se leen y todo lo demás), por lo que un archivo diferente necesita sus propios números.",
+        "url": "URL de descarga",
+        "size": "Tamaño (bytes)",
+        "expertMb": "MB de experto por token",
+        "otherMb": "Otros MB",
+        "sha": "sha256"
+      }
+    },
+    "aiTasks": {
+      "secs": "{s}s",
+      "minSecs": "{m}m {s}s",
+      "ago": {
+        "m": "hace {n}m",
+        "h": "hace {n}h",
+        "d": "hace {n}d"
+      },
+      "phase": {
+        "connecting": "Conectando",
+        "streaming": "Transmitiendo"
+      },
+      "status": "Estado",
+      "running": "En ejecución",
+      "cancelAll": "Cancelar todo",
+      "nothingRunning": "No hay nada en ejecución. Inicia cualquier función de IA y la verás aquí con su estado en vivo.",
+      "thinking": "Pensando",
+      "batchTip": "Progreso del lote — Cancelar detiene toda la ejecución",
+      "prefillTip": "El modelo está leyendo tu prompt",
+      "prefill": "leyendo prompt {pct}%",
+      "firstTip": "Latencia desde la solicitud hasta el primer token transmitido",
+      "first": "primer token {s}s",
+      "tokensExactTip": "Tokens de salida exactos (del modelo)",
+      "tokensApproxTip": "Aproximado a partir de caracteres transmitidos (~4 carac./token), incluyendo el pensamiento",
+      "stuckTip": "No hay nuevos tokens desde hace mucho más de lo habitual para este modelo; es probable que esté atascado",
+      "stallingTip": "Más lento de lo habitual para este modelo en este momento",
+      "liveTip": "Transmisión en vivo",
+      "live": "en vivo",
+      "stalling": "deteniéndose · {time}",
+      "stuck": "atascado · {time}",
+      "hidePreview": "Ocultar vista previa",
+      "showPreview": "Mostrar vista previa",
+      "chars": "{n} caracteres",
+      "recent": "Recientes",
+      "clear": "Borrar",
+      "noneCompleted": "Aún no hay tareas completadas.",
+      "tokOut": "{n} tok de salida",
+      "again": "Ejecutar de nuevo",
+      "showLess": "Mostrar menos",
+      "showAll": "Mostrar todo ({n})",
+      "strip": {
+        "done": "completado",
+        "failed": "fallido",
+        "cancelled": "cancelado",
+        "thinkingTip": "El modelo está pensando antes de responder; su pensamiento cuenta en los tokens",
+        "thinking": "pensando…",
+        "firstToken": "primer token en {s}s",
+        "stalling": "deteniéndose",
+        "stuck": "atascado",
+        "detailsTip": "Abrir panel de estado completo",
+        "details": "Detalles"
+      },
+      "button": {
+        "failed": "Falló {n} tarea de IA — abre la cola | Fallaron {n} tareas de IA — abre la cola",
+        "running": "{n} tarea de IA en ejecución | {n} tareas de IA en ejecución",
+        "idle": "Tareas de IA"
+      },
+      "defaultLabel": "Llamada de IA",
+      "unknownError": "Error desconocido"
+    },
+    "logs": {
+      "live": "Seguimiento en vivo",
+      "level": {
+        "all": "Todos los niveles",
+        "warn": "Advertencias y errores",
+        "error": "Solo errores"
+      },
+      "err": {
+        "load": "No se pudieron cargar los registros: {error}",
+        "deleteDay": "No se pudo eliminar el día.",
+        "deleteAll": "No se pudieron eliminar los registros.",
+        "clear": "No se pudo borrar."
+      },
+      "delDay": {
+        "title": "¿Eliminar el registro de este día?",
+        "body": "El registro almacenado para {day} se eliminará del disco. Esto no se puede deshacer.",
+        "confirm": "Eliminar día",
+        "buttonTitle": "Eliminar el archivo de registro almacenado de este día"
+      },
+      "delAll": {
+        "title": "¿Eliminar TODOS los registros?",
+        "body": "Cada día almacenado se eliminará del disco y el seguimiento en vivo se borrará. Esto no se puede deshacer.",
+        "confirm": "Eliminar todos los registros",
+        "buttonTitle": "Eliminar cada archivo de registro almacenado + borrar el seguimiento"
+      },
+      "sub": "Se almacena un archivo por día — elige un día o mira el seguimiento en vivo.",
+      "clearVsDelete": "{clear} vacía el seguimiento en pantalla; {delete} elimina los archivos almacenados.",
+      "clear": "Borrar",
+      "copied": "Copiado",
+      "noMatch": "Ninguna línea coincide con este filtro.",
+      "none": "Aún no hay líneas de registro.",
+      "today": "{day} (hoy)"
+    },
+    "workbench": {
+      "otherGroup": "Otros",
+      "presetSet": "Esta función ahora ejecuta ese preajuste.",
+      "presetCleared": "Limpiado: esta función ejecuta el preajuste predeterminado.",
+      "err": {
+        "preset": "Error al cambiar el preajuste: {error}",
+        "reset": "Error al restablecer: {error}",
+        "save": "Error al guardar: {error}",
+        "preview": "La vista previa del prompt de la aplicación no está disponible."
+      },
+      "resetPresets": {
+        "title": "¿Restablecer los preajustes a los valores predeterminados?",
+        "body": "Restaura los preajustes integrados y cada asignación de función a los valores predeterminados de fábrica. Se conservan tus preajustes personalizados.",
+        "done": "Preajustes restablecidos a los valores predeterminados.",
+        "button": "Restablecer preajustes a los valores predeterminados",
+        "buttonTitle": "Restaurar los preajustes integrados + cada asignación de función a los valores predeterminados de fábrica; se conservan tus preajustes personalizados"
+      },
+      "built": "{sample} · generado {at}",
+      "sectionSaved": "{name} guardado.",
+      "resetFeature": {
+        "title": "¿Restablecer esta función a los valores predeterminados?",
+        "body": "Restaura el preajuste de esta función (modelo, parámetros, razonamiento) y su prompt a los valores predeterminados de fábrica. Cualquier personalización de esta función se descartará.",
+        "done": "Se restableció a los valores predeterminados.",
+        "button": "Restablecer valores predeterminados",
+        "buttonTitle": "Restaura esta función a su propio preajuste (modelo · parámetros · razonamiento) y prompt predeterminados"
+      },
+      "presetTitle": "preajuste del motor para esta función",
+      "showList": "Mostrar lista",
+      "hideList": "Ocultar lista",
+      "building": "Generando la vista previa del prompt…",
+      "pickAction": "Elige una acción a la izquierda.",
+      "presetAssigned": "{name} · asignado",
+      "presetDefault": "{name} · predeterminado",
+      "presetNone": "— ninguno —"
+    },
+    "dataManagement": {
+      "saveTitle": "Guardar copia de seguridad de {app}",
+      "filterName": "Copia de seguridad de {app}",
+      "downloaded": "Copia de seguridad descargada.",
+      "saved": "Copia de seguridad guardada.",
+      "err": {
+        "backup": "Error al realizar la copia de seguridad: {error}",
+        "restore": "Error al restaurar: {error}",
+        "otherLibrary": "Esta copia de seguridad pertenece a otra biblioteca de sincronización. Deja de usar la carpeta en la nube y elimina tus dispositivos emparejados en Configuración → Sincronización; luego restáurala.",
+        "reset": "Error al restablecer: {error}"
+      },
+      "restore": {
+        "title": "¿Restaurar desde la copia de seguridad?",
+        "body": "Esto reemplazará TODOS los datos actuales con el contenido de la copia de seguridad. Cualquier cosa que no esté en la copia de seguridad se perderá.",
+        "confirm": "Restaurar",
+        "done": "Restaurado — recargando…"
+      },
+      "reset": {
+        "title": "¿Restablecer {app}?",
+        "label": "Borra TODOS los datos — proyectos, ajustes, proveedores de IA — y recarga con los datos de demostración. Escribe {word} para confirmar.",
+        "mismatch": "La confirmación no coincide — no se restableció.",
+        "done": "Restablecido — recargando…",
+        "heading": "Restablecer {app}",
+        "hint": "Borra la base de datos completa y recarga con los datos de demostración. Haz una copia de seguridad primero.",
+        "button": "Restablecer…"
+      },
+      "title": "Copia de seguridad y restauración",
+      "hint": "Descarga una instantánea completa (base de datos + recursos) como un archivo ZIP, o restaura una — para moverla entre máquinas o mantener una copia fuera del dispositivo.",
+      "export": "Exportar copia de seguridad…",
+      "import": "Importar copia de seguridad…",
+      "defaultApp": "Espacio de trabajo"
+    },
+    "featureChip": {
+      "editTip": "Cambia el modelo y el razonamiento para {feature} — edita su preajuste",
+      "viewTip": "Se ejecuta en {feature} — gestiónalo en Configuración de IA → Enrutamiento por función",
+      "thisPreset": "este preajuste",
+      "budgetNoValue": "presupuesto de pensamiento — {source}",
+      "budget": "presupuesto de pensamiento {value} — {source}",
+      "err": {
+        "load": "No se pudo cargar el preajuste.",
+        "noPreset": "No hay ningún preajuste para editar.",
+        "save": "Error al guardar."
+      },
+      "runsOn": "Se ejecuta en",
+      "popHead": "Se ejecuta en {feature}",
+      "thinking": "Pensamiento",
+      "recipe": "Receta",
+      "recipeAuto": "Según el proveedor — {recipe}",
+      "recipe_local": "Local",
+      "recipe_frontier": "Frontera",
+      "recipeTip": "Cómo le piden a este modelo los pasos de IA de la aplicación: Local se adapta a un modelo más pequeño en esta máquina; Frontera, a un modelo grande en la nube. Según el proveedor: Local en esta máquina, Frontera en una cuenta en la nube.",
+      "unlimited": "Ilimitado ⚠ — se ha observado que este modelo entra en bucle; podría pensar hasta que se llene el contexto",
+      "blast": "Cambia el preajuste “{preset}” — usado por {n} función | Cambia el preajuste “{preset}” — usado por {n} funciones"
+    },
+    "globalSwitches": {
+      "applies": {
+        "all": "Todos los modelos",
+        "moe": "Modelos MoE",
+        "dense": "Modelos densos",
+        "mtp": "Decodificación especulativa (modelos con capacidad MTP)"
+      },
+      "err": {
+        "load": "No se pudieron cargar los valores predeterminados de inicio.",
+        "save": "Error al guardar.",
+        "reset": "Error al restablecer."
+      },
+      "reset": {
+        "title": "¿Restablecer los valores predeterminados de inicio?",
+        "body": "Restaura los paquetes de interruptores incluidos de fábrica (todos los modelos · MoE · densos · decodificación especulativa). Tus configuraciones de clase de PC y los ajustes de máquina guardados no se ven afectados."
+      },
+      "title": "Valores predeterminados globales de inicio",
+      "summary": "los paquetes de interruptores siempre activos bajo cada ajuste — todos los modelos · MoE · densos · decodificación especulativa",
+      "help": "Estos paquetes son la primera capa de inicio de cada modelo; una configuración de clase de PC o una configuración aplicada los sobrescribe por valor.",
+      "helpBold": "Los modelos con una configuración aplicada conservan sus valores guardados",
+      "helpKept": "{kept} — un cambio aquí solo les afecta cuando actualizas o eliminas su configuración aplicada en Ajustar y medir."
+    },
+    "measureHistory": {
+      "col": {
+        "when": "Cuándo",
+        "run": "Ejecución",
+        "settings": "Ajustes",
+        "tps": "tok/s",
+        "vram": "VRAM"
+      },
+      "err": {
+        "load": "No se pudo cargar el historial de mediciones.",
+        "clear": "No se pudo borrar el historial."
+      },
+      "automatic": "ajustes automáticos del motor",
+      "clear": {
+        "title": "¿Borrar el historial de mediciones?",
+        "body": "¿Eliminar todas las mediciones registradas para este modelo? Los ajustes guardados y las configuraciones de clase de PC no se verán afectados. Esto borra las velocidades medidas Y el uso de memoria que la aplicación recuerda para este modelo; las estimaciones volverán a tomar el control y se volverán a aprender en la próxima carga.",
+        "button": "Borrar historial",
+        "tip": "Eliminar las mediciones registradas de este modelo; los ajustes guardados y las configuraciones de clase de PC se conservan"
+      },
+      "title": "Historial de mediciones",
+      "summary": "cada velocidad medida para este modelo, conservada entre reinicios",
+      "autotune": "Ajuste automático",
+      "measured": "medido",
+      "gb": "{gb} GB",
+      "empty": "Aún no hay mediciones — cada resultado de «Cargar y medir» y cada prueba de ajuste automático se registra aquí automáticamente.",
+      "firstRunLabel": "medición de la primera ejecución"
+    },
+    "console": {
+      "source": {
+        "server": "Registro del servidor",
+        "engine": "Salida del motor"
+      },
+      "level": {
+        "info": "Info +",
+        "warning": "Advertencias +"
+      },
+      "emptyAt": {
+        "info": "No hay líneas de nivel info o superior en la vista.",
+        "warning": "No hay líneas de nivel advertencia o superior en la vista.",
+        "error": "No hay líneas de nivel error o superior en la vista."
+      },
+      "noEngineOutput": "Aún no hay salida del motor — inicia un modelo para ejecutar el motor y ver su salida.",
+      "sub": "Seguimiento en vivo del registro del servidor de la aplicación y de la salida del proceso hijo del motor.",
+      "resume": "Reanudar",
+      "pause": "Pausar",
+      "spawnLog": "Registro de ejecución: {path}",
+      "stale": "El seguimiento en vivo se detuvo — no se puede conectar con el servidor. Mostrando la última instantánea.",
+      "jump": "↓ Seguimiento pausado — saltar al más reciente"
+    },
+    "aiError": {
+      "status": {
+        "401": "Error de autenticación: comprueba la clave de API del proveedor en la página de IA.",
+        "402": "Pago requerido: tu proveedor indica que te has quedado sin crédito.",
+        "403": "Acceso denegado: es posible que la clave de API no tenga permisos para este modelo.",
+        "404": "Endpoint no encontrado: la URL base o el nombre del modelo podrían ser incorrectos.",
+        "408": "Se agotó el tiempo de espera antes de que el modelo respondiera.",
+        "413": "El prompt es demasiado grande para este modelo.",
+        "429": "Límite de velocidad alcanzado: espera un momento e inténtalo de nuevo.",
+        "500": "El proveedor devolvió un error. Prueba con un modelo diferente.",
+        "502": "Error de puerta de enlace: el servidor ascendente del proveedor no es accesible.",
+        "503": "Servicio no disponible: es posible que el servidor del proveedor se esté reiniciando.",
+        "504": "Tiempo de espera de la puerta de enlace agotado: el modelo tardó demasiado en iniciar."
+      },
+      "refused": "El motor de IA local no se está ejecutando: elige tus modelos en la Configuración de IA o presiona Cargar ahora.",
+      "dns": "No se pudo resolver el host: comprueba la URL base.",
+      "timeout": "Tiempo de espera agotado: los modelos locales suelen necesitar cargarse antes de la primera llamada.",
+      "cors": "El navegador bloqueó la solicitud: en modo de desarrollo el proveedor necesita tener CORS habilitado, o ejecuta la aplicación de escritorio.",
+      "reachHost": "No se pudo conectar con {host}",
+      "reachLlm": "No se pudo conectar con el LLM",
+      "withHint": "{lead} — {hint}",
+      "withRaw": "{lead}. {raw}",
+      "cutOff": "La respuesta se cortó: el modelo se quedó sin espacio antes de terminar. Si el preajuste de esta función tiene un límite en Máx. tok, auméntalo o elimínalo; de lo contrario, el texto enviado fue demasiado largo para el contexto del modelo.",
+      "noResult": "La transmisión terminó sin un resultado."
+    },
+    "bookSearch": {
+      "noneFits": "Ningún modelo de embedding del catálogo es compatible con esta PC.",
+      "ready": "Búsqueda en el libro lista ✓ — {model}.",
+      "keepsLocal": "La búsqueda en el libro seguirá funcionando con tu embedding local ({model}) — sin cambios.",
+      "keepsOn": "La búsqueda en el libro seguirá funcionando con {provider} — sin cambios.",
+      "title": "Búsqueda en el libro",
+      "recommended": "— recomendado.",
+      "pitch": "Permite que el chat encuentre y cite tus escenas reales, no solo tu biblia de la historia. Se ejecuta en esta PC: privado, sin límites de velocidad.",
+      "skip": "Omítela y el chat responderá solo a partir de tu biblia de la historia; puedes añadir la búsqueda en el libro aquí en cualquier momento.",
+      "setUp": "Configurar búsqueda en el libro",
+      "useProvider": "Usar {name} — nada que descargar",
+      "oneTimeInstall": "instalación única",
+      "modelBar": "Modelo de búsqueda en el libro"
+    },
+    "phase": {
+      "gettingReady": "Preparando todo",
+      "downloadingModel": "Descargando el modelo",
+      "downloadingHelper": "Descargando el archivo auxiliar de generación rápida",
+      "loadingVram": "Cargándolo en tu tarjeta gráfica",
+      "unloading": "Quitando de la memoria…",
+      "cancelling": "Cancelando…",
+      "cancelled": "Cancelado",
+      "downloading": "Descargando",
+      "startingEngine": "Iniciando el motor",
+      "working": "Trabajando",
+      "workingEllipsis": "Trabajando…",
+      "ready": "Listo",
+      "failed": "Fallido",
+      "itFailed": "Falló.",
+      "couldntStart": "No se pudo iniciar.",
+      "waiting": "Esperando…",
+      "engineMissing": "El motor no está instalado; instálalo primero (en la barra del motor de arriba).",
+      "err": {
+        "catalog": "No se pudo cargar el catálogo de modelos.",
+        "download": "Error en la descarga.",
+        "engine": "El motor no se instaló.",
+        "load": "No se pudo cargar el modelo.",
+        "lastAttempt": "El último intento falló."
+      }
+    },
+    "eta": {
+      "fewSeconds": "quedan unos pocos segundos",
+      "seconds": "quedan ~{n}s",
+      "minutes": "quedan ~{n}m",
+      "hours": "quedan ~{n}h"
+    },
+    "pricing": {
+      "err": {
+        "load": "No se pudieron cargar los precios.",
+        "save": "Error al guardar.",
+        "idRequired": "Se requiere un ID de modelo.",
+        "delete": "Error al eliminar."
+      },
+      "removeConfirm": "¿Eliminar el precio de “{id}”? Su costo registrado pasará a ser $0.",
+      "title": "Precios en la nube",
+      "hint": "USD por 1,000,000 de tokens — los cambios se aplican en el costo registrado de la siguiente llamada. Los modelos locales (Ollama / llama.cpp) siempre son $0.",
+      "col": {
+        "id": "ID del modelo",
+        "input": "Entrada $/1M",
+        "output": "Salida $/1M"
+      },
+      "idExample": "p. ej. {id}",
+      "add": "＋ Añadir"
+    },
+    "updates": {
+      "checking": "Buscando actualizaciones…",
+      "latest": "Esta es la última versión.",
+      "available": "La versión {version} ya está disponible.",
+      "availableManual": "La versión {version} ya está disponible — descárgala desde la página de la versión.",
+      "downloading": "Descargando la versión {version} — {percent}%",
+      "ready": "La versión {version} se ha descargado. Se instalará cuando cierres la aplicación.",
+      "error": "No se pudo actualizar: {error}",
+      "current": "Versión actual {version}",
+      "checkAgain": "Comprobar de nuevo",
+      "openRelease": "Abrir la página de la versión",
+      "restart": "Reiniciar ahora",
+      "restartTip": "Cerrar, instalar la actualización y volver a abrir",
+      "noNotes": "No hay notas de la versión disponibles.",
+      "versionTag": "v{version}"
     },
     "settings": {
       "language": {
         "label": "Idioma"
       }
+    },
+    "knobGrid": {
+      "namePlaceholder": "flag (p. ej. ctx_len)",
+      "valuePlaceholder": "valor",
+      "add": "＋ Añadir interruptor",
+      "on": "Activado",
+      "off": "Desactivado",
+      "advanced": "Avanzado",
+      "originTip": "De dónde proviene este valor",
+      "resetOne": "Restablecer valor predeterminado",
+      "otherKeys": "Otras claves",
+      "resetAllTip": "Restablecer los controles listados a sus valores predeterminados",
+      "perRequest": "por solicitud — se envía con cada solicitud como JSON, no como un flag de inicio; se aplica sin recargar"
+    },
+    "embed": {
+      "failed": "El modelo de embedding local \"{model}\" no pudo cargarse. Abre la página de IA y edita el proveedor integrado para ver el registro del modelo, luego inténtalo de nuevo.",
+      "timeout": "Se agotó el tiempo de espera al preparar el modelo de embedding local \"{model}\". Es posible que aún se esté descargando; inténtalo de nuevo en un momento.",
+      "preparing": "Preparando el modelo de embedding"
+    },
+    "help": {
+      "title": "Ayuda",
+      "close": "Cerrar ayuda",
+      "none": "Aún no hay artículos de ayuda para esta sección.",
+      "browse": "Explorar toda la documentación",
+      "openFull": "Abrir documentación completa",
+      "openWeb": "Abrir en la web",
+      "tooltip": "Ayuda — {title}"
+    },
+    "table": {
+      "noResults": "Sin resultados.",
+      "range": "{start}–{end} de {total}",
+      "first": "Primera página",
+      "prev": "Página anterior",
+      "next": "Página siguiente",
+      "last": "Última página",
+      "page": "Página {page} / {pages}",
+      "rowsPerPage": "Filas por página",
+      "perPage": "{n} / página"
+    },
+    "modelPicker": {
+      "provider": "Proveedor",
+      "model": "Modelo",
+      "providerDefault": "(predeterminado del proveedor)",
+      "pickProvider": "Elige un proveedor primero",
+      "modelsTip": "Modelos para el proveedor fijado",
+      "pickProviderTip": "Elige un proveedor primero para elegir su modelo"
+    },
+    "modal": {
+      "dialog": "Cuadro de diálogo"
+    },
+    "multiSelect": {
+      "noMatches": "Sin coincidencias",
+      "placeholder": "Seleccionar…",
+      "clearAll": "Limpiar todo",
+      "filter": "Filtrar…"
+    },
+    "titleBar": {
+      "back": "Atrás",
+      "backNone": "Atrás (sin historial)",
+      "forward": "Adelante",
+      "forwardNone": "Adelante (sin historial)"
+    },
+    "color": {
+      "name": "Color",
+      "preset": "Preajuste {n}",
+      "custom": "Color personalizado",
+      "customOf": "{name} — personalizado"
+    },
+    "compare": {
+      "runAll": "▶ Ejecutar todo",
+      "addColumn": "＋ Añadir columna",
+      "hint": "una acción en cada columna · misma entrada de prueba · en paralelo en la nube, en serie en local",
+      "fastest": "Más rápido",
+      "column": "Configuración {n}",
+      "pickModel": "— elige un modelo —"
+    },
+    "thinking": {
+      "level": {
+        "low": "Bajo",
+        "medium": "Medio",
+        "high": "Alto",
+        "xhigh": "Muy alto",
+        "max": "Máximo",
+        "off": "Desactivado"
+      },
+      "withTokens": "{level} ({tokens})",
+      "custom": "Personalizado",
+      "customValue": "Personalizado ({value})",
+      "alwaysThinks": "Este modelo siempre piensa; desactivarlo hace que piense menos."
+    },
+    "modelType": {
+      "moe": "MoE",
+      "dense": "Denso",
+      "moeTip": "Mezcla de expertos: solo una fracción de los parámetros se ejecuta en cada token, por lo que necesita mucha menos VRAM de lo que sugiere su tamaño.",
+      "denseTip": "Denso: cada parámetro se ejecuta en cada token, por lo que necesita VRAM en proporción a su tamaño."
+    },
+    "stats": {
+      "tokensInOut": "{inp}→{out} tok",
+      "tokens": "{n} tok",
+      "tps": "{n} tok/s",
+      "words": "{n} palabras"
+    },
+    "secretInput": {
+      "show": "Mostrar",
+      "hide": "Ocultar"
+    },
+    "bootLoad": {
+      "engineTitle": "Configurando el motor de IA",
+      "continue": "Continuar sin esperar"
+    },
+    "combobox": {
+      "placeholder": "Obtén o escribe un ID de modelo",
+      "noMatch": "Sin coincidencias",
+      "fetchFirst": "Aún no hay modelos — primero haz clic en Obtener",
+      "typeOne": "No hay modelos listados — escribe uno",
+      "fetch": "Obtener"
+    },
+    "toast": {
+      "close": "Cerrar notificación"
+    },
+    "fileSave": {
+      "failed": "error al guardar"
+    },
+    "warmStartup": "Cargar el modelo local predeterminado en la memoria al iniciar",
+    "hardware": {
+      "vram": "{gb} GB de VRAM",
+      "ram": "{gb} GB de RAM"
+    },
+    "time": {
+      "justNow": "hace un momento"
+    },
+    "validation": {
+      "required": "Obligatorio",
+      "minLength": "Al menos {min} carácter | Al menos {min} caracteres",
+      "maxLength": "Como máximo {max} carácter | Como máximo {max} caracteres",
+      "pattern": "No tiene el formato esperado",
+      "email": "No es una dirección de correo electrónico",
+      "uri": "No es una dirección web",
+      "number": "Debe ser un número",
+      "integer": "Debe ser un número entero",
+      "min": "Debe ser {min} o más",
+      "max": "Debe ser {max} o menos",
+      "gt": "Debe ser mayor que {min}",
+      "lt": "Debe ser menor que {max}",
+      "oneOf": "Elige una de las opciones",
+      "minItems": "Elige al menos {min} opción | Elige al menos {min} opciones",
+      "maxItems": "Elige como máximo {max} opción | Elige como máximo {max} opciones"
+    },
+    "errors": {
+      "title": "Algo salió mal",
+      "offline": "No se puede conectar con el servidor",
+      "server": "El servidor no pudo completar esta operación",
+      "refused": "No se aceptó",
+      "seeLogs": "Los detalles están en Configuración → Registros",
+      "reference": "Referencia {id}"
     }
   }
 }

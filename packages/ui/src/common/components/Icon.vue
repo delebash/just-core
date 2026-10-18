@@ -24,3 +24,9 @@ const d = computed(() => ICON_PATHS[props.name] || "");
     <path :d="d" />
   </svg>
 </template>
+
+<style scoped>
+/* An inline SVG is a flex item that shrinks: beside a label that wraps (docgen's nav in
+   Spanish, "Configuración de la aplicación"), the icon came out smaller than its size. */
+svg { flex-shrink: 0; }
+</style>

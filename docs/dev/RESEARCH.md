@@ -1580,6 +1580,12 @@ English".
   error, checked with `te(key, "en")` so a Spanish gap — the ruled fallback — stays quiet:
   `$t("probe.no.such.key")` → "[i18n] missing translate: probe.no.such.key (en)", `$t("common.save")`
   → nothing. — *measured 2026-10-15*, Chrome on the smoke's build.
+- **vue-i18n picks a plural form from a named `n` or `count`** (11.4.13, `@intlify/core-base`
+  `getPluralIndex`): `t(key, { n: 3 })` on "{n} fijado | {n} fijados" gives "3 fijados" with no
+  plural argument. So a language can add forms its English doesn't need ("{n} found" has one;
+  Spanish agrees, "1 encontrado · 3 encontrados"). It trims the spaces around `|`: a form that
+  must start with a space opens with `{' '}`. A non-number `n` (a formatted string) falls back to
+  the default rule as if 1. — *measured 2026-10-17*, a scratch probe on vue-i18n 11.4.13.
 - **Quasar passes `QCLI_`-prefixed command-line variables to the client** as
   `import.meta.env.QCLI_…` (@quasar/app-vite 3.10.2, "Adding to import.meta.env › From command
   line") — no quasar.config change. — *docs, and measured 2026-10-15*.

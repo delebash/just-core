@@ -1,0 +1,794 @@
+{
+  "0378e2689b6b4f71": {
+    "key": "kit.speedBand.predicted",
+    "code": "untranslated",
+    "src": "~{n} tok/s",
+    "dst": "~{n} tok/s",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "037d73a30d55017a": {
+    "key": "kit.lab.composeTitle",
+    "code": "terminology",
+    "src": "Build this feature's real input from your book — the same composition a live run uses",
+    "dst": "Crea la entrada real de esta función desde tu libro — la misma composición que usa una ejecución en vivo",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "056331361d6d33ee": {
+    "key": "kit.modelType.moe",
+    "code": "untranslated",
+    "src": "MoE",
+    "dst": "MoE",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "06dadd5d541d9c2a": {
+    "key": "kit.aiArea.providers.embed",
+    "code": "untranslated",
+    "src": "embed:",
+    "dst": "embed:",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "095b0fb8fd288ea6": {
+    "key": "kit.aiArea.usage.prompt",
+    "code": "untranslated",
+    "src": "prompt",
+    "dst": "prompt",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "104013765b16c0ec": {
+    "key": "kit.measureHistory.empty",
+    "code": "terminology",
+    "src": "Nothing measured yet — every “Load & measure” result and auto-tune trial is recorded here automatically.",
+    "dst": "Aún no hay mediciones — cada resultado de «Cargar y medir» y cada prueba de ajuste automático se registra aquí automáticamente.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "12c3df6a85d19d2d": {
+    "key": "kit.aiArea.providers.chat",
+    "code": "untranslated",
+    "src": "chat:",
+    "dst": "chat:",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "172f9eacb8af7fc4": {
+    "key": "kit.binaries.calib.sha",
+    "code": "untranslated",
+    "src": "sha256",
+    "dst": "sha256",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "19da4468d2c8b3e1": {
+    "key": "kit.engine.family.rocm",
+    "code": "untranslated",
+    "src": "AMD ROCm",
+    "dst": "AMD ROCm",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "1a1584022cb2bc8d": {
+    "key": "kit.aiTasks.minSecs",
+    "code": "untranslated",
+    "src": "{m}m {s}s",
+    "dst": "{m}m {s}s",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "1ac3949dd09862a6": {
+    "key": "kit.appearance.ink.sepia",
+    "code": "untranslated",
+    "src": "Sepia",
+    "dst": "Sepia",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "1b43a762805da8d3": {
+    "key": "kit.aiArea.mem.llm",
+    "code": "untranslated",
+    "src": "LLM",
+    "dst": "LLM",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "1c5bb10aa2a19eb1": {
+    "key": "kit.tuneModal.apply.noPreset",
+    "code": "terminology",
+    "src": "No preset currently uses this model — the config takes effect whenever it loads.",
+    "dst": "Ningún preajuste usa este modelo actualmente; la configuración surtirá efecto cada vez que se cargue.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "217102623897114d": {
+    "key": "kit.aiArea.clipboardFailed",
+    "code": "terminology",
+    "src": "Couldn't reach the clipboard — select and copy from the console instead.",
+    "dst": "No se pudo acceder al portapapeles; selecciona y copia desde la consola en su lugar.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "227eebb7510fd211": {
+    "key": "kit.classTunes.key.discrete",
+    "code": "untranslated",
+    "src": "{vram} GB VRAM · {ram} GB RAM",
+    "dst": "{vram} GB VRAM · {ram} GB RAM",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "2351357168d10630": {
+    "key": "kit.measureHistory.gb",
+    "code": "untranslated",
+    "src": "{gb} GB",
+    "dst": "{gb} GB",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "241858e3c2f5ce73": {
+    "key": "kit.modelCatalog.form.draftFileHint",
+    "code": "terminology",
+    "src": "the speculative-decode model (feeds --model-draft)",
+    "dst": "el modelo de decodificación especulativa (alimenta --model-draft)",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "249bed6f98ecf4fb": {
+    "key": "kit.appearance.size.xs",
+    "code": "untranslated",
+    "src": "XS",
+    "dst": "XS",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "27a64068eb9fde7a": {
+    "key": "kit.binaries.resetConfirm",
+    "code": "endpunc",
+    "src": "Reset the engine binaries and pinned build to their shipped defaults? Custom rows you added are kept. (Engine settings like the VRAM margin also reset — they live under Loaded models.)",
+    "dst": "¿Restablecer los binarios del motor y la versión fijada a sus valores predeterminados de fábrica? Las filas personalizadas que añadiste se conservarán. (Los ajustes del motor, como el margen de VRAM, también se restablecen; se encuentran en Modelos cargados).",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "2b43c233a86641cc": {
+    "key": "kit.workbench.built",
+    "code": "terminology",
+    "src": "{sample} · built {at}",
+    "dst": "{sample} · generado {at}",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "32cb2025214227cb": {
+    "key": "kit.measureHistory.summary",
+    "code": "terminology",
+    "src": "every measured speed for this model, saved across restarts",
+    "dst": "cada velocidad medida para este modelo, conservada entre reinicios",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "3789238838e1bd81": {
+    "key": "kit.quickSetup.opt.quickNothing",
+    "code": "terminology",
+    "src": "the 2-minute pass found nothing faster — Full optimize or the model's Tune dialog can search deeper.",
+    "dst": "la pasada de 2 minutos no encontró nada más rápido — la Optimización completa o el diálogo Ajustar y medir del modelo pueden buscar más a fondo.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "37b9a645fb8df476": {
+    "key": "kit.tuneModal.result.ram",
+    "code": "untranslated",
+    "src": "RAM {gb} GB",
+    "dst": "RAM {gb} GB",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "3a2e279990354db9": {
+    "key": "kit.binaries.col.gpu",
+    "code": "untranslated",
+    "src": "GPU",
+    "dst": "GPU",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "3fa985228efee879": {
+    "key": "kit.engine.ctx",
+    "code": "untranslated",
+    "src": "ctx {n}",
+    "dst": "ctx {n}",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "3fbcbfa86e6f1006": {
+    "key": "kit.engine.family.metal",
+    "code": "untranslated",
+    "src": "Apple Metal",
+    "dst": "Apple Metal",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "4207ff8a1d19e161": {
+    "key": "kit.aiArea.cap.embed",
+    "code": "untranslated",
+    "src": "EMBED",
+    "dst": "EMBED",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "4664d61bdd1e91f2": {
+    "key": "kit.modelCatalog.tag.embed",
+    "code": "untranslated",
+    "src": "Embed",
+    "dst": "Embed",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "46c4cdfbb720a8d1": {
+    "key": "kit.appearance.size.s",
+    "code": "untranslated",
+    "src": "S",
+    "dst": "S",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "471c7e0039d601ad": {
+    "key": "kit.appearance.size.l",
+    "code": "untranslated",
+    "src": "L",
+    "dst": "L",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "4946b090a45e94da": {
+    "key": "kit.tuneModal.result.cpu",
+    "code": "terminology",
+    "src": "No GPU detected — measured on CPU.",
+    "dst": "No se detectó GPU; se midió en CPU.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "4d3208d1fc86d770": {
+    "key": "kit.binaries.docker",
+    "code": "untranslated",
+    "src": "docker",
+    "dst": "docker",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "5012355e49870601": {
+    "key": "kit.appearance.tint.neutral",
+    "code": "untranslated",
+    "src": "Neutral",
+    "dst": "Neutral",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "51da41f403c5c8a4": {
+    "key": "kit.modelCatalog.form.tokens",
+    "code": "untranslated",
+    "src": "{n} tokens",
+    "dst": "{n} tokens",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "57656365d72768aa": {
+    "key": "kit.modelCatalog.form.moe",
+    "code": "untranslated",
+    "src": "MoE",
+    "dst": "MoE",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "5ae6998d39451a46": {
+    "key": "kit.lab.generatedNote",
+    "code": "terminology",
+    "src": "built by the app for every real run — test only; nothing here is saved or applied",
+    "dst": "construido por la aplicación en cada ejecución real — solo prueba; nada de esto se guarda ni se aplica",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "5c8c98a9c45e8152": {
+    "key": "kit.aiArea.mem.gb",
+    "code": "untranslated",
+    "src": "{gb} GB",
+    "dst": "{gb} GB",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "5f1b05c6d2f112fe": {
+    "key": "kit.configColumn.tokensApprox",
+    "code": "untranslated",
+    "src": "≈{n} tokens",
+    "dst": "≈{n} tokens",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "617ff2babf441efd": {
+    "key": "kit.appearance.ink.neutral",
+    "code": "untranslated",
+    "src": "Neutral",
+    "dst": "Neutral",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "63b089b69851dc5e": {
+    "key": "kit.aiArea.providers.configured",
+    "code": "placeholder-changed",
+    "src": "{n} configured",
+    "dst": "{n} configurado | {n} configurados",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "65a8537c8bacfbb4": {
+    "key": "kit.tuneModal.result.vram",
+    "code": "untranslated",
+    "src": "VRAM {gb} GB",
+    "dst": "VRAM {gb} GB",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "6752de8fceae350f": {
+    "key": "kit.appearance.pairing.editorial",
+    "code": "untranslated",
+    "src": "Editorial",
+    "dst": "Editorial",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "68150a60152e63fb": {
+    "key": "kit.modelCatalog.tag.mtp",
+    "code": "untranslated",
+    "src": "MTP",
+    "dst": "MTP",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "687837d91b389f05": {
+    "key": "kit.provider.type.deepseek",
+    "code": "untranslated",
+    "src": "DeepSeek",
+    "dst": "DeepSeek",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "6993223b871bef32": {
+    "key": "kit.aiArea.hw.gpu",
+    "code": "untranslated",
+    "src": "GPU",
+    "dst": "GPU",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "6e3458d615d824f3": {
+    "key": "kit.provider.reasoning.tokens",
+    "code": "untranslated",
+    "src": "Tokens",
+    "dst": "Tokens",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "6e7476e4dd68c1e8": {
+    "key": "kit.appearance.size.m",
+    "code": "untranslated",
+    "src": "M",
+    "dst": "M",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "6eb1dbd31ba638a3": {
+    "key": "kit.aiArea.cap.llm",
+    "code": "untranslated",
+    "src": "LLM",
+    "dst": "LLM",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "70971425c3307b99": {
+    "key": "kit.dataManagement.err.otherLibrary",
+    "code": "terminology",
+    "src": "This backup is from another sync library. Stop using the cloud folder and remove your paired devices in Settings → Sync, then restore it.",
+    "dst": "Esta copia de seguridad pertenece a otra biblioteca de sincronización. Deja de usar la carpeta en la nube y elimina tus dispositivos emparejados en Configuración → Sincronización; luego restáurala.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "75e4947c907c0728": {
+    "key": "kit.aiArea.providers.configured",
+    "code": "brackets",
+    "src": "{n} configured",
+    "dst": "{n} configurado | {n} configurados",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "788363671bb7c675": {
+    "key": "kit.appearance.pairing.finePress",
+    "code": "untranslated",
+    "src": "Fine Press",
+    "dst": "Fine Press",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "7b2d882aaf519fe5": {
+    "key": "kit.featureChip.recipe_local",
+    "code": "untranslated",
+    "src": "Local",
+    "dst": "Local",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "7e6709c067519ba8": {
+    "key": "kit.source.class",
+    "code": "untranslated",
+    "src": "@:kit.tune.classLayer",
+    "dst": "@:kit.tune.classLayer",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "807195204d2ef668": {
+    "key": "kit.configColumn.temp",
+    "code": "untranslated",
+    "src": "Temp",
+    "dst": "Temp",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "8075e5f79795210a": {
+    "key": "kit.measureHistory.col.tps",
+    "code": "untranslated",
+    "src": "tok/s",
+    "dst": "tok/s",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "890b88379ff328e1": {
+    "key": "kit.aiArea.usage.cost",
+    "code": "endpunc",
+    "src": "est. cost",
+    "dst": "costo est.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "8c0257049f8845ff": {
+    "key": "kit.storage.total",
+    "code": "untranslated",
+    "src": "Total",
+    "dst": "Total",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "8f6f615f4ecb6e9a": {
+    "key": "kit.stats.tps",
+    "code": "untranslated",
+    "src": "{n} tok/s",
+    "dst": "{n} tok/s",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "91c3baac418638eb": {
+    "key": "kit.engine.family.cuda",
+    "code": "untranslated",
+    "src": "NVIDIA CUDA",
+    "dst": "NVIDIA CUDA",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "927dc843161f1468": {
+    "key": "kit.appearance.ink.auto",
+    "code": "untranslated",
+    "src": "Auto",
+    "dst": "Auto",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "98572cfda69824d9": {
+    "key": "kit.modelCatalog.tag.embedding",
+    "code": "untranslated",
+    "src": "Embedding",
+    "dst": "Embedding",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "9a20ce3fd2391d32": {
+    "key": "kit.aiArea.hw.cpu",
+    "code": "untranslated",
+    "src": "CPU",
+    "dst": "CPU",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "9a697d7b85416d34": {
+    "key": "kit.appearance.style.mono",
+    "code": "untranslated",
+    "src": "Mono",
+    "dst": "Mono",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "9b18a2a3159b466c": {
+    "key": "kit.configColumn.localBudgetTitle",
+    "code": "terminology",
+    "src": "The model's layered reasoning_budget on this PC (Global launch defaults → PC class config → your applied config) — edit it in Tune & measure",
+    "dst": "El reasoning_budget por capas del modelo en esta PC (Valores predeterminados globales de inicio → configuración de clase de PC → tu configuración aplicada) — edítalo en Ajustar y medir",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "a13f1341160f9c02": {
+    "key": "kit.appearance.scale.normal",
+    "code": "untranslated",
+    "src": "Normal",
+    "dst": "Normal",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "a20465746fbb68a2": {
+    "key": "kit.modelCatalog.tokS",
+    "code": "untranslated",
+    "src": "{n} tok/s",
+    "dst": "{n} tok/s",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "a29c7c35b4392973": {
+    "key": "kit.console.level.info",
+    "code": "untranslated",
+    "src": "Info +",
+    "dst": "Info +",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "a44b872284219b1f": {
+    "key": "kit.engine.mb",
+    "code": "untranslated",
+    "src": "{n} MB",
+    "dst": "{n} MB",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "a98fa99e1cf3c96d": {
+    "key": "kit.configColumn.tokens",
+    "code": "untranslated",
+    "src": "{n} tokens",
+    "dst": "{n} tokens",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "b6de4ec46be7f33f": {
+    "key": "kit.provider.type.xai",
+    "code": "untranslated",
+    "src": "xAI (Grok)",
+    "dst": "xAI (Grok)",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "bf8d05468fb95c5e": {
+    "key": "kit.common.removeItem",
+    "code": "terminology",
+    "src": "Remove {item}",
+    "dst": "Quitar {item}",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "c1350908b810fe2f": {
+    "key": "kit.fit.cpu",
+    "code": "untranslated",
+    "src": "CPU",
+    "dst": "CPU",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "c3d4a51ce408817f": {
+    "key": "kit.stats.tokens",
+    "code": "untranslated",
+    "src": "{n} tok",
+    "dst": "{n} tok",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "c3d7cdd67a946cf6": {
+    "key": "kit.modelCatalog.search",
+    "code": "terminology",
+    "src": "Search models…",
+    "dst": "Buscar modelos…",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "c60eba5255e3bc33": {
+    "key": "kit.modelCatalog.tag.mtpTitle",
+    "code": "terminology",
+    "src": "Multi-token prediction — speculative decode enables by default",
+    "dst": "Predicción multitoken — la decodificación especulativa se habilita de forma predeterminada",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "c8e365ae1e0255a6": {
+    "key": "kit.provider.type.anthropic",
+    "code": "untranslated",
+    "src": "Anthropic (Claude)",
+    "dst": "Anthropic (Claude)",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "c92700cdc54d672f": {
+    "key": "kit.provider.type.mistral",
+    "code": "untranslated",
+    "src": "Mistral",
+    "dst": "Mistral",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "cb9d31eb2a60cb72": {
+    "key": "kit.updates.versionTag",
+    "code": "untranslated",
+    "src": "v{version}",
+    "dst": "v{version}",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "cbbdb133aa919c7c": {
+    "key": "kit.classTunes.form.vram",
+    "code": "untranslated",
+    "src": "VRAM (GB)",
+    "dst": "VRAM (GB)",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "cdaa614b0df0782d": {
+    "key": "kit.provider.type.gemini",
+    "code": "untranslated",
+    "src": "Gemini (Google)",
+    "dst": "Gemini (Google)",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "d1b508c3c44372d1": {
+    "key": "kit.provider.type.openrouter",
+    "code": "untranslated",
+    "src": "OpenRouter",
+    "dst": "OpenRouter",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "d750a5576e5a8407": {
+    "key": "kit.aiArea.gpuApps.pid",
+    "code": "untranslated",
+    "src": "pid {pid}",
+    "dst": "pid {pid}",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "da70fd67395adbcf": {
+    "key": "kit.provider.type.openai",
+    "code": "untranslated",
+    "src": "OpenAI",
+    "dst": "OpenAI",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "dea02d36be5c2777": {
+    "key": "kit.aiArea.usage.tokens",
+    "code": "untranslated",
+    "src": "tokens",
+    "dst": "tokens",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "dfd3c8cce1b2892a": {
+    "key": "kit.modelCatalog.btn.unloadModel",
+    "code": "terminology",
+    "src": "Unload model",
+    "dst": "Quitar de la memoria",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "e074bfbf543928b9": {
+    "key": "kit.quickSetup.configured.hint",
+    "code": "terminology",
+    "src": "Quick Setup sets up the built-in llama.cpp provider only. Change the model to walk the setup again with a different pick; nothing changes until you apply.",
+    "dst": "La Configuración rápida solo configura el proveedor llama.cpp integrado. Cambia el modelo para repetir la configuración con una opción diferente; nada cambia hasta que apliques los cambios.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "e32557a7c58903d7": {
+    "key": "kit.configColumn.topPHint",
+    "code": "endpunc",
+    "src": "blank=def",
+    "dst": "vacío=predet.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "e3f3419e2a48a2fb": {
+    "key": "kit.quickSetup.confirm.embedding",
+    "code": "untranslated",
+    "src": "Embedding",
+    "dst": "Embedding",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "e7650e285ea5f72b": {
+    "key": "kit.color.name",
+    "code": "untranslated",
+    "src": "Color",
+    "dst": "Color",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "eafb3953aed0abd8": {
+    "key": "kit.stats.tokensInOut",
+    "code": "untranslated",
+    "src": "{inp}→{out} tok",
+    "dst": "{inp}→{out} tok",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "ebc2b636cedd0b3a": {
+    "key": "kit.modelCatalog.form.idLine",
+    "code": "untranslated",
+    "src": "id: {id}",
+    "dst": "id: {id}",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "f0ef59f1c206316d": {
+    "key": "kit.aiTasks.secs",
+    "code": "untranslated",
+    "src": "{s}s",
+    "dst": "{s}s",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "f17db7680a504f4d": {
+    "key": "kit.measureHistory.col.vram",
+    "code": "untranslated",
+    "src": "VRAM",
+    "dst": "VRAM",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "f4c02d586dd3bf80": {
+    "key": "kit.aiArea.hw.vram",
+    "code": "untranslated",
+    "src": "{size} VRAM",
+    "dst": "{size} VRAM",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "f81fc1672cd3346d": {
+    "key": "kit.updates.availableManual",
+    "code": "terminology",
+    "src": "Version {version} is out — download it from its release page.",
+    "dst": "La versión {version} ya está disponible — descárgala desde la página de la versión.",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "f8a7f7c721741eb0": {
+    "key": "kit.aiArea.usage.colPrompt",
+    "code": "untranslated",
+    "src": "Prompt",
+    "dst": "Prompt",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "f9f574d8a0db5d05": {
+    "key": "kit.appearance.style.editorial",
+    "code": "untranslated",
+    "src": "Editorial",
+    "dst": "Editorial",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "fd54139e41aba16c": {
+    "key": "kit.fit.gpu",
+    "code": "untranslated",
+    "src": "GPU",
+    "dst": "GPU",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  },
+  "fe9cafc019617521": {
+    "key": "kit.configColumn.topP",
+    "code": "untranslated",
+    "src": "Top-p",
+    "dst": "Top-p",
+    "by": "Claude (AI review, 2026-10-17)",
+    "at": "2026-10-18"
+  }
+}

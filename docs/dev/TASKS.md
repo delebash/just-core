@@ -416,8 +416,13 @@ OPEN:   building — Task 1 and its follow-ups, and Task 2, done 2026-10-12 (eac
         four names plus the other product and format names in the catalogs, run unattended, the
         GPU only when JustVoice's session says it is free. The kit's catalog has its project at
         `ui/just-ai-i18n-docgen/config.json`. Task 6's three lists staged 2026-10-15 (JustWrite
-        2,980, the kit 1,453 of 1,454, docgen 278 — JustWrite's TASKS). Next: the user's review in
-        docgen, then Apply per catalog.
+        2,980, the kit 1,453 of 1,454, docgen 278 — JustWrite's TASKS). Reviewed and applied
+        2026-10-17 by an agentic review instead of by hand (the decision and the run are in
+        JustWrite's TASKS, "Automated testing"): the kit's `packages/ui/src/i18n/locales/es.json`
+        has all 1,480 strings (was 62; the 27 added since 2026-10-15, `kit.validation.*` and
+        `kit.errors.*` among them, written by the review), acceptances in
+        `packages/ui/just-ai-i18n-docgen/es.accepted.json`. Fixed on the way: Icon keeps its size
+        in a flex row (`flex-shrink: 0`) — beside a label that wraps it had shrunk.
         The counts measured for the plan replace the estimates in the answer above: the kit 832
         template strings + ~70 in JavaScript, JustVoice 1,944, docgen 163.
 
