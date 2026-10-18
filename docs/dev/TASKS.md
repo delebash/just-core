@@ -195,8 +195,8 @@ DIRECTION (the user, 2026-10-17, verbatim — after being told the template has 
         Process: fresh inventory (standard, the three apps, industry standards) → draft →
         several adversarial reviews → the plan with its blast radius to the user for a go → build →
         prove every script green.
-OPEN:   the plan — the complete template and a written standard per part — waits on the just-core
-        rename (item above) so it is written once with the final names. Its inputs are in RESEARCH §2,
+OPEN:   the plan — the complete template and a written standard per part — is next: the just-core
+        rename (item above) is done (2026-10-18), so it is written once with the final names. Its inputs are in RESEARCH §2,
         "The complete template" (the apps' shared pieces, the standards coverage map and its 14 gaps,
         industry practice; the reports verbatim in `docs/plans/2026-10-17-complete-template-research.md`).
         The §14 product skeleton (the product-only checks the template is exempt from:
