@@ -4,7 +4,7 @@
 // and the desktop shell read, plus this app's extras — where its data is and whether its database
 // is open (JustWrite's pair).
 
-import { makeHealthRouter } from "@delebash/core/platform";
+import { makeHealthRouter } from "@delebash/core/platform/health_api";
 import { getState } from "../app_state.js";
 import { API_VERSION, PRODUCT, VERSION } from "../version.js";
 
