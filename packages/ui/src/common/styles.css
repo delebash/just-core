@@ -117,6 +117,23 @@ button:not(.ui-btn) { color: inherit; }
 .lu-mmi-danger[data-highlighted] { background: color-mix(in oklab, var(--warn, #b4560f) 12%, transparent); color: var(--warn, #b4560f); }
 .lu-mmsep { height: 1px; background: var(--border); margin: 4px; }
 
+/* The title bar (TitleBar) — the kit's look at ZERO specificity (:where): an app's own .titlebar /
+   .iconbtn rules win (JustWrite, docgen), an app with none gets the family's bar (the template audit,
+   2026-10-18 — the template carried these rules as a copy every app had to keep). */
+:where(.titlebar) {
+  display: flex; align-items: center; gap: var(--sp-1, 4px); flex-shrink: 0;
+  height: 44px; padding: 0 10px;
+  background: var(--surface); border-bottom: 1px solid var(--border); color: var(--ink);
+}
+:where(.titlebar__title) { font-weight: 600; font-size: var(--fs-small, 12.5px); margin-left: var(--sp-2, 8px); }
+:where(.iconbtn) {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--btn-radius, 8px);
+  border: none; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+:where(.iconbtn:hover:not(:disabled)) { background: var(--surface-3); }
+:where(.iconbtn:disabled) { opacity: 0.4; cursor: default; }
+
 /* Settings rows (AppearancePanel, and any app row built the same way) — the kit's look at ZERO
    specificity (:where): an app's own .setting-row* rules win (JustVoice, docgen), an app with none
    (the template and every app made from it) still gets laid-out rows. The hue slider is the kit's

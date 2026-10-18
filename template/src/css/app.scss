@@ -17,20 +17,7 @@ body {
    app's background. */
 .shell { background: var(--bg); }
 
-/* The kit's TitleBar frame takes its look from the app (.titlebar, .titlebar__title, .iconbtn). */
-.titlebar {
-  display: flex; align-items: center; gap: var(--sp-1); flex-shrink: 0;
-  height: 44px; padding: 0 10px;
-  background: var(--surface); border-bottom: 1px solid var(--border); color: var(--ink);
-}
-.titlebar__title { font-weight: 600; font-size: var(--fs-small); margin-left: var(--sp-2); }
-.iconbtn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: var(--btn-radius);
-  border: none; background: transparent; color: var(--ink-2); cursor: pointer;
-}
-.iconbtn:hover:not(:disabled) { background: var(--surface-3); }
-.iconbtn:disabled { opacity: 0.4; cursor: default; }
+/* The kit's TitleBar takes the kit's look (.titlebar, .titlebar__title, .iconbtn in its common/styles.css). */
 
 /* The nav column, filling the drawer. */
 .shell__nav {

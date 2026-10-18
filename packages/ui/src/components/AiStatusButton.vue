@@ -6,9 +6,11 @@
 // Active:  pulsing dot + running-count badge — opens the panel for
 //          per-task elapsed/tokens/cancel.
 //
-// Lives in the host's title bar so it's reachable from every view. The
-// bare <button> deliberately carries no chrome of its own — the host's
-// title-bar button styling owns that (JW: .titlebar-* button rules).
+// Lives in the host's title bar so it's reachable from every view. Its chrome
+// is the kit's quiet icon button at the lowest specificity (:where), so a
+// host's own title-bar rules still win (JW: .titlebar-right button) and an app
+// that styles nothing gets a real button, not the browser's grey box (found by
+// the template audit, 2026-10-18).
 
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
@@ -48,6 +50,14 @@ function toggle() { tasks.togglePanel(); }
 
 <style scoped>
 .ai-status-wrap { position: relative; display: inline-flex; }
+
+/* the chrome, overridable by any host rule (see the header) */
+:where(.ai-status-btn) {
+  min-width: 32px; height: 32px; justify-content: center;
+  border: none; border-radius: var(--btn-radius, 8px);
+  background: transparent; color: var(--ink-2); font: inherit; cursor: pointer;
+}
+:where(.ai-status-btn:hover) { background: var(--surface-3, rgba(0, 0, 0, 0.05)); }
 
 .ai-status-btn {
   position: relative;

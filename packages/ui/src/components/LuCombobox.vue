@@ -5,6 +5,7 @@
 // the provider form (mirrors the mock's cb() / JustWrite's Combobox). Visual
 // rules in styles.css (.lu-cb*).
 import { computed, ref } from "vue";
+import UiButton from "../common/components/UiButton.vue";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
@@ -71,8 +72,11 @@ function openList(v) {
         <div v-if="!filtered.length" class="lu-cb-empty">{{ items.length ? t('kit.combobox.noMatch') : (showFetch ? t('kit.combobox.fetchFirst') : t('kit.combobox.typeOne')) }}</div>
       </div>
     </div>
-    <button v-if="showFetch" class="lu-btn lu-btn--secondary lu-btn--small" type="button" :disabled="loading" @click="$emit('fetch')">
-      {{ loading ? "…" : (items.length ? `↻ ${t('kit.common.refresh')}` : t('kit.combobox.fetch')) }}
-    </button>
+    <!-- the kit's button (was classes nothing defined — a native button in every app; the template audit, 2026-10-18) -->
+    <UiButton
+      v-if="showFetch" intent="secondary" size="small" :disabled="loading"
+      :label="loading ? '…' : (items.length ? `↻ ${t('kit.common.refresh')}` : t('kit.combobox.fetch'))"
+      @click="$emit('fetch')"
+    />
   </div>
 </template>
