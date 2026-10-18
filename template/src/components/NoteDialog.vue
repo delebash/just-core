@@ -10,9 +10,24 @@
 //   - Save is the one primary button, on the right, Cancel beside it; Save is disabled while the
 //     save runs; the form never rewrites what the user typed;
 //   - "Suggest a title" runs the app's AI feature through the kit's runner (runAiFeature — app code
-//     never owns a task's lifecycle, §8): the task strip shows it, the button is disabled while it
-//     runs.
-import { AppModal, fieldErrors, Icon, reportError, runAiFeature, schemaRules, UiButton, UiField, UiInput, UiTextarea, UiToggle } from "@delebash/ui";
+//     never owns a task's lifecycle, §8) and shows its progress IN PLACE: the kit's AiTaskStrip under
+//     the title, its task found with useSurfaceTask; the button is disabled while it runs. Close the
+//     dialog mid-run and the task moves to the kit's global stack — an AI task is never invisible.
+import {
+  AiTaskStrip,
+  AppModal,
+  fieldErrors,
+  Icon,
+  reportError,
+  runAiFeature,
+  schemaRules,
+  UiButton,
+  UiField,
+  UiInput,
+  UiTextarea,
+  UiToggle,
+  useSurfaceTask,
+} from "@delebash/ui";
 import { NoteIn } from "family-template-server/schemas/notes.js";
 import { computed, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -37,6 +52,8 @@ const draft = reactive({
 const serverErrors = ref({});
 const saving = ref(false);
 const suggesting = ref(false);
+// the running title suggestion, for the strip under the title
+const titleTask = useSurfaceTask("notes.suggestTitle");
 const modal = ref(null);
 
 const isNew = computed(() => !props.note);
@@ -113,7 +130,7 @@ async function suggestTitle() {
             @update:model-value="edited('title')"
           />
           <UiButton
-            intent="secondary" :disabled="suggesting || !draft.body.trim()"
+            intent="secondary" :disabled="suggesting || !!titleTask || !draft.body.trim()"
             :title="draft.body.trim() ? t('notes.suggest.hint') : t('notes.suggest.needsBody')"
             @click="suggestTitle"
           >
@@ -122,6 +139,7 @@ async function suggestTitle() {
           </UiButton>
         </div>
       </UiField>
+      <AiTaskStrip :task="titleTask" />
       <UiField :label="t('notes.form.body')" layout="block" for="note-body">
         <UiTextarea
           id="note-body" v-model="draft.body" width="prose" :rows="8" lazy-rules

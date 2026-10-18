@@ -693,10 +693,22 @@ identical everywhere.
 
 **Corollaries.** Every AI response carries usage (JustVoice's §16 rule,
 family-wide; `toTaskUsage` accepts snake_case and camelCase so nobody
-hand-maps). A surface shows **one** task indicator per run — a surface that
-mounts its own `AiTaskStrip` marks the task `inline: true` so the global stack
-never doubles it; hand-rolled progress banners are banned. A trigger button
-**disables** while its task runs — the strip is the spinner. Reads are free:
+hand-maps). **Every AI task is visible while it runs, and shows where it was
+started.** The screen that starts a feature mounts the kit's `AiTaskStrip` there,
+its task found with `useSurfaceTask("<feature>", meta)` (meta tells two houses' or
+two brands' runs apart). The kit's **global stack** (`AiTaskStack`, mounted by
+`<LlmUiHosts />`, so every app has it) shows every running task no screen shows —
+a dialog closed mid-run, a page left — so no task is ever invisible; while a
+screen's strip is mounted the stack leaves its task out, so one run never shows
+twice. `inline: true` is only for a task whose screen shows its progress some
+other way for its whole life. Hand-rolled progress banners are banned. A trigger
+button **disables** while its task runs — the strip is the spinner. The family
+guard's check 17 finds each feature an app starts (a literal `feature:`, or
+runAiFeature's `action:`) and fails when no `useSurfaceTask("<feature>")` shows
+it — for the template and every app made from it; the older apps get advisories
+until they adopt the helper (found 2026-10-18: just-house-paint's house page ran
+every job with no progress on screen, and the template's own example claimed a
+strip it never mounted — this rule had been prose only). Reads are free:
 chrome may observe the store (`visibleTasks`, `runningCount`) from check 11's
 per-app allowlist; creating lifecycles outside the runners is the violation.
 

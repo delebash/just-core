@@ -243,6 +243,18 @@ OPEN:   follow-ups the first real app found, each for its own go:
           RESERVED ports now hold JustWrite's eval (17497) and flow tests (17498), and just-house-paint moved to
           17499 (the guard's APP_PORTS, app-structure §1) — found by the JustWrite session, which can drop its
           JW_EVAL_PORT=17499 stopgap.
+        - BUILT 2026-10-18 (just-house-paint's user, verbatim: "so i asked you repeated to think on a good template
+          design and you failed, do it right fix it rightk, do it professional, think adversially of the fix and go
+          code it"): every AI task is visible while it runs. Found by the user: just-house-paint ran its jobs with no
+          progress on screen, and the template's AI example claimed a strip it never mounted — §8's rule was prose
+          only. Built: the global stack (`AiTaskStack`, mounted by `<LlmUiHosts />` — every app has it) shows each
+          running task no screen shows; an in-place `AiTaskStrip` claims its task while mounted, so nothing shows twice;
+          `useSurfaceTask(feature, meta)`; the template's "Suggest a title" shows its progress in place (tests: in place,
+          not doubled, moves to the stack when the dialog closes mid-run); check 17 (fails the template and
+          just-house-paint, advisory for the older apps); app-structure §8. JustWrite 728, JustVoice 260 and docgen 5
+          renderer tests pass against it. OPEN for the apps' sessions: adopt `useSurfaceTask` (check 17's advisories),
+          then promote check 17 to fail() for them; JustVoice's renamed fork (TaskStrip.vue / PageTaskStrips.vue)
+          doesn't claim its tasks, so they also show in the stack until it uses the kit's AiTaskStrip.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp

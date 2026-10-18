@@ -208,6 +208,10 @@ test("Suggest a title runs the AI feature, disabled while it runs, and fills the
   expect(suggest().disabled).toBe(false);
   await click(suggest());
   expect(suggest().disabled).toBe(true); // the trigger is disabled, not spinning, while it runs
+  // its progress shows in place, under the title — and only there: the global stack leaves it out
+  const strip = document.querySelector(".ui-modal .sts");
+  expect(strip?.textContent).toContain("Suggesting a title");
+  expect(document.querySelector(".ai-task-stack")).toBeNull();
   // the stream fails before a frame arrives → the kit's one-shot fallback answers
   answerStream(json({ title: "Internal Server Error", status: 500 }, 500));
   await flushPromises();
@@ -216,6 +220,32 @@ test("Suggest a title runs the AI feature, disabled while it runs, and fills the
   expect(server.runBody).toMatchObject({ action: "notes.suggestTitle", variables: { body: "milk, eggs, bread" } });
   expect(document.querySelector("#note-title").value).toBe("Weekly shopping list");
   expect(suggest().disabled).toBe(false);
+  expect(document.querySelector(".ui-modal .sts")).toBeNull();
+});
+
+test("an AI task no screen shows goes to the global stack: close the dialog mid-run and it moves there", async () => {
+  let answerStream;
+  server.stream = new Promise((resolve) => (answerStream = resolve));
+  await mountPage();
+  await click(byText("button", "New note"));
+  const body = document.querySelector("#note-body");
+  body.value = "milk, eggs, bread";
+  body.dispatchEvent(new Event("input"));
+  await flushPromises();
+  await click(byText(".form__inline button", "Suggest a title"));
+  expect(document.querySelector(".ai-task-stack")).toBeNull();
+  await click(byText(".form__actions button", "Cancel"));
+  await new Promise((r) => setTimeout(r, 0));
+  await flushPromises();
+  // the task still runs; with its dialog gone the kit's stack shows it, with its Cancel
+  const stacked = document.querySelector(".ai-task-stack .sts");
+  expect(stacked?.textContent).toContain("Suggesting a title");
+  expect(byText(".ai-task-stack button", "Cancel")).toBeTruthy();
+  answerStream(json({ title: "Internal Server Error", status: 500 }, 500));
+  await flushPromises();
+  await new Promise((r) => setTimeout(r, 0));
+  await flushPromises();
+  expect(document.querySelector(".ai-task-stack")).toBeNull();
 });
 
 test("a delete asks first, naming the note, then removes it", async () => {

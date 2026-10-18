@@ -66,6 +66,9 @@ export const useAiTasksStore = defineStore("aiTasks", {
     // this count badges the titlebar chip red until the user opens the panel
     // (viewing acknowledges; the history entry keeps the detail).
     unseenErrors: 0,
+    // { taskId: n } — how many in-place strips (an AiTaskStrip a screen mounted) show the task
+    // now. The global stack (AiTaskStack) leaves those out, so one run never shows twice.
+    shown: {},
   }),
 
   getters: {
@@ -77,6 +80,11 @@ export const useAiTasksStore = defineStore("aiTasks", {
       .map((id) => s.tasks[id])
       .filter((t) => t && (t.status === "connecting" || t.status === "streaming")),
     runningCount() { return this.runningTasks.length; },
+    // What the global stack shows: every running task no screen shows in place and none started
+    // `inline` (app-structure §8) — so an AI task always has visible progress somewhere.
+    unshownRunningTasks() {
+      return this.runningTasks.filter((t) => !t.inline && !this.shown[t.id]);
+    },
     // Everything a STRIP or panel should show: running, plus anything inside its
     // linger window. Identical to runningTasks unless a task passed `lingerMs`.
     visibleTasks: (s) => s.order.map((id) => s.tasks[id]).filter(Boolean),
@@ -90,6 +98,16 @@ export const useAiTasksStore = defineStore("aiTasks", {
   },
 
   actions: {
+    // An in-place strip shows the task (AiTaskStrip, while mounted) — counted, since two strips
+    // may show one task.
+    _show(id) {
+      this.shown[id] = (this.shown[id] || 0) + 1;
+    },
+    _unshow(id) {
+      if (!this.shown[id]) return;
+      if (this.shown[id] > 1) this.shown[id]--;
+      else delete this.shown[id];
+    },
     _ensureTicker() {
       if (tickHandle) return;
       tickHandle = setInterval(() => { this.now = Date.now(); }, 500);

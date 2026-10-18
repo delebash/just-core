@@ -20,7 +20,7 @@
 //     `<span class="sts-stat">…</span>` chips to match the standard
 //     stats' look.
 
-import { computed } from "vue";
+import { computed, onBeforeUnmount, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAiTasksStore } from "../stores/aiTasks.js";
 import Icon from "../common/components/Icon.vue";
@@ -34,10 +34,26 @@ const props = defineProps({
   // `aiTasks.visibleTasks` if the host started the task with `lingerMs` and wants the
   // result to stay readable for its dwell.
   task: { type: Object, default: null },
+  // A screen's own strip shows its task IN PLACE, so the global stack (AiTaskStack, which renders
+  // its rows with this component and passes false) leaves that task out.
+  inPlace: { type: Boolean, default: true },
 });
 
 const tasks = useAiTasksStore();
 const { t, n } = useI18n();
+
+// Tell the store which task this strip shows, for as long as it shows it.
+watch(
+  () => (props.inPlace ? props.task?.id : null),
+  (id, old) => {
+    if (old) tasks._unshow(old);
+    if (id) tasks._show(id);
+  },
+  { immediate: true },
+);
+onBeforeUnmount(() => {
+  if (props.inPlace && props.task?.id) tasks._unshow(props.task.id);
+});
 
 // A FINISHED task measures to its own finishedAt, never the live clock. The ticker
 // stops when nothing is RUNNING, so a task lingering after completion would otherwise

@@ -28,6 +28,7 @@ export { installLlmUi, llmUiCapabilities } from "./installLlmUi.js";
 export { FAMILY_TASK_LINGER, SETTINGS_SECTION_ORDER } from "./common/familyContract.js";
 export { default as LlmUiHosts } from "./components/LlmUiHosts.vue";
 export { useAiTasksNav } from "./composables/useAiTasksNav.js";
+export { useSurfaceTask } from "./composables/useSurfaceTask.js";
 
 // shared general primitives + shells + services — the future @delebash/ui
 // (housed in ./common for now): Ui* primitives, Icon/Breadcrumb, dialog/tooltip,
@@ -67,6 +68,7 @@ export { runAiFeature, runAiFeatureStream } from "./services/aiFeature.js";
 export { runAiEndpoint, runAiEndpointStream, toTaskUsage, withAiTask } from "./services/appTask.js";
 export { friendlyAiError } from "./services/aiErrors.js";
 export { keyedText, presetDisplayName, providerDisplayName } from "./services/seededWords.js";
+export { default as AiTaskStack } from "./components/AiTaskStack.vue";
 export { default as AiTaskStrip } from "./components/AiTaskStrip.vue";
 export { default as AiStatusPanel } from "./components/AiStatusPanel.vue";
 export { default as AiStatusButton } from "./components/AiStatusButton.vue";

@@ -1086,6 +1086,40 @@ function checkI18nKit() {
   }
 }
 
+// ── check 17 · an AI task shows where it was started (app-structure §8) ───────────────────────
+// The kit's global stack (AiTaskStack, mounted by <LlmUiHosts />) shows every running task no
+// screen shows, so no task is ever invisible. This check holds each app to the better half: the
+// screen that starts a feature shows its progress there — the kit's AiTaskStrip, its task found
+// with useSurfaceTask("<feature>"). Found 2026-10-18: just-house-paint's house page ran every job
+// with no progress on screen, and the template's own AI example said "the task strip shows it"
+// with no strip mounted — the standard lived only in §8's prose.
+// The features an app starts are read from its code: every literal `feature: "…"`, and the
+// `action: "…"` of a file that calls runAiFeature (its feature defaults to the action). A key
+// built at run time can't be followed (advisory). It FAILS for the template and the apps made
+// from it; the apps that predate useSurfaceTask (JustWrite, JustVoice, docgen) get advisories
+// until their sessions adopt it — then promote them to fail(), as check 16 did.
+const SURFACE_TASK_REQUIRED = new Set(["template", "just-house-paint"]);
+function checkSurfaceTasks(app, files) {
+  const started = new Map(); // feature → the first file that starts it
+  const shown = new Set();
+  for (const f of files) {
+    if (!/\.(vue|js)$/.test(f) || f.includes(".test.") || f.includes("worker-bundle")) continue; // a generated bundle repeats the sources
+    const src = readFileSync(f, "utf8");
+    const rel = relative(app.dir, f).replaceAll("\\", "/");
+    for (const m of src.matchAll(/useSurfaceTask\(\s*["'`]([\w.:-]+)["'`]/g)) shown.add(m[1]);
+    const keys = [...src.matchAll(/\bfeature:\s*["'`]([\w.:-]+)["'`]/g)].map((m) => m[1]);
+    if (/\brunAiFeature(Stream)?\s*\(/.test(src)) keys.push(...[...src.matchAll(/\baction:\s*["'`]([\w.:-]+)["'`]/g)].map((m) => m[1]));
+    for (const k of keys) if (!started.has(k)) started.set(k, rel);
+    if (/\bfeature:\s*`[^`]*\$\{/.test(src)) info(app.name, `${rel} builds an AI task's feature key at run time — check 17 can't see whether its screen shows it; name the key as a literal`);
+  }
+  for (const [feature, rel] of started) {
+    if (shown.has(feature)) continue;
+    const msg = `${rel} starts the AI task "${feature}" but no screen shows it in place — mount the kit's AiTaskStrip with useSurfaceTask("${feature}") where the user starts it (app-structure §8)`;
+    if (SURFACE_TASK_REQUIRED.has(app.name)) fail(app.name, msg);
+    else info(app.name, msg);
+  }
+}
+
 const perApp = [];
 for (const app of [...APPS, TEMPLATE]) {
   if (!existsSync(app.dir)) { fail(app.name, `not found at ${app.dir}`); continue; }
@@ -1112,6 +1146,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkRetired(app.name, app.dir, RETIRED.get(app.name));
   checkDocs(app);
   checkTaskLifecycle(app, files);
+  checkSurfaceTasks(app, files);
   checkOneSaveDoor(app, files);
   checkOneShellDoor(app, files);
   checkOneHono(app, [...walk(join(app.dir, "server", "src")), ...walk(join(app.dir, "server", "tests"))]);
