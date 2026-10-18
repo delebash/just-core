@@ -13,10 +13,21 @@ import * as self from "./http.js";
 
 const LONG_MS = 15 * 60 * 1000;
 
+/**
+ * HTTP/2 receive windows as Chrome sets them (15 MB a connection, 6 MB a stream). undici 8
+ * speaks HTTP/2 by default with 512 KB a connection and 256 KB a stream
+ * (lib/dispatcher/client.js), and every parallel part of a download shares one connection —
+ * so a download waited a round trip for each 512 KB: 7.7 MB/s on a line that carries
+ * 74 MB/s with these windows (measured 2026-10-18 on Hugging Face's file server, 8 parts of
+ * one model; the kit's RESEARCH, "Downloads"). Every agent the kit builds takes them.
+ */
+export const H2_WINDOWS = { connectionWindowSize: 15 * 1024 * 1024, initialWindowSize: 6 * 1024 * 1024 };
+
 const agent = new EnvHttpProxyAgent({
   headersTimeout: LONG_MS,
   bodyTimeout: LONG_MS,
   connectTimeout: 30_000,
+  ...H2_WINDOWS,
 });
 
 /** fetch(url, init) on the kit's agent. `init.timeoutMs` aborts the whole request. */

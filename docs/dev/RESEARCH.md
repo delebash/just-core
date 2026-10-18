@@ -56,6 +56,7 @@ Subjects: [1 · Memory: the arbiter and the probes](#1--memory-the-arbiter-and-t
 [6 · Claude Code: instructions and memory](#6--claude-code-instructions-and-memory) ·
 [7 · Cloud model adapters](#7--cloud-model-adapters) ·
 [8 · Words and translation](#8--words-and-translation) ·
+[9 · Downloads](#9--downloads) ·
 [Records not yet distilled](#records-not-yet-distilled)
 
 ---
@@ -1615,6 +1616,30 @@ English".
   Architecture documents. — *code, a read-only sweep of the four repos, 2026-10-18*.
 
 ---
+
+## 9 · Downloads
+
+- **Every file download in the family goes through one path:** the downloader
+  (`packages/core/src/runner/download.js`, a chunk queue — 8 connections by default, each pulling
+  fixed-size parts, resumable from `<file>.json`) on the kit's one HTTP client
+  (`packages/core/src/platform/http.js`). No app calls `fetch` for a download itself (a grep of
+  JustVoice, JustWrite and docgen's `server/src` finds only comments). The AI providers' calls use
+  their own agent per timeout value (`llm/base.js` `agentFor`), for the stream timeouts, not for
+  downloads. — *code, 2026-10-18*.
+- **undici 8 speaks HTTP/2 by default, with small receive windows:** 512 KB a connection and
+  256 KB a stream (`node_modules/undici/lib/dispatcher/client.js:326, 335`, undici 8.11.2), and
+  every parallel part of a download to one server shares one connection. The sender waits a round
+  trip for each 512 KB: JustVoice's 22 GB Fish Drama 3 download showed **one** TCP connection and
+  8 MB/s. — *code + measured, 2026-10-18*.
+- **Measured** on this machine against Hugging Face's file server, 8 parallel ranged parts of one
+  model (192 MB, bytes discarded): HTTP/2 with undici's windows 7.7 MB/s; HTTP/1.1, 8 connections
+  35.2 MB/s; HTTP/2 with 32 MB / 16 MB windows 72.6 MB/s; HTTP/2 with **Chrome's windows (15 MB a
+  connection, 6 MB a stream) 74.0 MB/s** (one stream alone: 57.7 MB/s). curl, one connection:
+  75 MB/s. After the fix, the kit's own `http.fetch`: 65.8 MB/s (with the old 8 MB/s download still
+  running beside it). — *measured, 2026-10-18*.
+- **The fix:** every agent the kit builds takes Chrome's windows (`http.H2_WINDOWS`, `http.js` and
+  `llm/base.js`) — undici's documented `connectionWindowSize` / `initialWindowSize` options
+  (undici.nodejs.org, Client options). Nothing for a user to set. — *code, 2026-10-18*.
 
 ## Records not yet distilled
 

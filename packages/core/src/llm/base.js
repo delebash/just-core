@@ -190,7 +190,7 @@ export function agentFor(seconds) {
   const ms = Math.max(1, Math.round(Number(seconds) * 1000));
   let a = agents.get(ms);
   if (!a) {
-    a = new EnvHttpProxyAgent({ connectTimeout: ms, headersTimeout: ms, bodyTimeout: ms });
+    a = new EnvHttpProxyAgent({ connectTimeout: ms, headersTimeout: ms, bodyTimeout: ms, ...http.H2_WINDOWS });
     agents.set(ms, a);
   }
   return a;
