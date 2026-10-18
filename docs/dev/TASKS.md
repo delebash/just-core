@@ -265,6 +265,13 @@ OPEN:   follow-ups the first real app found, each for its own go:
           template; the phone offered but unworkable; dates/numbers in the browser's language; untested chrome
           (connection page, tray, Settings copies); LuCombobox's Fetch button unstyled (a kit bug). GO: just-house-paint's
           user, verbatim: "your rec go" (1. fix what the template audit finds, here and in the template). STATE: fixing.
+          BUILT 2026-10-18: the AI status button's, the title bar's and LuCombobox Fetch's looks in the kit (58e53aa);
+          every picker font bundled by the kit (fonts.css, 8ad4e8c — JustWrite asked to drop its copy, the guard's
+          check 2 fails it until then); the template's NOTICE.md; check 18 (help pages, the AI offer's call site, the
+          chrome mounted, error reporting, the kit's fonts, numbers/dates in the app's language — fails the template
+          and its apps, advisory for the older ones). OPEN: self-update in the template (release.yml + updates), the
+          phone (build it or stop offering it), help on a failed warm start, upload-route schemas, tests for the
+          connection page / tray / Settings copies, the Settings copies into the kit, the stale comments and links.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp

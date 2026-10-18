@@ -1124,6 +1124,44 @@ function checkSurfaceTasks(app, files) {
   }
 }
 
+// ── check 18 · the chrome a generated app carries (the template audit, 2026-10-18) ──────────────
+// Standards the audit found living as prose (docs/plans/2026-10-18-template-audit.md), made
+// checkable: each help button's page exists; the once-ever AI offer has a call site; the chrome is
+// mounted (LlmUiHosts, HelpDrawer, AiStatusButton) and boot installs error reporting; the kit's
+// fonts are listed (the font picker offers them all); numbers and dates follow the app's language
+// (vue-i18n's n()/d() or a formatter given i18n's locale — never toLocale*String() or
+// Intl.*Format(undefined)). FAILS for the template and the apps made from it; advisory for the
+// older apps (each has its own way for some of these — JustWrite ships its own fonts).
+const CHROME_REQUIRED = new Set(["template", "just-house-paint"]);
+function checkChrome(app, files) {
+  const report = (msg) => (CHROME_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
+  const src = files.filter((f) => /\.(vue|js)$/.test(f) && !f.includes(".test.") && !f.includes("worker-bundle"));
+  const read = (f) => readFileSync(f, "utf8");
+  const all = src.map((f) => [f, read(f)]);
+  const rel = (f) => relative(app.dir, f).replaceAll("\\", "/");
+  // help pages
+  for (const [f, text] of all)
+    for (const m of text.matchAll(/(?<![:\w-])help-key="([\w-]+)"/g))
+      if (!existsSync(join(app.dir, "docs", `${m[1]}.md`))) report(`${rel(f)} opens help "${m[1]}" but docs/${m[1]}.md doesn't exist (§14)`);
+  // the once-ever AI offer
+  if (!all.some(([f, text]) => /maybeOfferAiSetup\(/.test(text) && !/stores[\/]ui\.js$/.test(f)))
+    report("nothing calls maybeOfferAiSetup() — the once-ever AI offer never shows (§11; the template calls it from its example page)");
+  // the chrome
+  const joined = all.map(([, t]) => t).join("\n");
+  for (const tag of ["LlmUiHosts", "HelpDrawer", "AiStatusButton"])
+    if (!new RegExp(`<${tag}\\b`).test(joined)) report(`no <${tag}> mounted — the family chrome (§4, §11)`);
+  if (!/installErrorReporting\(/.test(joined)) report("boot never calls installErrorReporting() (§15)");
+  // the kit's fonts
+  const qconf = join(app.dir, "quasar.config.js");
+  if (existsSync(qconf) && !/@delebash\/ui\/common\/fonts\.css/.test(read(qconf)))
+    report("quasar.config.js doesn't list '~@delebash/ui/common/fonts.css' — the Appearance font picker's fonts aren't bundled (§11)");
+  // numbers and dates in the app's language
+  for (const [f, text] of all) {
+    if (/\.toLocale(Date|Time)?String\(/.test(text)) report(`${rel(f)} formats with toLocale*String() — the browser's language, not the app's; use vue-i18n's n()/d() (§Q.11)`);
+    if (/Intl\.\w+Format\(\s*undefined/.test(text)) report(`${rel(f)} builds an Intl formatter for the browser's language — pass i18n's locale (§Q.11)`);
+  }
+}
+
 const perApp = [];
 for (const app of [...APPS, TEMPLATE]) {
   if (!existsSync(app.dir)) { fail(app.name, `not found at ${app.dir}`); continue; }
@@ -1151,6 +1189,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkDocs(app);
   checkTaskLifecycle(app, files);
   checkSurfaceTasks(app, files);
+  checkChrome(app, files);
   checkOneSaveDoor(app, files);
   checkOneShellDoor(app, files);
   checkOneHono(app, [...walk(join(app.dir, "server", "src")), ...walk(join(app.dir, "server", "tests"))]);
