@@ -6,9 +6,11 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 import {
   addHmrPort,
+  describeApp,
   destRel,
   namesFor,
   nextPorts,
+  purposeFromPrd,
   readRegistries,
   registerInGuard,
   renameText,
@@ -36,10 +38,21 @@ test("a slug gives every name (§1)", () => {
 });
 
 test("the next free ports skip the reserved ones", () => {
-  expect(nextPorts(readRegistries(GUARD_SRC))).toEqual({ port: 17497, devPort: 1460, hmrPort: 1461 });
-  // with the app registered, the following app gets the next ones
-  const after = readRegistries(registerInGuard(GUARD_SRC, names, ports, "just-house-paint"));
+  // the registries as they were before the first app was generated (fixed here — the live guard
+  // grows with every app)
+  const before = {
+    appPorts: { JustWrite: 17495, JustVoice: 17494, docgen: 8742, template: 17490 },
+    devPorts: { JustWrite: { dev: 1420, hmr: 1421 }, JustVoice: { dev: 1430, hmr: 1431 }, docgen: { dev: 1450, hmr: 1451 }, template: { dev: 9000 } },
+  };
+  expect(nextPorts(before)).toEqual({ port: 17497, devPort: 1460, hmrPort: 1461 });
+  // with that app registered, the following app gets the next ones
+  const after = {
+    appPorts: { ...before.appPorts, "just-house-paint": 17497 },
+    devPorts: { ...before.devPorts, "just-house-paint": { dev: 1460, hmr: 1461 } },
+  };
   expect(nextPorts(after)).toEqual({ port: 17498, devPort: 1470, hmrPort: 1471 });
+  // and the live guard's registries read the same way
+  expect(nextPorts(readRegistries(GUARD_SRC)).port).toBeGreaterThan(17496);
 });
 
 test("the template's names and ports are renamed, a bare number is not", () => {
@@ -97,4 +110,49 @@ test("registering adds the app to APPS, APP_PORTS and DEV_PORTS once", () => {
   expect(regs.appPorts["just-house-paint"]).toBe(17497);
   expect(regs.devPorts["just-house-paint"]).toEqual({ dev: 1460, hmr: 1461 });
   expect(registerInGuard(out, names, ports, "just-house-paint")).toBe(out);
+});
+
+const TEMPLATE = (rel) => readFileSync(new URL(`../../../template/${rel}`, import.meta.url), "utf8");
+const PURPOSE =
+  "See your own house in real paint colors before you buy paint. You add a photo of your house; the app finds its parts.";
+
+test("the purpose is the PRD's first paragraph under \"What it is for\" — never the template's placeholder", () => {
+  const prd = `# PRD
+
+## What it is for
+
+See your own house in real paint colors before you buy paint. You add a photo
+of your house; the app finds its parts.
+
+The user's words: "…"
+
+## Who uses it
+`;
+  expect(purposeFromPrd(prd)).toBe(PURPOSE);
+  expect(purposeFromPrd(TEMPLATE("docs/dev/PRD.md"))).toBeNull();
+  expect(purposeFromPrd("# PRD\n\n## Who uses it\n")).toBeNull();
+});
+
+test("README, AGENTS.md and package.json describe the app, not the template", () => {
+  const readme = describeApp("README.md", TEMPLATE("README.md"), names, PURPOSE);
+  expect(readme).toMatch(/^<!-- SPDX-License-Identifier: MIT -->\r?\n# Just House Paint\n\nSee your own house/);
+  expect(readme).not.toContain("The complete reference app every family app starts from");
+  expect(readme).toContain("\n## The shape");
+
+  const agentsRaw = describeApp("AGENTS.md", TEMPLATE("AGENTS.md").replace("# Family Template", "# Just House Paint"), names, PURPOSE);
+  // the file keeps its own line ends (a Windows checkout has CRLF)
+  expect(agentsRaw.includes("\r\n")).toBe(TEMPLATE("AGENTS.md").includes("\r\n"));
+  const agents = agentsRaw.replace(/\r\n/g, "\n");
+  expect(agents).toMatch(/^# Just House Paint — instructions for any AI working in this repo\n\nSee your own house/);
+  expect(agents).not.toContain("The family's reference app");
+  expect(agents).toContain("\n## Commands");
+
+  const pkg = JSON.parse(describeApp("package.json", TEMPLATE("package.json"), names, PURPOSE));
+  expect(pkg.description).toBe("See your own house in real paint colors before you buy paint.");
+
+  // without a PRD purpose: a marked placeholder, never the template's words
+  expect(describeApp("README.md", TEMPLATE("README.md"), names, null)).toContain("*What this app is for");
+  expect(JSON.parse(describeApp("package.json", TEMPLATE("package.json"), names, null)).description).toBe("Just House Paint — a family app.");
+  // any other file is untouched
+  expect(describeApp("src/App.vue", "<template/>", names, PURPOSE)).toBe("<template/>");
 });

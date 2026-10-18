@@ -210,15 +210,13 @@ BUILT (2026-10-18, under the GO above; plan `docs/plans/2026-10-18-complete-temp
         and built on it (the app's own TASKS, "Build it all"). UiNumber's rules judge the number
         (3d83749 — found by just-house-paint's settings form).
 OPEN:   follow-ups the first real app found, each for its own go:
-        - the generator leaves the template's words in the new app's `README.md` (title and intro),
-          `AGENTS.md` (its first paragraph and "The example to copy" row) and the root `package.json`
-          `description` — just-house-paint's were rewritten by hand; the generator could take them from
-          the PRD's "what it is" or mark them to write;
-        - the template's `recreateAppTables` drops tables by bare name in list order — fine for the
-          notes example (no foreign keys); an app with them needs children first: just-house-paint
-          lists `{ name, ddl }` (`tableDefs` over its migrations) and orders with `sortedTables`. The
-          template could do the same so every app gets it. (A restore is safe either way: the kit's
-          restore copies with foreign keys off.)
+        - BUILT 2026-10-18 under "your rec on all go": the generator writes the app's own description
+          into `README.md` (title and intro), `AGENTS.md` (its first paragraphs) and `package.json`
+          from the PRD's "What it is for" (a marked placeholder without one) — `describeApp`,
+          `purposeFromPrd`, tested and run once into a scratch folder; the template's tables are
+          `{ name, ddl }` (`tableDefs`) and its reset drops children first (`sortedTables`), as
+          just-house-paint's. Found on the way: the guard registration (b78f26a) had broken
+          `new_app.test.js`'s port test (it read the live registry) — fixed with fixed registries.
         - BUILT 2026-10-18 under "your rec on all go" (just-house-paint): `UiServerImage` / `useServerImage`
           — a server picture through the kit's transport (requestBlob → an object URL), so it carries the
           token and reaches the phone's in-app server. Found with it: NO app passes a token to

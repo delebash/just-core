@@ -33,5 +33,16 @@ export const MIGRATIONS = [
   },
 ];
 
+/**
+ * The tables a migration's SQL creates, as the kit's backup router reads them ({ name, ddl }): the
+ * DDL names each table's parents (REFERENCES), so a reset drops children first and a restore fills
+ * parents first — an app's tables get foreign keys (just-house-paint's design_colors → designs).
+ */
+export function tableDefs(sql) {
+  const out = [];
+  for (const m of sql.matchAll(/CREATE TABLE\s+"?(\w+)"?\s*\(([\s\S]*?)\n\s*\);/gi)) out.push({ name: m[1], ddl: m[0] });
+  return out;
+}
+
 /** The app's tables, for the kit's backup/restore/reset (makeDataRouter's `metadata`). */
-export const APP_TABLES = ["notes", "settings"];
+export const APP_TABLES = MIGRATIONS.flatMap((m) => tableDefs(m.up));

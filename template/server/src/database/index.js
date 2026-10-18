@@ -6,6 +6,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { migrate, openDatabase } from "@delebash/core/platform";
+import { sortedTables } from "@delebash/core/platform/data_api";
 import { getLogger } from "@delebash/core/platform/log";
 import { MIGRATIONS } from "./schema.js";
 
@@ -33,7 +34,8 @@ export function openAppDatabase(dataDir) {
 /** Drop the app's tables and run the migrations again — the backup panel's Reset. */
 export function recreateAppTables(db, tables) {
   db.tx(() => {
-    for (const t of [...tables].reverse()) db.exec(`DROP TABLE IF EXISTS "${t}"`);
+    // children before parents: the foreign keys are on (sortedTables orders by the DDL's REFERENCES)
+    for (const t of [...sortedTables(tables)].reverse()) db.exec(`DROP TABLE IF EXISTS "${t}"`);
     db.raw.pragma("user_version = 0");
   });
   migrate(db, MIGRATIONS);
