@@ -44,6 +44,7 @@ export const TEMPLATE_NAMES = {
   snake: "family_template",
   port: 17490,
   devPort: 9000,
+  mark: "FT", // the title bar's brand mark (src/i18n/locales/en.json app.mark)
 };
 
 // Ports never handed out (§1): JW's smoke scratch port and JV's second renderer.
@@ -67,6 +68,8 @@ export function namesFor(slug, product) {
     appName: `Just${title.join("")}`,
     id: `just${words.join("")}`,
     snake: `just_${words.join("_")}`,
+    // the brand mark: the app's own words' initials (house-paint → "HP"; one word → its first two letters)
+    mark: words.length > 1 ? words.slice(0, 2).map((w) => w[0].toUpperCase()).join("") : title[0].slice(0, 2),
   };
 }
 
@@ -110,6 +113,7 @@ export function renameText(text, names, ports) {
     .replaceAll(T.id, names.id)
     .replaceAll(T.slug, names.slug)
     .replaceAll(T.snake, names.snake);
+  out = out.replace(`"mark": "${T.mark}"`, `"mark": "${names.mark}"`);
   out = out.replace(new RegExp(`\\b${T.port}\\b`, "g"), String(ports.port));
   // the dev port only where it is a port — `:9000`, `port: 9000`, `"9000"` — never a bare number
   // (a 9000 ms timeout is not a port)

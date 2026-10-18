@@ -28,7 +28,9 @@ test("a slug gives every name (§1)", () => {
     appName: "JustHousePaint",
     id: "justhousepaint",
     snake: "just_house_paint",
+    mark: "HP",
   });
+  expect(namesFor("voice").mark).toBe("Vo");
   expect(namesFor("house-paint", "House Paint").product).toBe("House Paint");
   expect(() => namesFor("House_Paint")).toThrow(/lowercase words/);
 });
@@ -47,6 +49,7 @@ test("the template's names and ports are renamed, a bare number is not", () => {
     'dataDirEnv: "FAMILY_TEMPLATE_DATA_DIR", port: 17490, log: "family-template.log", logger: "family_template.app",',
     'devServer: { host: "127.0.0.1", port: 9000, strictPort: true }, origins: ["http://localhost:9000"],',
     "toast({ duration: 9000 }); devPorts: ['9000']",
+    '"mark": "FT",',
   ].join("\n");
   expect(renameText(src, names, ports)).toBe(
     [
@@ -55,6 +58,7 @@ test("the template's names and ports are renamed, a bare number is not", () => {
       'dataDirEnv: "JUST_HOUSE_PAINT_DATA_DIR", port: 17497, log: "just-house-paint.log", logger: "just_house_paint.app",',
       'devServer: { host: "127.0.0.1", port: 1460, strictPort: true }, origins: ["http://localhost:1460"],',
       "toast({ duration: 9000 }); devPorts: ['1460']",
+      '"mark": "HP",',
     ].join("\n"),
   );
 });
