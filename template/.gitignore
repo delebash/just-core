@@ -10,12 +10,6 @@ node_modules
 /dist
 /quasar.config.*.temporary.compiled*
 
-# Cordova related directories and files
-/src-cordova/node_modules
-/src-cordova/platforms
-/src-cordova/plugins
-/src-cordova/www
-
 # Capacitor related directories and files
 /src-capacitor/www
 /src-capacitor/node_modules
@@ -29,6 +23,9 @@ yarn-error.log*
 /data
 /.tmp-data
 
+# Test output: coverage reports, the e2e harness's screenshots
+/coverage
+/e2e/shots
 
 # The phone's in-app server bundle (built, §Q.7)
 /src/phone/worker-bundle

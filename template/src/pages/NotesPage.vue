@@ -94,7 +94,7 @@ async function remove(note) {
 </script>
 
 <template>
-  <q-page :style-fn="pageFlow" class="page">
+  <q-page :style-fn="pageFlow" class="page page--content">
     <PaneHeader :eyebrow="t('app.name')" :title="t('notes.title')" help-key="notes">
       <UiButton intent="primary" :label="t('notes.new')" :disabled="!notes.loaded" @click="openNew" />
     </PaneHeader>

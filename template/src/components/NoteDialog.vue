@@ -101,7 +101,7 @@ async function suggestTitle() {
   <AppModal
     ref="modal"
     :title="isNew ? t('notes.form.newTitle') : t('notes.form.editTitle')"
-    max-width="720px"
+    max-width="880px"
     @close="emit('close')"
   >
     <q-form class="form" greedy @submit="save">

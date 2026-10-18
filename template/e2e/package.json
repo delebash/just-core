@@ -1,0 +1,15 @@
+{
+  "name": "family-template-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "The e2e smoke and screenshot capture over the REAL desktop app (Electron) through Playwright's Electron driver (app-structure §10).",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 --test-reporter=spec tests/*.test.js",
+    "contract": "node --test --test-reporter=spec tests/contract.test.js",
+    "capture": "node capture-direct.js"
+  },
+  "dependencies": {
+    "playwright-core": "^1.64.0"
+  }
+}

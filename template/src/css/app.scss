@@ -91,13 +91,17 @@ body {
 /* ── forms (app-structure §15, §17): fields as wide as what they hold, the button row on the
    right, a button on a row of labelled fields aligned with the inputs ─────────────────────── */
 .form { display: flex; flex-direction: column; gap: var(--sp-3); }
+/* the form's gap spaces its fields; the kit's .ui-field margin would push a row's button off its input */
+.form .ui-field { margin: 0; }
 .form__inline { display: flex; align-items: flex-start; gap: var(--sp-2); flex-wrap: wrap; }
 .form__row { display: flex; align-items: flex-end; gap: var(--sp-3); flex-wrap: wrap; }
 .form__actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-2); }
 .toggle-row { display: flex; align-items: center; gap: 10px; margin-top: var(--sp-3); cursor: pointer; }
 
 /* ── Notes ─────────────────────────────────────────────────────────────── */
-.notes { position: relative; min-height: 160px; max-width: var(--w-edit); }
+/* the page is as wide as its list, so New note sits at the list's right edge */
+.page--content { max-width: var(--w-edit); }
+.notes { position: relative; min-height: 160px; }
 .notes__tools { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 10px; }
 .notes__title { display: inline-flex; align-items: center; gap: 6px; }
 .notes__pin { color: var(--accent); }
