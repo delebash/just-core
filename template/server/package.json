@@ -7,7 +7,7 @@
   "license": "MIT",
   "exports": {
     "./serve": "./src/serve.js",
-    "./schemas/*": "./src/schemas/*.js"
+    "./schemas/*.js": "./src/schemas/*.js"
   },
   "dependencies": {
     "@delebash/core": "file:../../packages/core"

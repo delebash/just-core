@@ -1,0 +1,23 @@
+[
+  {
+    "group": "Start here",
+    "items": [
+      { "slug": "getting-started", "title": "Getting started" },
+      { "slug": "ai-providers", "title": "Set up the AI" },
+      { "slug": "ai-features", "title": "The AI features" }
+    ]
+  },
+  {
+    "group": "Using the app",
+    "items": [
+      { "slug": "notes", "title": "Notes" }
+    ]
+  },
+  {
+    "group": "Reference",
+    "items": [
+      { "slug": "troubleshooting", "title": "Troubleshooting" },
+      { "slug": "whats-new", "title": "What's new" }
+    ]
+  }
+]

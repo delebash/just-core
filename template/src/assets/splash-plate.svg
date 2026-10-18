@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <!-- The boot plate: index.html's static layer and the layout's warm-start splash show this same
+       image with the same fit (app-structure §11), so start-up is one continuous picture. A new
+       app replaces it with its own art. -->
+  <rect width="1600" height="1000" fill="#fafaf7"/>
+  <rect x="736" y="372" width="128" height="128" rx="30" fill="#3a7d63"/>
+  <rect x="768" y="410" width="64" height="9" rx="4.5" fill="#ffffff"/>
+  <rect x="768" y="432" width="64" height="9" rx="4.5" fill="#ffffff" opacity="0.85"/>
+  <rect x="768" y="454" width="40" height="9" rx="4.5" fill="#ffffff" opacity="0.7"/>
+  <text x="800" y="568" text-anchor="middle" font-family="system-ui, 'Segoe UI', sans-serif" font-size="40" font-weight="600" fill="#1a1a1a">Family Template</text>
+</svg>

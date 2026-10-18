@@ -1,21 +1,7 @@
 // SPDX-License-Identifier: MIT
-import { defineStore } from '#q-app'
-import { createPinia } from 'pinia'
+// Pinia for Quasar (app-structure §Q.1): Quasar creates the store with this factory and installs it
+// before the boot files run; each store in stores/ is Pinia's own defineStore, one per domain.
+import { defineStore } from "#q-app";
+import { createPinia } from "pinia";
 
-/*
- * If not building with SSR mode, you can
- * directly export the Store instantiation;
- *
- * The function below can be async too; either use
- * async/await or return a Promise which resolves
- * with the Store instance.
- */
-
-export default defineStore((/* { ssrContext } */) => {
-  const pinia = createPinia()
-
-  // You can add Pinia plugins here
-  // pinia.use(SomePiniaPlugin)
-
-  return pinia
-})
+export default defineStore(() => createPinia());

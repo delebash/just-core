@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
-// Configuration for your app
-// https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
+// The app's ONE build config (Quasar CLI, app-structure §Q) — the renderer for every mode, the
+// desktop app (Electron mode on the kit's runDesktopApp) and the phone app (Capacitor mode).
+// Every family app's quasar.config.js is this file with its own names, ports and installer
+// settings. https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
 import path from 'node:path'
 import { defineConfig } from '#q-app'
@@ -10,223 +12,92 @@ import { defineConfig } from '#q-app'
 // (EALLOWSCRIPTS). Each project declares its own `allowScripts`, which npm uses instead.
 delete process.env.npm_config_allow_scripts
 
-export default defineConfig((/* ctx */) => {
+const root = import.meta.dirname
+// The kit, consumed from source: its UI by the alias below, its core by the server package —
+// the renderer imports the server's schemas (server/src/schemas/), which import the kit's
+// browser-safe platform/schema.js. In an app the kit is the sibling checkout ../just-core.
+const kitUi = path.resolve(root, '../packages/ui')
+const kitCore = path.resolve(root, '../packages/core')
+
+export default defineConfig(() => {
   return {
-    // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
-    // preFetch: true,
+    // vue-i18n first (as Quasar's i18n preset wires it), then the renderer's start-up: the kit's UI,
+    // error reporting, Help, the server check, the preferences, the warm start — awaited before
+    // Quasar mounts the app (app-structure §Q.4).
+    boot: ['i18n', 'familytemplate'],
 
-    // app boot file (/src/boot)
-    // --> boot files are part of "main.js"
-    // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: [
-      'i18n'
-    ],
-
-    // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
-    // the design tokens the family theme reads (src/css/tokens.css), then the app's own styles
+    // The stylesheets in cascade order: the design tokens the family theme reads, the kit's own
+    // (its AI views, its controls, its Quasar theme — `~` imports them as written, through the
+    // alias), then the app's, so the app's rules win a tie with the kit's (JustWrite's order).
     css: [
       'tokens.css',
-      'app.scss'
+      '~@delebash/ui/styles.css',
+      '~@delebash/ui/common/styles.css',
+      '~@delebash/ui/quasar/theme.css',
+      'app.scss',
     ],
 
-    // https://github.com/quasarframework/quasar/tree/dev/extras
-    extras: [
-      // 'ionicons-v4',
-      // 'mdi-v7',
-      // 'fontawesome-v7',
-      // 'eva-icons',
-      // 'themify',
-      // 'line-awesome',
+    // No Quasar icon font or Roboto: the icons Quasar's components draw are the kit's line icons
+    // (its icon set, installed by installLlmUi) and the type is the tokens' --font-ui.
+    extras: [],
 
-      'roboto-font', // optional, you are not bound to it
-      'material-icons', // optional, you are not bound to it
-    ],
-
-    // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
-      target: {
-        // browser: 'baseline-widely-available',
-        // node: 'node22'
-      },
+      vueRouterMode: 'hash',
 
-      // https://v2.quasar.dev/quasar-cli-vite/page-routing-with-vue-router#filename-based-routing
-      // filenameBasedRouting: true,
-
-      vueRouterMode: 'hash', // available values: 'hash', 'history'
-
-      // The kit's UI, from the kit's own source (this repo's ui/) — every family app aliases it the
-      // same way; the family theme (src/css/quasar.variables.scss) imports through it.
       alias: {
-        '@delebash/ui': path.resolve(import.meta.dirname, '../packages/ui/src'),
+        '@renderer': path.join(root, 'src'),
+        // The kit's UI, consumed from source for the dev/HMR loop (app-structure §3).
+        '@delebash/ui': path.join(kitUi, 'src'),
       },
-      // vueRouterBase,
 
-      // publicPath: '/',
-      // define: {},
-      // defineEnv: {}
-      // ignorePublicFolder: true,
-      // minify: false,
-      // distDir
-
-      // The development data folder (<repo>/data: the database, logs, Chromium's files) is
-      // never watched — Chromium keeps its files locked (EBUSY) and they aren't source.
       extendViteConf (viteConf) {
+        viteConf.resolve = viteConf.resolve || {}
         // The aliased kit imports its peer packages by bare name from its own folder: ONE copy of
         // each comes from this app's node_modules (Vue's provide/inject and reactivity, and
-        // Quasar's language, break with two) — the list every family app carries (§3).
-        viteConf.resolve = viteConf.resolve || {}
+        // Quasar's, break with two) — the list every family app carries (§3).
         viteConf.resolve.dedupe = [
           ...(viteConf.resolve.dedupe || []),
           'vue', 'quasar', '@floating-ui/dom', 'pinia', 'vue-router', 'vue-i18n', 'marked',
-          '@vueuse/core', 'qrcode'
+          '@vueuse/core'
         ]
         viteConf.server = viteConf.server || {}
+        // Never watched: the server, the development data folder (Chromium keeps its files
+        // locked — EBUSY), the e2e harness, build output (§3, §Q.8).
         const ignored = [].concat(viteConf.server.watch?.ignored || [])
         viteConf.server.watch = {
           ...(viteConf.server.watch || {}),
-          ignored: [ ...ignored, '**/server/**', '**/data/**', '**/dist/**' ]
+          ignored: [ ...ignored, '**/server/**', '**/data/**', '**/e2e/**', '**/dist/**' ]
         }
+        // The dev server reads the repo (docs/ for Help), the kit's UI, and the kit's core
+        // (platform/schema.js, through the server's schemas).
+        viteConf.server.fs = { ...(viteConf.server.fs || {}), allow: [ root, kitUi, kitCore ] }
       },
-      // viteVuePluginOptions: {},
-
-      // to write components with JSX/TSX:
-      // https://v2.quasar.dev/quasar-cli-vite/handling-vite#jsx-tsx
-      // vueJsx: true,
-
-      // vitePlugins: [
-      //   [ 'package-name', { ..pluginOptions.. }, { server: true, client: true } ]
-      // ]
     },
 
-    // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
     devServer: {
       // The app's registered dev port (the guard's DEV_PORTS, app-structure §1): the kit's
       // origin-aware resolver knows it (installLlmUi devPorts) and the server's CSRF guard allows
-      // it (server/src/app.js). A new app takes the next free one.
+      // it (server/src/app.js APP_ORIGINS). A new app takes the next free one.
       host: '127.0.0.1',
       port: 9000,
       strictPort: true,
       open: false
     },
 
-    // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
-      // the family's Quasar settings (docs/app-structure.md §Q): no Material ripple
+      // the family's Quasar settings (app-structure §Q.4): no Material ripple; Notify for the
+      // kit's toasts (pushToast)
       config: { ripple: false },
-
-      // iconSet: 'material-icons', // Quasar icon set
-      // lang: 'en-US', // Quasar language pack
-
-      // For special cases outside of where the auto-import strategy can have an impact
-      // (like functional components as one of the examples),
-      // you can manually specify Quasar components/directives to be available everywhere:
-      //
-      // components: [],
-      // directives: [],
-
-      // Quasar plugins
       plugins: ['Notify']
     },
 
-    // animations: 'all', // --- includes all animations
-    // https://v2.quasar.dev/options/animations
     animations: [],
 
-    // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#sourcefiles
-    // sourceFiles: {
-    //   rootComponent: 'src/App.vue',
-    //   router: 'src/router/index',
-    //   store: 'src/store/index',
-    //   pwaRegisterServiceWorker: 'src-pwa/register-sw',
-    //   pwaServiceWorker: 'src-pwa/sw/custom-sw',
-    //   pwaManifestFile: 'src-pwa/manifest.json',
-    //   electronMain: 'src-electron/electron-main',
-    //   electronPreload: 'src-electron/electron-preload'
-    //   bexManifestFile: 'src-bex/manifest.json
-    // },
-
-    // https://v2.quasar.dev/quasar-cli-vite/developing-ssr/configuring-ssr
-    ssr: {
-      /**
-       * The default port that the production server should use
-       * (gets superseded if process.env.PORT is specified at runtime)
-       */
-      prodPort: 3000,
-      middlewares: [
-        "render" // keep this as last one
-      ],
-
-      // clientSideRenderingRoutes: [],
-      // noPreloadTagRoutes: [],
-      // manualStoreSerialization: true,
-      // manualStoreSsrContextInjection: true,
-      // manualStoreHydration: true,
-      // manualPostHydrationTrigger: true,
-      // prodScriptNamedExport: false,
-
-      // extendSSRPackageJson (pkgJson) {},
-      // extendSSRManifestJson (json) {},
-      // extendSSRWebserverConf (rolldownConf) {},
-
-      // pwa: true,
-      // pwaOfflineHtmlFilename: 'offline.html', // do NOT use index.html as name!
-      // extendSSRGenerateSWOptions (cfg) {},
-      // extendSSRInjectManifestOptions (cfg) {},
-    },
-
-    // https://v2.quasar.dev/quasar-cli-vite/developing-ssg/configuring-ssg
-    ssg: {
-      // onSsgRendererError: 'abort',
-      // ssgRendererConcurrency: 1,
-      // ssgRendererRetryCount: 0,
-      // ssgRendererRetryDelay: 1000,
-      // ssgRendererDirectoryIndexes: true,
-      // error404HtmlFilename: '404.html',
-      // clientSideRenderingHtmlFilename: 'csr.html',
-      // clientSideRenderingRoutes: [],
-      // noPreloadTagRoutes: []
-
-      // extendSSGRendererConf (rolldownConf) {},
-      // extendSSGManifestJson (json) {},
-
-      // manualStoreSerialization: true,
-      // manualStoreSsrContextInjection: true,
-      // manualStoreHydration: true,
-      // manualPostHydrationTrigger: true,
-
-      // pwa: true,
-      // pwaOfflineHtmlFilename: 'offline.html',
-      // extendSSGGenerateSWOptions (cfg) {},
-      // extendSSGInjectManifestOptions (cfg) {},
-    },
-
-    // https://v2.quasar.dev/quasar-cli-vite/developing-pwa/configuring-pwa
-    pwa: {
-      workboxMode: 'GenerateSW' // 'GenerateSW' or 'InjectManifest'
-      // swFilename: 'sw.js',
-      // manifestFilename: 'manifest.json',
-      // extendPWAManifestJson (json) {},
-      // useCredentialsForManifestTag: true,
-      // injectPWAMetaTags: false,
-      // extendPWACustomSWConf (rolldownConf) {},
-      // extendPWAGenerateSWOptions (cfg) {},
-      // extendPWAInjectManifestOptions (cfg) {},
-      // extendPWASwTsConfig (tsConfig) {}
-    },
-
-    // https://v2.quasar.dev/quasar-cli-vite/developing-cordova-apps/configuring-cordova
-    cordova: {},
-
-    // https://v2.quasar.dev/quasar-cli-vite/developing-capacitor-apps/configuring-capacitor
     capacitor: {
       hideSplashscreen: true
     },
 
-    // https://v2.quasar.dev/quasar-cli-vite/developing-electron-apps/configuring-electron
     electron: {
-      // extendElectronMainConf (rolldownConf) {},
-      // extendElectronPreloadConf (rolldownConf) {},
-
       // The main process's dependencies (src-electron/package.json) are local packages — the
       // app's server/ and the family kit — named by `file:` paths relative to src-electron/.
       // Quasar copies them unchanged into dist/electron/UnPackaged/package.json, two folders
@@ -236,7 +107,7 @@ export default defineConfig((/* ctx */) => {
         delete pkgJson.workspaces
         for (const [name, spec] of Object.entries(pkgJson.dependencies || {})) {
           if (typeof spec === 'string' && spec.startsWith('file:')) {
-            pkgJson.dependencies[name] = `file:${path.resolve(import.meta.dirname, 'src-electron', spec.slice(5))}`
+            pkgJson.dependencies[name] = `file:${path.resolve(root, 'src-electron', spec.slice(5))}`
           }
         }
       },
@@ -245,10 +116,8 @@ export default defineConfig((/* ctx */) => {
       // would bring the linked folder's whole node_modules, development tools included
       unPackagedInstallParams: [ 'install', '--install-links' ],
 
-      // Electron preload scripts (if any) from /src-electron, WITHOUT file extension
       preloadScripts: [ 'electron-preload' ],
 
-      // specify the debugging port to use for the Electron app when running in development mode
       inspectPort: 5858,
 
       // the family packages with electron-builder (installers: NSIS on Windows)
@@ -258,31 +127,40 @@ export default defineConfig((/* ctx */) => {
         // https://www.electron.build/configuration
         appId: 'com.familytemplate.app',
         productName: 'Family Template',
-        // the exe never shares the headless launcher's name (app-structure.md §Q.3)
-        win: { target: 'nsis', executableName: 'familytemplate' },
-        nsis: { oneClick: false, allowToChangeInstallationDirectory: true },
+        // better-sqlite3's build leftovers (sources, object files, debug symbols) stay out
+        files: [
+          '**/*',
+          '!**/node_modules/better-sqlite3/{deps,src,build/Release/obj,build/Release/obj.target,build/deps}/**',
+          '!**/node_modules/better-sqlite3/build/Release/*.{pdb,iobj,ipdb,lib,exp}'
+        ],
+        // native modules can't load from inside the asar archive (the server itself runs from it)
+        asarUnpack: [ '**/*.node' ],
         // the headless launcher (family-template-server.cmd) beside the exe — the app's own exe
         // run as Node on its server package (§Q.3)
-        extraResources: [ { from: path.join(import.meta.dirname, 'build', 'launcher'), to: '..' } ],
-        // native modules can't load from inside the asar archive (the server itself runs from it)
-        asarUnpack: [ '**/*.node' ]
+        extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '..' } ],
+        // the exe never shares the headless launcher's name (§Q.3)
+        win: { target: 'nsis', executableName: 'familytemplate' },
+        nsis: {
+          oneClick: false,
+          perMachine: false,
+          allowToChangeInstallationDirectory: true,
+          // the kit's installer steps (the data folder beside the exe, kept on uninstall)
+          include: path.join(kitCore, 'src', 'shell', 'installer.nsh')
+        },
+        // Electron's fuses (electronjs.org/docs/latest/tutorial/fuses) — the three apps' block:
+        // runAsNode stays on for the headless launcher; e2e drives the unfused UnPackaged build
+        electronFuses: {
+          runAsNode: true,
+          enableCookieEncryption: true,
+          enableNodeOptionsEnvironmentVariable: false,
+          enableNodeCliInspectArguments: false,
+          enableEmbeddedAsarIntegrityValidation: true,
+          onlyLoadAppFromAsar: true,
+          grantFileProtocolExtraPrivileges: false
+        },
+        mac: { category: 'public.app-category.productivity' },
+        linux: { target: [ 'AppImage', 'deb' ], category: 'Office' }
       }
-    },
-
-    // https://v2.quasar.dev/quasar-cli-vite/developing-browser-extensions/configuring-bex
-    bex: {
-      // extendBexScriptsConf (rolldownConf) {},
-      // extendBexManifestJson (json) {},
-
-      /**
-       * The list of extra scripts (js/ts) not in your bex manifest that you want to
-       * compile and use in your browser extension. Maybe dynamic use them?
-       *
-       * Each entry in the list should be a relative filename to /src-bex/
-       *
-       * @example [ 'my-script.ts', 'sub-folder/my-other-script.js' ]
-       */
-      extraScripts: []
     }
   }
 })

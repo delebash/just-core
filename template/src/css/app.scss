@@ -1,2 +1,125 @@
-// SPDX-License-Identifier: MIT
-// app global css
+/* SPDX-License-Identifier: MIT */
+/* The app's own classes — the layout and the app's surfaces; the kit ships its controls' styles.
+   The family rules: a height:100% chain (NEVER 100vh), one scroller per area, every control sized to
+   its content, and every colour, font and size from tokens.css (app-structure §4, §17). docgen's
+   app.scss is the donor of the shell's classes. */
+
+* { box-sizing: border-box; }
+html, body, #q-app { height: 100%; margin: 0; } /* #q-app: Quasar's mount point */
+body {
+  font: var(--fs-body)/1.5 var(--font-ui);
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* ── the shell: the title bar over the nav and the content ──────────────── */
+/* The layout (Quasar's q-layout, fixed to the window by the kit's quasar/theme.css) paints the
+   app's background. */
+.shell { background: var(--bg); }
+
+/* The kit's TitleBar frame takes its look from the app (.titlebar, .titlebar__title, .iconbtn). */
+.titlebar {
+  display: flex; align-items: center; gap: var(--sp-1); flex-shrink: 0;
+  height: 44px; padding: 0 10px;
+  background: var(--surface); border-bottom: 1px solid var(--border); color: var(--ink);
+}
+.titlebar__title { font-weight: 600; font-size: var(--fs-small); margin-left: var(--sp-2); }
+.iconbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--btn-radius);
+  border: none; background: transparent; color: var(--ink-2); cursor: pointer;
+}
+.iconbtn:hover:not(:disabled) { background: var(--surface-3); }
+.iconbtn:disabled { opacity: 0.4; cursor: default; }
+
+/* The nav column, filling the drawer. */
+.shell__nav {
+  height: 100%; display: flex; flex-direction: column; gap: 2px;
+  padding: 14px 10px 12px;
+  background: var(--surface); border-right: 1px solid var(--border);
+}
+.shell__brand { display: flex; align-items: center; gap: var(--sp-2); font-weight: 700; padding: 2px 8px 14px; }
+.brand-mark {
+  width: 22px; height: 22px; border-radius: var(--r-sm); flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: var(--on-accent);
+  font-size: 10px; font-weight: 700;
+}
+.brand-name { font-size: var(--fs-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shell__links { display: flex; flex-direction: column; gap: 2px; }
+/* the nav rows are Quasar's QItem links */
+.navlink {
+  min-height: 34px; padding: 0 10px; border-radius: var(--r-sm);
+  color: var(--ink-2); font-weight: 500; font-size: var(--fs-small);
+}
+.navlink:hover { background: var(--surface-3); }
+.navlink--active, .navlink--active:hover { background: var(--accent-soft); color: var(--accent-ink); }
+.navlink__icon.q-item__section--avatar { min-width: 0; padding-right: 9px; color: inherit; }
+.nav-count { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+.nav-count--error { background: var(--danger-bg); color: var(--danger); }
+.nav-divider { margin: var(--sp-2) 6px; background: var(--border); }
+
+/* The one content scroller, under the title bar; the pages flow in it (pageFlow). */
+.shell__main { height: 100%; min-width: 0; overflow-y: auto; padding: 20px var(--sp-5); }
+
+/* ── pages ──────────────────────────────────────────────────────────────── */
+.page__lede { margin: var(--sp-2) 0 var(--sp-4); color: var(--ink-2); max-width: var(--w-prose); }
+.page__banner { margin: var(--sp-3) 0; max-width: var(--w-edit); }
+.cards { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-start; }
+.cards > .card { width: 280px; margin-bottom: 0; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-card); padding: var(--sp-4); margin-bottom: var(--sp-4);
+  max-width: var(--w-edit);
+}
+.card h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-h2); }
+.card__actions { margin-top: var(--sp-3); }
+.card__note { margin: var(--sp-2) 0 0; }
+.hint { color: var(--muted); font-size: var(--fs-small); margin: 0 0 var(--sp-3); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: var(--fs-small); }
+/* Not on Quasar's own elements: Quasar names a flex row `row` too, and this rule would outrank
+   Quasar's inside them. :where() keeps it one class. */
+:where(:not([class*="q-"])).row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.url-box {
+  max-width: var(--w-url); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+.token-list { list-style: none; margin: 0 0 var(--sp-3); padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+/* ── forms (app-structure §15, §17): fields as wide as what they hold, the button row on the
+   right, a button on a row of labelled fields aligned with the inputs ─────────────────────── */
+.form { display: flex; flex-direction: column; gap: var(--sp-3); }
+.form__inline { display: flex; align-items: flex-start; gap: var(--sp-2); flex-wrap: wrap; }
+.form__row { display: flex; align-items: flex-end; gap: var(--sp-3); flex-wrap: wrap; }
+.form__actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-2); }
+.toggle-row { display: flex; align-items: center; gap: 10px; margin-top: var(--sp-3); cursor: pointer; }
+
+/* ── Notes ─────────────────────────────────────────────────────────────── */
+.notes { position: relative; min-height: 160px; max-width: var(--w-edit); }
+.notes__tools { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: 10px; }
+.notes__title { display: inline-flex; align-items: center; gap: 6px; }
+.notes__pin { color: var(--accent); }
+.notes__actions { display: inline-flex; gap: 2px; }
+
+/* ── Settings, AI ───────────────────────────────────────────────────────── */
+.settings { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.settings__logs { display: flex; flex-direction: column; }
+/* the disk-usage grid: a label column and a value/action column (JustWrite's) */
+.diskgrid { display: grid; grid-template-columns: 150px auto; justify-content: start; gap: var(--sp-2) 14px; font-size: var(--fs-small); align-items: center; }
+.ai-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ai-area { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ai-area > * { flex: 1; min-height: 0; }
+
+/* ── the warm-start splash — the plate (index.html's #app-boot shows the same image with the same
+   fit), the kit's <BootModelLoad/> in its bottom strip ───────────────────── */
+.splash {
+  position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end; background: var(--bg);
+}
+.splash__plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.splash__strip {
+  position: relative; z-index: 1; width: min(560px, 90%);
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0 0 7vh;
+}
