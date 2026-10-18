@@ -18,8 +18,9 @@
 //     call (lifecycle, up to `download_max_concurrent` at once).
 //
 // Also standard: per-chunk RETRIES on a fresh connection (a stalled connection hits the read
-// timeout, errors, and its chunk re-queues — stall recovery comes free), RESUME from
-// completed chunks (`<dest>.json` records them, etag-validated; the partial rides in
+// timeout, errors, and its chunk carries on from its last byte — stall recovery comes free),
+// RESUME from completed chunks and from the byte each unfinished chunk reached (`<dest>.json`
+// records both, etag-validated, the unfinished ones every 2 s; the partial rides in
 // `<dest>.part`), cancel via `cancelCheck` (partials kept for resume), a single-stream
 // fallback when the server has no Range support (or the file fits in one chunk), and
 // `segments=1` = a plain browser-style GET. Transport: `platform/http.js` `fetch` (it honours
@@ -327,19 +328,33 @@ async function singleStream(url, dest, onProgress, cancelCheck, retries, gate, h
   throw new RuntimeError(`download failed for ${url} after ${retries} retries: ${errStr(last)}`);
 }
 
-/** The completed-chunk set from a previous run — honoured only when the validator matches
- * (same etag/chunking/size), else the resume starts clean. */
-function loadDoneChunks(pfile, etag, chunkSize, total) {
+/** A previous run's resume state — the completed chunks (`done`) and how far each unfinished
+ * chunk got (`partial`: chunk → bytes on disk from its start) — honoured only when the validator
+ * matches (same etag/chunking/size), else the resume starts clean. A chunk carries on from its
+ * own byte, as aria2's control file and `curl -C -` resume: the request-count discipline makes a
+ * chunk of a 22 GB file 700 MB, and a restart used to fetch every unfinished chunk again from its
+ * start (2026-10-18). */
+function loadResume(pfile, etag, chunkSize, total) {
   try {
     const d = JSON.parse(readFileSync(pfile, "utf8"));
     if (etag && d && typeof d === "object" && d.etag === etag && d.chunkSize === chunkSize && d.total === total) {
-      return new Set((d.done ?? []).map((i) => pyInt(i)));
+      const done = new Set((d.done ?? []).map((i) => pyInt(i)));
+      const partial = new Map();
+      for (const [k, v] of Object.entries(d.partial ?? {})) {
+        const i = pyInt(k);
+        const got = pyInt(v);
+        if (!done.has(i) && got > 0) partial.set(i, got);
+      }
+      return { done, partial };
     }
   } catch {
     /* OSError / ValueError → start clean */
   }
-  return new Set();
+  return { done: new Set(), partial: new Map() };
 }
+
+// How often the resume file records the unfinished chunks' progress while a download runs.
+const PARTIAL_PERSIST_S = 2.0;
 
 /** The chunk-queue download: N worker tasks pull chunk indexes off a shared queue and write
  * each chunk at its offset into the preallocated `<dest>.part`. */
@@ -348,9 +363,10 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
   const pfile = `${dest}.json`;
   const nchunks = floorDiv(total + chunkSize - 1, chunkSize);
 
-  let done = loadDoneChunks(pfile, etag, chunkSize, total);
+  let { done, partial } = loadResume(pfile, etag, chunkSize, total);
   if (!existsSync(part) || statSync(part).size !== total) {
     done = new Set();
+    partial = new Map();
     const fh = await fsp.open(part, "w");
     try {
       await fh.truncate(total); // sparse preallocate — chunks land at their offsets
@@ -361,6 +377,7 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
 
   let bytes = 0;
   for (const i of done) bytes += Math.min(chunkSize, total - i * chunkSize);
+  for (const got of partial.values()) bytes += got;
   const state = { bytes, err: null };
   const cancelEvt = new AsyncEvent();
   const failEvt = new AsyncEvent();
@@ -371,7 +388,8 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
   const persist = () => {
     // Atomic (tmp + replace) so a kill mid-write can't leave a torn resume file.
     const tmp = `${pfile}.tmp`;
-    writeFileSync(tmp, pyJson({ etag, chunkSize, total, done: pySorted(done) }));
+    const partialOut = Object.fromEntries(pySorted([...partial.keys()]).map((i) => [String(i), partial.get(i)]));
+    writeFileSync(tmp, pyJson({ etag, chunkSize, total, done: pySorted(done), partial: partialOut }));
     renameSync(tmp, pfile);
   };
   persist(); // record the validator up front — a cancel before any chunk still resumes cleanly
@@ -384,12 +402,14 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
     let attempt = 0;
     while (attempt <= retries) {
       if (cancelEvt.isSet() || failEvt.isSet()) return false;
-      let got = 0;
+      // What is already on disk of this chunk — from a previous run or a failed attempt — stays.
+      let got = Math.min(partial.get(i) ?? 0, want);
+      if (got === want) return true;
       try {
         const rt = readTimeout({ outer: cancelCtl.signal });
         try {
           const r = await http.fetch(url, {
-            headers: { ...headers, Range: `bytes=${start}-${end}` },
+            headers: { ...headers, Range: `bytes=${start + got}-${end}` },
             signal: rt.signal,
           });
           rt.touch();
@@ -409,6 +429,7 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
               if (cancelEvt.isSet()) return false;
               await fh.write(piece, 0, piece.length, start + got);
               got += piece.length;
+              partial.set(i, got); // recorded only once written — a resume never skips a byte
               state.bytes += piece.length;
             }
           } finally {
@@ -418,6 +439,7 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
           rt.done();
         }
         if (got !== want) throw new Error(`chunk ${i}: short read ${got}/${want}`);
+        partial.delete(i);
         return true;
       } catch (e) {
         if (e instanceof DownloadCancelled) return false; // gate.wait saw cancelEvt — a cancel, not an error
@@ -426,8 +448,7 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
           break;
         }
         if (cancelEvt.isSet()) return false; // the cancel aborted this request
-        state.bytes -= got; // the partial chunk re-downloads — keep the counter honest
-        last = e; // any transport error re-queues this chunk
+        last = e; // any transport error retries this chunk from where it stopped
         attempt += 1;
         await sleep(Math.min(2.0, 0.5 * attempt) * 1000);
       }
@@ -457,15 +478,22 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
   const all = Promise.all(tasks).then(() => {
     running = false;
   });
+  let persisted = performance.now();
   while (running) {
     if (cancelCheck && cancelCheck() && !cancelEvt.isSet()) {
       cancelEvt.set();
       cancelCtl.abort(new DownloadCancelled());
     }
     if (onProgress) onProgress(state.bytes, total);
+    // The unfinished chunks' progress, so a crash or a closed app loses at most a moment of it.
+    if (partial.size && performance.now() - persisted >= PARTIAL_PERSIST_S * 1000) {
+      persist();
+      persisted = performance.now();
+    }
     await Promise.race([sleep(pollInterval * 1000), all]);
   }
 
+  if (cancelEvt.isSet() || failEvt.isSet()) persist(); // the last progress, for the next run
   if (cancelEvt.isSet()) throw new DownloadCancelled(); // part + json stay → the next run resumes past `done`
   if (failEvt.isSet() || done.size !== nchunks) {
     throw new RuntimeError(`download failed for ${url} after ${retries} retries: ${errStr(state.err)}`);

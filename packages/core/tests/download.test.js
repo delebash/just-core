@@ -232,6 +232,33 @@ test("resume_after_cancel", async () => {
   expect(server.bytesServed).toBeLessThan(PAYLOAD.length); // resumed → fewer bytes than a full fetch
 });
 
+// ── an unfinished chunk resumes from its own byte, not its start (2026-10-18) ───────────
+
+test("resume_continues_each_unfinished_chunk_from_where_it_stopped", async () => {
+  const dest = join(tmpPath, "big.bin");
+  const big = 768 * 1024; // 3 chunks over 3 workers: none finishes before the cancel
+  server.chunkDelay = 0.02;
+  const threshold = Math.floor(PAYLOAD.length * 0.4);
+  await expect(
+    streamDownload(url(server), dest, { segments: 3, chunkSize: big, pollInterval: 0.01, cancelCheck: () => server.bytesServed >= threshold }),
+  ).rejects.toThrow(DownloadCancelled);
+
+  const saved = JSON.parse(readFileSync(join(tmpPath, "big.bin.json"), "utf8"));
+  const kept = Object.values(saved.partial ?? {}).reduce((a, b) => a + b, 0);
+  expect(kept).toBeGreaterThan(0); // the unfinished chunks' progress was recorded
+
+  server.chunkDelay = 0.0;
+  await sleep(100);
+  server.bytesServed = 0;
+  server.requests = [];
+  await streamDownload(url(server), dest, { segments: 3, chunkSize: big, pollInterval: 0.01 });
+  expect(readFileSync(dest).equals(PAYLOAD)).toBe(true);
+  // A resumed chunk asks for its rest, from a byte inside it — not from its start.
+  const starts = rangeGets(server).map((r) => Number(/bytes=(\d+)-/.exec(r)[1]));
+  expect(starts.some((s) => s % big !== 0)).toBe(true);
+  expect(server.bytesServed).toBeLessThanOrEqual(PAYLOAD.length - kept + 1); // + the probe's byte
+});
+
 // ── a chunk that exhausts its retries → RuntimeError, not Cancelled ──────────────────
 
 test("a_genuine_failure_raises_runtimeerror", async () => {

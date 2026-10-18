@@ -1611,7 +1611,10 @@ English".
   JustVoice's effect presets and "Narrator". The inventory with file:line, and the plan to show an
   unrenamed seeded row by key, is
   [`../plans/2026-10-18-seeded-words-in-the-users-language.md`](../plans/2026-10-18-seeded-words-in-the-users-language.md)
-  (waits for the user's go). The family already shows a seeded row by key in three places: hardware
+  (built 2026-10-18, §5). The "not renamed" test runs where the row's seed is — the server for the
+  kit's providers and presets, which sends a `nameKey`; a screen never sees the seed's English.
+  JustWrite's statuses and categories are book data the renderer holds, so its store tests there.
+  The family already shows a seeded row by key in three places: hardware
   classes (`classKeyLabel`), the global launch bundles (`LuGlobalSwitches.vue:30-33`), JustWrite's
   Architecture documents. — *code, a read-only sweep of the four repos, 2026-10-18*.
 
@@ -1640,6 +1643,14 @@ English".
 - **The fix:** every agent the kit builds takes Chrome's windows (`http.H2_WINDOWS`, `http.js` and
   `llm/base.js`) — undici's documented `connectionWindowSize` / `initialWindowSize` options
   (undici.nodejs.org, Client options). Nothing for a user to set. — *code, 2026-10-18*.
+- **Resume kept only finished chunks:** the request-count discipline sizes a chunk at file / 32 —
+  697 MB for the 22 GB model — and `<file>.json` recorded only completed chunks, so restarting
+  the app mid-download threw away every unfinished chunk's bytes (the same 18 of 32 done before
+  and after ten minutes at 8 MB/s). Since 2026-10-18 it also records how far each unfinished
+  chunk got (`partial`, written every 2 s and on a cancel or failure), and a chunk carries on
+  from that byte, on a resume and on a retry — as aria2's control file and `curl -C -` do.
+  `download.test.js` "resume_continues_each_unfinished_chunk_from_where_it_stopped". After the
+  fix, the app's own download of the rest ran at 113 MB/s. — *code + measured, 2026-10-18*.
 
 ## Records not yet distilled
 
