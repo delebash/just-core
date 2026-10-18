@@ -45,6 +45,7 @@ const APPS = [
   { name: "JustWrite", dir: process.env.FAMILY_JUSTWRITE_DIR || join(FAMILY, "justwrite-app") },
   { name: "JustVoice", dir: process.env.FAMILY_JUSTVOICE_DIR || join(FAMILY, "JustVioce") },
   { name: "docgen", dir: process.env.FAMILY_DOCGEN_DIR || join(FAMILY, "just_ai_i18n_docgen") },
+  { name: "just-house-paint", dir: process.env.FAMILY_HOUSE_PAINT_DIR || join(FAMILY, "just-house-paint") },
 ];
 
 /** The reference app (`template/`) — a complete family app since 2026-10-18, checked as a product
@@ -56,7 +57,7 @@ const kindOf = (app) => (existsSync(join(app.dir, "quasar.config.js")) ? "quasar
 for (const app of [...APPS, TEMPLATE]) app.kind = kindOf(app);
 
 // The family port registry (app-structure §1) — an app's desktop main passes it as `port`.
-const APP_PORTS = { JustWrite: 17495, JustVoice: 17494, docgen: 8742, template: 17490 };
+const APP_PORTS = { JustWrite: 17495, JustVoice: 17494, docgen: 8742, template: 17490, "just-house-paint": 17497 };
 // The dev-server ports (app-structure §1) — quasar.config.js `devServer.port`, and its HMR port
 // where the app sets one; installLlmUi's devPorts and the server's dev origins name the same
 // numbers. A new app takes the next free ones — not 17496 (JW's smoke scratch) or 1440 (JV's
@@ -66,6 +67,7 @@ const DEV_PORTS = {
   JustVoice: { dev: 1430, hmr: 1431 },
   docgen: { dev: 1450, hmr: 1451 },
   template: { dev: 9000 },
+  "just-house-paint": { dev: 1460, hmr: 1461 },
 };
 
 // Ruled exceptions. An entry here means a human looked and decided it is NOT a fork —
