@@ -25,7 +25,7 @@ npm run lint           # Biome
 npm run i18n:lint      # no word written into a template or built in code (must be 0)
 npm run i18n:report    # keys used but missing from the English catalog (must be none)
 npm run test:server    # the server's tests, on Electron's Node
-npm run test:unit      # the renderer's tests (stores, the mounted Notes page, the boot smoke)
+npm run test:unit      # the renderer's tests (stores, the mounted Notes page, the kit's controls mounted, the boot smoke)
 npm test               # the e2e smoke on the unpacked desktop build (build:unpacked first)
 npm run screenshots    # every surface as a PNG in e2e/shots/
 npm run test:coverage  # coverage (Vitest's v8), no gate

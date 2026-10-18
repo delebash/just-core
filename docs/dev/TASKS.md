@@ -222,8 +222,10 @@ OPEN:   follow-ups the first real app found, each for its own go:
           token and reaches the phone's in-app server. Found with it: NO app passes a token to
           `configureServerApi({ authToken })`, so a browser UI against a server that requires tokens gets
           401 on every call — the tokens serve other programs today; a UI that signs in is open;
-        - the kit's UI package has no mount harness (jsdom, Vue Test Utils): UiNumber's fix is proved by
-          just-house-paint's `src/components/settings/GeneralSection.test.js`;
+        - BUILT 2026-10-18: the kit's controls are mounted in the TEMPLATE's unit tests
+          (`template/src/components/kitControls.test.js`, UiNumber's rules) — not in packages/ui: Vue
+          and Quasar installed there would sit beside the source every app aliases, and an app
+          without the matching dedupe line would load two Vues;
         - the AGENTS.md rollout to JustWrite, JustVoice and docgen, and their §15 GUI half (the open
           deviations in app-structure.md);
         - imaging (photo intake, masks) could move into the kit when a second app needs it.
