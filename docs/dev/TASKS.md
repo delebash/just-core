@@ -229,6 +229,10 @@ OPEN:   follow-ups the first real app found, each for its own go:
         - the AGENTS.md rollout to JustWrite, JustVoice and docgen, and their §15 GUI half (the open
           deviations in app-structure.md);
         - imaging (photo intake, masks) could move into the kit when a second app needs it.
+        - the models cache's Clear in a SHARED cache (the kit's `cacheShared`) deletes every sharing app's
+          models, and no Storage screen said so: the template's confirm now does (2026-10-18, found on
+          just-house-paint, which shares JustWrite's 272 GB cache); JustWrite, JustVoice and docgen have
+          their own Storage code and need the same line — left to their sessions.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp

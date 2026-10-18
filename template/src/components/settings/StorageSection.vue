@@ -59,7 +59,10 @@ async function clearModelsCache() {
   const size = fmtBytes(diskUsage.value?.modelsCache) || "0 MB";
   const yes = await confirmDialog({
     title: t("settings.storage.clearModelsTitle"),
-    message: t("settings.storage.clearModelsMessage", { size }),
+    // a cache shared with the family's other apps (the kit's `cacheShared`): clearing it clears theirs too
+    message: diskUsage.value?.cacheShared
+      ? `${t("settings.storage.clearModelsMessage", { size })} ${t("settings.storage.clearModelsShared")}`
+      : t("settings.storage.clearModelsMessage", { size }),
     confirmLabel: t("settings.storage.clearModelsConfirm"),
     danger: true,
   });
