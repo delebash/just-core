@@ -158,8 +158,8 @@ export async function requestBlob(path, { method = "GET", body, headers } = {}) 
   }
   const res = await serverFetch(serverUrl(path), opts);
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText}: ${text}`.trim());
+    const parsed = parseProblem(await res.text().catch(() => ""));
+    throw attachProblem(new Error(`${res.status} ${res.statusText}: ${parsed.human}`.trim()), res.status, parsed, res.headers);
   }
   return res.blob();
 }
@@ -168,8 +168,9 @@ export async function postForm(path, formData, opts = {}) {
   const headers = authHeaders(opts.headers);
   const res = await serverFetch(serverUrl(path), { ...opts, method: "POST", headers, body: formData });
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    // the §15 parts on the Error, as request() hangs them (status, problem, errors, requestId)
+    const parsed = parseProblem(await res.text());
+    throw attachProblem(new Error(`${res.status} ${res.statusText}: ${parsed.human}`), res.status, parsed, res.headers);
   }
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("json")) return res.json();
