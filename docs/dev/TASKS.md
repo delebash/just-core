@@ -118,6 +118,36 @@ BUILT:  2026-10-17, the kit fixes (7) and the CI (8): the template's `biome.json
         shown); app-structure §Q.2 id, §1 names and ports, §2 biome, §3, §8/§11 `app.route`, §Q.9,
         §Q.10, §13 PRD; install-runbook's server half for Node and Hono. just-sqlite-sync's CI runs
         by hand (5d164dc; its lint and 70 tests pass).
+DIRECTION (the user, 2026-10-17, verbatim — after being told the template has no LLM stack, help
+        docs, §11 chrome or §14 skeleton):
+        - "why i asket the other session so these are goo questions to ask, will need ai if so it gets
+          the full ai, in fact if it get llm the sntadard crhomwe is included buy default with logs
+          and ai area, it should get it all, think on the template again, you did a bad job last time"
+        - "all apps need help why not have help thse can be questiosn for template with default yes"
+        - "i cant beleive you missed the test, ok think fresh i want a complete template with all
+          recommendedn standards and any of the stuf we have for our app quasar llm help ect, make sure
+          it is done correctlky,, think adversarially several times!!!!!!!!!!!!!!"
+        - "there should be standard for ui stnaddard for server design standard for every part of the
+          app, if it doesnt exist make a stndar so you code each new app thesame!!!!"
+        - "i have had your review all the apss so many times to make sure everything is done the same
+          way but you keep screweing up, so when we create a new app if i look at the sever code it
+          should have all the same deign same common checks same common features same common design
+          only domain differences liket get all book but all the other common stuff like server health
+          stats all should be standard, same for app code and gui, make sure this is in the template
+          and that the ai needs to know these standards and stick to them when codding"
+        So: the template becomes a COMPLETE family app — Quasar, the LLM stack (+ §11 chrome: AI area,
+        task status, logs, settings), help docs, the §14 skeleton, tests at every level (server, unit,
+        e2e) — verified green and checked by the guard as a product; the skill's parts are yes/no
+        questions defaulting to yes; every part of an app gets a written family standard (made where
+        none exists). Sameness by construction, not by review: (1) common code lives in the kit —
+        what apps still hand-write in common (health/stats, auth, settings sections, help, common
+        pages) moves into kit factories/components; (2) the template wires all of it, and domain code
+        goes only into named lanes; (3) a written standard per part, which every repo's AGENTS.md and
+        CLAUDE.md make every AI read before touching that part; (4) the guard checks the common parts
+        in every app (the same common endpoints, routes and chrome), so drift fails the commit check.
+        Process: fresh inventory (standard, the three apps, industry standards) → draft →
+        several adversarial reviews → the plan with its blast radius to the user for a go → build →
+        prove every script green.
 OPEN:   the §14 product skeleton. Once registered in `APPS`, a new app must pass the product-only
         checks the template is exempt from: `src/services/helpDocs.js` (makeDocsHelpAdapter),
         `src/stores/ui.js` (useUiStore), `src/boot.smoke.test.js` (registerBootSmoke),
