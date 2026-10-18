@@ -13,11 +13,29 @@
 import { computed, toValue } from "vue";
 import { useAiTasksStore } from "../stores/aiTasks.js";
 
+const holds = (task, want) => Object.entries(want).every(([k, v]) => task.meta?.[k] === v);
+
 export function useSurfaceTask(feature, meta = {}) {
   const tasks = useAiTasksStore();
   return computed(() => {
     const key = toValue(feature);
     const want = toValue(meta) || {};
-    return tasks.runningTasks.find((task) => task.feature === key && Object.entries(want).every(([k, v]) => task.meta?.[k] === v)) || null;
+    return tasks.runningTasks.find((task) => task.feature === key && holds(task, want)) || null;
+  });
+}
+
+/**
+ * Every VISIBLE task of any of `features` whose meta holds every pair in `meta`, oldest first —
+ * running, and finished ones lingering for their dwell (a failure stays until dismissed). For a page
+ * that shows all its own runs, several features at once (JustVoice's pageTasks, 2026-10-05, promoted
+ * to the kit 2026-10-18); AiTaskStrips renders them. Keep `features` a literal array here: the
+ * guard's check 17 reads it.
+ */
+export function useSurfaceTasks(features, meta = {}) {
+  const tasks = useAiTasksStore();
+  return computed(() => {
+    const keys = toValue(features) || [];
+    const want = toValue(meta) || {};
+    return tasks.visibleTasks.filter((task) => keys.includes(task.feature) && holds(task, want));
   });
 }

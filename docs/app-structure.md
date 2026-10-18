@@ -696,7 +696,9 @@ family-wide; `toTaskUsage` accepts snake_case and camelCase so nobody
 hand-maps). **Every AI task is visible while it runs, and shows where it was
 started.** The screen that starts a feature mounts the kit's `AiTaskStrip` there,
 its task found with `useSurfaceTask("<feature>", meta)` (meta tells two houses' or
-two brands' runs apart). The kit's **global stack** (`AiTaskStack`, mounted by
+two brands' runs apart) — or, for a page that shows all its own runs, several features
+at once with failures lingering until dismissed, `<AiTaskStrips :features="[…]" :meta>`
+(`useSurfaceTasks`; JustVoice's pattern, promoted to the kit 2026-10-18). The kit's **global stack** (`AiTaskStack`, mounted by
 `<LlmUiHosts />`, so every app has it) shows every running task no screen shows —
 a dialog closed mid-run, a page left — so no task is ever invisible; while a
 screen's strip is mounted the stack leaves its task out, so one run never shows

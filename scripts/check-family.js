@@ -1090,7 +1090,8 @@ function checkI18nKit() {
 // The kit's global stack (AiTaskStack, mounted by <LlmUiHosts />) shows every running task no
 // screen shows, so no task is ever invisible. This check holds each app to the better half: the
 // screen that starts a feature shows its progress there — the kit's AiTaskStrip, its task found
-// with useSurfaceTask("<feature>"). Found 2026-10-18: just-house-paint's house page ran every job
+// with useSurfaceTask("<feature>") — or, for a page that shows all its runs, useSurfaceTasks([…]) /
+// <AiTaskStrips :features="[…]">. Found 2026-10-18: just-house-paint's house page ran every job
 // with no progress on screen, and the template's own AI example said "the task strip shows it"
 // with no strip mounted — the standard lived only in §8's prose.
 // The features an app starts are read from its code: every literal `feature: "…"`, and the
@@ -1107,6 +1108,9 @@ function checkSurfaceTasks(app, files) {
     const src = readFileSync(f, "utf8");
     const rel = relative(app.dir, f).replaceAll("\\", "/");
     for (const m of src.matchAll(/useSurfaceTask\(\s*["'`]([\w.:-]+)["'`]/g)) shown.add(m[1]);
+    // the plural: useSurfaceTasks(["a", "b"]) and <AiTaskStrips :features="['a', 'b']"> (JustVoice's pattern)
+    for (const m of src.matchAll(/useSurfaceTasks\(\s*\[([^\]]*)\]|<AiTaskStrips\b[^>]*:features="\[([^\]]*)\]"/g))
+      for (const k of (m[1] ?? m[2]).matchAll(/["'`]([\w.:-]+)["'`]/g)) shown.add(k[1]);
     const keys = [...src.matchAll(/\bfeature:\s*["'`]([\w.:-]+)["'`]/g)].map((m) => m[1]);
     if (/\brunAiFeature(Stream)?\s*\(/.test(src)) keys.push(...[...src.matchAll(/\baction:\s*["'`]([\w.:-]+)["'`]/g)].map((m) => m[1]));
     for (const k of keys) if (!started.has(k)) started.set(k, rel);
@@ -1114,7 +1118,7 @@ function checkSurfaceTasks(app, files) {
   }
   for (const [feature, rel] of started) {
     if (shown.has(feature)) continue;
-    const msg = `${rel} starts the AI task "${feature}" but no screen shows it in place — mount the kit's AiTaskStrip with useSurfaceTask("${feature}") where the user starts it (app-structure §8)`;
+    const msg = `${rel} starts the AI task "${feature}" but no screen shows it in place — mount the kit's AiTaskStrip with useSurfaceTask("${feature}") where the user starts it, or <AiTaskStrips :features="[…]"> for a page's runs (app-structure §8)`;
     if (SURFACE_TASK_REQUIRED.has(app.name)) fail(app.name, msg);
     else info(app.name, msg);
   }
