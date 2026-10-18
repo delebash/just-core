@@ -195,6 +195,13 @@ DIRECTION (the user, 2026-10-17, verbatim — after being told the template has 
         Process: fresh inventory (standard, the three apps, industry standards) → draft →
         several adversarial reviews → the plan with its blast radius to the user for a go → build →
         prove every script green.
+GO:     2026-10-18, the user, verbatim, after the rename was reported done: "keep going finihs it all i
+        want all this done and a complete working app for just-house-paint, dont stop but always
+        rethink your decisions and recs adverserially go on coding your recs dont stop do it all".
+        Read as: build the complete template, the written standards, the kit pieces they need, the
+        skill, and just-house-paint end to end, each rec attacked before it is built; NOT STANDARD
+        pieces still named with their evidence (the user's 2026-10-17 "im ok with non standard as long
+        as we have done the researcch and this is the best way").
 OPEN:   the plan — the complete template and a written standard per part — is next: the just-core
         rename (item above) is done (2026-10-18), so it is written once with the final names. Its inputs are in RESEARCH §2,
         "The complete template" (the apps' shared pieces, the standards coverage map and its 14 gaps,
