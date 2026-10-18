@@ -119,8 +119,8 @@ button:not(.ui-btn) { color: inherit; }
 
 /* Settings rows (AppearancePanel, and any app row built the same way) — the kit's look at ZERO
    specificity (:where): an app's own .setting-row* rules win (JustVoice, docgen), an app with none
-   (the template and every app made from it) still gets laid-out rows. The hue slider takes the
-   accent colour, so it recolours live as the hue moves. */
+   (the template and every app made from it) still gets laid-out rows. The hue slider is the kit's
+   UiSlider (its own width; its fill the accent, so it recolours live as the hue moves). */
 :where(.setting-row) { display: block; padding: 10px 0; border-bottom: 1px solid var(--border-soft, var(--border)); }
 :where(.setting-row:last-child) { border-bottom: 0; }
 :where(.setting-row__head) { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -128,7 +128,7 @@ button:not(.ui-btn) { color: inherit; }
 :where(.setting-row__title) { font-weight: 600; font-size: 13px; color: var(--ink); }
 :where(.setting-row__desc) { color: var(--muted, var(--ink-2)); font-size: 12px; margin-top: 2px; line-height: 1.45; }
 :where(.setting-row__value) { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--ink-2); }
-:where(.setting-row__slider) { width: 100%; margin-top: 10px; accent-color: var(--accent); }
+:where(.setting-row__slider) { margin-top: 10px; accent-color: var(--accent); }
 :where(.accent-preview) { display: inline-block; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--border); }
 
 /* ── Table (UiTable — TanStack headless; flat editorial look) ── */

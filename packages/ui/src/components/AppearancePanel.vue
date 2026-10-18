@@ -8,7 +8,10 @@
 // `.setting-row*` / `.accent-preview` rules still win) — an app that styles
 // nothing gets laid-out rows and a hue slider in the accent colour, live as
 // it moves (2026-10-18: the template had no copy of those rules, so its
-// slider stayed the system blue).
+// slider stayed the system blue). The hue is the kit's UiSlider (long, 320 px
+// — "a slider is a control, not a layout filler"), never a hand-rolled range;
+// its fill is the accent, so it recolours as the hue moves (JustVoice's
+// proposal, 2026-10-18).
 //
 // Rows: Theme · Interface size · UI font · Accent hue (swatch + slider) ·
 // Language. The Language row renders only when the host passes `locales` —
@@ -19,6 +22,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import UiSelect from "../common/components/UiSelect.vue";
+import UiSlider from "../common/components/UiSlider.vue";
 import { UI_FONTS, UI_SCALES } from "../common/services/appearance.js";
 
 const props = defineProps({
@@ -101,12 +105,12 @@ const fontOptions = UI_FONTS.map((f) => f.label);
         <span class="accent-preview" :style="{ background: `oklch(0.538 ${accentChroma} ${appearance.accentHue})` }" />
       </span>
     </div>
-    <input
-      type="range"
-      :value="appearance.accentHue"
-      min="0" max="360" step="1"
+    <UiSlider
       class="setting-row__slider"
-      @input="(e) => emit('patch', { accentHue: Number(e.target.value) })"
+      :model-value="appearance.accentHue"
+      :min="0" :max="360" :step="1" width="long" :show-number="false"
+      :aria-label="t('kit.appearance.panel.accent', { hue: appearance.accentHue })"
+      @update:model-value="(v) => emit('patch', { accentHue: Number(v) })"
     />
   </div>
 
