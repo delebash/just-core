@@ -121,6 +121,21 @@ function onKeydown(e) {
   emit("keydown", e);
 }
 
+// The rules (QInput's `rules`, e.g. the kit's schemaRules) judge the NUMBER, not the text shown:
+// the shown text is formatted ("2,048"), and a rule given it said "Must be a number" for every
+// value of 1,000 and more. Text that doesn't parse reaches the rule as it was typed, so the rule
+// still says what is wrong with it; an empty box reaches it as null (required).
+const numberRules = computed(() => {
+  const rules = attrs.rules;
+  if (!Array.isArray(rules)) return rules;
+  const asNumber = (v) => {
+    if (v === null || v === undefined || String(v).trim() === "") return null;
+    const n = parseNumber(String(v));
+    return n === null || Number.isNaN(n) ? v : n;
+  };
+  return rules.map((rule) => (typeof rule === "function" ? (v) => rule(asNumber(v)) : rule));
+});
+
 const classes = computed(() => [
   "ui-input", "ui-number",
   props.size === "small" && "ui-input--small",
@@ -134,6 +149,7 @@ useNativeEvents(inputEl, attrs, { blur: onBlur, focus: onFocus, keydown: onKeydo
   <QInput
     ref="field"
     v-bind="withoutListeners(attrs)"
+    :rules="numberRules"
     :class="classes"
     type="text"
     inputmode="decimal"
