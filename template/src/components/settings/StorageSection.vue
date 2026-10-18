@@ -15,7 +15,7 @@ const props = defineProps({
   dataDir: { type: String, default: "" },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const storageRoot = ref(null); // { root, default, portable } — the desktop shell's answer
 const relocating = ref(false);
@@ -55,14 +55,19 @@ async function changeFolder() {
   }
 }
 
+/** A cache shared with the family's other apps: clearing it clears theirs too — named when the kit's
+ *  registry knows them (`sharedWith`; the cache's owner sees them too), else said plainly (`cacheShared`). */
+function sharedNote() {
+  const apps = diskUsage.value?.sharedWith || [];
+  if (apps.length) return t("settings.storage.clearModelsSharedWith", { apps: new Intl.ListFormat(locale.value, { type: "conjunction" }).format(apps) });
+  return diskUsage.value?.cacheShared ? t("settings.storage.clearModelsShared") : "";
+}
+
 async function clearModelsCache() {
   const size = fmtBytes(diskUsage.value?.modelsCache) || "0 MB";
   const yes = await confirmDialog({
     title: t("settings.storage.clearModelsTitle"),
-    // a cache shared with the family's other apps (the kit's `cacheShared`): clearing it clears theirs too
-    message: diskUsage.value?.cacheShared
-      ? `${t("settings.storage.clearModelsMessage", { size })} ${t("settings.storage.clearModelsShared")}`
-      : t("settings.storage.clearModelsMessage", { size }),
+    message: [t("settings.storage.clearModelsMessage", { size }), sharedNote()].filter(Boolean).join(" "),
     confirmLabel: t("settings.storage.clearModelsConfirm"),
     danger: true,
   });

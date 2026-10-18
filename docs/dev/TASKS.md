@@ -238,7 +238,10 @@ OPEN:   follow-ups the first real app found, each for its own go:
           cache just-house-paint now uses — would clear house-paint's models without a word. The family
           registry (`%LOCALAPPDATA%\just-ai\caches.json`) records each app's cacheRoot; my rec: the disk
           route reports `sharedWith` from the registry's other products on the same root whose dataDir still
-          exists, and the Storage confirm names them. For a go.
+          exists, and the Storage confirm names them. BUILT 2026-10-18 on just-house-paint's go ("your rec on all just think on it
+          again go"): `cacheRegistry.sharingApps(root, dataDir)`, the disk route's `sharedWith`, and the template's and
+          just-house-paint's clear-models confirm naming them ("shared with JustWrite and …"). OPEN for JustWrite,
+          JustVoice and docgen: their own Storage code shows `sharedWith` the same way (the field is there now).
         - BUILT 2026-10-18 (just-house-paint's go, "your rec on all just think on it again go"): the generator's
           RESERVED ports now hold JustWrite's eval (17497) and flow tests (17498), and just-house-paint moved to
           17499 (the guard's APP_PORTS, app-structure §1) — found by the JustWrite session, which can drop its

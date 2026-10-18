@@ -163,6 +163,22 @@ test("your_own_cache_is_never_offered_to_you", () => {
   expect(cacheRegistry.discover(mine)).toEqual([]);
 });
 
+test("the_owner_of_a_shared_cache_learns_who_else_uses_it", () => {
+  // JustWrite owns the cache; just-house-paint shares it; an uninstalled app's row and a row with no
+  // data folder don't count. Each install sees the others, never itself.
+  familyHome();
+  const cache = join(tmp, "jw", "ai-cache");
+  mkdirSync(cache, { recursive: true });
+  mkdirSync(join(tmp, "hp"), { recursive: true });
+  cacheRegistry.register("JustWrite", cache, join(tmp, "jw"));
+  cacheRegistry.register("Just House Paint", cache, join(tmp, "hp"));
+  cacheRegistry.register("Gone", cache, join(tmp, "uninstalled"));
+  cacheRegistry.register("NoFolder", cache);
+  expect(cacheRegistry.sharingApps(cache, join(tmp, "jw"))).toEqual(["Just House Paint"]);
+  expect(cacheRegistry.sharingApps(cache, join(tmp, "hp"))).toEqual(["JustWrite"]);
+  expect(cacheRegistry.sharingApps(join(tmp, "elsewhere"), join(tmp, "jw"))).toEqual([]);
+});
+
 test("a_vanished_cache_is_pruned_not_offered", () => {
   // An entry is a claim about the disk, not a subscription. An uninstalled app or a
   // throwaway run leaves a path that no longer exists, and "share JustWrite's 0 B cache" is

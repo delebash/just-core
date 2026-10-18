@@ -157,8 +157,9 @@ test("a_wired_service_supplies_the_engine_roots", async () => {
     cacheRoot: shared,
     runtimeRoot: join(shared, "llamacpp"),
   });
+  vi.spyOn(diskApi.deps, "sharingApps").mockResolvedValue(["JustWrite"]);
   const body = await usage(tmp);
-  expect(body).toMatchObject({ modelsCache: 1234, engineBuilds: 10, spawnLogs: 7, cacheShared: true });
+  expect(body).toMatchObject({ modelsCache: 1234, engineBuilds: 10, spawnLogs: 7, cacheShared: true, sharedWith: ["JustWrite"] });
   // and a wiring gap is never an error: the data dir is measured instead
   vi.spyOn(diskApi.deps, "configuredService").mockRejectedValue(new Error("no runner"));
   expect((await usage(tmp)).cacheShared).toBe(false);

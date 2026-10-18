@@ -20,6 +20,9 @@
 //   total        — the sum of the five buckets (+ any host-declared extras).
 //   diskFree / diskTotal — the volume's free/total bytes.
 //   cacheShared  — true when the cache lives outside this app's data root.
+//   sharedWith   — the OTHER installed apps the family registry records on this cache (their
+//                  product names; [] when none) — what a "clear the models cache" would also clear,
+//                  which the cache's owner can't see from `cacheShared`.
 //   extras       — host-declared app-specific buckets (`extraBuckets`), e.g. JV's
 //                  speech-cache and render-cache roots; {} when none.
 //
@@ -156,6 +159,8 @@ export const DiskUsageResponse = T.Object({
   // True when the engine cache is somewhere other than `<dataDir>/ai-cache` — a panel
   // offering "clear the models cache" needs to say WHOSE models those are.
   cacheShared: opt(T.Boolean(), false),
+  // The other installed apps on this cache (the family registry): a clear takes their models too.
+  sharedWith: opt(T.Array(T.String()), []),
   // Host-declared buckets — app stores the shared kit doesn't know about (JV's speech
   // cache / render cache). Counted into `total`; {} for hosts that declare none.
   extras: opt(T.Record(T.String(), T.Integer()), {}),
@@ -168,6 +173,11 @@ export const deps = {
   async configuredService() {
     const lifecycle = await import("#runner/lifecycle");
     return lifecycle.configuredService();
+  },
+  // the other installs on a cache root (runner/cache_registry.js), reached lazily like the service
+  async sharingApps(cacheRoot, dataDir) {
+    const registry = await import("../runner/cache_registry.js");
+    return registry.sharingApps(cacheRoot, dataDir);
   },
 };
 
@@ -242,6 +252,13 @@ export function makeDiskRouter(dataDir, extraBuckets = null) {
     const total =
       database + appLogs + modelsCache + engineBuilds + spawnLogs + Object.values(extras).reduce((a, b) => a + b, 0);
 
+    let sharedWith = [];
+    try {
+      sharedWith = await deps.sharingApps(aiCache, root);
+    } catch (e) {
+      log.warning("could not read the family cache registry — sharedWith reported empty", e);
+    }
+
     let diskFree = 0;
     let diskTotal = 0;
     try {
@@ -260,6 +277,7 @@ export function makeDiskRouter(dataDir, extraBuckets = null) {
       diskFree,
       diskTotal,
       cacheShared: !samePath(aiCache, path.join(root, "ai-cache")),
+      sharedWith,
       extras,
     });
   });

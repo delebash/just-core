@@ -364,6 +364,27 @@ export function productOf(root, dataDir = null) {
 }
 
 /**
+ * The OTHER installs that use cache `root`: the product of every row recorded against it except the
+ * install at `dataDir`, whose data folder is still on disk (an uninstalled app's row isn't a sharer;
+ * a row with no data folder can't be checked and isn't counted). De-duplicated, in registry order;
+ * [] when none. A "clear the models cache" in that root takes their models too — and the cache's
+ * OWNER can't tell otherwise (the disk route's `cacheShared` is false for it; found by the JustWrite
+ * session, 2026-10-18).
+ */
+export function sharingApps(root, dataDir = null) {
+  const want = pyPath(root);
+  const mine = dataDir ? pyPath(dataDir) : "";
+  const out = [];
+  for (const e of read()) {
+    const where = e.dataDir ? pyPath(e.dataDir) : "";
+    if (pyPath(e.cacheRoot) !== want || !where || where === mine || !isDir(where)) continue;
+    const product = get(e, "product", "");
+    if (product && !out.includes(product)) out.push(product);
+  }
+  return out;
+}
+
+/**
  * Every cache root this box knows about except the excluded ones, summarized.
  *
  * `exclude` takes one path or several — a caller normally excludes BOTH the cache in use and
