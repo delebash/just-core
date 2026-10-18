@@ -5,7 +5,7 @@
 // called preventDefault() on that event, as Reka's DropdownMenuItem did. Its
 // `detail.originalEvent` is the click or key that picked it, so a host can read the modifier
 // keys (JustWrite's shift-click asks for three variations) — Reka's item event carried it too. The pointer moving over
-// an item focuses it, and the focused item carries data-highlighted (its look is the host's); a
+// an item focuses it, and the focused item carries data-highlighted (the kit's .lu-mmi look unless the host gives a class); a
 // `disabled` item carries data-disabled, stays in the list and is skipped by the keys.
 import { computed, inject, ref, useAttrs } from "vue";
 import { MENU_KEY } from "./menuContext.js";
