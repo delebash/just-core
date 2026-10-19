@@ -1867,6 +1867,16 @@
       "refused": "That wasn't accepted",
       "seeLogs": "Details are in Settings → Logs",
       "reference": "Reference {id}"
+    },
+    "shellMenu": {
+      "addToDictionary": "Add to dictionary",
+      "noSuggestions": "No suggestions",
+      "cut": "Cut",
+      "copy": "Copy",
+      "paste": "Paste",
+      "selectAll": "Select all",
+      "copyImage": "Copy image",
+      "copyLink": "Copy link"
     }
   }
 }

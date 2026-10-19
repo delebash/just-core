@@ -139,6 +139,8 @@ opener. The server's own escape hatch is `<ID_UPPER>_DEV_NO_SERVER=1`.
 **One bridge object — `window.appShell` — read only by `src/services/native.js`.** The kit's
 preload exposes it: `invoke(command, args)` for the shell's commands (`pickDirectory`,
 `pickFile`, `saveFile`, `storageGetRoot`, `storageRelocate`, `setKeepRunning`, `setTrayLabels`,
+`setContextMenuLabels` and `setSpellCheckerLanguages` — the right-click menu's words and the
+spellchecker's languages, since the shell draws the menu (electron-context-menu, 2026-10-18) —
 `openExternal`, `openPath`, `serverUrl` — the server's URL once it listens, for the renderer's
 API base), `on(event, fn)` for its `tray:*` pushes, `platform`, and `versions`
 (`{ electron, chrome }`, for an About page). `native.js` is the one file that reads it and the one

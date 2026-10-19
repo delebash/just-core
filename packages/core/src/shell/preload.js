@@ -21,6 +21,8 @@ const COMMANDS = new Set([
   "storageRelocate",
   "setKeepRunning",
   "setTrayLabels",
+  "setContextMenuLabels",
+  "setSpellCheckerLanguages",
   "openExternal",
   "openPath",
   "updateStatus",

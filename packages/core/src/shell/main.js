@@ -52,9 +52,11 @@ import {
   Tray,
   utilityProcess,
 } from "electron";
+import contextMenu from "electron-context-menu";
 import { dataFolderInUse } from "../platform/data_lock.js";
 import { portInUse } from "../platform/port.js";
 import { CHROME_DIR, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir } from "./dataRoot.js";
+import { pickSpellLanguages } from "./spellLanguages.js";
 import { stopStaleServer } from "./stale_server.js";
 
 /** The renderer's commands — the preload exposes exactly these (`appShell.invoke`). */
@@ -66,6 +68,8 @@ export const COMMANDS = [
   "storageRelocate",
   "setKeepRunning",
   "setTrayLabels",
+  "setContextMenuLabels",
+  "setSpellCheckerLanguages",
   "openExternal",
   "openPath",
   "updateStatus",
@@ -88,6 +92,10 @@ const DEFAULT_TRAY_LABELS = {
   about: null, // "ℹ️ About <productName>"
   quit: null, // "🚪 Quit <productName>"
 };
+
+// The right-click menu's words the app may send (`setContextMenuLabels`, in its language, like the
+// tray's): electron-context-menu's item ids for what this shell shows. Until then, its own English.
+const CONTEXT_MENU_LABEL_IDS = ["learnSpelling", "dictionarySuggestions", "cut", "copy", "paste", "selectAll", "copyImage", "copyLink"];
 
 // The server's own 3 s grace plus engine shutdown — 15 s, what the Tauri shell it replaced
 // waited (10 s for the shutdown reply, then 5 s for the exit).
@@ -143,6 +151,7 @@ export function runDesktopApp(config) {
     win: null,
     tray: null,
     trayLabels: { ...DEFAULT_TRAY_LABELS },
+    contextMenuLabels: {}, // read each time the menu opens (electron-context-menu `labels`)
   };
 
   protocol.registerSchemesAsPrivileged([
@@ -399,6 +408,17 @@ export function runDesktopApp(config) {
     });
     if (saved?.maximized) win.maximize();
     win.once("ready-to-show", () => win.show());
+    // The right-click menu Electron doesn't draw by itself (2026-10-18; electron-context-menu, the
+    // pattern electronjs.org/docs/latest/tutorial/spellchecker shows): spelling suggestions, Add to
+    // dictionary (the user's own act), cut/copy/paste, copy link or image. No web search — nothing
+    // leaves the app unasked — and no macOS Look Up. A page with its own menu (JustWrite's editor)
+    // cancels the browser's and never gets this one.
+    contextMenu({
+      window: win,
+      labels: state.contextMenuLabels,
+      showSearchWithGoogle: false,
+      showLookUpSelection: false,
+    });
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https?:/i.test(url)) shell.openExternal(url);
       return { action: "deny" };
@@ -647,6 +667,25 @@ export function runDesktopApp(config) {
       for (const [k, v] of Object.entries(labels || {})) if (k in state.trayLabels && v) state.trayLabels[k] = v;
       state.tray?.setContextMenu(buildTrayMenu());
       return null;
+    },
+    // The right-click menu's words in the app's language (CONTEXT_MENU_LABEL_IDS); a missing one
+    // keeps electron-context-menu's English.
+    setContextMenuLabels({ labels }) {
+      for (const id of CONTEXT_MENU_LABEL_IDS) {
+        if (typeof labels?.[id] === "string" && labels[id]) state.contextMenuLabels[id] = labels[id];
+      }
+      return null;
+    },
+    // The spellchecker's languages, most wanted first (JustWrite: the book's, then the
+    // interface's): pickSpellLanguages maps each to one the spellchecker has. Returns the ones set
+    // — none on macOS, where the system's spellchecker picks the language itself and the call
+    // does nothing.
+    setSpellCheckerLanguages({ languages }) {
+      const ses = state.win?.webContents?.session;
+      if (!ses || process.platform === "darwin") return [];
+      const picked = pickSpellLanguages(languages, ses.availableSpellCheckerLanguages, ses.getSpellCheckerLanguages());
+      if (picked.length) ses.setSpellCheckerLanguages(picked);
+      return picked;
     },
     openExternal({ url }) {
       if (!/^(https?|mailto):/i.test(String(url))) throw new Error("only http(s) and mailto links open outside");
