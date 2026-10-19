@@ -1867,6 +1867,16 @@
       "refused": "No se aceptó",
       "seeLogs": "Los detalles están en Configuración → Registros",
       "reference": "Referencia {id}"
+    },
+    "shellMenu": {
+      "addToDictionary": "Añadir al diccionario",
+      "noSuggestions": "Sin sugerencias",
+      "cut": "Cortar",
+      "copy": "Copiar",
+      "paste": "Pegar",
+      "selectAll": "Seleccionar todo",
+      "copyImage": "Copiar imagen",
+      "copyLink": "Copiar enlace"
     }
   }
 }
