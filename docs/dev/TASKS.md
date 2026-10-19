@@ -233,6 +233,16 @@ OPEN:   follow-ups the first real app found, each for its own go:
           token and reaches the phone's in-app server. Found with it: NO app passes a token to
           `configureServerApi({ authToken })`, so a browser UI against a server that requires tokens gets
           401 on every call — the tokens serve other programs today; a UI that signs in is open;
+          DECIDED 2026-10-19 (mine, under just-house-paint's user's "decide and finish all things"; attacked: a
+          cookie set by the server would need a login route and CSRF rules of its own — the Bearer header the
+          server already checks needs neither): Jupyter's pattern on the kit's transport — the kit's client keeps
+          a token for its server in that browser (localStorage, the per-viewer convenience; the default
+          `authToken` when the host passes none — JustVoice's own stays), takes one from the address once
+          (`?token=…`, then removed from the address bar), and checkServer tells "needs a token" (401/403 on
+          /v1/health) from "not running": ConnectionError then asks for the token (Connect, "That token isn't
+          accepted") instead of saying the server can't be reached; Settings → Server copies the address with a
+          token. Words in English and Spanish; the template's ConnectionErrorPage test. WAITS on JustVoice's card
+          (packages/ui), with the Settings panels;
         - BUILT 2026-10-18: the kit's controls are mounted in the TEMPLATE's unit tests
           (`template/src/components/kitControls.test.js`, UiNumber's rules) — not in packages/ui: Vue
           and Quasar installed there would sit beside the source every app aliases, and an app
