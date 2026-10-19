@@ -119,6 +119,20 @@ jobs:
         # Quasar's CLI run as node (app-structure §Q.6); -P never: the next step attaches the files
         run: node node_modules/@quasar/app-vite/bin/quasar.js build -m electron -T ${{ matrix.target }} -P never
 
+      # The packaged app started as a user starts it, on a fresh data folder: it must answer on its
+      # port with its own version before anything is kept or attached (the macOS and Linux builds
+      # are never opened by hand). Linux needs a display (Xvfb) for the window.
+      - name: Start the packaged app
+        working-directory: app
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = linux ]; then
+            command -v xvfb-run >/dev/null || (sudo apt-get update && sudo apt-get install -y xvfb)
+            xvfb-run -a node scripts/start-packaged.js
+          else
+            node scripts/start-packaged.js
+          fi
+
       - name: Keep the files on this run (a dry run)
         if: ${{ !inputs.publish }}
         uses: actions/upload-artifact@v4

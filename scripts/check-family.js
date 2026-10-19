@@ -1201,8 +1201,11 @@ function checkRelease(app) {
     // the kit moves on with every app's work: a release builds the kit's commit the app was tested with
     if (!/repository:\s*delebash\/just-core[\s\S]*?ref:\s*\$\{\{\s*inputs\.core_ref\s*\}\}|ref:\s*\$\{\{\s*inputs\.core_ref\s*\}\}[\s\S]*?repository:\s*delebash\/just-core/.test(y))
       report(".github/workflows/release.yml checks the kit out at its main — check it out at `inputs.core_ref` (the commit the app was tested with; the template's release.js passes it)");
+    // the packaged app must start on each runner before anything is attached (macOS and Linux are never opened by hand)
+    if (!/node scripts\/start-packaged\.js/.test(y))
+      report(".github/workflows/release.yml doesn't start the packaged app before attaching it (the template's \"Start the packaged app\" step, scripts/start-packaged.js)");
   }
-  for (const rel of ["scripts/release.js", "scripts/bump.js"]) if (!existsSync(join(app.dir, rel))) report(`no ${rel} (the template's)`);
+  for (const rel of ["scripts/release.js", "scripts/bump.js", "scripts/start-packaged.js"]) if (!existsSync(join(app.dir, rel))) report(`no ${rel} (the template's)`);
   const pkgPath = join(app.dir, "package.json");
   const scripts = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, "utf8")).scripts || {} : {};
   for (const name of ["bump", "release"]) if (!scripts[name]) report(`package.json has no "${name}" script (the template's scripts/${name}.js)`);
