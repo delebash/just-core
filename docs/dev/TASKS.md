@@ -292,6 +292,17 @@ OPEN:   follow-ups the first real app found, each for its own go:
           half and keep-running tested (template/src/layouts/MainLayout.test.js); Settings → About, Server and
           Storage tested (template/src/components/settings/settingsSections.test.js) — both 2026-10-18, both also
           pass in just-house-paint; UiMenuItem's comment and §11's three tray listeners already fixed.
+          MY RECS on the four left (2026-10-19, for the user's word): 1. the Settings copies — after just-house-paint's
+          v0.1.0, as kit components the way DataManagement is (the kit's words, props for the app's name, source address
+          and server command, the shell calls wired once like configureFileSave, a slot for Storage's own rows); nothing
+          a user sees changes and both copies are tested now, so before the release it only adds risk. 2. help on a
+          failed warm start — JustVoice's LeftoverEnginesHelp moved into the kit as the #failed slot's default (a kit
+          route that finds this app's AI engines left from an earlier session, "Stop them and retry"; its words as
+          JustVoice has them) — the case is real: an orphaned house-paint server's llama-server held the card on
+          2026-10-19. 3. the upload example — the notes area imports a text file as a note (multipart, the kit's
+          uploadLimit, a seeded size limit, the 413/415 tests); its words need the user's OK. 4. the phone — the user's
+          call: build the template's phone path (JustWrite's in-app server worker is the reference), or the skill
+          stops offering "Phone app: yes" until an app needs it.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp
