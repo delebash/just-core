@@ -233,8 +233,11 @@ OPEN:   follow-ups the first real app found, each for its own go:
           token. Words in English and Spanish; the template's ConnectionErrorPage test. BUILT 2026-10-19 (3c8c3d2,
           built in a worktree while JustVoice's card was busy): serverToken.js, the transport's header, checkServer's
           serverNeedsToken, ConnectionError's token form, ServerPanel's "Copy the address with this token"; tested
-          (packages/ui/tests/server_token.test.js, the template's ConnectionErrorPage and Settings tests). OPEN for
-          JustVoice: its own authToken still wins — its session looks at its side;
+          (packages/ui/tests/server_token.test.js, the template's ConnectionErrorPage and Settings tests). Checked
+          end to end by JustWrite's session (JW a43ba91): every /v1 request refused without the token, its /offline
+          page asks, a wrong one is refused, the right one loads the app, survives a reload and rides every request;
+          750 unit tests and the smoke pass. OPEN for JustVoice: its own authToken still wins — its session looks at
+          its side;
         - BUILT 2026-10-18: the kit's controls are mounted in the TEMPLATE's unit tests
           (`template/src/components/kitControls.test.js`, UiNumber's rules) — not in packages/ui: Vue
           and Quasar installed there would sit beside the source every app aliases, and an app
