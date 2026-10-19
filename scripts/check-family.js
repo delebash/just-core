@@ -1096,10 +1096,10 @@ function checkI18nKit() {
 // with no strip mounted — the standard lived only in §8's prose.
 // The features an app starts are read from its code: every literal `feature: "…"`, and the
 // `action: "…"` of a file that calls runAiFeature (its feature defaults to the action). A key
-// built at run time can't be followed (advisory). It FAILS for the template and the apps made
-// from it; the apps that predate useSurfaceTask (JustWrite, JustVoice, docgen) get advisories
-// until their sessions adopt it — then promote them to fail(), as check 16 did.
-const SURFACE_TASK_REQUIRED = new Set(["template", "just-house-paint"]);
+// built at run time can't be followed (advisory). It FAILS for the template, the apps made from
+// it and JustWrite (adopted 2026-10-19); JustVoice and docgen, which predate useSurfaceTask, get
+// advisories until their sessions adopt it — then promote them to fail(), as check 16 did.
+const SURFACE_TASK_REQUIRED = new Set(["template", "just-house-paint", "JustWrite"]);
 function checkSurfaceTasks(app, files) {
   const started = new Map(); // feature → the first file that starts it
   const shown = new Set();
