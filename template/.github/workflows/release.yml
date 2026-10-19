@@ -5,15 +5,23 @@
 # build on three runners is costly, so nothing starts one but `npm run release` — scripts/release.js,
 # which runs `gh workflow run release.yml` — or the Actions page's "Run workflow"). The tag must
 # already be on origin; the release notes are that version's section of docs/whats-new.md.
+# `publish: false` is a dry run: the same builds on the same runners, kept as the run's artifacts
+# instead of a release — a branch name works as the ref (`gh workflow run release.yml -f tag=main
+# -f publish=false`), so a first release's builds can be seen before anything is published.
 name: Release
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build (e.g. v0.2.0). Must already exist on origin."
+        description: "Tag to build (e.g. v0.2.0). Must already exist on origin. A dry run takes a branch too."
         required: true
         type: string
+      publish:
+        description: "Attach the files to the tag's release (off: a dry run — the files stay on this run)."
+        required: false
+        type: boolean
+        default: true
       platforms:
         description: "Which platforms to build."
         required: true
@@ -103,7 +111,23 @@ jobs:
         # Quasar's CLI run as node (app-structure §Q.6); -P never: the next step attaches the files
         run: node node_modules/@quasar/app-vite/bin/quasar.js build -m electron -T ${{ matrix.target }} -P never
 
+      - name: Keep the files on this run (a dry run)
+        if: ${{ !inputs.publish }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.target }}
+          path: |
+            app/dist/electron/Packaged/*.exe
+            app/dist/electron/Packaged/*.dmg
+            app/dist/electron/Packaged/*.zip
+            app/dist/electron/Packaged/*.AppImage
+            app/dist/electron/Packaged/*.blockmap
+            app/dist/electron/Packaged/latest*.yml
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Attach to the release
+        if: ${{ inputs.publish }}
         working-directory: app
         shell: bash
         env:
