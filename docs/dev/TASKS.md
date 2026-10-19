@@ -287,7 +287,14 @@ OPEN:   follow-ups the first real app found, each for its own go:
           `publish`; the guard's check 19 (fails the template and just-house-paint, advisory for the older apps).
           BUILT 2026-10-18: upload limits — the kit's `uploadLimit` (a test; §15), on just-house-paint's three upload
           routes. OPEN: the phone (build it or stop offering it), help on a failed warm start, an upload example in the
-          template (it has no upload route), the Settings copies into the kit. DONE meanwhile: the family-rules
+          template (it has no upload route), the Settings copies into the kit — DECIDED and done 2026-10-19 under
+          just-house-paint's user's go ("decide and finish all things", that app's TASKS): help on a failed warm
+          start — the kit's BootModelLoad default `#failed`: "What can I do?" opens the app's Troubleshooting page
+          (9061f58; the leftover-engine sweep parked in IDEAS.md — on Windows the job already ends llama-server
+          with its server); the upload example — Notes' Import a file in the template (app-structure §15); the
+          phone — not offered (new-app.js leaves `src-capacitor/` out, `--phone` says why; §Q.7) until the
+          template carries the in-app server. LEFT: the Settings copies into the kit — kit panels (About, Server,
+          Storage), waiting on JustVoice's card (its renderer reloads on every packages/ui edit). DONE meanwhile: the family-rules
           copy's links point at the kit's GitHub pages (2026-10-19), so they work from an app's AGENTS.md too
           (they led nowhere there); the connection page's test (the template has it); the tray's
           half and keep-running tested (template/src/layouts/MainLayout.test.js); Settings → About, Server and

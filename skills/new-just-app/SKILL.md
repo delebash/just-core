@@ -27,9 +27,10 @@ chrome, settings, help, logs, backups and tests.
 3. **Anything that departs from the family standard?** Each one is listed under the standard's Open
    deviations with the user's word — or dropped.
 4. **The parts** — yes/no, default yes: **AI features** (no = an empty feature catalog; the AI area
-   stays — §11 chrome is in every app) · **Help pages** (the user: "all apps need help") ·
-   **Phone app** (no = `--no-phone`: no `src-capacitor/`). The desktop app is always generated —
-   the dev loop and the headless launcher run on it.
+   stays — §11 chrome is in every app) · **Help pages** (the user: "all apps need help"). The
+   desktop app is always generated — the dev loop and the headless launcher run on it. **No phone
+   app** is offered (2026-10-19): the template's `src-capacitor/` has no in-app server yet, so the
+   generator leaves it out; say so if the user asks for one.
 
 If the user says "your rec" or doesn't want an interview, write the PRD from what they did say and
 mark every assumption "(assumed)" for them to correct.
@@ -39,7 +40,7 @@ mark every assumption "(assumed)" for them to correct.
 1. Read the kit's `docs/dev/TASKS.md` item above and app-structure §1, §12, §13.
 2. Run the generator from the kit (it prints every step; `--dry-run` first if the folder exists):
    ```bash
-   node ../just-core/scripts/new-app.js --name <name> [--product "<Product>"] [--no-phone]
+   node ../just-core/scripts/new-app.js --name <name> [--product "<Product>"]
    ```
    It copies the template's tracked files (keeping any file that already exists — say which),
    renames ids, names and ports, re-points the kit paths, `git init`s, installs, runs lint and the

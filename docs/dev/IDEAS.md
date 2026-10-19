@@ -6,6 +6,17 @@ The holding pen for unscheduled ideas about the shared stack — same charter as
 
 ---
 
+- **2026-10-19 · The kit's leftover-engine sweep (JustVoice's `engines/leftovers.js` for llama-server).**
+  A failed warm start now offers the app's Troubleshooting page (BootModelLoad's default `#failed`).
+  JustVoice also finds and stops ITS engines left by an earlier server. For the kit's llama-server:
+  on Windows the kill-on-close job ends it with its server however the server dies (process.js), so a
+  leftover there has a live parent and must not be touched; on macOS and Linux a server killed hard
+  leaves its llama-server running. The sweep would find llama-server processes whose command line
+  names THIS app's runtime root (`--models-preset <root>/models.ini` — the binary's path is the
+  shared cache's, the same for every app) and whose server is gone, at start and from the splash.
+  ~400 lines of process-table code per platform (CIM, /proc, ps) — worth it once a Mac or Linux
+  user hits it.
+
 - **2026-08-04 · Ternary Bonsai / Q2_0 on the 8 GB rung.** When the CUDA Q2_0 PR
   (llama.cpp #25707) merges into a pinnable release, promote to a 2070S Lab A/B vs
   Gemma 26B-A4B (evidence-not-press-release — the catalog law). Watch details:

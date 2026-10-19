@@ -10,6 +10,7 @@ import {
   destRel,
   namesFor,
   nextPorts,
+  parseArgs,
   purposeFromPrd,
   readRegistries,
   registerInGuard,
@@ -156,4 +157,10 @@ test("README, AGENTS.md and package.json describe the app, not the template", ()
   expect(JSON.parse(describeApp("package.json", TEMPLATE("package.json"), names, null)).description).toBe("Just House Paint — a family app.");
   // any other file is untouched
   expect(describeApp("src/App.vue", "<template/>", names, PURPOSE)).toBe("<template/>");
+});
+
+test("no phone app: an app is made without src-capacitor/, and --phone says why (2026-10-19)", () => {
+  expect(parseArgs(["--name", "x"]).phone).toBe(false);
+  expect(parseArgs(["--name", "x", "--no-phone"]).phone).toBe(false);
+  expect(() => parseArgs(["--name", "x", "--phone"])).toThrow(/no in-app server/);
 });

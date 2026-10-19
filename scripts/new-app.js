@@ -4,8 +4,12 @@
 // interview, the parts) are the skill's.
 //
 //   node scripts/new-app.js --name house-paint [--product "Just House Paint"] [--dest DIR]
-//        [--port N] [--dev-port N] [--hmr-port N] [--no-phone] [--skip-install] [--no-register]
-//        [--dry-run]
+//        [--port N] [--dev-port N] [--hmr-port N] [--skip-install] [--no-register] [--dry-run]
+//
+// No phone app (decided 2026-10-19, the template audit): the template's src-capacitor/ is a scaffold
+// with no in-app server, so a phone build of it shows only the connection page. Apps are made without
+// it until the template carries the phone's server (JustWrite's src/phone/ is the reference);
+// `--phone` says so, `--no-phone` is still accepted.
 //
 // What it does, in order (each step says what it did; nothing existing is overwritten):
 //   1. names from --name (§1): repo `just-<name>`, id `just<name>` (no hyphens — Android), the
@@ -275,8 +279,8 @@ function run(cmd, args, cwd) {
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(" ")} failed (exit ${r.status})`);
 }
 
-function parseArgs(argv) {
-  const opts = { phone: true, install: true, register: true, dryRun: false };
+export function parseArgs(argv) {
+  const opts = { phone: false, install: true, register: true, dryRun: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const val = () => {
@@ -290,6 +294,9 @@ function parseArgs(argv) {
     else if (a === "--dev-port") opts.devPort = Number(val());
     else if (a === "--hmr-port") opts.hmrPort = Number(val());
     else if (a === "--no-phone") opts.phone = false;
+    else if (a === "--phone") {
+      throw new Error("--phone: the template's phone app has no in-app server yet (it would show only the connection page) — apps are made without it until the template carries one (the kit's TASKS, the template audit)");
+    }
     else if (a === "--skip-install") opts.install = false;
     else if (a === "--no-register") opts.register = false;
     else if (a === "--dry-run") opts.dryRun = true;
