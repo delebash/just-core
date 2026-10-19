@@ -116,7 +116,7 @@ jobs:
       # sharp's @img packages), so nothing native is compiled here.
       - name: Build the installer
         working-directory: app
-        # Quasar's CLI run as node (app-structure §Q.6); -P never: the next step attaches the files
+        # Quasar's CLI run as node (app-structure §Q.6); -P never: the publish job attaches the files
         run: node node_modules/@quasar/app-vite/bin/quasar.js build -m electron -T ${{ matrix.target }} -P never
 
       # The packaged app started as a user starts it, on a fresh data folder: it must answer on its
@@ -133,8 +133,9 @@ jobs:
             node scripts/start-packaged.js
           fi
 
-      - name: Keep the files on this run (a dry run)
-        if: ${{ !inputs.publish }}
+      # every platform's files go to the jobs below: the Linux user's check, then the release —
+      # nothing is attached before every check has passed (a dry run keeps them here 7 days)
+      - name: Keep the files for the next jobs
         uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.target }}
@@ -148,8 +149,62 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # The AppImage opened the way a Linux user opens it — the file itself, no flags — on the current
+  # Ubuntu LTS, whose AppArmor keeps unprivileged programs out of user namespaces (Chromium's sandbox
+  # needs them): the build runner's start check runs the unpacked folder with --no-sandbox, this one
+  # doesn't. Also whether it opens without FUSE 2 installed.
+  linux-user:
+    needs: [setup, build]
+    if: ${{ contains(needs.setup.outputs.matrix, 'linux') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout the app (at the tag) — the check's script and the app's port
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          path: app
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: The Linux build
+        uses: actions/download-artifact@v4
+        with:
+          name: installers-linux
+          path: app/dist/electron/Packaged
+
+      - name: Open the AppImage as a user does
+        working-directory: app
+        shell: bash
+        run: |
+          echo "user namespaces restricted: $(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo n/a)"
+          echo "libfuse.so.2: $(ldconfig -p | grep -c 'libfuse.so.2') found"
+          chmod +x dist/electron/Packaged/*.AppImage
+          command -v xvfb-run >/dev/null || (sudo apt-get update && sudo apt-get install -y xvfb)
+          xvfb-run -a node scripts/start-packaged.js --appimage
+
+  # The release: every platform's files attached at once, only when every check above passed.
+  publish:
+    needs: [build, linux-user]
+    if: ${{ inputs.publish && !cancelled() && needs.build.result == 'success' && (needs.linux-user.result == 'success' || needs.linux-user.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the app (at the tag) — its name and What's new
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          path: app
+
+      - name: Every platform's files
+        uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: app/dist/electron/Packaged
+
       - name: Attach to the release
-        if: ${{ inputs.publish }}
         working-directory: app
         shell: bash
         env:
@@ -165,8 +220,7 @@ jobs:
           ' "$TAG" > release-notes.md
           PRE=""
           case "$TAG" in *-*) PRE="--prerelease" ;; esac
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" $PRE --title "$PRODUCT $TAG" --notes-file release-notes.md \
-            || gh release view "$TAG" >/dev/null # another platform's job created it first
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" $PRE --title "$PRODUCT $TAG" --notes-file release-notes.md
           shopt -s nullglob
           cd dist/electron/Packaged
           # the installers, and electron-updater's feed: latest*.yml (one per platform) and the .blockmaps

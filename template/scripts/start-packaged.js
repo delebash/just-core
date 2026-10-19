@@ -7,8 +7,10 @@
 // The port and the data folder's variable are read from src-electron/electron-main.js (runDesktopApp's
 // `port` and `dataDirEnv`), the version from package.json. Paths given as arguments are asked after
 // /v1/health answers and must answer 2xx too — an app's own checks (just-house-paint: its part
-// finder's runtime loads, `node scripts/start-packaged.js /v1/segment/runtime`). Exit 0 = it answered;
-// 1 = it didn't.
+// finder's runtime loads, `node scripts/start-packaged.js v1/segment/runtime`; written without the
+// leading slash, which Git Bash on Windows turns into a file path). `--appimage` (Linux)
+// runs the .AppImage file itself with no flags, as a user opens it — the sandbox and FUSE as they are on
+// that machine — instead of the unpacked folder. Exit 0 = it answered; 1 = it didn't.
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
@@ -22,7 +24,11 @@ const dataDirEnv = main.match(/\bdataDirEnv:\s*"([A-Z0-9_]+)"/)?.[1];
 if (!port || !dataDirEnv) throw new Error("src-electron/electron-main.js names no `port` or `dataDirEnv`");
 const out = path.join(root, "dist", "electron", "Packaged");
 const TIMEOUT_MS = 120_000;
-const extraPaths = process.argv.slice(2);
+const asUser = process.argv.includes("--appimage");
+const extraPaths = process.argv
+  .slice(2)
+  .filter((a) => !a.startsWith("--"))
+  .map((a) => `/${a.replace(/^\/+/, "")}`);
 
 /** The packaged app's own executable in electron-builder's unpacked folder for this platform. */
 function findExecutable(dir = out, platform = process.platform) {
@@ -69,10 +75,13 @@ function stop(child) {
 
 async function run() {
   if (await health()) throw new Error(`something already answers on port ${port} — stop it first`);
-  const exe = findExecutable();
+  const appImage = asUser ? readdirSync(out).find((f) => f.endsWith(".AppImage")) : null;
+  if (asUser && !appImage) throw new Error(`no .AppImage in ${out}`);
+  const exe = appImage ? path.join(out, appImage) : findExecutable();
   const dataDir = mkdtempSync(path.join(os.tmpdir(), "start-packaged-"));
-  // Linux: chrome-sandbox isn't setuid in an unpacked folder, so Chromium's sandbox can't start there
-  const args = process.platform === "linux" ? ["--no-sandbox"] : [];
+  // the unpacked folder on Linux: chrome-sandbox isn't setuid there, so Chromium's sandbox can't start;
+  // the AppImage runs exactly as a user's double-click runs it
+  const args = process.platform === "linux" && !appImage ? ["--no-sandbox"] : [];
   console.log(`starting ${exe} (data folder ${dataDir}, port ${port})`);
   const t0 = Date.now();
   const child = spawn(exe, args, { env: { ...process.env, [dataDirEnv]: dataDir }, stdio: ["ignore", "inherit", "inherit"], detached: process.platform !== "win32" });
