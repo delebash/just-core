@@ -18,7 +18,7 @@ Run it: `npm install` (then once `cd src-electron && npm install` and `cd e2e &&
 | `src/` | the renderer: Vue 3, Quasar's components under the kit's (`@delebash/ui`), Pinia, the hash router, vue-i18n | Quasar's CLI builds it for every mode |
 | `server/` | the app's Node server, its own package (`family-template-server`): Hono from the kit, the family guards, the family routers, the AI stack (`installLlm`), the database (`database/`), the example area's schema, store and routes | the desktop app runs it in a utilityProcess; `npm run server` headless |
 | `src-electron/` | the desktop app: `electron-main.js` is the kit's `runDesktopApp` with this app's names; the preload is the kit's | `quasar dev -m electron` · `quasar build -m electron` (electron-builder, NSIS) |
-| `src-capacitor/` | the phone app (Android, iOS), as Quasar generates it | `quasar build -m capacitor -T android` |
+| `src-capacitor/` | the phone app's scaffold (Android, iOS), as Quasar generates it — no in-app server yet, so new apps are made without it (app-structure §Q.7) | `quasar build -m capacitor -T android` |
 | `build/launcher/` | the headless launcher `family-template-server.cmd`: the installed exe (`familytemplate.exe`) run as Node on its server package — never the exe's name (§Q.3) | copied beside the exe by the installer |
 | `e2e/` | the smoke suite and the screenshot capture over the real desktop app (Playwright's `_electron`), hermetic | `npm test` · `npm run screenshots` |
 | `docs/` | the Help pages (`toc.json`, the five the family requires + `notes.md`) and `docs/dev/` (README, PRD, TASKS, IDEAS, RESEARCH) | the kit's Help drawer; `whats-new.md` feeds Settings → Updates |
@@ -45,7 +45,7 @@ npm run server         # the server alone on :17490 (scripts/node24.js — Elect
 npm run build          # the installer → dist/electron/Packaged
 npm run build:spa      # the browser build → dist/spa
 npm run build:unpacked # the desktop app unpackaged → dist/electron/UnPackaged (what e2e drives)
-npm run build:android  # the Android app
+npm run build:android  # the Android app (the scaffold: it shows the connection page until the in-app server is in)
 npm run lint           # Biome
 npm run i18n:lint      # the i18n lint (zero)
 npm run i18n:report    # keys missing from the English catalog (none)
