@@ -11,7 +11,8 @@
   the post-animation @close. Backdrop + Esc resolve to the cancel sentinel
   (false for confirm, null for prompt).
 
-  Field types: text (default) · textarea · select (the union of both forks).
+  Field types: text (default) · textarea · select (the union of both forks) · checkbox (its label
+  beside the box; true or false — a choice that goes with a confirm, e.g. "Keep the parts you changed").
   Words a call omits fall back to the kit's (kit.dialog.*), in the app's language.
 -->
 <script setup>
@@ -20,6 +21,7 @@ import { useI18n } from "vue-i18n";
 import { dialogState, _resolveDialog } from "../services/dialog.js";
 import AppModal from "./AppModal.vue";
 import UiButton from "./UiButton.vue";
+import UiCheckbox from "./UiCheckbox.vue";
 import UiInput from "./UiInput.vue";
 import UiTextarea from "./UiTextarea.vue";
 import UiSelect from "./UiSelect.vue";
@@ -85,7 +87,7 @@ watch(
     pendingResult = dialog.value.kind === "confirm" ? false : null;
     if (dialog.value.kind === "prompt") {
       const next = {};
-      for (const f of dialog.value.fields) next[f.key] = f.defaultValue ?? "";
+      for (const f of dialog.value.fields) next[f.key] = f.defaultValue ?? (f.type === "checkbox" ? false : "");
       values.value = next;
     }
     hostOpen.value = true;
@@ -104,7 +106,7 @@ const canSubmit = computed(() => {
     if (String(values.value[first] ?? "") !== d.requireMatch) return false;
   }
   for (const f of d.fields) {
-    if (f.type === "select") continue;
+    if (f.type === "select" || f.type === "checkbox") continue;
     if (f.optional) continue;
     const v = String(values.value[f.key] ?? "").trim();
     if (!v) return false;
@@ -137,7 +139,8 @@ function submit() {
   if (d.kind === "confirm") { dismiss(true); return; }
   if (!canSubmit.value) return;
   if (d.isSingle) {
-    dismiss(String(values.value[d.fields[0].key] ?? "").trim());
+    const v = values.value[d.fields[0].key];
+    dismiss(d.fields[0].type === "checkbox" ? !!v : String(v ?? "").trim());
   } else {
     const out = {};
     for (const f of d.fields) {
@@ -179,9 +182,15 @@ function onEnter(e, isLastField) {
           :key="f.key"
           class="ui-dialog__field"
         >
-          <label v-if="f.label" class="ui-dialog__label" :for="`ui-field-${f.key}`">{{ f.label }}</label>
+          <label v-if="f.label && f.type !== 'checkbox'" class="ui-dialog__label" :for="`ui-field-${f.key}`">{{ f.label }}</label>
+          <UiCheckbox
+            v-if="f.type === 'checkbox'"
+            :id="`ui-field-${f.key}`"
+            :label="f.label || ''"
+            v-model="values[f.key]"
+          />
           <UiSelect
-            v-if="f.type === 'select'"
+            v-else-if="f.type === 'select'"
             :input-id="`ui-field-${f.key}`"
             :ref="el => captureFirst(el, i)"
             v-model="values[f.key]"

@@ -8,7 +8,10 @@
 // UiNumber's rules judge the NUMBER, not the text it shows: the text is formatted ("2,048"), and a
 // rule given it said "Must be a number" for every value of 1,000 and more (just-house-paint's
 // settings form found it, 2026-10-18; the kit's 3d83749).
-import { schemaRules, UiNumber } from "@delebash/ui";
+//
+// The dialog's checkbox field: a choice that goes with a confirm, answered true or false
+// (just-house-paint's "Keep the parts you changed by hand", 2026-10-19).
+import { AppDialog, promptDialog, schemaRules, UiNumber } from "@delebash/ui";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
 import * as quasar from "quasar";
@@ -69,4 +72,26 @@ test("the rules still refuse what is wrong: out of range, not whole, not a numbe
   await type("");
   expect(await form.validate()).toBe(false);
   expect(messages()).toContain("Required");
+});
+
+test("a dialog's checkbox field starts as its default and answers what the user left it at", async () => {
+  wrapper = mount(AppDialog, { attachTo: document.body, global: { plugins: [[quasar.Quasar, { ...QUASAR_TEST_OPTIONS, components: QUASAR_COMPONENTS }], i18n] } });
+  const fields = [{ key: "keep", type: "checkbox", label: "Keep the parts you changed by hand", defaultValue: true }];
+  const confirm = () => [...document.body.querySelectorAll("button")].find((b) => b.textContent.trim() === "Go");
+  const box = () => document.body.querySelector(".ui-checkbox");
+  let answer = promptDialog({ title: "Again?", confirmLabel: "Go", fields });
+  await flushPromises();
+  expect(box().textContent).toContain("Keep the parts you changed by hand");
+  expect(box().classList.contains("is-checked")).toBe(true);
+  expect(confirm().disabled).toBe(false); // a checkbox is never "required"
+  confirm().click();
+  expect(await answer).toEqual({ keep: true });
+  await flushPromises();
+  answer = promptDialog({ title: "Again?", confirmLabel: "Go", fields });
+  await flushPromises();
+  box().click();
+  await flushPromises();
+  expect(box().classList.contains("is-checked")).toBe(false);
+  confirm().click();
+  expect(await answer).toEqual({ keep: false });
 });
