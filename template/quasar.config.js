@@ -133,6 +133,10 @@ export default defineConfig(() => {
         // the update feed (electron-updater — app-structure §1, `updates`): latest*.yml and the
         // .blockmaps the release workflow attaches to the tag's GitHub release (.github/workflows/release.yml)
         publish: { provider: 'github', owner: 'delebash', repo: 'family-template' },
+        // file names without spaces (the package name, the version, the platform): the feed names
+        // each file as written, and GitHub turns an uploaded name's spaces into dots
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: electron-builder's own macros, not JS's
+        artifactName: '${name}-${version}-${os}-${arch}.${ext}',
         // better-sqlite3's build leftovers (sources, object files, debug symbols) stay out
         files: [
           '**/*',

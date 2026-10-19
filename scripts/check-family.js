@@ -1190,6 +1190,10 @@ function checkRelease(app) {
   const q = existsSync(qconf) ? readFileSync(qconf, "utf8") : "";
   const pub = q.match(/publish:\s*\{[^}]*provider:\s*['"]github['"][^}]*owner:\s*['"]([\w.-]+)['"][^}]*repo:\s*['"]([\w.-]+)['"]/);
   if (!pub) report("quasar.config.js's electron builder has no GitHub `publish` config — electron-builder writes no update feed (§1 `updates`)");
+  // the feed names each file as electron-builder wrote it, with spaces as hyphens; GitHub stores an
+  // uploaded name's spaces as dots — a product name with a space in the file name breaks every update
+  else if (!/artifactName:\s*['"`][^'"`\s]*['"`]/.test(q) || /artifactName:.*productName/.test(q))
+    report("quasar.config.js's electron builder needs an `artifactName` without spaces (the template's `${name}-${version}-${os}-${arch}.${ext}`) — the update feed would name files GitHub doesn't have");
   const mainPath = join(app.dir, "src-electron", "electron-main.js");
   const main = existsSync(mainPath) ? readFileSync(mainPath, "utf8") : "";
   const rel = main.match(/releasesUrl:\s*["'`]https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/releases["'`]/);
