@@ -13,18 +13,23 @@
 //   - the warm-start splash: this app's plate (the same image as index.html's), the kit's
 //     <BootModelLoad/> inside it, shown while the kit's `warmModelId` is set;
 //   - the tray's renderer half (Open settings, About, Copy server URL) and keep-running, re-applied
-//     to the shell every start (the shell forgets it per launch).
+//     to the shell every start (the shell forgets it per launch);
+//   - the shell's two menus in the app's language: the tray's words and the right-click menu's (the
+//     kit's shellTrayLabels / shellMenuLabels), sent at start and on every language switch.
 // Family rules: a height:100% chain (never 100vh), one scroller per area.
-import { AiSetupOffer, BootModelLoad, HelpDrawer, Icon, LlmUiHosts, pushToast, useAiTasksNav, warmModelId } from "@delebash/ui";
-import { computed, onBeforeUnmount, onMounted } from "vue";
+import {
+  AiSetupOffer, BootModelLoad, HelpDrawer, Icon, LlmUiHosts, pushToast, shellMenuLabels, shellTrayLabels, useAiTasksNav,
+  warmModelId,
+} from "@delebash/ui";
+import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import splashPlate from "../assets/splash-plate.svg";
 import TitleBar from "../components/TitleBar.vue";
-import { onShellEvent, setKeepRunning } from "../services/native.js";
+import { onShellEvent, setContextMenuLabels, setKeepRunning, setTrayLabels } from "../services/native.js";
 import { useUiStore } from "../stores/ui.js";
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const ui = useUiStore();
 const router = useRouter();
 
@@ -41,6 +46,12 @@ const TOOLS = computed(() => [
 const aiTasksNav = useAiTasksNav();
 // The drawer's width, which QDrawer takes in pixels (app.scss .shell__nav fills it).
 const NAV_WIDTH = 200;
+
+// The shell's menus speak the app's language; it holds only their English until told.
+watch(locale, () => {
+  setTrayLabels(shellTrayLabels(t, t("app.name")));
+  setContextMenuLabels(shellMenuLabels(t));
+}, { immediate: true });
 
 const unsubscribe = [];
 onMounted(() => {

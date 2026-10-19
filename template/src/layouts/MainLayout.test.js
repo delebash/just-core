@@ -3,7 +3,9 @@
 //
 // The chrome's tray half (app-structure §11): keep-running re-applied to the shell at every start
 // (the shell forgets it per launch), and the tray's three pushes — Open settings, About, Copy
-// server URL — answered in the window; leaving the layout drops the listeners.
+// server URL — answered in the window; leaving the layout drops the listeners. And the shell's two
+// menus in the app's language: the tray's words and the right-click menu's, sent at start and again
+// on a language switch.
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia } from "pinia";
@@ -12,13 +14,15 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createMemoryHistory, createRouter } from "vue-router";
 
 // the shell's side, as native.js reaches it: the pushes it sends, the keep-running it is told
-const shell = { handlers: {}, keepRunning: [] };
+const shell = { handlers: {}, keepRunning: [], trayLabels: [], menuLabels: [] };
 vi.mock("../services/native.js", () => ({
   onShellEvent: (event, fn) => {
     shell.handlers[event] = fn;
     return () => delete shell.handlers[event];
   },
   setKeepRunning: (v) => shell.keepRunning.push(v),
+  setTrayLabels: (labels) => shell.trayLabels.push(labels),
+  setContextMenuLabels: (labels) => shell.menuLabels.push(labels),
 }));
 const toasts = [];
 vi.mock("@delebash/ui", async (importOriginal) => ({ ...(await importOriginal()), pushToast: (t) => toasts.push(t) }));
@@ -59,6 +63,8 @@ async function mountLayout({ keepServerRunning = false } = {}) {
 beforeEach(() => {
   shell.handlers = {};
   shell.keepRunning = [];
+  shell.trayLabels = [];
+  shell.menuLabels = [];
   toasts.length = 0;
   // what jsdom lacks and Quasar's layout reads
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
@@ -95,6 +101,23 @@ test("Open settings and About open their pages; leaving the layout drops the tra
   wrapper.unmount();
   wrapper = null;
   expect(shell.handlers).toEqual({});
+});
+
+test("the tray's and the right-click menu's words go to the shell at start, and again on a language switch", async () => {
+  await mountLayout();
+  const t = i18n.global.t;
+  expect(shell.trayLabels).toHaveLength(1);
+  expect(shell.trayLabels[0]).toMatchObject({ show: t("kit.shellTray.show"), about: t("kit.shellTray.about", { app: t("app.name") }) });
+  expect(shell.trayLabels[0].about).toContain(t("app.name"));
+  expect(shell.menuLabels).toEqual([expect.objectContaining({ learnSpelling: t("kit.shellMenu.addToDictionary") })]);
+  i18n.global.locale.value = "es";
+  await flushPromises();
+  try {
+    expect(shell.trayLabels).toHaveLength(2);
+    expect(shell.menuLabels[1].learnSpelling).toBe(i18n.global.t("kit.shellMenu.addToDictionary"));
+  } finally {
+    i18n.global.locale.value = "en";
+  }
 });
 
 test("Copy server URL writes the address the shell sends and says so — or says it couldn't", async () => {

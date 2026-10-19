@@ -77,6 +77,20 @@ export function setKeepRunning(keepRunning) {
   return call("setKeepRunning", { keepRunning: !!keepRunning }).catch(() => {});
 }
 
+/** The tray menu's words (the kit's shellTrayLabels) — the shell holds only English until the app
+ *  sends them, at start and on every language switch (layouts/MainLayout.vue). */
+export function setTrayLabels(labels) {
+  if (!hasShell()) return Promise.resolve();
+  return call("setTrayLabels", { labels }).catch(() => {});
+}
+
+/** The right-click menu's words (the kit's shellMenuLabels) — the menu the shell draws for spelling
+ *  suggestions and cut/copy/paste; without them it speaks English. */
+export function setContextMenuLabels(labels) {
+  if (!hasShell()) return Promise.resolve();
+  return call("setContextMenuLabels", { labels }).catch(() => {});
+}
+
 // ─── Openers (handed to the kit's installLlmUi as `external`) ────────
 
 /** Open a web link in the user's browser. */
