@@ -286,8 +286,10 @@ OPEN:   follow-ups the first real app found, each for its own go:
           `publish`; the guard's check 19 (fails the template and just-house-paint, advisory for the older apps).
           BUILT 2026-10-18: upload limits — the kit's `uploadLimit` (a test; §15), on just-house-paint's three upload
           routes. OPEN: the phone (build it or stop offering it), help on a failed warm start, an upload example in the
-          template (it has no upload route), tests for the
-          connection page / tray / Settings copies, the Settings copies into the kit, the stale comments and links.
+          template (it has no upload route), tests for the Settings copies, the Settings copies into the kit, the
+          family-rules copy's links that lead nowhere from an app. DONE meanwhile: the connection page's test (the
+          template has it); the tray's half and keep-running tested (template/src/layouts/MainLayout.test.js,
+          2026-10-18, also in just-house-paint); UiMenuItem's comment and §11's three tray listeners already fixed.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]
 STATE:  DECIDED 2026-10-12, in a JustVoice session. The finding (JustVoice RESEARCH §10.14 "llama.cpp
