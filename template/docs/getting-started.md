@@ -20,7 +20,9 @@ per-user folder.
   window hides the app to the tray).
 - **Headless** — the same server without a window: run `family-template-server serve` (from a
   source checkout, `npm run server`) and open its address (`http://127.0.0.1:17490`) in a
-  browser. The server hosts the whole app.
+  browser. The server hosts the whole app. When it is reachable from other computers, add an
+  access token in **Settings → Server**: a browser elsewhere then asks for it once — or open the
+  address **Copy the address with this token** gives, and it signs in by itself.
 
 ## First launch
 

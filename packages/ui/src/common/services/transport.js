@@ -11,6 +11,8 @@
 // browser sends nothing and rejects with "TypeError: Failed to fetch". Measured 2026-10-16:
 // JustWrite's book autosave failed every time once the book passed 64 KB. A request that doesn't
 // fit goes as an ordinary one instead — it still lands, unless the page is gone before it does.
+import { getServerToken } from "./serverToken.js";
+
 const KEEPALIVE_QUOTA = 64 * 1024;
 let keepaliveInFlight = 0;
 
@@ -40,8 +42,25 @@ async function platformFetch(input, init) {
 }
 let current = platformFetch;
 
-/** `fetch`, through the transport the app chose. */
-export const serverFetch = (input, init) => current(input, init);
+// The access token every request to the server carries (serverToken.js — the address's or the
+// connection page's — or the host's own, configureServerApi's `authToken`), the kit's own views'
+// requests (client.js) as much as the app's (serverApi.js). None: the request goes as it was.
+let tokenSource = getServerToken;
+/** Where the token comes from (null: this browser's kept token). */
+export function setAuthTokenSource(fn) {
+  tokenSource = fn ?? getServerToken;
+}
+function withAuth(input, init) {
+  const token = tokenSource();
+  if (!token) return init;
+  const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+  // eslint-disable-next-line i18next/no-literal-string -- an HTTP header (RFC 6750), not words
+  if (!headers.has("authorization")) headers.set("Authorization", `Bearer ${token}`);
+  return { ...init, headers };
+}
+
+/** `fetch`, through the transport the app chose, with the access token when there is one. */
+export const serverFetch = (input, init) => current(input, withAuth(input, init));
 
 /** Replace the transport (null → the platform's fetch again). */
 export function setServerTransport(fn) {

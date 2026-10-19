@@ -791,6 +791,14 @@ interleaves Reviewer before About. Every app renders them through the kit
 `SettingsShell` (all three adopted, parity slices 3/4/6); Server is the
 headless-URL + bearer-token + keep-running section in every app.
 
+**A browser that needs a token (2026-10-19).** With access tokens on (Settings → Server), a browser
+on another computer signs in Jupyter's way: the address Server copies carries `?token=…`, which the
+kit's boot check (`checkServer`) keeps for that server (`serverToken.js`, the browser's storage) and
+removes from the address; or the connection page, told the server answered 401/403
+(`serverNeedsToken`), asks for the token instead of saying the server can't be reached. Every
+request through the kit's transport (`serverFetch`) then carries it as `Authorization: Bearer`; a
+host's own `configureServerApi({ authToken })` wins.
+
 **The AI-console canon (from code, 2026-08-06):** one route (`/ai`), one kit
 `AiModelsArea`. The strip is providers · (models, via the opt-in `modelsTab`
 split) · Routing by feature · usage · console, plus the app's HOST TABS via
@@ -814,10 +822,10 @@ attribution is the reference adapter; without one, columns run the generic
 | **Settings page** | kit `SettingsShell` (TOP TABS — the contract killed the rail, 2026-08-04) over JW's `/settings/:section?` pattern | sections as data + panels below |
 | **First AI contact** | kit `AiSetupOffer` — the ONCE-EVER modal (ruling R3 2026-08-04; permanent setup buttons are retired), host persists the flag + routes the emits | one App-level mount + one flag |
 | — Appearance | kit engine + catalogs (`UI_FONTS`, `ACCENT_PRESETS`, `UI_SCALES`); JV panel shape | mode/font/accent/scale controls over `applyAppearance` |
-| — Storage | shell `storageGetRoot`/`storageRelocate` (§Q.2) + shared `makeDiskRouter(dataDir)` | path display, relocate control, usage table |
+| — Storage | kit `StoragePanel` (2026-10-19) over shell `storageGetRoot`/`storageRelocate` (§Q.2) + shared `makeDiskRouter(dataDir)` | `:shell` (native.js's folder calls), `:saves` (what the app keeps, in its words), the `#extra` slot for its own disk rows |
 | — Logs | platform `installLogRing()` + `installFileLog()` + `makeLogsRouter(name)`; kit `LogsPanel` | 3 server lines, one component |
-| — Server | JW's headless/auth section: headless URL + bearer tokens over the app's auth endpoints | one panel |
-| — About | version, repo | one panel |
+| — Server | kit `ServerPanel` (2026-10-19; JW's headless/auth section): headless URL + bearer tokens over `/v1/server-auth`, each token's "Copy the address with this token" | `:server-command`, `v-model:keep-running` (the ui store's flag, told to the shell) |
+| — About | kit `AboutPanel` (2026-10-19): version, desktop runtime, data folder, repo | `:app-name`, `:blurb` (the app's words), `:version`/`:data-dir` from /v1/health, `:runtime`, `:source-url` |
 | — Backups (backup/restore/reset) | platform `makeDataRouter` + kit `DataManagement` (adopted in all three, parity slices 4-6; per-app skip options via the `options` seam → `?exclude=`) | asset roots + on_replaced + option rows |
 | — Updates | kit `UpdatesPanel` (+ `#actions` slot for an app's own updater verbs) | one panel + a whats-new loader |
 | **Tray + keep-running** (family headless ruling 2026-08-04 + the full-donor ruling 2026-08-05; JV is the donor) | tray icon (app icon), left-click toggles the window, menu = the donor WHOLE with JV's emoji: 📺 Show window · 🔵 Hide window · ▶️ Start server · ⏹ Stop server · 🔄 Restart server · ⚙️ Open settings · 📋 Copy server URL · 📜 Open log file · ℹ️ About <App> · 🚪 Quit <App> (app-specific entries like JV's dictate/MCP stay that app's) — every entry WORKS: settings/about/copy show the window and ride `tray:*` renderer listeners (a focused webview's clipboard write is reliable; a hidden one's is not), Open log file opens the server's live log (the shell's `logFile`), Quit stops the server (JW: through its D5 drain); keep-running is the kit shell's (`setKeepRunning`, labels through `setTrayLabels`); Settings → Server carries "Keep server running after the app closes" — OFF ⇒ closing stops everything, ON ⇒ hide to tray, server stays; the renderer persists the flag and re-applies it every boot. The tray's words are the kit's (`shellTrayLabels(t, appName)`, `kit.shellTray.*`, 2026-10-19), sent with `setTrayLabels` at start and on every language switch beside the right-click menu's (`shellMenuLabels` → `setContextMenuLabels`); the shell keeps its English until then | the tray block + the three `tray:*` listeners (open-settings, copy-url, about — what the kit shell sends) + the toggle row + one persisted flag |

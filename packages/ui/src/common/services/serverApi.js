@@ -11,22 +11,30 @@
 // scattered hand-rolled fetch helpers) and services/connection.js.
 
 import { attachProblem, parseProblem } from "./apiError.js";
-import { serverFetch } from "./transport.js";
+import { adoptTokenFromAddress, getServerToken } from "./serverToken.js";
+import { serverFetch, setAuthTokenSource } from "./transport.js";
 import { ref } from "vue";
 
 // Reactive so views binding `api.lastError` update. Shared instance: the app's
 // `api` store re-exposes this same ref.
 export const lastError = ref("");
+// The server answered the boot check with 401/403: it requires an access token this browser
+// doesn't have (or has wrong) — ConnectionError asks for one instead of saying it can't be reached.
+export const serverNeedsToken = ref(false);
 
 const _cfg = {
   // Safe default: same-origin. Hosts override via configureServerApi() at boot.
   resolveBase: () => (typeof window !== "undefined" && window.location ? window.location.origin : ""),
-  authToken: () => "",
+  // the token this browser keeps for its server (serverToken.js) unless the host brings its own
+  authToken: getServerToken,
 };
 
 export function configureServerApi({ resolveBase, authToken } = {}) {
   if (resolveBase) _cfg.resolveBase = resolveBase;
-  if (authToken) _cfg.authToken = authToken;
+  if (authToken) {
+    _cfg.authToken = authToken;
+    setAuthTokenSource(authToken);
+  }
 }
 
 // Origin-aware base resolver factory — shared machinery; only the per-app dev
@@ -199,6 +207,8 @@ export const CHECK_SERVER_MS = CHECK.tries * CHECK.probeTimeoutMs + (CHECK.tries
 // we must NOT boot (empty stores that silently fail to save). Retries briefly so
 // a still-starting server (the desktop app's, just launched) isn't falsely reported down.
 export async function checkServer({ tries = CHECK.tries, delayMs = CHECK.delayMs, probeTimeoutMs = CHECK.probeTimeoutMs } = {}) {
+  // an address carrying `?token=…` (Settings → Server copies one) signs this browser in
+  adoptTokenFromAddress();
   for (let i = 0; i < tries; i++) {
     try {
       // Per-try abort: a refused connection takes ~1s inside the production
@@ -212,7 +222,15 @@ export async function checkServer({ tries = CHECK.tries, delayMs = CHECK.delayMs
         headers: authHeaders(), cache: "no-store",
         signal: AbortSignal.timeout(probeTimeoutMs),
       });
-      if (res.ok) return true;
+      if (res.ok) {
+        serverNeedsToken.value = false;
+        return true;
+      }
+      // up, but it wants a token this browser doesn't have: asking again won't change that
+      if (res.status === 401 || res.status === 403) {
+        serverNeedsToken.value = true;
+        return false;
+      }
     } catch {
       /* server not up yet */
     }

@@ -53,6 +53,11 @@ export { default as DataManagement } from "./components/DataManagement.vue";
 export { default as LogsPanel } from "./components/LogsPanel.vue";
 export { default as ConsolePanel } from "./components/ConsolePanel.vue";
 export { default as UpdatesPanel } from "./components/UpdatesPanel.vue";
+// Settings → About, Server and Storage — the family's sections, the kit's since 2026-10-19 (the
+// template audit: every app's copy was the same file); the app passes its words and shell calls
+export { default as AboutPanel } from "./components/AboutPanel.vue";
+export { default as ServerPanel } from "./components/ServerPanel.vue";
+export { default as StoragePanel } from "./components/StoragePanel.vue";
 export { default as AppearancePanel } from "./components/AppearancePanel.vue";
 export { default as LanguagePicker } from "./components/LanguagePicker.vue";
 

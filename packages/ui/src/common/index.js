@@ -101,9 +101,11 @@ export { default as ConnectionError } from "./components/ConnectionError.vue";
 // shared server transport — the single fetch layer (host calls
 // configureServerApi({ resolveBase, authToken }) once at boot)
 export {
-  configureServerApi, makeOriginAwareResolver, serverUrl, url, lastError,
+  configureServerApi, makeOriginAwareResolver, serverUrl, url, lastError, serverNeedsToken,
   request, get, post, patch, put, del, requestBlob, postForm, safeRequest, checkServer, CHECK_SERVER_MS,
 } from "./services/serverApi.js";
+// the access token this browser sends its server (the address's `?token=`, or the connection page's)
+export { adoptTokenFromAddress, getServerToken, setServerToken } from "./services/serverToken.js";
 // where those requests go — the network, or the phone's in-app server (a worker)
 export { answerWorkerCalls, inAppServer, serverFetch, setServerTransport, workerFetch } from "./services/transport.js";
 // another device's changes landing on the server (sync): the app reloads what it shows
