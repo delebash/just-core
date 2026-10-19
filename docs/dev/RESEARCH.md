@@ -1126,6 +1126,17 @@ GitHub API and raw files, unpkg; the plan:
   `server.lock` inside it; a start retries for 11 s to outlast a crashed server's stale lock).
   — *code + test, 2026-10-15* (kit a1ddee9) · the package's README.
 
+- **A Linux user opening the AppImage** (2026-10-19, just-house-paint's release dry run 39341716579: the AppImage
+  itself on GitHub's ubuntu-24.04 runner, no flags): `kernel.apparmor_restrict_unprivileged_userns` = 1 (Ubuntu
+  24.04's default) and no `libfuse.so.2` — the AppImage stopped at once: "dlopen(): error loading libfuse.so.2 /
+  AppImages require FUSE to run". electron-builder 26.15's default (legacy) AppImage toolset needs FUSE 2;
+  `toolsets.appimage: "1.0.3"` builds on the AppImage project's static runtime (type2-runtime 20251108), which
+  doesn't (electron-builder marks it beta) — the template carries it. Next on that machine: Chromium's sandbox
+  can't start in an AppImage (no setuid helper on its read-only mount, user namespaces restricted — Ubuntu MATE
+  and Launchpad #2046844 reports; chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md),
+  so the shell turns it off then, and only then (`shell/linuxSandbox.js`). GitHub's 24.04 runners have the
+  restriction (Playwright had to lift it to run Electron there). — *measured + web, 2026-10-19*.
+
 ---
 
 **Starting a new app — what the standard and the guard actually require** (*agent (read-only audit of
