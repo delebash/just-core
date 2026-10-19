@@ -8,6 +8,12 @@ Press **New note**, give it a title and write the note. A title can be up to 120
 a note up to 20,000 — the form tells you under the field when something is too long or missing.
 **Pin to the top of the list** keeps a note above the others.
 
+## Importing a text file
+
+**Import a file…** turns a text file — a `.txt` or `.md` — into a note: its name becomes the title
+(or its first line, when the name says nothing) and its text the note. A file that isn't text, is
+bigger than the limit, or holds more than 20,000 characters is refused, and the message says why.
+
 ## Suggest a title
 
 **Suggest a title** asks the AI for a short title from what the note says and puts it in the
@@ -22,6 +28,7 @@ notes whose title or text contains what you type. Click a note to edit it; the p
 same, and the bin deletes it after asking — a deleted note can't be brought back except from a
 backup (**Settings → Backups**).
 
-## Notes per page
+## Settings
 
-**Settings → General → Notes per page** sets how many notes a page of the list shows (5 to 100).
+**Settings → General → Notes per page** sets how many notes a page of the list shows (5 to 100);
+**Largest file to import** how big a file Import a file takes (1 to 1,024 KB; 100 to start).

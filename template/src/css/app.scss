@@ -93,6 +93,7 @@ body {
 .notes__title { display: inline-flex; align-items: center; gap: 6px; }
 .notes__pin { color: var(--accent); }
 .notes__actions { display: inline-flex; gap: 2px; }
+.notes__picker { display: none; } /* Import a file: the picker opens from its button */
 
 /* ── Settings, AI ───────────────────────────────────────────────────────── */
 .settings { display: flex; flex-direction: column; height: 100%; min-height: 0; }

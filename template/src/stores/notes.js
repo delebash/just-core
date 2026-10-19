@@ -4,7 +4,7 @@
 // through the kit's transport (the same base the kit's views use). A failed call throws the kit's
 // Error — with `status`, `problem`, `errors` and `requestId` on it (§15) — and the page decides how
 // to show it: its failed state for a load, the field for a 422, reportError for the rest.
-import { del, get, patch as patchJson, post } from "@delebash/ui";
+import { del, get, patch as patchJson, post, postForm } from "@delebash/ui";
 import { defineStore } from "pinia";
 
 const path = (id) => `/v1/notes/${encodeURIComponent(id)}`;
@@ -33,6 +33,14 @@ export const useNotesStore = defineStore("notes", {
     },
     async create(input) {
       const note = await post("/v1/notes", input);
+      this.items = sortNotes([note, ...this.items]);
+      return note;
+    },
+    /** A text file as a new note (multipart, the server's /v1/notes/import). */
+    async importFile(file) {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      const note = await postForm("/v1/notes/import", form);
       this.items = sortNotes([note, ...this.items]);
       return note;
     },

@@ -3,7 +3,10 @@
 // refusal (app-structure §18), through `app.request`. The 422s are the family's contract (§15):
 // problem+json, the field's `loc`, the limit it broke in `ctx`, and the request's id.
 import { beforeEach, describe, expect, test } from "vitest";
+import { titleFromFile } from "../src/api/notes_api.js";
 import { createApp } from "../src/app.js";
+import { getDb } from "../src/app_state.js";
+import { setSetting } from "../src/database/settings.js";
 import { testClient, tmpDir, useHermeticKit } from "./helpers.js";
 
 useHermeticKit();
@@ -115,5 +118,47 @@ describe("delete", () => {
     const r = await client.delete(`/v1/notes/${"x".repeat(65)}`);
     expect(r.statusCode).toBe(422);
     expect(r.json().errors[0]).toMatchObject({ loc: ["path", "id"], type: "string_too_long" });
+  });
+});
+
+// The upload example (§15): multipart, the size refused as it streams in, then what the file holds.
+describe("import a file", () => {
+  const upload = async (bytes, name = "shopping-list_2026.txt") => {
+    const form = new FormData();
+    if (bytes !== undefined) form.append("file", new Blob([bytes]), name);
+    const res = await client.app.request("http://testserver/v1/notes/import", { method: "POST", body: form, headers: { host: "testserver" } }, { incoming: { socket: { remoteAddress: "192.0.2.10" } } });
+    return { status: res.status, body: await res.json() };
+  };
+
+  test("a text file becomes a note: its name the title, its text the note (BOM and CRLF gone)", async () => {
+    const r = await upload("\uFEFFMilk\r\nEggs\r\n");
+    expect(r.status).toBe(201);
+    expect(r.body).toMatchObject({ title: "shopping list 2026", body: "Milk\nEggs", pinned: false });
+    expect((await client.get(`/v1/notes/${r.body.id}`)).json().body).toBe("Milk\nEggs");
+    // a name that says nothing: the first line is the title
+    expect((await upload("Packing list\nsocks", "_.md")).body.title).toBe("Packing list");
+    expect(titleFromFile("a.b-c_d.txt")).toBe("a.b c d");
+  });
+
+  test("not text is a 415; too big a 413 — refused as it streams in, or by its exact size", async () => {
+    const binary = await upload(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]), "photo.png");
+    expect(binary.status).toBe(415);
+    expect(binary.body.type).toMatch(/not-text$/);
+    setSetting(getDb(), "notes.maxImportKilobytes", 1);
+    const streamed = await upload("x".repeat(40 * 1024));
+    expect(streamed.status).toBe(413);
+    expect(streamed.body.type).toMatch(/file-too-large$/);
+    const exact = await upload("x".repeat(1500));
+    expect(exact.status).toBe(413);
+    expect(exact.body.detail).toBe("The file is over 1 KB.");
+    expect((await upload("x".repeat(1000))).status).toBe(201);
+  });
+
+  test("no file, an empty one, or more than a note holds is a 422 under the file", async () => {
+    expect((await upload(undefined)).body.errors).toEqual([{ loc: ["body", "file"], msg: "Field required", type: "missing" }]);
+    expect((await upload("", "_.txt")).body.errors[0]).toMatchObject({ loc: ["body", "file"], type: "string_too_short" });
+    const long = await upload("x".repeat(20001));
+    expect(long.status).toBe(422);
+    expect(long.body.errors[0]).toMatchObject({ loc: ["body", "file"], type: "string_too_long", ctx: { max_length: 20000 } });
   });
 });

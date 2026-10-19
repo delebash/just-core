@@ -6,8 +6,9 @@
 // against a stand-in server answering /v1/notes and /v1/settings the way the real one does. It
 // proves the states of §17 (loading, empty, failed with Retry, the list) and the form of §15: the
 // rules come from the route's own schema, a server 422 lands under its field, Save is disabled while
-// it saves, and a delete asks first.
-import { _resolveDialog, dialogState, installLlmUi, LlmUiHosts } from "@delebash/ui";
+// it saves, a delete asks first, and Import a file sends the file to the upload route — its refusal
+// shown in the server's words.
+import { _resolveDialog, dialogState, errorMessage, installLlmUi, LlmUiHosts } from "@delebash/ui";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia } from "pinia";
@@ -16,6 +17,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { h } from "vue";
 import { i18n } from "../i18n/index.js";
 import NotesPage from "./NotesPage.vue";
+
+// what the page hands the kit's reportError (its toast is Quasar's Notify, not mounted here)
+const reported = [];
+vi.mock("@delebash/ui", async (importOriginal) => ({ ...(await importOriginal()), reportError: (e) => reported.push(e) }));
 
 // Quasar's CLI makes every q-* tag available to a template (its build-time auto-import); in a test
 // the components are registered instead.
@@ -50,6 +55,15 @@ function fakeFetch(input, init = {}) {
     const body = JSON.parse(init.body);
     const at = new Date().toISOString();
     const note = { id: `n${server.notes.length + 1}`, body: "", pinned: false, ...body, createdAt: at, updatedAt: at };
+    server.notes.push(note);
+    return Promise.resolve(json(note, 201));
+  }
+  // POST /v1/notes/import (multipart): the file's name, or the server's refusal
+  if (url.pathname === "/v1/notes/import" && method === "POST") {
+    if (server.refuseImport) return Promise.resolve(server.refuseImport());
+    const file = init.body.get("file");
+    const at = new Date().toISOString();
+    const note = { id: `n${server.notes.length + 1}`, title: file.name.replace(/\.[^.]*$/, ""), body: "", pinned: false, createdAt: at, updatedAt: at };
     server.notes.push(note);
     return Promise.resolve(json(note, 201));
   }
@@ -259,4 +273,20 @@ test("a delete asks first, naming the note, then removes it", async () => {
   await flushPromises();
   expect(server.calls).toContain("DELETE /v1/notes/n1");
   expect(byText("tr.ui-table-row", "Old list")).toBeFalsy();
+});
+
+test("Import a file sends the file to the upload route; a refusal says why in the server's words", async () => {
+  await mountPage();
+  const pick = (file) => wrapper.findComponent(quasar.QFile).vm.$emit("update:modelValue", file);
+  pick(new File(["Milk\nEggs"], "groceries.txt", { type: "text/plain" }));
+  await flushPromises();
+  expect(server.calls).toContain("POST /v1/notes/import");
+  expect(text()).toContain("groceries");
+  server.refuseImport = () => json({ type: "https://family-template.local/errors/not-text", title: "Not a text file", status: 415, detail: "Import a plain text file, such as .txt or .md.", requestId: "rid-415" }, 415);
+  reported.length = 0;
+  pick(new File([new Uint8Array([0x89, 0x50])], "photo.png", { type: "image/png" }));
+  await flushPromises();
+  expect(reported).toHaveLength(1);
+  expect(errorMessage(reported[0])).toMatchObject({ title: "Not a text file", detail: "Import a plain text file, such as .txt or .md." });
+  expect(server.notes).toHaveLength(1);
 });

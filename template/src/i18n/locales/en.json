@@ -51,6 +51,8 @@
   "notes": {
     "title": "Notes",
     "new": "New note",
+    "import": "Import a file…",
+    "imported": "“{title}” imported",
     "loadFailed": "Couldn't load your notes: {reason}",
     "empty": {
       "title": "No notes yet",
@@ -92,7 +94,8 @@
     "general": {
       "notesTitle": "Notes",
       "notesHint": "How the Notes list shows your notes.",
-      "pageSize": "Notes per page"
+      "pageSize": "Notes per page",
+      "maxImportKilobytes": "Largest file to import (KB)"
     },
     "appearanceHint": "How the app looks — applied at once and kept by the app.",
     "accentNote": "The default, 166°, is green.",

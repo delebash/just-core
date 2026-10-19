@@ -18,6 +18,8 @@ const log = getLogger("family_template.seed");
 export const SETTING_DEFAULTS = {
   // Notes per page in the Notes list (Settings → General).
   "notes.pageSize": 25,
+  // The largest text file Import a file takes, in KB (Settings → General).
+  "notes.maxImportKilobytes": 100,
 };
 
 /** Add every missing setting; returns how many were added. */

@@ -4,7 +4,7 @@
 // value a user might change is a seeded row, never a constant). The §15 form: the rules are the
 // route's own schema (`schemaRules(SettingsPatch)` from the server package), a 422 lands under its
 // field (`fieldErrors`), any other failure goes through `reportError`, Save is disabled while it
-// runs and sits on the row of the field it saves.
+// runs and sits on the row of the fields it saves.
 import { fieldErrors, reportError, schemaRules, UiButton, UiField, UiNumber } from "@delebash/ui";
 import { SettingsPatch } from "family-template-server/schemas/settings.js";
 import { computed, onMounted, reactive, ref } from "vue";
@@ -14,19 +14,23 @@ import { useSettingsStore } from "../../stores/settings.js";
 const { t } = useI18n();
 const settings = useSettingsStore();
 
-const KEY = "notes.pageSize";
+// the Notes card's settings: its list's page size, and the largest file Import a file takes
+const FIELDS = [
+  { key: "notes.pageSize", id: "setting-page-size", label: "settings.general.pageSize" },
+  { key: "notes.maxImportKilobytes", id: "setting-max-import", label: "settings.general.maxImportKilobytes" },
+];
 const rules = schemaRules(SettingsPatch);
-const draft = reactive({ [KEY]: null });
+const draft = reactive(Object.fromEntries(FIELDS.map((f) => [f.key, null])));
 const serverErrors = ref({});
 const saving = ref(false);
 const loaded = ref(false);
 
-const changed = computed(() => loaded.value && draft[KEY] !== settings.values[KEY]);
+const changedKeys = computed(() => (loaded.value ? FIELDS.map((f) => f.key).filter((k) => draft[k] !== settings.values[k]) : []));
 
 onMounted(async () => {
   try {
     await settings.load();
-    draft[KEY] = settings.values[KEY] ?? null;
+    for (const f of FIELDS) draft[f.key] = settings.values[f.key] ?? null;
     loaded.value = true;
   } catch (e) {
     reportError(e);
@@ -37,11 +41,11 @@ async function save() {
   saving.value = true;
   serverErrors.value = {};
   try {
-    await settings.save({ [KEY]: draft[KEY] });
-    draft[KEY] = settings.values[KEY];
+    await settings.save(Object.fromEntries(changedKeys.value.map((k) => [k, draft[k]])));
+    for (const f of FIELDS) draft[f.key] = settings.values[f.key];
   } catch (e) {
     const fields = fieldErrors(e);
-    if (fields[KEY]) serverErrors.value = fields;
+    if (FIELDS.some((f) => fields[f.key])) serverErrors.value = fields;
     else reportError(e);
   } finally {
     saving.value = false;
@@ -55,14 +59,14 @@ async function save() {
     <p class="hint">{{ t("settings.general.notesHint") }}</p>
     <q-form class="form" greedy @submit="save">
       <div class="form__row">
-        <UiField :label="t('settings.general.pageSize')" layout="block" for="setting-page-size">
+        <UiField v-for="f in FIELDS" :key="f.key" :label="t(f.label)" layout="block" :for="f.id">
           <UiNumber
-            id="setting-page-size" v-model="draft[KEY]" width="num" :disabled="!loaded" lazy-rules
-            :rules="rules[KEY]" :error="!!serverErrors[KEY]" :error-message="serverErrors[KEY]"
+            :id="f.id" v-model="draft[f.key]" width="num" :disabled="!loaded" lazy-rules
+            :rules="rules[f.key]" :error="!!serverErrors[f.key]" :error-message="serverErrors[f.key]"
             @update:model-value="serverErrors = {}"
           />
         </UiField>
-        <UiButton type="submit" intent="primary" :disabled="saving || !changed" :label="saving ? t('kit.common.saving') : t('kit.common.save')" />
+        <UiButton type="submit" intent="primary" :disabled="saving || !changedKeys.length" :label="saving ? t('kit.common.saving') : t('kit.common.save')" />
       </div>
     </q-form>
   </section>

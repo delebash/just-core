@@ -9,6 +9,8 @@ import { opt, strictObject, T } from "@delebash/core/platform/schema";
 export const SETTINGS = {
   // Notes per page in the Notes list.
   "notes.pageSize": T.Integer({ minimum: 5, maximum: 100 }),
+  // The largest text file Import a file takes, in KB (a note holds up to 20,000 characters).
+  "notes.maxImportKilobytes": T.Integer({ minimum: 1, maximum: 1024 }),
 };
 
 export const SETTING_KEYS = Object.keys(SETTINGS);

@@ -7,8 +7,12 @@
 
 import { opt, strictObject, T } from "@delebash/core/platform/schema";
 
-const Title = T.String({ minLength: 1, maxLength: 120 });
-const Body = T.String({ maxLength: 20000 });
+/** The longest title and note (characters) — the import holds a file to them too. */
+export const TITLE_MAX = 120;
+export const BODY_MAX = 20000;
+
+const Title = T.String({ minLength: 1, maxLength: TITLE_MAX });
+const Body = T.String({ maxLength: BODY_MAX });
 
 /** A new note (POST /v1/notes). */
 export const NoteIn = strictObject({

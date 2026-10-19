@@ -6,8 +6,9 @@
 // loading (q-inner-loading, never "nothing here" while it loads), empty (the kit's EmptyState with
 // the one action that fills it), failed (the kit's UiBanner with the reason and Retry); the editor
 // is components/NoteDialog.vue (the §15 form); a delete asks first through the kit's
-// confirmDialog, naming what is lost. The first note saved is this app's moment for the once-ever
-// AI offer (§11).
+// confirmDialog, naming what is lost; Import a file sends a text file to the upload route (§15) — a
+// refusal (too big, not text, too long) shows through reportError. The first note saved is this
+// app's moment for the once-ever AI offer (§11).
 import {
   confirmDialog,
   EmptyState,
@@ -15,6 +16,7 @@ import {
   Icon,
   PaneHeader,
   pageFlow,
+  pushToast,
   relativeTime,
   reportError,
   UiBanner,
@@ -77,6 +79,23 @@ function onSaved(_note, { created }) {
   if (created) ui.maybeOfferAiSetup();
 }
 
+// Import a file: the hidden picker, then the upload
+const picker = ref(null);
+const importing = ref(false);
+async function onFile(file) {
+  if (!file) return;
+  importing.value = true;
+  try {
+    const note = await notes.importFile(file);
+    pushToast({ kind: "success", title: t("notes.imported", { title: note.title }) });
+    ui.maybeOfferAiSetup();
+  } catch (e) {
+    reportError(e);
+  } finally {
+    importing.value = false;
+  }
+}
+
 async function remove(note) {
   const yes = await confirmDialog({
     title: t("notes.delete.title"),
@@ -96,8 +115,10 @@ async function remove(note) {
 <template>
   <q-page :style-fn="pageFlow" class="page page--content">
     <PaneHeader :eyebrow="t('app.name')" :title="t('notes.title')" help-key="notes">
+      <UiButton intent="secondary" :label="t('notes.import')" :disabled="!notes.loaded || importing" @click="picker?.pickFiles()" />
       <UiButton intent="primary" :label="t('notes.new')" :disabled="!notes.loaded" @click="openNew" />
     </PaneHeader>
+    <q-file ref="picker" class="notes__picker" :model-value="null" accept=".txt,.md,text/plain,text/markdown" :aria-label="t('notes.import')" @update:model-value="onFile" />
 
     <!-- failed: the reason and Retry -->
     <UiBanner v-if="loadFailed" class="page__banner">
