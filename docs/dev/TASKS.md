@@ -13,6 +13,17 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## The shell's right-click menu in each app's language: the template and just-house-paint don't send its words [2026-10-18]
+STATE:  OPEN. The kit's shell draws the menu since `1689b3e` (spelling suggestions, Add to dictionary,
+        cut/copy/paste; JustWrite's editor-expansion plan, under the user's "your rec on all … take
+        your own rec", 2026-10-18) and speaks the package's English until the app sends its words:
+        `setContextMenuLabels(shellMenuLabels(t))` at boot and on each language switch. JustWrite and
+        docgen send them; JustVoice will when that work comes up (its session, 2026-10-18). The
+        template — the reference app — and just-house-paint don't, nor the tray's words
+        (app-structure's "a NOTED localization gap"): left to the sessions working there that day.
+GO:     the "your rec on all" above covers the kit's side; the template's and just-house-paint's
+        wiring waits for their sessions.
+
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning
         that the kit holds the shared server platform, not only the LLM runner: "ok so we need to just
