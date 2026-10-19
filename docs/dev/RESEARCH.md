@@ -138,22 +138,17 @@ ones this session re-checked are marked ✓ in the study.
   this application be installed for?" — and waits. With `/S` (`quitAndInstall(true, true)`) the same
   downloaded installer upgraded in place and started the app again in 15.8 s, the data folder beside
   the exe untouched. The install on quit is silent already (BaseUpdater: `install(true, false)`).
-- **Electron's spellchecker marks nothing on Windows since Electron 41** (*measured*, 2026-10-19,
-  JustWrite's session; electron/electron#54729, closed by a bot for its template, never triaged).
-  A bare window, typed text: 40.10.6 draws the squiggles and its `context-menu` carries
-  `misspelledWord` and suggestions; 41.10.7, 44.7.0 (the family's), 44.9.0 and 45.0.0-beta.5 draw
-  nothing and carry none, while the session reports itself enabled with its dictionary initialized.
-  Chrome 149 on the same machine draws them — it's Electron's wiring. So every family app's text
-  boxes go unchecked in its Windows desktop app, and the shell's spelling menu
-  (electron-context-menu) never has a suggestion there. JustWrite's editor checks spelling itself
-  now (nspell in a worker — TipTap's documented route; its RESEARCH, "The writer's editor"); the
-  other apps' plain inputs wait for Electron. No app-side switch brings it back (*measured
-  2026-10-19*): Electron's own `webFrame.setSpellCheckProvider` is asked for every word on 40.10.6
-  and never on 44.7.0 — Blink requests no check at all — and a visible window, `lang`, real key
-  events and five Chromium feature switches change nothing; 44.9.0 / 45.0.0-beta.5 are the newest
-  releases and 40.x is out of support. A plain box can carry an app's own marks: a layer laid over
-  the textarea with the CSS Custom Highlight API drawing them, aligned through wrapping, scrolling
-  and resizing in Chrome 149 and Electron 44.7 (JustWrite's RESEARCH has the recipe).
+- **Electron's spellchecker works on Windows — a probe that scripts its input can't see it**
+  (*measured 2026-10-19, Electron 44.7.0*; corrects the same day's "marks nothing since Electron 41").
+  Real typing underlines misspellings (Just House Paint, 44.7.0), and a bare window clicked into with a
+  synthesized mouse click, or typed with full keyDown/char/keyUp events, gives `misspelledWord` and
+  Windows' suggestions in `context-menu` — so the shell's spelling menu (electron-context-menu) has
+  them. **The trap:** a box focused by script (`el.focus()`) and fed only `char` events through
+  `sendInputEvent` is never checked on Electron 41+ (on 40.10.6 it is) — it reads exactly like a
+  Windows regression, and electron/electron#54729 most likely measured that. Test spelling with a
+  real click or real key events, or ask for a look in an installed app. JustWrite built its own
+  spellchecker on the false reading and removed it the same day (its RESEARCH and
+  `docs/plans/archive/2026-10-19-spelling.md`).
 
 **SQLite in Node** (*web + measured*):
 
