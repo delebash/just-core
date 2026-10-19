@@ -733,7 +733,11 @@ export function runDesktopApp(config) {
       if (!updater || update.state !== "ready") return updateNow();
       await stopServer();
       state.quitting = true;
-      updater.quitAndInstall(false, true);
+      // silently (/S), then the app starts again (--force-run). Without /S the family's assisted
+      // NSIS installer shows its whole wizard ("Who should this application be installed for?") and
+      // waits — measured on just-house-paint's 0.1.0 → 0.1.1 update, 2026-10-19; electron-updater's
+      // install on quit is silent already (BaseUpdater: install(true, false)).
+      updater.quitAndInstall(true, true);
       return null;
     },
   };

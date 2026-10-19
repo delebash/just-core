@@ -124,6 +124,13 @@ ones this session re-checked are marked ✓ in the study.
   with `forceDevUpdateConfig` and `updateConfigPath` does both. *Measured* on JustVoice's
   development window against a local feed: the start-up check found 9.9.9, Download fetched it
   (falling back to a full download when the feed had no blockmap) and verified its sha512.
+  *Measured* on an installed app (just-house-paint 0.1.0 → 0.1.1, 2026-10-19, its GitHub release): the
+  start-up check found 0.1.1 and Download took 6 s (the blockmap's differential download), but
+  `quitAndInstall(false, true)` runs the installer as `--updated --force-run` (NsisUpdater.js), and
+  the family's ASSISTED NSIS installer (`oneClick: false`) then shows its whole wizard — "Who should
+  this application be installed for?" — and waits. With `/S` (`quitAndInstall(true, true)`) the same
+  downloaded installer upgraded in place and started the app again in 15.8 s, the data folder beside
+  the exe untouched. The install on quit is silent already (BaseUpdater: `install(true, false)`).
 - **Electron's spellchecker marks nothing on Windows since Electron 41** (*measured*, 2026-10-19,
   JustWrite's session; electron/electron#54729, closed by a bot for its template, never triaged).
   A bare window, typed text: 40.10.6 draws the squiggles and its `context-menu` carries
