@@ -27,3 +27,9 @@ const mine = useSurfaceTasks(() => props.features, () => props.meta);
     </AiTaskStrip>
   </div>
 </template>
+
+<style>
+/* A page's strips stacked under the control that started them (JustVoice's .jv-task-strips, moved
+   with the component 2026-10-18). */
+.ai-task-strips { display: flex; flex-direction: column; gap: 8px; margin: 0 0 10px; }
+</style>
