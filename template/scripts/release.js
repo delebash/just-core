@@ -83,8 +83,10 @@ if (!yes) {
   }
 }
 try {
-  // stdin closed: gh exits non-zero on the closed pipe a readline prompt can leave behind
-  run(`gh workflow run release.yml -f tag=${tag} -f platforms=${platform} -f core_ref=${coreRef}`, { stdio: ["ignore", "inherit", "inherit"] });
+  // stdin closed: gh exits non-zero on the closed pipe a readline prompt can leave behind. Its output
+  // goes straight to the terminal (it prints the run's address), so execSync returns null — not run(),
+  // whose trim() of that null threw and reported a run that had started as failed (v0.1.0, 2026-10-19).
+  execSync(`gh workflow run release.yml -f tag=${tag} -f platforms=${platform} -f core_ref=${coreRef}`, { cwd: ROOT, stdio: ["ignore", "inherit", "inherit"] });
 } catch {
   fail("`gh workflow run` failed — is .github/workflows/release.yml on the default branch?");
 }
