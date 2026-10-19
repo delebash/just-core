@@ -1129,9 +1129,10 @@ function checkSurfaceTasks(app, files) {
 // checkable: each help button's page exists; the once-ever AI offer has a call site; the chrome is
 // mounted (LlmUiHosts, HelpDrawer, AiStatusButton) and boot installs error reporting; the kit's
 // fonts are listed (the font picker offers them all); numbers and dates follow the app's language
-// (vue-i18n's n()/d() or a formatter given i18n's locale — never toLocale*String() or
-// Intl.*Format(undefined)). FAILS for the template and the apps made from it; advisory for the
-// older apps (each has its own way for some of these — JustWrite ships its own fonts).
+// (vue-i18n's n()/d() or a formatter given i18n's locale — never a bare toLocale*String() or
+// Intl.*Format(undefined); one that names its locale, as a prompt's "en-US" does, is the app's
+// choice). FAILS for the template and the apps made from it; advisory for the older apps (each has
+// its own way for some of these).
 const CHROME_REQUIRED = new Set(["template", "just-house-paint"]);
 function checkChrome(app, files) {
   const report = (msg) => (CHROME_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
@@ -1157,7 +1158,7 @@ function checkChrome(app, files) {
     report("quasar.config.js doesn't list '~@delebash/ui/common/fonts.css' — the Appearance font picker's fonts aren't bundled (§11)");
   // numbers and dates in the app's language
   for (const [f, text] of all) {
-    if (/\.toLocale(Date|Time)?String\(/.test(text)) report(`${rel(f)} formats with toLocale*String() — the browser's language, not the app's; use vue-i18n's n()/d() (§Q.11)`);
+    if (/\.toLocale(Date|Time)?String\(\s*(\)|undefined\b)/.test(text)) report(`${rel(f)} formats with toLocale*String() — the browser's language, not the app's; use vue-i18n's n()/d() (§Q.11)`);
     if (/Intl\.\w+Format\(\s*undefined/.test(text)) report(`${rel(f)} builds an Intl formatter for the browser's language — pass i18n's locale (§Q.11)`);
   }
 }
