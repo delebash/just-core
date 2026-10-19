@@ -13,14 +13,18 @@
 //
 // The global AI task stack rides here for the same reason (2026-10-18): a screen that forgot its
 // in-place progress strip left an AI task with no visible progress (just-house-paint's house page,
-// found by the user). Mounted with the hosts, every app shows every running task.
+// found by the user). Mounted with the hosts, every app shows every running task. An app whose
+// user decided its pages show only their own tasks, with the header's ✨ AI button the one place
+// that shows them all (JustVoice, 2026-10-05), passes `:task-stack="false"`.
 // (The toasts need no host since they moved to Quasar's Notify, which mounts its own —
 // every app lists Notify in its quasar.config.js plugins.)
 import AppDialog from "../common/components/AppDialog.vue";
 import AiTaskStack from "./AiTaskStack.vue";
+
+defineProps({ taskStack: { type: Boolean, default: true } });
 </script>
 
 <template>
   <AppDialog />
-  <AiTaskStack />
+  <AiTaskStack v-if="taskStack" />
 </template>

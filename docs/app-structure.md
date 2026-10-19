@@ -702,7 +702,10 @@ at once with failures lingering until dismissed, `<AiTaskStrips :features="[…]
 `<LlmUiHosts />`, so every app has it) shows every running task no screen shows —
 a dialog closed mid-run, a page left — so no task is ever invisible; while a
 screen's strip is mounted the stack leaves its task out, so one run never shows
-twice. `inline: true` is only for a task whose screen shows its progress some
+twice. An app whose user decided its pages show only their own tasks, the header's ✨ AI
+button the one place that shows them all, mounts `<LlmUiHosts :task-stack="false" />`
+(JustVoice, decided 2026-10-05: "The app-wide strip goes. Each task shows on the page that
+started it"). `inline: true` is only for a task whose screen shows its progress some
 other way for its whole life. Hand-rolled progress banners are banned. A trigger
 button **disables** while its task runs — the strip is the spinner. The family
 guard's check 17 finds each feature an app starts (a literal `feature:`, or

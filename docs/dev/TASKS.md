@@ -256,8 +256,9 @@ OPEN:   follow-ups the first real app found, each for its own go:
           not doubled, moves to the stack when the dialog closes mid-run); check 17 (fails the template and
           just-house-paint, advisory for the older apps); app-structure §8. JustWrite 728, JustVoice 260 and docgen 5
           renderer tests pass against it. OPEN for the apps' sessions: adopt `useSurfaceTask` (check 17's advisories),
-          then promote check 17 to fail() for them; JustVoice's renamed fork (TaskStrip.vue / PageTaskStrips.vue)
-          doesn't claim its tasks, so they also show in the stack until it uses the kit's AiTaskStrip.
+          then promote check 17 to fail() for them. JustVoice: adopted 2026-10-18 (the kit's AiTaskStrips, JV
+          099ab65f; its one advisory left is the book run, whose card draws the run), and it mounts
+          `<LlmUiHosts :task-stack="false" />`, its user's 2026-10-05 rule (a page shows only its own tasks).
         - THE TEMPLATE AUDIT (2026-10-18; evidence: docs/plans/2026-10-18-template-audit.md) — every standard of
           app-structure against the template: where it lives (kit code / template code + test / prose only), what a
           generated app lacks. Found, most visible first: the font picker does nothing outside JustWrite (no font
