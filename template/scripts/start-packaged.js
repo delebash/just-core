@@ -5,7 +5,10 @@
 // `quasar build -m electron` (dist/electron/Packaged/<platform>-unpacked); on Linux under a display
 // (`xvfb-run -a node scripts/start-packaged.js` — the release workflow does).
 // The port and the data folder's variable are read from src-electron/electron-main.js (runDesktopApp's
-// `port` and `dataDirEnv`), the version from package.json. Exit 0 = it answered; 1 = it didn't.
+// `port` and `dataDirEnv`), the version from package.json. Paths given as arguments are asked after
+// /v1/health answers and must answer 2xx too — an app's own checks (just-house-paint: its part
+// finder's runtime loads, `node scripts/start-packaged.js /v1/segment/runtime`). Exit 0 = it answered;
+// 1 = it didn't.
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
@@ -19,6 +22,7 @@ const dataDirEnv = main.match(/\bdataDirEnv:\s*"([A-Z0-9_]+)"/)?.[1];
 if (!port || !dataDirEnv) throw new Error("src-electron/electron-main.js names no `port` or `dataDirEnv`");
 const out = path.join(root, "dist", "electron", "Packaged");
 const TIMEOUT_MS = 120_000;
+const extraPaths = process.argv.slice(2);
 
 /** The packaged app's own executable in electron-builder's unpacked folder for this platform. */
 function findExecutable(dir = out, platform = process.platform) {
@@ -76,6 +80,9 @@ async function run() {
   child.on("exit", (code, signal) => {
     exited = { code, signal };
   });
+  child.on("error", (e) => {
+    exited = { code: e.code || e.message, signal: null }; // it couldn't be started at all
+  });
   try {
     for (;;) {
       if (exited) throw new Error(`the app quit before it answered (exit ${exited.code ?? exited.signal})`);
@@ -83,6 +90,12 @@ async function run() {
       if (h) {
         if (h.version !== pkg.version) throw new Error(`it answered as version ${h.version}, not ${pkg.version}`);
         console.log(`it answered in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${h.product} ${h.version}`);
+        for (const p of extraPaths) {
+          const r = await fetch(`http://127.0.0.1:${port}${p}`, { signal: AbortSignal.timeout(60_000) });
+          const body = await r.text();
+          if (!r.ok) throw new Error(`${p} answered ${r.status}: ${body.slice(0, 400)}`);
+          console.log(`${p}: ${r.status} ${body.slice(0, 200)}`);
+        }
         return;
       }
       if (Date.now() - t0 > TIMEOUT_MS) throw new Error(`no answer on port ${port} in ${TIMEOUT_MS / 1000} s`);
@@ -91,7 +104,11 @@ async function run() {
   } finally {
     stop(child);
     await new Promise((r) => setTimeout(r, 1500)); // let the files go before the folder is removed
-    rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+    try {
+      rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+    } catch (e) {
+      console.warn(`the data folder ${dataDir} stays (${e.code || e.message})`); // the check's answer stands
+    }
   }
 }
 
