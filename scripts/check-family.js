@@ -1103,16 +1103,32 @@ const SURFACE_TASK_REQUIRED = new Set(["template", "just-house-paint"]);
 function checkSurfaceTasks(app, files) {
   const started = new Map(); // feature → the first file that starts it
   const shown = new Set();
-  for (const f of files) {
-    if (!/\.(vue|js)$/.test(f) || f.includes(".test.") || f.includes("worker-bundle")) continue; // a generated bundle repeats the sources
-    const src = readFileSync(f, "utf8");
+  const sources = files
+    .filter((f) => /\.(vue|js)$/.test(f) && !f.includes(".test.") && !f.includes("worker-bundle")) // a generated bundle repeats the sources
+    .map((f) => [f, readFileSync(f, "utf8")]);
+  // A feature may be named by a string constant (`export const PLANNING_FEATURE = "planning"` in
+  // JustWrite's planningDraft.js, used by its pages too): the app's constants, by name.
+  const constants = new Map();
+  for (const [, src] of sources)
+    for (const m of src.matchAll(/\bconst\s+([A-Z][A-Z0-9_]*)\s*=\s*["'`]([\w.:-]+)["'`]/g)) constants.set(m[1], m[2]);
+  for (const [f, src] of sources) {
     const rel = relative(app.dir, f).replaceAll("\\", "/");
-    for (const m of src.matchAll(/useSurfaceTask\(\s*["'`]([\w.:-]+)["'`]/g)) shown.add(m[1]);
+    for (const m of src.matchAll(/useSurfaceTask\(\s*(?:["'`]([\w.:-]+)["'`]|([A-Z][A-Z0-9_]*)\b)/g)) {
+      const k = m[1] ?? constants.get(m[2]);
+      if (k) shown.add(k);
+    }
     // the plural: useSurfaceTasks(["a", "b"]) and <AiTaskStrips :features="['a', 'b']"> (JustVoice's pattern)
     for (const m of src.matchAll(/useSurfaceTasks\(\s*\[([^\]]*)\]|<AiTaskStrips\b[^>]*:features="\[([^\]]*)\]"/g))
       for (const k of (m[1] ?? m[2]).matchAll(/["'`]([\w.:-]+)["'`]/g)) shown.add(k[1]);
     const keys = [...src.matchAll(/\bfeature:\s*["'`]([\w.:-]+)["'`]/g)].map((m) => m[1]);
-    if (/\brunAiFeature(Stream)?\s*\(/.test(src)) keys.push(...[...src.matchAll(/\baction:\s*["'`]([\w.:-]+)["'`]/g)].map((m) => m[1]));
+    for (const m of src.matchAll(/\bfeature:\s*([A-Z][A-Z0-9_]*)\b/g)) if (constants.has(m[1])) keys.push(constants.get(m[1]));
+    // runAiFeature's feature defaults to its action — unless the call names its feature (2026-10-18:
+    // `action: "premiseDraft", feature: PLANNING_FEATURE` runs the task "planning")
+    if (/\brunAiFeature(Stream)?\s*\(/.test(src))
+      for (const m of src.matchAll(/\baction:\s*["'`]([\w.:-]+)["'`]/g)) {
+        const call = src.slice(src.lastIndexOf("{", m.index), src.indexOf("}", m.index) + 1);
+        if (!/\bfeature:/.test(call)) keys.push(m[1]);
+      }
     for (const k of keys) if (!started.has(k)) started.set(k, rel);
     if (/\bfeature:\s*`[^`]*\$\{/.test(src)) info(app.name, `${rel} builds an AI task's feature key at run time — check 17 can't see whether its screen shows it; name the key as a literal`);
   }
