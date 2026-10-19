@@ -36,5 +36,6 @@ runDesktopApp({
   trayIcon: resolveElectronAssetsPath("icons/tray.png"),
   // the server's live log, relative to the data root (the tray's "Open log file")
   logFile: path.join("logs", "family-template.log"),
-  // `updates` is left out until the app has releases: no feed, no update checks.
+  // `updates: { releasesUrl: "https://github.com/delebash/<repo>/releases" }` goes in with the app's
+  // first release (scripts/release.js); until then no update checks.
 });

@@ -130,6 +130,9 @@ export default defineConfig(() => {
         // https://www.electron.build/configuration
         appId: 'com.familytemplate.app',
         productName: 'Family Template',
+        // the update feed (electron-updater — app-structure §1, `updates`): latest*.yml and the
+        // .blockmaps the release workflow attaches to the tag's GitHub release (.github/workflows/release.yml)
+        publish: { provider: 'github', owner: 'delebash', repo: 'family-template' },
         // better-sqlite3's build leftovers (sources, object files, debug symbols) stay out
         files: [
           '**/*',

@@ -29,6 +29,8 @@ npm run test:unit      # the renderer's tests (stores, the mounted Notes page, t
 npm test               # the e2e smoke on the unpacked desktop build (build:unpacked first)
 npm run screenshots    # every surface as a PNG in e2e/shots/
 npm run test:coverage  # coverage (Vitest's v8), no gate
+npm run bump 0.2.0     # the version (package.json and server/package.json)
+npm run release        # the release: installers + the update feed built on GitHub (.github/workflows/release.yml, manual only)
 ```
 
 **Must pass before a commit:** `npm run lint && npm run test:server && npm run test:unit` and the

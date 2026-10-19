@@ -1162,6 +1162,41 @@ function checkChrome(app, files) {
   }
 }
 
+// ── check 19 · the release (the template audit, 2026-10-18: "no self-update in the template") ─────
+// An installed app updates itself only from a feed (app-structure §1, `updates`): electron-builder
+// writes latest*.yml from the builder's `publish` config, and the release workflow attaches it and
+// the .blockmaps to the tag's GitHub release with the installers. The template carries the release
+// (.github/workflows/release.yml, manual only as JustWrite's; scripts/release.js and bump.js; the
+// `publish` config); an app turns `updates` on with its first release, and its releasesUrl must name
+// the repository the feed is published to. FAILS for the template and the apps made from it;
+// advisory for the older apps (JustWrite's workflow predates the feed; JustVoice's runs on a tag).
+const RELEASE_REQUIRED = new Set(["template", "just-house-paint"]);
+function checkRelease(app) {
+  const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
+  const workflow = join(app.dir, ".github", "workflows", "release.yml");
+  if (!existsSync(workflow)) report("no .github/workflows/release.yml — the template's release (installers + the update feed, manual only)");
+  else {
+    const y = readFileSync(workflow, "utf8");
+    if (!/^\s*workflow_dispatch:/m.test(y) || /^\s*(push|pull_request):/m.test(y))
+      report(".github/workflows/release.yml must start only by hand (workflow_dispatch — JustWrite's release system), never on a push or tag");
+    if (!/latest\*\.yml/.test(y) || !/\*\.blockmap/.test(y))
+      report(".github/workflows/release.yml doesn't attach electron-updater's feed (latest*.yml, *.blockmap) — an installed copy can't update (§1 `updates`)");
+  }
+  for (const rel of ["scripts/release.js", "scripts/bump.js"]) if (!existsSync(join(app.dir, rel))) report(`no ${rel} (the template's)`);
+  const pkgPath = join(app.dir, "package.json");
+  const scripts = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, "utf8")).scripts || {} : {};
+  for (const name of ["bump", "release"]) if (!scripts[name]) report(`package.json has no "${name}" script (the template's scripts/${name}.js)`);
+  const qconf = join(app.dir, "quasar.config.js");
+  const q = existsSync(qconf) ? readFileSync(qconf, "utf8") : "";
+  const pub = q.match(/publish:\s*\{[^}]*provider:\s*['"]github['"][^}]*owner:\s*['"]([\w.-]+)['"][^}]*repo:\s*['"]([\w.-]+)['"]/);
+  if (!pub) report("quasar.config.js's electron builder has no GitHub `publish` config — electron-builder writes no update feed (§1 `updates`)");
+  const mainPath = join(app.dir, "src-electron", "electron-main.js");
+  const main = existsSync(mainPath) ? readFileSync(mainPath, "utf8") : "";
+  const rel = main.match(/releasesUrl:\s*["'`]https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/releases["'`]/);
+  if (rel && pub && (rel[1] !== pub[1] || rel[2] !== pub[2]))
+    report(`src-electron/electron-main.js checks ${rel[1]}/${rel[2]} for updates, but the feed is published to ${pub[1]}/${pub[2]}`);
+}
+
 const perApp = [];
 for (const app of [...APPS, TEMPLATE]) {
   if (!existsSync(app.dir)) { fail(app.name, `not found at ${app.dir}`); continue; }
@@ -1190,6 +1225,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkTaskLifecycle(app, files);
   checkSurfaceTasks(app, files);
   checkChrome(app, files);
+  checkRelease(app);
   checkOneSaveDoor(app, files);
   checkOneShellDoor(app, files);
   checkOneHono(app, [...walk(join(app.dir, "server", "src")), ...walk(join(app.dir, "server", "tests"))]);

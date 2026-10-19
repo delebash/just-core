@@ -54,6 +54,8 @@ npm run test:unit      # the renderer's tests (Vitest, jsdom, Vue Test Utils + Q
 npm test               # the e2e smoke on the unpacked desktop build
 npm run screenshots    # every surface as a PNG
 npm run test:coverage  # coverage (v8), no gate
+npm run bump 0.2.0     # the version (package.json and server/package.json)
+npm run release        # the release: installers + the update feed built on GitHub (manual only)
 ```
 
 ## What differs from Quasar's default, and why

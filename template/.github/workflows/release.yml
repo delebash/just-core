@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: MIT
+# The release: each platform's installer and electron-updater's feed (latest*.yml and the
+# .blockmaps — app-structure §1, `updates`), built on GitHub's runners and attached to the tag's
+# GitHub release. Manual only, as JustWrite's (its docs/dev/ARCHITECTURE.md, "Release system": a
+# build on three runners is costly, so nothing starts one but `npm run release` — scripts/release.js,
+# which runs `gh workflow run release.yml` — or the Actions page's "Run workflow"). The tag must
+# already be on origin; the release notes are that version's section of docs/whats-new.md.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. v0.2.0). Must already exist on origin."
+        required: true
+        type: string
+      platforms:
+        description: "Which platforms to build."
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - windows
+          - macos
+          - linux
+
+permissions:
+  contents: write # creates the release and attaches the files
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - id: matrix
+        env:
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          WIN='{"platform":"windows-latest","target":"win32"}'
+          MAC='{"platform":"macos-latest","target":"darwin"}'
+          LIN='{"platform":"ubuntu-22.04","target":"linux"}'
+          case "$PLATFORMS" in
+            windows) MATRIX="{\"include\":[$WIN]}" ;;
+            macos)   MATRIX="{\"include\":[$MAC]}" ;;
+            linux)   MATRIX="{\"include\":[$LIN]}" ;;
+            *)       MATRIX="{\"include\":[$MAC,$LIN,$WIN]}" ;;
+          esac
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    runs-on: ${{ matrix.platform }}
+    steps:
+      # The app needs the family kit beside it (package.json `file:../just-core/packages/core`,
+      # quasar.config.js `../just-core/packages/ui`), so both are checked out side by side.
+      - name: Checkout the app (at the tag)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          path: app
+
+      - name: Checkout the kit
+        uses: actions/checkout@v4
+        with:
+          repository: delebash/just-core
+          path: just-core
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            app/src-electron/package-lock.json
+            just-core/packages/core/package-lock.json
+            just-core/packages/ui/package-lock.json
+
+      # The kit's packages: core's dependencies, and ui's — the fonts every app bundles
+      # (packages/ui/src/common/fonts.css).
+      - name: Install the kit
+        shell: bash
+        run: |
+          (cd just-core/packages/core && npm ci)
+          (cd just-core/packages/ui && npm ci)
+
+      - name: Install the app (the renderer and the server/ workspace)
+        working-directory: app
+        run: npm ci
+
+      - name: Install the desktop app's deps
+        working-directory: app/src-electron
+        run: npm ci
+
+      # Native modules ship per-platform prebuilds (better-sqlite3 and koffi as N-API builds,
+      # sharp's @img packages), so nothing native is compiled here.
+      - name: Build the installer
+        working-directory: app
+        # Quasar's CLI run as node (app-structure §Q.6); -P never: the next step attaches the files
+        run: node node_modules/@quasar/app-vite/bin/quasar.js build -m electron -T ${{ matrix.target }} -P never
+
+      - name: Attach to the release
+        working-directory: app
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          PRODUCT=$(node -p "require('./package.json').productName")
+          # the notes: this version's section of the in-app What's new
+          node -e '
+            const text = require("fs").readFileSync("docs/whats-new.md", "utf8").replace(/\r\n/g, "\n");
+            const part = text.split(/^## /m).find((s) => s.split("\n")[0].trim() === process.argv[1]);
+            process.stdout.write(part ? `${part.slice(part.indexOf("\n") + 1).trim()}\n` : "");
+          ' "$TAG" > release-notes.md
+          PRE=""
+          case "$TAG" in *-*) PRE="--prerelease" ;; esac
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" $PRE --title "$PRODUCT $TAG" --notes-file release-notes.md \
+            || gh release view "$TAG" >/dev/null # another platform's job created it first
+          shopt -s nullglob
+          cd dist/electron/Packaged
+          # the installers, and electron-updater's feed: latest*.yml (one per platform) and the .blockmaps
+          gh release upload "$TAG" *.exe *.dmg *.zip *.AppImage *.deb *.blockmap latest*.yml --clobber

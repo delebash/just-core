@@ -270,8 +270,10 @@ OPEN:   follow-ups the first real app found, each for its own go:
           every picker font bundled by the kit (fonts.css, 8ad4e8c — JustWrite asked to drop its copy, the guard's
           check 2 fails it until then); the template's NOTICE.md; check 18 (help pages, the AI offer's call site, the
           chrome mounted, error reporting, the kit's fonts, numbers/dates in the app's language — fails the template
-          and its apps, advisory for the older ones). OPEN: self-update in the template (release.yml + updates), the
-          phone (build it or stop offering it), help on a failed warm start, upload-route schemas, tests for the
+          and its apps, advisory for the older ones). BUILT 2026-10-18: the release in the template — release.yml
+          (manual only, the installers and electron-updater's feed), scripts/release.js and bump.js, the builder's
+          `publish`; the guard's check 19 (fails the template and just-house-paint, advisory for the older apps).
+          OPEN: the phone (build it or stop offering it), help on a failed warm start, upload-route schemas, tests for the
           connection page / tray / Settings copies, the Settings copies into the kit, the stale comments and links.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]

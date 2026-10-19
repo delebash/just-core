@@ -24,6 +24,8 @@
     "test:server": "node scripts/node24.js node_modules/vitest/vitest.mjs run --config server/vitest.config.js",
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage && node scripts/node24.js node_modules/vitest/vitest.mjs run --config server/vitest.config.js --coverage.enabled --coverage.provider=v8 --coverage.include=src/**/*.js --coverage.reportsDirectory=../coverage/server",
+    "bump": "node scripts/bump.js",
+    "release": "node scripts/release.js",
     "test": "npm test --prefix e2e",
     "screenshots": "node e2e/capture-direct.js",
     "i18n:lint": "eslint -c eslint.i18n.config.js \"src/**/*.{js,vue}\"",
