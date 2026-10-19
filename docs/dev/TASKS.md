@@ -286,8 +286,9 @@ OPEN:   follow-ups the first real app found, each for its own go:
           `publish`; the guard's check 19 (fails the template and just-house-paint, advisory for the older apps).
           BUILT 2026-10-18: upload limits — the kit's `uploadLimit` (a test; §15), on just-house-paint's three upload
           routes. OPEN: the phone (build it or stop offering it), help on a failed warm start, an upload example in the
-          template (it has no upload route), the Settings copies into the kit, the family-rules copy's links that
-          lead nowhere from an app. DONE meanwhile: the connection page's test (the template has it); the tray's
+          template (it has no upload route), the Settings copies into the kit. DONE meanwhile: the family-rules
+          copy's links point at the kit's GitHub pages (2026-10-19), so they work from an app's AGENTS.md too
+          (they led nowhere there); the connection page's test (the template has it); the tray's
           half and keep-running tested (template/src/layouts/MainLayout.test.js); Settings → About, Server and
           Storage tested (template/src/components/settings/settingsSections.test.js) — both 2026-10-18, both also
           pass in just-house-paint; UiMenuItem's comment and §11's three tray listeners already fixed.

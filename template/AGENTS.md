@@ -81,7 +81,8 @@ this copy.
 
 The rules every family repo follows: JustWrite, JustVoice, docgen and this kit. Each repo's
 CLAUDE.md imports this file; a repo's own rules stay in its CLAUDE.md. How an app is laid out is
-[`app-structure.md`](app-structure.md) §Q; the reference app is [`../template/`](../template/).
+the kit's [`docs/app-structure.md`](https://github.com/delebash/just-core/blob/main/docs/app-structure.md)
+§Q; the reference app is the kit's [`template/`](https://github.com/delebash/just-core/tree/main/template).
 
 - **No hardcoded values a user might want to change.** Thresholds, limits, names and presets live
   in the database (seeded, editable in Settings), not in code, so changing one never needs a code
