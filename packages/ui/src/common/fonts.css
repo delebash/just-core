@@ -1,10 +1,21 @@
 /* SPDX-License-Identifier: MIT */
 /* SELF-HOSTED FONTS — every family the Appearance picker offers, bundled with the app (Fontsource:
  * the font files on disk, no network, available at first paint, offline too). Promoted to the kit
- * 2026-10-18 from JustWrite's src/css/fonts.css (its 2026-07-24 "self host fonts" decision; read that
- * file's header for the WHY and the static-vs-variable choice), after the template audit found the
- * picker did nothing in any app but JustWrite — no font files, so every choice fell back to the
- * system font (docs/plans/2026-10-18-template-audit.md).
+ * 2026-10-18 from JustWrite's src/css/fonts.css (its 2026-07-24 "self host fonts" decision), after
+ * the template audit found the picker did nothing in any app but JustWrite — no font files, so every
+ * choice fell back to the system font (docs/plans/2026-10-18-template-audit.md). JustWrite adopted
+ * this file the same day and its copy is gone; its reasons, kept here:
+ *
+ * WHY. JustWrite's index.html used to pull 15 families from fonts.googleapis.com in a render-blocking
+ * <link>: the window could not paint until DNS + TLS + a Google round trip completed, an OFFLINE boot
+ * waited for that request to time out, and the splash flickered from its fallback to Fraunces when
+ * the network answered. Bundled, the fonts are a local disk read.
+ *
+ * STATIC, not variable. @fontsource-variable declares its families as 'Fraunces Variable', 'Geist
+ * Variable', … — but every font stack (appearance.js, the apps' tokens.css) names the plain family;
+ * the static packages declare the plain names, so nothing else changes. The one cost: static cuts
+ * carry no optical-size axis (Fraunces 9..144, Newsreader 6..72, Source Serif 4 8..60 in the old
+ * Google URL), so very large display text is fractionally less optically tuned.
  *
  * An app lists it in quasar.config.js's `css`, before the kit's styles:
  *   '~@delebash/ui/common/fonts.css',
