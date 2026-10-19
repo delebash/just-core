@@ -124,6 +124,16 @@ ones this session re-checked are marked ✓ in the study.
   with `forceDevUpdateConfig` and `updateConfigPath` does both. *Measured* on JustVoice's
   development window against a local feed: the start-up check found 9.9.9, Download fetched it
   (falling back to a full download when the feed had no blockmap) and verified its sha512.
+- **Electron's spellchecker marks nothing on Windows since Electron 41** (*measured*, 2026-10-19,
+  JustWrite's session; electron/electron#54729, closed by a bot for its template, never triaged).
+  A bare window, typed text: 40.10.6 draws the squiggles and its `context-menu` carries
+  `misspelledWord` and suggestions; 41.10.7, 44.7.0 (the family's), 44.9.0 and 45.0.0-beta.5 draw
+  nothing and carry none, while the session reports itself enabled with its dictionary initialized.
+  Chrome 149 on the same machine draws them — it's Electron's wiring. So every family app's text
+  boxes go unchecked in its Windows desktop app, and the shell's spelling menu
+  (electron-context-menu) never has a suggestion there. JustWrite's editor checks spelling itself
+  now (nspell in a worker — TipTap's documented route; its RESEARCH, "The writer's editor"); the
+  other apps' plain inputs wait for Electron.
 
 **SQLite in Node** (*web + measured*):
 
