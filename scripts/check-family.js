@@ -1198,6 +1198,9 @@ function checkRelease(app) {
       report(".github/workflows/release.yml must start only by hand (workflow_dispatch — JustWrite's release system), never on a push or tag");
     if (!/latest\*\.yml/.test(y) || !/\*\.blockmap/.test(y))
       report(".github/workflows/release.yml doesn't attach electron-updater's feed (latest*.yml, *.blockmap) — an installed copy can't update (§1 `updates`)");
+    // the kit moves on with every app's work: a release builds the kit's commit the app was tested with
+    if (!/repository:\s*delebash\/just-core[\s\S]*?ref:\s*\$\{\{\s*inputs\.core_ref\s*\}\}|ref:\s*\$\{\{\s*inputs\.core_ref\s*\}\}[\s\S]*?repository:\s*delebash\/just-core/.test(y))
+      report(".github/workflows/release.yml checks the kit out at its main — check it out at `inputs.core_ref` (the commit the app was tested with; the template's release.js passes it)");
   }
   for (const rel of ["scripts/release.js", "scripts/bump.js"]) if (!existsSync(join(app.dir, rel))) report(`no ${rel} (the template's)`);
   const pkgPath = join(app.dir, "package.json");

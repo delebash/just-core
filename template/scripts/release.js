@@ -8,8 +8,10 @@
 //   npm run release -- --platform windows
 //   npm run release -- --yes           # no question (a scripted run)
 //
-// Checks first: the gh CLI is signed in, the tag v<version> is on origin, and docs/whats-new.md has
-// a "## v<version>" section (the release notes). `npm run bump <version>` sets the version.
+// Checks first: the gh CLI is signed in, the tag v<version> is on origin, docs/whats-new.md has a
+// "## v<version>" section (the release notes), and the kit's commit this app was built and tested
+// with is on origin — the runners build with that commit, not the kit's main, which every family
+// app's work moves on. `npm run bump <version>` sets the version.
 
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -57,8 +59,19 @@ if (!tryRun(`git ls-remote --tags origin ${tag}`)) {
 const whatsNew = readFileSync(resolve(ROOT, "docs", "whats-new.md"), "utf8");
 if (!new RegExp(`^## ${tag.replace(/\./g, "\\.")}\\s*$`, "m").test(whatsNew)) fail(`docs/whats-new.md has no "## ${tag}" section — the release notes.`);
 
+// The kit beside the app, where the server's package.json points (`file:<kit>/packages/core`).
+const serverPkg = JSON.parse(readFileSync(resolve(ROOT, "server", "package.json"), "utf8"));
+const corePath = (serverPkg.dependencies?.["@delebash/core"] || "").replace(/^file:/, "");
+const kitDir = resolve(ROOT, "server", corePath, "..", "..");
+const coreRef = tryRun(`git -C "${kitDir}" rev-parse HEAD`);
+if (!coreRef) fail(`the kit (${kitDir}) isn't a git checkout.`);
+if (!tryRun(`git -C "${kitDir}" branch -r --contains ${coreRef}`)) fail(`the kit's commit ${coreRef.slice(0, 7)} isn't on origin — push the kit first.`);
+if (tryRun(`git -C "${kitDir}" status --porcelain -- packages`)) {
+  console.log("Note: the kit has changes not committed under packages/ — the release builds its last commit, without them.");
+}
+
 const repo = tryRun("gh repo view --json nameWithOwner -q .nameWithOwner");
-console.log(`${pkg.productName} ${tag} (${repo ?? "this repository"}) — platforms: ${platform}.`);
+console.log(`${pkg.productName} ${tag} (${repo ?? "this repository"}) — platforms: ${platform}; the kit at ${coreRef.slice(0, 7)}.`);
 console.log("This builds the installers on GitHub's runners and attaches them, with the update feed, to the release.");
 if (!yes) {
   const rl = createInterface({ input: stdin, output: stdout });
@@ -71,7 +84,7 @@ if (!yes) {
 }
 try {
   // stdin closed: gh exits non-zero on the closed pipe a readline prompt can leave behind
-  run(`gh workflow run release.yml -f tag=${tag} -f platforms=${platform}`, { stdio: ["ignore", "inherit", "inherit"] });
+  run(`gh workflow run release.yml -f tag=${tag} -f platforms=${platform} -f core_ref=${coreRef}`, { stdio: ["ignore", "inherit", "inherit"] });
 } catch {
   fail("`gh workflow run` failed — is .github/workflows/release.yml on the default branch?");
 }

@@ -8,6 +8,8 @@
 # `publish: false` is a dry run: the same builds on the same runners, kept as the run's artifacts
 # instead of a release — a branch name works as the ref (`gh workflow run release.yml -f tag=main
 # -f publish=false`), so a first release's builds can be seen before anything is published.
+# `core_ref` is the kit's commit the app was built and tested with (release.js passes it): the kit
+# is shared by every family app, so its main moves on while a release is being prepared.
 name: Release
 
 on:
@@ -22,6 +24,11 @@ on:
         required: false
         type: boolean
         default: true
+      core_ref:
+        description: "The kit's commit to build with (release.js passes the one the app was tested with). Empty: the kit's main."
+        required: false
+        type: string
+        default: ""
       platforms:
         description: "Which platforms to build."
         required: true
@@ -72,10 +79,11 @@ jobs:
           ref: ${{ inputs.tag }}
           path: app
 
-      - name: Checkout the kit
+      - name: Checkout the kit (at the commit the app was tested with)
         uses: actions/checkout@v4
         with:
           repository: delebash/just-core
+          ref: ${{ inputs.core_ref }}
           path: just-core
 
       - name: Setup Node
