@@ -79,15 +79,14 @@ jobs:
             app/package-lock.json
             app/src-electron/package-lock.json
             just-core/packages/core/package-lock.json
-            just-core/packages/ui/package-lock.json
 
       # The kit's packages: core's dependencies, and ui's — the fonts every app bundles
-      # (packages/ui/src/common/fonts.css).
+      # (packages/ui/src/common/fonts.css). ui keeps no lockfile (its .gitignore), so `npm install`.
       - name: Install the kit
         shell: bash
         run: |
           (cd just-core/packages/core && npm ci)
-          (cd just-core/packages/ui && npm ci)
+          (cd just-core/packages/ui && npm install --no-audit --no-fund)
 
       - name: Install the app (the renderer and the server/ workspace)
         working-directory: app

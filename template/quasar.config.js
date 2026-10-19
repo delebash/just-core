@@ -169,7 +169,9 @@ export default defineConfig(() => {
           grantFileProtocolExtraPrivileges: false
         },
         mac: { category: 'public.app-category.productivity' },
-        linux: { target: [ 'AppImage', 'deb' ], category: 'Office' }
+        // the AppImage; a .deb also needs `linux.maintainer` ("name <email>", published in the package)
+        // — add it, and 'deb' to the targets, with the address the app's owner wants public
+        linux: { target: [ 'AppImage' ], category: 'Office' }
       }
     }
   }
