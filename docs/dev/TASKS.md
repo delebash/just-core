@@ -13,16 +13,16 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
-## The shell's menus in each app's language: just-house-paint and JustVoice don't send their words yet [2026-10-18]
-STATE:  OPEN for two apps. The kit's shell draws the right-click menu since `1689b3e` (spelling
+## The shell's menus in each app's language: JustVoice doesn't send their words yet [2026-10-18]
+STATE:  OPEN for JustVoice. The kit's shell draws the right-click menu since `1689b3e` (spelling
         suggestions, Add to dictionary, cut/copy/paste; JustWrite's editor-expansion plan, under the
         user's "your rec on all … take your own rec", 2026-10-18) and the tray's, and speaks English
         until the app sends its words. Since 2026-10-19 both sets are the kit's (`shellTrayLabels`,
         `shellMenuLabels`; app-structure §11): the template, docgen and JustWrite send them at start
         and on each language switch (JustWrite's own tray words went; under the user's "finish
-        anything left open go"). OPEN: just-house-paint — the template's lines in its native.js and
-        MainLayout.vue, after its v0.1.0 tag (web-0d's ask, 2026-10-19); JustVoice — its session.
-GO:     given (above); just-house-paint waits only for the tag.
+        anything left open go"); just-house-paint too, after its v0.1.0 tag (6e170da, so from v0.1.1).
+        OPEN: JustVoice — its session.
+GO:     given (above).
 
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning
