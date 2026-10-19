@@ -140,7 +140,13 @@ ones this session re-checked are marked ✓ in the study.
   boxes go unchecked in its Windows desktop app, and the shell's spelling menu
   (electron-context-menu) never has a suggestion there. JustWrite's editor checks spelling itself
   now (nspell in a worker — TipTap's documented route; its RESEARCH, "The writer's editor"); the
-  other apps' plain inputs wait for Electron.
+  other apps' plain inputs wait for Electron. No app-side switch brings it back (*measured
+  2026-10-19*): Electron's own `webFrame.setSpellCheckProvider` is asked for every word on 40.10.6
+  and never on 44.7.0 — Blink requests no check at all — and a visible window, `lang`, real key
+  events and five Chromium feature switches change nothing; 44.9.0 / 45.0.0-beta.5 are the newest
+  releases and 40.x is out of support. A plain box can carry an app's own marks: a layer laid over
+  the textarea with the CSS Custom Highlight API drawing them, aligned through wrapping, scrolling
+  and resizing in Chrome 149 and Electron 44.7 (JustWrite's RESEARCH has the recipe).
 
 **SQLite in Node** (*web + measured*):
 
