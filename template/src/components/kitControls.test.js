@@ -10,8 +10,9 @@
 // settings form found it, 2026-10-18; the kit's 3d83749).
 //
 // The dialog's checkbox field: a choice that goes with a confirm, answered true or false
-// (just-house-paint's "Keep the parts you changed by hand", 2026-10-19).
-import { AppDialog, promptDialog, schemaRules, UiNumber } from "@delebash/ui";
+// (just-house-paint's "Keep the parts you changed by hand", 2026-10-19). The boot splash's failed
+// load: the kit's own help, the app's Troubleshooting page (the template audit, 2026-10-19).
+import { AppDialog, BootModelLoad, configureHelp, helpState, promptDialog, schemaRules, UiNumber, warmModelId } from "@delebash/ui";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
 import * as quasar from "quasar";
@@ -94,4 +95,23 @@ test("a dialog's checkbox field starts as its default and answers what the user 
   expect(box().classList.contains("is-checked")).toBe(false);
   confirm().click();
   expect(await answer).toEqual({ keep: false });
+});
+
+test("a model that failed to load at start offers the app's Troubleshooting page — only when the app has one", async () => {
+  // the runner's catalog: the warm-start model ended in an error
+  const models = { models: [{ id: "gemma", status: "error", error: "Not enough graphics memory" }] };
+  vi.stubGlobal("fetch", vi.fn(async (url) => new Response(JSON.stringify(String(url).includes("/v1/llm-runner/models") ? models : {}), { status: 200, headers: { "content-type": "application/json" } })));
+  configureHelp({ hasDoc: () => false });
+  warmModelId.value = "gemma";
+  wrapper = mount(BootModelLoad, { attachTo: document.body, global: { plugins: [[quasar.Quasar, { ...QUASAR_TEST_OPTIONS, components: QUASAR_COMPONENTS }], i18n] } });
+  for (let i = 0; i < 5; i++) await flushPromises();
+  const help = () => [...document.body.querySelectorAll("button")].find((b) => b.textContent.trim() === "What can I do?");
+  expect(document.body.textContent).toContain("Not enough graphics memory");
+  expect(help()).toBeUndefined(); // no page, no link
+  configureHelp({ hasDoc: (slug) => slug === "troubleshooting" });
+  await flushPromises();
+  help().click();
+  await flushPromises();
+  expect(warmModelId.value).toBe(""); // the splash goes, so the help shows over the app
+  expect(helpState.slug).toBe("troubleshooting");
 });

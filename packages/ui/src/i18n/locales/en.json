@@ -1820,7 +1820,8 @@
     },
     "bootLoad": {
       "engineTitle": "Setting up the AI engine",
-      "continue": "Continue without waiting"
+      "continue": "Continue without waiting",
+      "help": "What can I do?"
     },
     "combobox": {
       "placeholder": "Fetch or type a model id",

@@ -1820,7 +1820,8 @@
     },
     "bootLoad": {
       "engineTitle": "Configurando el motor de IA",
-      "continue": "Continuar sin esperar"
+      "continue": "Continuar sin esperar",
+      "help": "¿Qué puedo hacer?"
     },
     "combobox": {
       "placeholder": "Obtén o escribe un ID de modelo",
