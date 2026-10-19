@@ -1877,6 +1877,18 @@
       "selectAll": "Select all",
       "copyImage": "Copy image",
       "copyLink": "Copy link"
+    },
+    "shellTray": {
+      "show": "📺 Show window",
+      "hide": "🔵 Hide window",
+      "serverStart": "▶️ Start server",
+      "serverStop": "⏹ Stop server",
+      "serverRestart": "🔄 Restart server",
+      "openSettings": "⚙️ Open settings",
+      "copyUrl": "📋 Copy server URL",
+      "openLogs": "📜 Open log file",
+      "about": "ℹ️ About {app}",
+      "quit": "🚪 Quit {app}"
     }
   }
 }

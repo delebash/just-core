@@ -76,7 +76,7 @@ export { installErrorReporting } from "./services/errorReporting.js";
 // the host wires its shell's openers via configureExternal (services/native.js).
 // openPath/canOpenPath are the same seam for LOCAL folders ("Open folder").
 export { configureExternal, openExternal, openPath, canOpenPath, isDesktopShell } from "./services/external.js";
-export { shellMenuLabels } from "./services/shellMenu.js";
+export { shellMenuLabels, shellTrayLabels } from "./services/shellMenu.js";
 
 // THE one door for putting a file on the user's disk — native dialog when the
 // host wired one, browser download otherwise. Every export in every app.

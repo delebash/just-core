@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT
-// The desktop shell's right-click menu in the interface's language (2026-10-18). The kit's shell
-// draws the menu (electron-context-menu — packages/core/src/shell/main.js) and holds only its
-// English until the app sends its words, the way the tray's come (setTrayLabels): an app passes
-// these to its native.js `setContextMenuLabels` at boot and on every language switch. The keys are
-// electron-context-menu's item ids, the ones the shell shows.
+// The desktop shell's two menus in the interface's language: the right-click menu (2026-10-18) and
+// the tray's (2026-10-19). The kit's shell draws both (electron-context-menu and the tray —
+// packages/core/src/shell/main.js) and holds only their English until the app sends its words: an
+// app passes these to its native.js `setContextMenuLabels` and `setTrayLabels` at boot and on every
+// language switch. The right-click menu's keys are electron-context-menu's item ids; the tray's are
+// the shell's (DEFAULT_TRAY_LABELS), the same in every app — the menu is JustVoice's, whole (§11).
 //
-//   watch(locale, () => setContextMenuLabels(shellMenuLabels(t)), { immediate: true });
+//   watch(locale, () => {
+//     setTrayLabels(shellTrayLabels(t, t("app.name")));
+//     setContextMenuLabels(shellMenuLabels(t));
+//   }, { immediate: true });
 
 /** @param {(key: string) => string} t  vue-i18n's t */
 export function shellMenuLabels(t) {
@@ -18,5 +22,24 @@ export function shellMenuLabels(t) {
     selectAll: t("kit.shellMenu.selectAll"),
     copyImage: t("kit.shellMenu.copyImage"),
     copyLink: t("kit.shellMenu.copyLink"),
+  };
+}
+
+/**
+ * @param {(key: string, params?: object) => string} t  vue-i18n's t
+ * @param {string} app  the app's name, in the About and Quit rows
+ */
+export function shellTrayLabels(t, app) {
+  return {
+    show: t("kit.shellTray.show"),
+    hide: t("kit.shellTray.hide"),
+    serverStart: t("kit.shellTray.serverStart"),
+    serverStop: t("kit.shellTray.serverStop"),
+    serverRestart: t("kit.shellTray.serverRestart"),
+    openSettings: t("kit.shellTray.openSettings"),
+    copyUrl: t("kit.shellTray.copyUrl"),
+    openLogs: t("kit.shellTray.openLogs"),
+    about: t("kit.shellTray.about", { app }),
+    quit: t("kit.shellTray.quit", { app }),
   };
 }
