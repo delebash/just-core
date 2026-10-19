@@ -95,7 +95,11 @@ export function languageOptionsFrom(codes, opts = {}) {
   const rows = [...seen]
     .map((value) => {
       const n = get(value);
-      const name = languageName(value);
+      // Spanish and French write language names lowercase; a picker item reads better
+      // capitalised (the rule the kit's LanguagePicker names follow, i18n/index.js), so only the
+      // first character is raised. JustWrite's book language showed "inglés" (2026-10-18).
+      const plain = languageName(value);
+      const name = plain.charAt(0).toLocaleUpperCase(kitLocale() || undefined) + plain.slice(1);
       return { value, name, label: n === undefined ? name : `${name} (${n})` };
     })
     .sort((a, b) => a.name.localeCompare(b.name, kitLocale() || undefined));
