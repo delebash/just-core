@@ -218,6 +218,37 @@ test("other_gpu_holders_names_only_others_above_the_floor", async () => {
   ]);
 });
 
+test("other_gpu_holders_leaves_out_the_compositor_and_the_app_s_own_window", async () => {
+  // dwm.exe at 317 MB (2026-10-19) is past the floor but no one can close it; the app's own window and
+  // its GPU process (the Electron shell, the server's parent) are this app, not another program
+  vi.spyOn(hw, "_nvidiaGpuProcessRows").mockResolvedValue(
+    new Map([
+      [20, 317],
+      [21, 640],
+      [22, 6900],
+    ]),
+  );
+  vi.spyOn(hw, "_pidNameMap").mockResolvedValue(
+    new Map([
+      [20, "dwm.exe"],
+      [21, "justhousepaint.exe"],
+      [22, "llama-server.exe"],
+    ]),
+  );
+  vi.spyOn(hw, "processTreePids").mockImplementation(async (pid) => [pid]);
+  vi.spyOn(hw, "_shellTreePids").mockResolvedValue([21]);
+  vi.spyOn(hw, "_processLabel").mockImplementation((pid, name) => name);
+  const rows = await hw.otherGpuHolders();
+  expect(rows.map((r) => [r.pid, r.label])).toEqual([[22, "llama-server.exe"]]);
+  expect((await hw.gpuProcesses({ fresh: true })).processes.find((r) => r.pid === 21).own).toBe(true);
+});
+
+test("the shell's tree is read only inside an Electron utility process", async () => {
+  // a plain Node server (headless, or these tests) has no parentPort: its parent is a terminal
+  expect(process.parentPort).toBeUndefined();
+  expect(await hw._shellTreePids()).toEqual([]);
+});
+
 test("other_gpu_holders_unmeasurable_is_none", async () => {
   vi.spyOn(hw, "_nvidiaGpuProcessRows").mockResolvedValue(null);
   vi.spyOn(hw, "_windowsGpuProcessRows").mockResolvedValue(null);

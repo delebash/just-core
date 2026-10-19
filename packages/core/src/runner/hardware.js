@@ -1161,6 +1161,9 @@ export async function gpuProcesses({ fresh = false } = {}) {
     let own;
     try {
       own = new Set(await self.processTreePids(process.pid));
+      // a desktop app's server runs in an Electron utility process: its parent's tree — the app's
+      // own window and its GPU process — is this app too, not another program
+      for (const pid of await self._shellTreePids()) own.add(pid);
     } catch {
       own = new Set(); // attribution is a nicety, not a gate
     }
@@ -1274,10 +1277,21 @@ export async function _processLabel(pid, name) {
   return `${name || "python"} · ${script.split(/[\\/]/).slice(-2).join("/")}`;
 }
 
+/** The desktop shell's process tree when this server runs in an Electron utility process
+ *  (`process.parentPort` is set only there — electronjs.org/docs/latest/api/process), else []. */
+export async function _shellTreePids() {
+  return process.parentPort && process.ppid ? self.processTreePids(process.ppid) : [];
+}
+
+/** The operating system's own compositors: they hold GPU memory on every desktop and no user can
+ *  close them, so they are never named as taking the room. Windows' Desktop Window Manager held
+ *  317 MB on 2026-10-19 (just-house-paint's machine) — past the 200 MB floor that kept it out at 162. */
+const SYSTEM_GPU_PROCESSES = new Set(["dwm.exe", "csrss.exe", "xorg", "xwayland", "gnome-shell", "kwin_x11", "kwin_wayland", "windowserver"]);
+
 /**
  * Processes OUTSIDE this server's own tree holding at least `minMb` of GPU memory, biggest
- * first — what a failed model load names as taking the room (2026-09-29). Rows are
- * `gpuProcesses` rows plus `label`.
+ * first — what a failed model load names as taking the room (2026-09-29), never the system's
+ * compositor. Rows are `gpuProcesses` rows plus `label`.
  *
  * The floor keeps the desktop out of the answer: the compositor alone holds ~160 MB on an
  * idle Windows box (measured 2026-09-29, `dwm.exe` 162 MB). The case this exists for
@@ -1291,7 +1305,8 @@ export async function otherGpuHolders({ minMb = 200 } = {}) {
   if (snap == null) return null;
   const out = [];
   for (const r of snap.processes) {
-    if (!r.own && r.memMb >= minMb) out.push({ ...r, label: await self._processLabel(r.pid, r.name) });
+    if (r.own || r.memMb < minMb || SYSTEM_GPU_PROCESSES.has(String(r.name).toLowerCase())) continue;
+    out.push({ ...r, label: await self._processLabel(r.pid, r.name) });
   }
   return out;
 }

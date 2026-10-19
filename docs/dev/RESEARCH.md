@@ -82,6 +82,13 @@ What a speech model costs, measured, is in JustVoice's register §2.
 - `used_pool_mb()` is the family's one cached reading of used pool memory; `fresh=True` skips
   the cache (the load door must). None = unmeasurable, and callers fall back to the ledger
   rather than guess. — *code, 2026-10-04* · `llm_runner/runner/hardware.py:468-480`.
+- **What `otherGpuHolders` leaves out** (2026-10-19, just-house-paint's machine, Windows 11, the counter set's
+  "Local Usage"): Windows' Desktop Window Manager `dwm.exe` held **317 MB** — past the 200 MB floor that kept it
+  out at 162 MB on 2026-09-29 — and a desktop app's own window process (the Electron shell, the server's PARENT,
+  so outside `processTreePids(process.pid)`) counted as another program. Now the system's compositors (dwm, csrss;
+  Xorg, Xwayland, gnome-shell, kwin; WindowServer) are never named, and a server in an Electron utility process
+  (`process.parentPort` set) counts its parent's tree as its own. — *measured + code, 2026-10-19* ·
+  `packages/core/src/runner/hardware.js` `_shellTreePids`, `SYSTEM_GPU_PROCESSES`.
 
 ---
 
