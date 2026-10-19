@@ -42,6 +42,7 @@ import { routePath } from "hono/route";
 export { Hono };
 export { stream } from "hono/streaming";
 import {
+  ApiError,
   InvalidJsonBody,
   installErrorHandlers,
   installFastapiErrorHandlers,
@@ -65,6 +66,27 @@ function limiter(maxSize) {
     LIMITS.set(maxSize, l);
   }
   return l;
+}
+
+/**
+ * An upload route's size limit (app-structure §15: a multipart or binary body has no schema to
+ * carry one): hono/body-limit, checked while the body streams in — before `parseBody()` or
+ * `arrayBuffer()` holds it all in memory. `maxBytes` is a number, or a function of the request's
+ * context read each time (a setting). Over it, the family's 413 problem with `slug` and `title`,
+ * its detail in MB and `limit` in bytes.
+ *
+ *   app.post("/v1/things", uploadLimit(() => maxPhotoBytes(), { slug: "photo-too-large", title: "Photo too large" }), handler)
+ */
+export function uploadLimit(maxBytes, { slug = "too-large", title = "Too large" } = {}) {
+  return (c, next) => {
+    const max = typeof maxBytes === "function" ? maxBytes(c) : maxBytes;
+    return bodyLimit({
+      maxSize: max,
+      onError: () => {
+        throw new ApiError(413, slug, title, `the upload is over ${Math.round(max / 1e6)} MB`, { limit: max });
+      },
+    })(c, next);
+  };
 }
 
 // ajv as Fastify set it up for the family: @fastify/ajv-compiler 4.0.6's defaults

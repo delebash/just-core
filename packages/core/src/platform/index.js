@@ -14,7 +14,7 @@ export { installFileLog, installLogRing, makeLogsRouter } from "./logs_api.js";
 export { migrate, schemaVersion } from "./migrate.js";
 export { makePrefsRouter } from "./prefs_api.js";
 export * as procs from "./procs.js";
-export { attachment, closeApp, createServer, Hono, input, installPyFloatBodies, onClose, readJson, stream } from "./server.js";
+export { attachment, closeApp, createServer, Hono, input, installPyFloatBodies, onClose, readJson, stream, uploadLimit } from "./server.js";
 export { runServer, serveStatic } from "./serve.js";
 export { makeShutdownRouter, SHUTDOWN_PATH } from "./shutdown_api.js";
 export { openDatabase } from "./sql.js";

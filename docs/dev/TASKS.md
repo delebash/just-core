@@ -273,7 +273,9 @@ OPEN:   follow-ups the first real app found, each for its own go:
           and its apps, advisory for the older ones). BUILT 2026-10-18: the release in the template — release.yml
           (manual only, the installers and electron-updater's feed), scripts/release.js and bump.js, the builder's
           `publish`; the guard's check 19 (fails the template and just-house-paint, advisory for the older apps).
-          OPEN: the phone (build it or stop offering it), help on a failed warm start, upload-route schemas, tests for the
+          BUILT 2026-10-18: upload limits — the kit's `uploadLimit` (a test; §15), on just-house-paint's three upload
+          routes. OPEN: the phone (build it or stop offering it), help on a failed warm start, an upload example in the
+          template (it has no upload route), tests for the
           connection page / tray / Settings copies, the Settings copies into the kit, the stale comments and links.
 
 ## The AI model's load checks free RAM, for the load modes that keep weights resident [2026-10-12]

@@ -1042,6 +1042,11 @@ exception answers the family's problem+json 500 (`unhandledEnvelope`) — an app
   `literal`, `strictObject`). The route checks it with the kit's `input({ body, querystring, params
   })` and reads `c.req.valid("json")`. Every route that takes input has a schema; limits a user
   meets (lengths, ranges) are in it, not in code after it.
+- An upload (a multipart form, a binary body) has no schema to carry its size: the route takes the
+  kit's `uploadLimit(maxBytes, { slug, title })` (`@delebash/core/platform`, on hono/body-limit) —
+  checked while the body streams in, before `parseBody()` or `arrayBuffer()` holds it whole; past it,
+  a 413 problem. `maxBytes` may be a function read on each request (a setting). just-house-paint's
+  photo, palette and outline uploads are the example.
 - The server package exports its schemas (`"exports": { "./schemas/*.js": "./src/schemas/*.js" }` — the
   `.js` on both sides; `"./schemas/*"` resolves `notes.js` to `notes.js.js`) and
   the renderer imports the same object (`import { NoteIn } from "<app>-server/schemas/notes.js"`).
