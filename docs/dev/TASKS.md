@@ -241,8 +241,11 @@ OPEN:   follow-ups the first real app found, each for its own go:
           (`?token=…`, then removed from the address bar), and checkServer tells "needs a token" (401/403 on
           /v1/health) from "not running": ConnectionError then asks for the token (Connect, "That token isn't
           accepted") instead of saying the server can't be reached; Settings → Server copies the address with a
-          token. Words in English and Spanish; the template's ConnectionErrorPage test. WAITS on JustVoice's card
-          (packages/ui), with the Settings panels;
+          token. Words in English and Spanish; the template's ConnectionErrorPage test. BUILT 2026-10-19 (3c8c3d2,
+          built in a worktree while JustVoice's card was busy): serverToken.js, the transport's header, checkServer's
+          serverNeedsToken, ConnectionError's token form, ServerPanel's "Copy the address with this token"; tested
+          (packages/ui/tests/server_token.test.js, the template's ConnectionErrorPage and Settings tests). OPEN for
+          JustVoice: its own authToken still wins — its session looks at its side;
         - BUILT 2026-10-18: the kit's controls are mounted in the TEMPLATE's unit tests
           (`template/src/components/kitControls.test.js`, UiNumber's rules) — not in packages/ui: Vue
           and Quasar installed there would sit beside the source every app aliases, and an app
@@ -303,8 +306,10 @@ OPEN:   follow-ups the first real app found, each for its own go:
           (9061f58; the leftover-engine sweep parked in IDEAS.md — on Windows the job already ends llama-server
           with its server); the upload example — Notes' Import a file in the template (app-structure §15); the
           phone — not offered (new-app.js leaves `src-capacitor/` out, `--phone` says why; §Q.7) until the
-          template carries the in-app server. LEFT: the Settings copies into the kit — kit panels (About, Server,
-          Storage), waiting on JustVoice's card (its renderer reloads on every packages/ui edit). DONE meanwhile: the family-rules
+          template carries the in-app server; the Settings copies into the kit — BUILT 2026-10-19 (3c8c3d2): the kit's
+          AboutPanel, ServerPanel and StoragePanel (the app's words, its shell's folder calls, its own disk rows in
+          StoragePanel's #extra slot), the template's and just-house-paint's copies gone, their tests mounting the real
+          Settings page (app-structure §11). JustWrite, JustVoice and docgen keep their own sections. DONE meanwhile: the family-rules
           copy's links point at the kit's GitHub pages (2026-10-19), so they work from an app's AGENTS.md too
           (they led nowhere there); the connection page's test (the template has it); the tray's
           half and keep-running tested (template/src/layouts/MainLayout.test.js); Settings → About, Server and

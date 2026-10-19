@@ -80,7 +80,7 @@ test("Settings shows General, then the family's seven sections in canon order", 
   const tabs = (await page.locator(".set-shell [role=tab]").allTextContents()).map((s) => s.trim()).filter(Boolean);
   assert.deepEqual(tabs, ["General", "Appearance", "Backups", "Storage", "Server", "Logs", "Updates", "About"]);
   await d.navigate("#/settings/about");
-  await page.locator(".ui-formgrid td.mono", { hasText: VERSION }).waitFor(); // the version, from the server
+  await page.locator(".ui-formgrid td", { hasText: VERSION }).waitFor(); // the version, from the server (the kit's AboutPanel)
 });
 
 test("a note is created through the window, saved by the server, and the AI offer comes once", async () => {
