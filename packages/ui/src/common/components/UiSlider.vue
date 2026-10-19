@@ -239,6 +239,8 @@ watch(() => [props.marks, props.min, props.max, props.width], relayout, { deep: 
   display: inline-flex;
   flex-direction: column;
   gap: 2px;
+  /* Its width is content-typed, but never wider than what holds it (a phone's settings row). */
+  max-width: 100%;
 }
 .ui-slider-row {
   display: flex;
@@ -249,7 +251,7 @@ watch(() => [props.marks, props.min, props.max, props.width], relayout, { deep: 
    thumb's travel, 8px inside each end (QSlider measures a click against its box; the theme's track
    reaches the 8px back out on each side, as the native range's did), so each width is the
    control's less 16px, with the 8px as margins. */
-.ui-slider-range { margin: 0 8px; }
+.ui-slider-range { margin: 0 8px; min-width: 0; }
 .ui-slider--short  .ui-slider-range { width: 104px; }
 .ui-slider--regular .ui-slider-range { width: 184px; }
 .ui-slider--long   .ui-slider-range { width: 304px; }

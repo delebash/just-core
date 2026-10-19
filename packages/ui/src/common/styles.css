@@ -140,8 +140,9 @@ button:not(.ui-btn) { color: inherit; }
    UiSlider (its own width; its fill the accent, so it recolours live as the hue moves). */
 :where(.setting-row) { display: block; padding: 10px 0; border-bottom: 1px solid var(--border-soft, var(--border)); }
 :where(.setting-row:last-child) { border-bottom: 0; }
-:where(.setting-row__head) { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-:where(.setting-row__head > :first-child) { flex: 1; min-width: 0; }
+/* The control wraps under its label when both don't fit (a phone): the label keeps 12em. */
+:where(.setting-row__head) { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+:where(.setting-row__head > :first-child) { flex: 1 1 12em; min-width: 0; }
 :where(.setting-row__title) { font-weight: 600; font-size: 13px; color: var(--ink); }
 :where(.setting-row__desc) { color: var(--muted, var(--ink-2)); font-size: 12px; margin-top: 2px; line-height: 1.45; }
 :where(.setting-row__value) { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--ink-2); }
