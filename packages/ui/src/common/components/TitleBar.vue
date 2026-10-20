@@ -40,12 +40,14 @@ onBeforeUnmount(() => stopAfterEach?.());
     <!-- The app's own left end, before back/forward: the phone's ☰ that opens the layout's
          drawer (nothing on a computer). -->
     <slot name="start" />
-    <button class="iconbtn lu-titlebar-btn" :disabled="!canBack"
+    <!-- Named Back and Forward whether or not there is history (the tooltip says when there's none);
+         they had no name (the screens-and-keyboard review, 2026-10-20). -->
+    <button type="button" class="iconbtn lu-titlebar-btn" :disabled="!canBack" :aria-label="t('kit.titleBar.back')"
       v-tooltip.bottom="canBack ? t('kit.titleBar.back') : t('kit.titleBar.backNone')" @click="router.back()">
       <Icon name="ChevLeft" :size="16" />
     </button>
     <!-- lu-titlebar-forward: a hook for an app that leaves Forward out (JustWrite's phone). -->
-    <button class="iconbtn lu-titlebar-btn lu-titlebar-forward" :disabled="!canForward"
+    <button type="button" class="iconbtn lu-titlebar-btn lu-titlebar-forward" :disabled="!canForward" :aria-label="t('kit.titleBar.forward')"
       v-tooltip.bottom="canForward ? t('kit.titleBar.forward') : t('kit.titleBar.forwardNone')" @click="router.forward()">
       <Icon name="ChevRight" :size="16" />
     </button>

@@ -16,6 +16,9 @@
   --accent:      oklch(0.538 0.080 var(--accent-hue));
   --accent-ink:  oklch(0.446 0.068 var(--accent-hue));
   --accent-soft: oklch(0.948 0.011 var(--accent-hue));
+  /* text and icons on a solid --accent or --danger (a primary or danger button, a solid tag):
+     4.89:1 on --accent and 4.86:1 on --danger at their worst hue of 0–359 (WCAG 2 AA asks 4.5:1;
+     the appearance engine moves only the hue) */
   --on-accent: #fff;
 
   /* --muted, tertiary text: 4.56:1 on the darkest light ground it sits on (the selected row's
@@ -24,22 +27,33 @@
   --bg: #fafaf7;
   --surface: #fff; --surface-2: #fbfaf7; --surface-3: #f3f1ec;
   --border: #e3e1dc; --border-strong: #cfccc4; --border-soft: #eceae5;
+  /* a field's edge (inputs, selects, the segmented control's track): 3.21:1 on --surface-3,
+     3.46:1 on --bg, 3.62:1 on --surface — WCAG 1.4.11 asks 3:1 (--border was 1.31:1) */
+  --border-field: #8a867f;
 
   --danger-hue: 34;
   --danger:    oklch(0.517 0.137 var(--danger-hue));
   --danger-bg: oklch(0.954 0.020 var(--danger-hue));
+  /* danger text — the danger banner's (on 12% of itself over the ground): 5.83:1 at its worst hue
+     over --surface-3, 6.54:1 over --surface; 6.99:1 on --danger-bg, 7.03:1 or more on a ground */
+  --danger-ink: oklch(0.409 0.109 var(--danger-hue));
   --success-hue: 166;
   --success:    oklch(0.538 0.080 var(--success-hue));
   --success-bg: oklch(0.948 0.011 var(--success-hue));
   /* text on --success-bg (the kit's success tag — a close ΔE): 6.29:1 at its worst hue */
   --success-ink: oklch(0.446 0.068 var(--success-hue));
   --info-hue: 250;
-  --info:    oklch(0.547 0.123 var(--info-hue));
+  /* white on a solid info button: 4.64:1 or more at every hue (0.547 was 4.43 at hue 192 — measured) */
+  --info:    oklch(0.535 0.123 var(--info-hue));
   --info-bg: oklch(0.955 0.015 var(--info-hue));
+  /* info text — the info banner's and tag's, on --info-bg: 6.94:1 at its worst hue (--info was
+     3.91:1 there); 6.97:1 or more on a ground */
+  --info-ink: oklch(0.420 0.090 var(--info-hue));
   --gold: oklch(0.712 0.124 82);
   --warn-bg: #fff8e3;
-  /* text on --warn-bg (the kit's accent2 tag — a scheme's "AI"): 8.76:1. The appearance engine
-     sets the same value when it runs; this is the tag's ink before it does */
+  /* text on --warn-bg (the kit's accent2 tag — a scheme's "AI" — and the warning banner): 8.76:1.
+     The appearance engine sets its own pair by the gold hue when it runs (7.75:1 at the worst of
+     0–359); this is the ink before it does */
   --warn-ink: oklch(0.40 0.10 80);
 
   --r-sm: 6px; --r-card: 10px; --btn-radius: 8px;
@@ -66,21 +80,32 @@
   --accent:      oklch(0.673 0.093 var(--accent-hue));
   --accent-ink:  oklch(0.780 0.070 var(--accent-hue));
   --accent-soft: oklch(0.300 0.032 var(--accent-hue));
+  /* near-black on the light dark-theme fills (Material's on-primary): 5.61:1 on --accent and
+     5.24:1 on --danger at their worst hue of 0–359 — white was 2.83:1 */
+  --on-accent: #1a1a1a;
 
   /* --muted: 4.77:1 or more on every dark ground, the selected row's tint included */
   --ink: #f0eee8; --ink-2: #c5c2bb; --muted: #a09d96;
   --bg: #1a1c1a;
   --surface: #232624; --surface-2: #1e211f; --surface-3: #2a2e2c;
   --border: #353835; --border-strong: #4a4d49; --border-soft: #2e312e;
+  /* a field's edge: 3.25:1 on --surface-3, 3.60:1 on --surface, 4.04:1 on --bg (--border was 1.29:1) */
+  --border-field: #787c78;
 
   --danger:    oklch(0.660 0.130 var(--danger-hue));
   --danger-bg: oklch(0.300 0.050 var(--danger-hue));
+  /* the danger banner's text on its tint: 5.53:1 at its worst hue over --surface-3, 6.14:1 over
+     --surface (the kit's fallback #b91c1c was 2.26:1); 7.17:1 on --danger-bg */
+  --danger-ink: oklch(0.800 0.090 var(--danger-hue));
   --success:    oklch(0.673 0.093 var(--success-hue));
   --success-bg: oklch(0.300 0.032 var(--success-hue));
   --success-ink: oklch(0.780 0.070 var(--success-hue));
   --info:    oklch(0.700 0.110 var(--info-hue));
   --info-bg: oklch(0.300 0.040 var(--info-hue));
+  /* on --info-bg: 7.71:1 at its worst hue (--info was 4.92:1) */
+  --info-ink: oklch(0.820 0.070 var(--info-hue));
   --gold: oklch(0.78 0.10 82);
+  /* the warning banner: 8.38:1 (the engine's pair by the gold hue: 9.17:1 at the worst) */
   --warn-bg: #38311f;
   --warn-ink: oklch(0.86 0.09 80);
   --focus-ring: 0 0 0 2px var(--accent-ink);

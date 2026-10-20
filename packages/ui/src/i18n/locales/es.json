@@ -283,18 +283,34 @@
     "storagePanel": {
       "savesDefault": "tu trabajo",
       "locationTitle": "Ubicación de los datos",
-      "locationHint": "Una carpeta guarda todo lo que la aplicación conserva: {saves}, el motor de IA y los modelos descargados, y los registros. Cambiarla mueve todo eso a la nueva carpeta y reinicia la aplicación.",
+      "locationHint": "Una carpeta guarda todo lo que la aplicación conserva: {saves}, el motor de IA y los modelos descargados, y los registros. Cambiarla copia todo eso a la nueva carpeta y reinicia la aplicación; la carpeta anterior conserva su copia hasta que la quites aquí.",
       "folder": "Carpeta",
       "type": "Tipo",
       "portable": "Portátil, junto a la aplicación",
       "userFolder": "Carpeta del usuario",
       "changeFolder": "Cambiar carpeta…",
+      "moveBack": "Volver a la carpeta predeterminada…",
       "moving": "Moviendo tus datos; la aplicación se reiniciará…",
       "desktopOnly": "Cambiar la carpeta está disponible en la aplicación de escritorio.",
       "chooseFolder": "Elige una carpeta de datos",
       "moveTitle": "¿Mover todos los datos de la aplicación?",
-      "moveMessage": "Todo lo que la aplicación conserva ({saves}, el motor de IA y los modelos, y los registros) se mueve a {folder}. La aplicación se reinicia cuando termina el traslado.",
+      "moveMessage": "Todo lo que la aplicación conserva ({saves}, el motor de IA y los modelos, y los registros) se copia a {folder} y la aplicación se reinicia en ella. La carpeta anterior conserva su copia hasta que la quites aquí.",
+      "moveSharedWith": "{apps} usan los modelos de IA de esta aplicación: seguirán usando la copia anterior hasta que la quites y luego volverán a descargar sus modelos.",
       "moveConfirm": "Mover y reiniciar",
+      "oldCopy": "Copia anterior",
+      "removeOld": "Quitar la copia anterior…",
+      "removing": "Quitando…",
+      "removeOldTitle": "¿Quitar la copia anterior?",
+      "removeOldMessage": "Esto borra la copia de los datos que quedó en {folder} ({size}) al moverlos: solo lo que el traslado copió de allí. Los datos que la aplicación usa ahora, en {current}, no se tocan.",
+      "removeOldConfirm": "Quitar la copia anterior",
+      "oldCopyUsed": "La copia anterior se usó después del traslado: último cambio {date}. Quitarla también quita ese trabajo; mueve primero lo que necesites.",
+      "isOldCopy": "Esta carpeta guarda la copia anterior de los datos, que quedó aquí cuando se movieron a {folder}: lo que cambies aquí no está en {folder}.",
+      "setByVariable": "Esta carpeta de datos la fija {name}: cámbiala allí.",
+      "defaultThisStart": "Este inicio usa la carpeta predeterminada: {folder} no se puede usar ahora. Tus datos allí se conservan, y la aplicación vuelve a buscarlos en su próximo inicio.",
+      "useDefault": "Usar la carpeta predeterminada a partir de ahora…",
+      "useDefaultTitle": "¿Usar la carpeta predeterminada a partir de ahora?",
+      "useDefaultMessage": "La aplicación deja de buscar {folder} y a partir de ahora abre en {default}. Nada de {folder} se toca.",
+      "useDefaultConfirm": "Usar la carpeta predeterminada",
       "diskTitle": "Uso del disco",
       "diskHint": "En qué se usa el espacio de la carpeta de datos. Los modelos descargados y los registros del motor se pueden borrar para hacer sitio; {saves} y tus ajustes nunca se tocan.",
       "modelsCache": "Caché de modelos",
@@ -617,6 +633,7 @@
     },
     "aiArea": {
       "lede": "Conecta proveedores de IA —ya sean locales gratuitos o en la nube con pago por uso— y gestiona qué modelos impulsan cada función.",
+      "tabsLabel": "Secciones de los ajustes de IA",
       "hw": {
         "os": "SO",
         "cpu": "CPU",
@@ -729,7 +746,10 @@
         "local": "Local · gratuito",
         "localSub": "Se ejecuta en tu máquina — sin clave de API, sin costo por token",
         "online": "En línea · con medición de uso",
-        "onlineSub": "Tu cuenta — clave de API + URL; paga por token"
+        "onlineSub": "Tu cuenta — clave de API + URL; paga por token",
+        "label": "Dónde se ejecutan los proveedores",
+        "localShort": "Local",
+        "onlineShort": "En línea"
       }
     },
     "common": {
@@ -1448,6 +1468,12 @@
       "noneCompleted": "Aún no hay tareas completadas.",
       "tokOut": "{n} tok de salida",
       "again": "Ejecutar de nuevo",
+      "announce": {
+        "started": "{label}: iniciada",
+        "done": "{label}: terminada",
+        "cancelled": "{label}: cancelada",
+        "failed": "{label}: falló — {error}"
+      },
       "showLess": "Mostrar menos",
       "showAll": "Mostrar todo ({n})",
       "strip": {
@@ -1771,7 +1797,8 @@
     "settings": {
       "language": {
         "label": "Idioma"
-      }
+      },
+      "sectionsLabel": "Secciones de los ajustes"
     },
     "knobGrid": {
       "namePlaceholder": "flag (p. ej. ctx_len)",

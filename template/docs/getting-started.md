@@ -9,9 +9,14 @@ example area, [Notes](notes.md), that shows how the pieces fit together.
 Everything the app keeps — your notes, your settings, the AI engine and downloaded models, and
 the logs — lives in **one data folder**. By default it is a `data` folder beside the app, so
 moving the app's folder moves everything with it. **Settings → Storage** shows the folder and can
-move it; a headless server takes `--data-dir` or `FAMILY_TEMPLATE_DATA_DIR`. Only when the app's
-own folder can't be written to (Program Files, read-only media) does it fall back to the standard
-per-user folder.
+move it: **Change folder…** copies the data into a new **Family Template** folder inside the one you
+pick (never into the app's own folder, which an update replaces) and restarts the app on it. The old
+folder keeps its copy until **Remove the old copy…** deletes what the move copied there (Storage says
+when the app ran on the old copy after the move, and when it runs on one now); **Move back to the
+default folder…** brings the data back. A headless server takes `--data-dir` or
+`FAMILY_TEMPLATE_DATA_DIR` (a folder that already exists); while the variable names the desktop app's
+folder, Change folder is off — change the variable instead. Only when the app's own folder can't be
+written to (Program Files, read-only media) does it fall back to the standard per-user folder.
 
 ## Two ways to run it
 

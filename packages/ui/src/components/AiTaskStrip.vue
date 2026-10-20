@@ -119,9 +119,15 @@ function openPanel() { tasks.openPanel(); }
 <template>
   <div v-if="task" class="sts" :class="status?.cls" :data-status="task.status">
     <!-- Spinner only while it RUNS — a lingering finished task showing an
-         in-progress animation is a lie. -->
-    <Icon v-if="!isDone" name="Sparkle" :size="13" class="sts-spin" />
-    <span v-else class="sts-badge">{{ status?.badge }}</span>
+         in-progress animation is a lie. With no count to show, the spinner is the task's
+         progressbar, indeterminate (no aria-valuenow — WAI-ARIA's progressbar); with a count, the
+         bar below is. Its start and end are announced by the task store (aiTasks.js), once per
+         task however many strips show it. -->
+    <span v-if="!isDone && progressPct == null" class="sts-spin-wrap" role="progressbar" :aria-label="task.label">
+      <Icon name="Sparkle" :size="13" class="sts-spin" />
+    </span>
+    <Icon v-else-if="!isDone" name="Sparkle" :size="13" class="sts-spin" />
+    <span v-else class="sts-badge" aria-hidden="true">{{ status?.badge }}</span>
     <span class="sts-label">{{ task.label }}</span>
 
     <!-- QC-31: a batch task (one entry per USER ACTION) reports n/m here. -->
@@ -129,8 +135,11 @@ function openPanel() { tasks.openPanel(); }
       v-tooltip.bottom="task.progress.hint || t('kit.aiTasks.batchTip')">
       {{ task.progress.text || `${task.progress.done}/${task.progress.total}` }}
     </span>
-    <!-- …and as a real bar while running. -->
-    <span v-if="progressPct != null && !isDone" class="sts-track">
+    <!-- …and as a real bar while running: a progressbar with its value (WAI-ARIA), its words the
+         count as shown. -->
+    <span v-if="progressPct != null && !isDone" class="sts-track" role="progressbar"
+      :aria-label="task.label" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(progressPct)"
+      :aria-valuetext="task.progress?.text || `${task.progress?.done}/${task.progress?.total}`">
       <span class="sts-fill" :style="{ width: progressPct + '%' }" />
     </span>
     <!-- §7.4 B6-2: real prompt-eval progress (builtin engine) — fills the
@@ -189,7 +198,7 @@ function openPanel() { tasks.openPanel(); }
         <template #icon><Icon name="Refresh" :size="11" /></template>
         {{ t('kit.common.retry') }}
       </UiButton>
-      <UiButton intent="ghost" size="icon" @click="onDismiss" v-tooltip.bottom="t('kit.common.dismiss')">
+      <UiButton intent="ghost" size="icon" :aria-label="t('kit.common.dismiss')" @click="onDismiss" v-tooltip.bottom="t('kit.common.dismiss')">
         <template #icon><Icon name="Close" :size="11" /></template>
       </UiButton>
     </template>
@@ -234,6 +243,7 @@ function openPanel() { tasks.openPanel(); }
   50%      { opacity: 0.4; }
 }
 .sts-spacer { flex: 1; min-width: 4px; }
+.sts-spin-wrap { display: inline-flex; }
 .sts-spin { animation: sts-spin 1.2s linear infinite; }
 @keyframes sts-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
@@ -253,10 +263,12 @@ function openPanel() { tasks.openPanel(); }
 .sts-badge {
   display: inline-grid; place-items: center;
   width: 17px; height: 17px; border-radius: 50%;
-  font-size: 10.5px; font-weight: 700; color: #fff; flex-shrink: 0;
+  font-size: 10.5px; font-weight: 700; color: var(--on-accent, #fff); flex-shrink: 0;
   background: var(--accent);
 }
-.sts--fail   .sts-badge { background: var(--danger-ink, #b91c1c); }
+/* the solid danger, which --on-accent is measured on (the light --danger-ink of the dark theme
+   would put near-black on pink) */
+.sts--fail   .sts-badge { background: var(--danger, #b91c1c); }
 .sts--cancel .sts-badge { background: var(--ink-3, #71717a); }
 .sts-finish-tag {
   font-family: var(--font-mono, monospace);

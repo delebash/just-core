@@ -60,7 +60,7 @@ export default defineConfig(() => {
         viteConf.resolve.dedupe = [
           ...(viteConf.resolve.dedupe || []),
           'vue', 'quasar', '@floating-ui/dom', 'pinia', 'vue-router', 'vue-i18n', 'marked',
-          '@vueuse/core'
+          '@vueuse/core', '@internationalized/number'
         ]
         viteConf.server = viteConf.server || {}
         // Never watched: the server, the development data folder (Chromium keeps its files

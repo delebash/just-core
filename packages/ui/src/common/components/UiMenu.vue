@@ -16,8 +16,11 @@
 // trigger; while it is open the page behind takes no pointer, so a click outside only closes it
 // (useModalPopup), as Reka's did. The kit keeps the menu keyboard: Enter, Space or ↓ on the
 // trigger opens it on its first item (↑ on its last); ↑/↓, Home/End and typing a label's first
-// letters move between the items; Enter or Space picks; Tab stays in the menu (under Reka the
-// focus stayed on the trigger and the keys did little). A control the menu holds (a select, a chip's own popover) keeps its own
+// letters move between the items; Enter or Space picks; Tab (or Shift+Tab) closes the menu and gives
+// the focus back to its trigger, as MUI's Menu does (until 2026-10-20 Tab stayed in the menu — a
+// habit from Reka's, which no standard asks; the screens-and-keyboard review). The trigger's name
+// is `label` (aria-label); `title`, or else the label, is its tooltip (v-tooltip — a `title` equal to
+// the aria-label read the name twice). A control the menu holds (a select, a chip's own popover) keeps its own
 // keys: the list's keys apply only on the list and its items. The items and the trigger carry Reka's
 // state attributes (data-highlighted, data-disabled, data-state), so the hosts' styles still read
 // them. The list's LOOK is the kit's own (`.lu-mmenu`, common/styles.css) unless the caller passes a
@@ -26,15 +29,13 @@
 // `.lu-mmsep`). The trigger's look stays the caller's: pass the kit's button classes
 // ("ui-btn ui-btn--secondary ui-btn--small") for a button.
 import { QMenu } from "quasar";
-import { provide, ref } from "vue";
+import { provide, ref, useId } from "vue";
 import { MENU_KEY } from "./menuContext.js";
 import { useModalPopup } from "../composables/useModalPopup.js";
 
-let uid = 0;
-
 const props = defineProps({
-  label: { type: String, default: undefined }, // the trigger's aria-label (and its title, unless given)
-  title: { type: String, default: undefined },
+  label: { type: String, default: undefined }, // the trigger's aria-label (and its tooltip, unless `title` is given)
+  title: { type: String, default: undefined }, // the trigger's tooltip
   triggerClass: { type: [String, Array, Object], default: undefined },
   contentClass: { type: [String, Array, Object], default: undefined },
   align: { type: String, default: "start" }, // start | end — which edges of trigger and list line up
@@ -45,7 +46,9 @@ const props = defineProps({
 const open = ref(false);
 // while open, the page behind takes no pointer (Reka's menus were modal so)
 useModalPopup(open);
-const id = `ui-menu-${++uid}`;
+// one id per menu (Vue's useId): a counter declared in <script setup> restarted at every menu, so
+// every menu on a page was "ui-menu-1" and each trigger's aria-controls named the first list
+const id = `ui-menu-${useId()}`;
 const triggerId = `${id}-trigger`;
 let focusOnOpen = null; // "first" | "last" — set when the keyboard opens the menu
 
@@ -93,7 +96,10 @@ function onListKeydown(e) {
     e.preventDefault();
     focus(list[list.length - 1]);
   } else if (e.key === "Tab") {
+    // closes the menu, the focus back on its trigger (MUI's Menu)
     e.preventDefault();
+    close();
+    focus(document.getElementById(triggerId));
   } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key !== " " || typed)) {
     e.preventDefault();
     clearTimeout(typedTimer);
@@ -119,8 +125,8 @@ provide(MENU_KEY, { close, focusList: () => focus(listEl()) });
     :id="triggerId"
     type="button"
     :class="triggerClass"
+    v-tooltip.bottom="title ?? label"
     :aria-label="label"
-    :title="title ?? label"
     aria-haspopup="menu"
     :aria-expanded="open ? 'true' : 'false'"
     :aria-controls="open ? id : undefined"

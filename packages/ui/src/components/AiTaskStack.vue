@@ -9,6 +9,11 @@
 // useSurfaceTask) takes the task out of the stack while that strip is mounted; a task started
 // `inline` never enters it. Finished tasks leave at once — their outcome is the screen's, and the
 // AI tasks panel keeps the record.
+//
+// The region is always there, empty or not (a region that appears with its rows already in it is
+// not read — the screens-and-keyboard review, 2026-10-20). It isn't a live region itself: a task's
+// start and end are said through the kit's live regions by the task store (stores/aiTasks.js,
+// common/services/announce.js), where aria-live here read the rows' ticking seconds.
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAiTasksStore } from "../stores/aiTasks.js";
@@ -20,7 +25,7 @@ const list = computed(() => tasks.unshownRunningTasks);
 </script>
 
 <template>
-  <div v-if="list.length" class="ai-task-stack" role="region" :aria-label="t('kit.nav.aiTasks')" aria-live="polite">
+  <div class="ai-task-stack" role="region" :aria-label="t('kit.nav.aiTasks')">
     <AiTaskStrip v-for="task in list" :key="task.id" :task="task" :in-place="false" class="ai-task-stack__item" />
   </div>
 </template>

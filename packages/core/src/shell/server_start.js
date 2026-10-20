@@ -2,10 +2,10 @@
 // What the desktop shell hands the server it starts, and what it makes of a start that failed (main.js). Its own
 // module (no electron) so a test runs it.
 
+import { withLoopback } from "../platform/no_proxy.js";
+
 /** The address whose proxy the shell asks the system for: the models' host, where the big downloads go. */
 export const PROXY_PROBE_URL = "https://huggingface.co/";
-
-const LOOPBACK = ["localhost", "127.0.0.1", "::1"];
 
 /**
  * A proxy for Node from what Electron's `session.resolveProxy(url)` answers — Chromium's PAC form
@@ -27,7 +27,8 @@ export function proxyFromPac(pac) {
  * machine, Electron 44.7's utilityProcess: 121 certificates without, 269 with); and the system's `proxy` as
  * HTTPS_PROXY / HTTP_PROXY, which the kit's fetch honours (http.js) — only when the user's own environment names
  * none. Whenever any proxy is set — the system's or the user's own — this computer's own addresses are kept off
- * it (NO_PROXY: the server's calls to its local engines; undici's EnvHttpProxyAgent proxies loopback too).
+ * it (NO_PROXY: the server's calls to its local engines; undici's EnvHttpProxyAgent proxies loopback too) — for a
+ * child the server starts in its turn; the kit's own agents add loopback themselves (no_proxy.js), headless too.
  */
 export function serverEnv({ env = process.env, dataDirEnv, root, proxy = null }) {
   const out = { ...env, [dataDirEnv]: root };
@@ -39,12 +40,7 @@ export function serverEnv({ env = process.env, dataDirEnv, root, proxy = null })
   }
   if (proxy || named) {
     const keys = ["no_proxy", "NO_PROXY"].filter((k) => out[k]);
-    for (const k of keys.length ? keys : ["NO_PROXY"]) {
-      const have = String(out[k] || "")
-        .split(/[,\s]+/)
-        .filter(Boolean);
-      out[k] = [...have, ...LOOPBACK.filter((h) => !have.includes(h))].join(",");
-    }
+    for (const k of keys.length ? keys : ["NO_PROXY"]) out[k] = withLoopback(out[k]);
   }
   return out;
 }

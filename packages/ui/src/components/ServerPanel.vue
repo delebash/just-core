@@ -124,7 +124,7 @@ const addressWith = (token) => `${headlessUrl.value.replace(/\/$/, "")}/?token=$
           intent="ghost" size="small" :label="t('kit.serverPanel.copyWithToken')"
           @click="copy(addressWith(token), t('kit.serverPanel.copiedWithToken'))"
         />
-        <UiButton intent="ghost" size="icon" :title="t('kit.serverPanel.removeToken')" :aria-label="t('kit.serverPanel.removeToken')" @click="removeToken(token)">
+        <UiButton v-tooltip.bottom="t('kit.serverPanel.removeToken')" intent="ghost" size="icon" :aria-label="t('kit.serverPanel.removeToken')" @click="removeToken(token)">
           <template #icon><Icon name="Close" :size="12" /></template>
         </UiButton>
       </li>

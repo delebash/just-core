@@ -30,6 +30,7 @@ import { defineStore } from "pinia";
 import { markRaw } from "vue";
 
 import { FAMILY_TASK_LINGER } from "../common/familyContract.js";
+import { announce } from "../common/services/announce.js";
 import { kitT } from "../common/services/kitI18n.js";
 
 // 50, not the old 30 — aligned 2026-08-07 with what JustVoice's fork kept, so its
@@ -200,6 +201,10 @@ export const useAiTasksStore = defineStore("aiTasks", {
       this.order.push(id);
       this.now = now;
       this._ensureTicker();
+      // Said to a screen reader (the kit's live region, common/services/announce.js): a task's start
+      // and, in _end, its outcome — here, once per task, however many strips show it (the
+      // screens-and-keyboard review, 2026-10-20: the strips were silent).
+      announce(kitT("kit.aiTasks.announce.started", { label: this.tasks[id].label }));
       return {
         id,
         signal: controller.signal,
@@ -365,10 +370,13 @@ export const useAiTasksStore = defineStore("aiTasks", {
     // A task's end: its outcome, when, and how long it ran — set once, so the row that lingers
     // and its history entry carry the same numbers. (Until 2026-10-11 only history got
     // durationMs: JustWrite's chapter footer read a lingering task and showed "done in NaNs".)
-    _end(t, status) {
+    _end(t, status, error = null) {
       t.status = status;
       t.finishedAt = Date.now();
       t.durationMs = Math.max(0, t.finishedAt - t.startedAt);
+      // its outcome, said (a failure at once — assertive — with its reason)
+      if (status === "error") announce(kitT("kit.aiTasks.announce.failed", { label: t.label, error: error || "" }), "assertive");
+      else announce(kitT(status === "done" ? "kit.aiTasks.announce.done" : "kit.aiTasks.announce.cancelled", { label: t.label }));
     },
 
     _finish(id, result) {
@@ -402,8 +410,9 @@ export const useAiTasksStore = defineStore("aiTasks", {
       // cancelled would flip to "error", badge the titlebar red, and with
       // `failed: null` never leave the panel.
       if (!this.isRunning(id)) return;
-      this._end(t, "error");
-      t.error = err?.message || String(err || kitT("kit.aiTasks.unknownError"));
+      const error = err?.message || String(err || kitT("kit.aiTasks.unknownError"));
+      this._end(t, "error", error);
+      t.error = error;
       this._archiveAfterLinger(id, "failed");
       // QC-37 (the toast law): failures signal DURABLY, not with a toast
       // that disappears — the titlebar chip badges red until the panel is

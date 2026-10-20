@@ -144,8 +144,12 @@ async function saveName() {
   await run("name", () => saveSettings({ deviceName: name || null }));
 }
 
+// An emptied or unreadable box saves nothing — never 0 (Number(null) is 0, and 0 turns automatic
+// sync off: an emptied box did that until 2026-10-20). UiNumber keeps a refused text in the box.
 async function saveMinutes() {
-  const m = Math.max(0, Number(minutesDraft.value) || 0);
+  const v = minutesDraft.value;
+  if (v === null || v === undefined || v === "" || !Number.isFinite(Number(v))) return;
+  const m = Math.max(0, Number(v));
   if (m === settings.value.autoMinutes) return;
   await run("minutes", () => saveSettings({ autoMinutes: m }));
 }
@@ -325,7 +329,7 @@ onBeforeUnmount(() => clearInterval(timer));
       <b>{{ t('kit.sync.others.title') }}</b>
       <template v-if="reachable">
       <label class="lu-sync-toggle">
-        <UiToggle :model-value="!!settings.listenOnNetwork" :disabled="busy === 'listen'" @update:model-value="setListening" />
+        <UiToggle :model-value="!!settings.listenOnNetwork" :disabled="busy === 'listen'" :aria-label="t('kit.sync.others.allow')" @update:model-value="setListening" />
         <span>{{ t('kit.sync.others.allow') }}</span>
       </label>
       <span class="lu-muted">{{ t('kit.sync.others.allowHint', { app }) }}</span>

@@ -32,7 +32,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedSkillDrift } from "./install-skills.js";
@@ -95,6 +95,18 @@ function walk(dir, out = []) {
     else out.push(full);
   }
   return out;
+}
+
+/** `files` without those the repo's .gitignore leaves out (a generated bundle — JustWrite's
+ *  src/phone/worker-bundle/server-worker.js was reported as its own code, 2026-10-20). Git's own answer
+ *  (`git check-ignore --stdin`); not a git checkout, or git not there: all of them. */
+function notIgnored(dir, files) {
+  if (!files.length) return files;
+  const r = spawnSync("git", ["-C", dir, "check-ignore", "--stdin", "-z"], { input: files.map((f) => relative(dir, f)).join("\0"), encoding: "utf8" });
+  // 0: some ignored, 1: none, 128: not a repo (or another error) — keep everything
+  if (r.status !== 0) return files;
+  const ignored = new Set(r.stdout.split("\0").filter(Boolean).map((p) => resolve(dir, p).toLowerCase()));
+  return files.filter((f) => !ignored.has(resolve(f).toLowerCase()));
 }
 
 const hash = (p) => createHash("sha1").update(readFileSync(p, "utf8").replace(/\r\n/g, "\n")).digest("hex");
@@ -303,15 +315,29 @@ function checkServer(app) {
 // DictateWindow elapsed timer and renderTasks' 100 ms `now` tick are tickers; TrainView's
 // 2 s job refresh is a poll. Only a human can sort them, so the line asks rather than tells.
 const HAND_ROLLED = [
-  { pattern: /setInterval\s*\(/, kit: "usePoll", note: "uses setInterval — if it POLLS (vs ticking a clock)" },
+  { pattern: /setInterval\s*\(/, kit: "usePoll", note: "uses setInterval — if it POLLS (vs ticking a clock)", unless: onlyClockTicks },
 ];
+
+// One shape IS sortable statically (2026-10-20, JustWrite's Sidebar.vue): a callback whose every statement only sets
+// something to the time now (`now.value = Date.now()`, `new Date()`, `performance.now()`) ticks a clock — it asks no
+// one anything, so it is never a poll. Any other body (a call, a fetch, a store's refresh) is still asked about.
+const CLOCK_TICK = /^[\w$.[\]"']+\s*=\s*(?:Date\.now\(\)|new Date\(\)|performance\.now\(\))$/;
+function onlyClockTicks(src) {
+  const calls = [...src.matchAll(/setInterval\s*\(\s*(?:\(\s*\)\s*=>\s*(?:\{([^{}]*)\}|\(([^()]*(?:\(\)[^()]*)*)\)|([^,{(][^,]*))|function\s*\w*\s*\(\s*\)\s*\{([^{}]*)\})\s*,/g)];
+  if (!calls.length || calls.length !== (src.match(/setInterval\s*\(/g) || []).length) return false;
+  return calls.every((m) => {
+    const body = (m[1] ?? m[2] ?? m[3] ?? m[4] ?? "").trim();
+    const statements = body.split(/[;\n]/).map((s) => s.trim()).filter(Boolean);
+    return statements.length > 0 && statements.every((s) => CLOCK_TICK.test(s));
+  });
+}
 
 function checkHandRolled(app, files) {
   for (const file of files) {
     if (![".js", ".vue"].includes(extname(file))) continue;
     const src = readFileSync(file, "utf8");
-    for (const { pattern, kit, note } of HAND_ROLLED) {
-      if (!pattern.test(src)) continue;
+    for (const { pattern, kit, note, unless } of HAND_ROLLED) {
+      if (!pattern.test(src) || unless?.(src)) continue;
       const rel = file.slice(app.dir.length + 1).replace(/\\/g, "/");
       info(app.name, `${rel} hand-rolls ${note} — the kit exports ${kit}`);
     }
@@ -803,6 +829,75 @@ function checkRendererSkeleton(app) {
   }
 }
 
+/** A launcher's code without its comments: a .cmd/.bat's `rem` and `::` lines (cmd.exe's own comments, `@rem` too),
+ *  a shell script's `#` lines and a ` # …` at a line's end (POSIX sh: a word starting with # begins a comment). */
+function launcherCode(file, text = readFileSync(file, "utf8")) {
+  const lines = text.split(/\r?\n/);
+  if (/\.(cmd|bat)$/i.test(file)) return lines.filter((l) => !/^\s*@?(rem(\s|$)|::)/i.test(l)).join("\n");
+  return lines
+    .filter((l) => !/^\s*#/.test(l))
+    .map((l) => l.replace(/\s#.*$/, ""))
+    .join("\n");
+}
+
+// The server's packages carry what they need (2026-10-20, JustWrite's start check of the unpacked build): a package
+// in the server's dependency tree that names a peer dependency (required — peerDependenciesMeta's `optional` ones
+// aside) expects the app to install it; electron-builder packs the server's declared dependencies and theirs, so a
+// peer nobody declares is missing from the installed app though the checkout's node_modules hides it. Every such
+// peer must be a `dependencies` entry of server/package.json — or of a package in its tree, which is packed with
+// that tree (the kit declares `hono` beside `@hono/node-server`, whose peer it is). Resolution as Node's:
+// node_modules up the tree from each package's real folder (a `file:` dependency — the kit — resolves from its
+// own). Required where the release is, advisory for the other apps.
+function checkServerPeers(app) {
+  const serverDir = join(app.dir, "server");
+  const pkgPath = join(serverDir, "package.json");
+  if (!existsSync(pkgPath)) return;
+  const declared = new Set(Object.keys(JSON.parse(readFileSync(pkgPath, "utf8")).dependencies || {}));
+  const report = RELEASE_REQUIRED.has(app.name) ? fail : info;
+  const find = (name, from) => {
+    for (let d = from; ; d = dirname(d)) {
+      const p = join(d, "node_modules", name, "package.json");
+      if (existsSync(p)) return realpathSync(dirname(p));
+      if (dirname(d) === d) return null;
+    }
+  };
+  const seen = new Set();
+  const inTree = new Set(declared); // every name some package in the tree declares as a dependency
+  const needs = new Map(); // a required peer → the packages that need it
+  const visit = (dir) => {
+    if (seen.has(dir)) return;
+    seen.add(dir);
+    let pj;
+    try {
+      pj = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+    } catch {
+      return;
+    }
+    const meta = pj.peerDependenciesMeta || {};
+    for (const peer of Object.keys(pj.peerDependencies || {})) {
+      if (!meta[peer]?.optional) needs.set(peer, [...(needs.get(peer) || []), pj.name]);
+    }
+    for (const dep of Object.keys(pj.dependencies || {})) {
+      inTree.add(dep);
+      const d = find(dep, dir);
+      if (d) visit(d);
+    }
+  };
+  for (const dep of declared) {
+    const d = find(dep, serverDir);
+    if (d) visit(d);
+  }
+  for (const [peer, by] of needs) {
+    if (inTree.has(peer)) continue;
+    const who = [...new Set(by)];
+    report(app.name, `server/package.json doesn't depend on ${peer}, a peer dependency of ${who.slice(0, 3).join(", ")}${who.length > 3 ? ` and ${who.length - 3} more` : ""} — the installed app's server wouldn't have it (electron-builder packs declared dependencies)`);
+  }
+}
+
+// NODE_USE_SYSTEM_CA set to 1: `set NODE_USE_SYSTEM_CA=1` (cmd), `NODE_USE_SYSTEM_CA=1` or the template's
+// `NODE_USE_SYSTEM_CA="${NODE_USE_SYSTEM_CA:-1}"` (a value the user set kept, else 1) in sh.
+const SETS_SYSTEM_CA = /\bNODE_USE_SYSTEM_CA=(?:1\b|"?\$\{NODE_USE_SYSTEM_CA:-1\}"?)/;
+
 // The headless launcher (§Q.3): build/launcher/ holds a <name>-server launcher, the installer
 // copies it beside the exe, and no launcher shares the app executable's name — Windows resolves a
 // bare name to the GUI exe first (JustVoice's CreateProcessW infinite-window trap).
@@ -832,10 +927,12 @@ function checkLauncher(app) {
     fail(name, "quasar.config.js's builder doesn't copy build/launcher/ beside the exe (extraResources) — §Q.3");
   }
   // every launcher trusts the system's certificates (a company network's TLS inspection — Node's own list made every
-  // download fail; the thirteenth review): NODE_USE_SYSTEM_CA, as the shell sets it for the desktop's server
+  // download fail; the thirteenth review): NODE_USE_SYSTEM_CA=1, as the shell sets it for the desktop's server — in
+  // the launcher's code, never only in a comment (its own: # in a shell script, rem / :: in a .cmd — the fifteenth
+  // review: the JS stripping left those, so a comment naming the variable passed)
   for (const f of launchers.filter((x) => basename(x, extname(x)).endsWith("-server"))) {
-    const text = codeOf(join(launchDir, f));
-    if (!/NODE_USE_SYSTEM_CA/.test(text)) required(name, `build/launcher/${f} doesn't set NODE_USE_SYSTEM_CA — the server on its own trusts only Node's certificates (the template's launchers)`);
+    const text = launcherCode(join(launchDir, f));
+    if (!SETS_SYSTEM_CA.test(text)) required(name, `build/launcher/${f} doesn't set NODE_USE_SYSTEM_CA=1 — the server on its own trusts only Node's certificates (the template's launchers)`);
   }
   const exe = (cfg.match(/executableName:\s*['"]([^'"]+)['"]/) || [])[1];
   if (!exe) fail(name, "quasar.config.js's builder.win has no executableName — the exe's name must be known to keep it apart from the launcher's (§Q.3)");
@@ -1325,7 +1422,8 @@ function checkRelease(app) {
   for (const name of ["bump", "release"]) if (!scripts[name]) report(`package.json has no "${name}" script (the template's scripts/${name}.js)`);
   const qconf = join(app.dir, "quasar.config.js");
   const q = existsSync(qconf) ? readFileSync(qconf, "utf8") : "";
-  const pub = q.match(/publish:\s*\{[^}]*provider:\s*['"]github['"][^}]*owner:\s*['"]([\w.-]+)['"][^}]*repo:\s*['"]([\w.-]+)['"]/);
+  // electron-builder takes `publish` as one object or a list of them (its docs, "Publish"): the GitHub one in either
+  const pub = q.match(/publish:\s*\[?\s*(?:\{[^}]*\}\s*,\s*)*\{[^}]*provider:\s*['"]github['"][^}]*owner:\s*['"]([\w.-]+)['"][^}]*repo:\s*['"]([\w.-]+)['"]/);
   if (!pub) report("quasar.config.js's electron builder has no GitHub `publish` config — electron-builder writes no update feed (§1 `updates`)");
   // the feed names each file as electron-builder wrote it, with spaces as hyphens; GitHub stores an
   // uploaded name's spaces as dots — a product name with a space in the file name breaks every update
@@ -1341,7 +1439,7 @@ function checkRelease(app) {
 const perApp = [];
 for (const app of [...APPS, TEMPLATE]) {
   if (!existsSync(app.dir)) { fail(app.name, `not found at ${app.dir}`); continue; }
-  const files = walk(join(app.dir, "src"));
+  const files = notIgnored(app.dir, walk(join(app.dir, "src")));
   perApp.push([app.name, files]);
   checkForks(app, files, exports_);
   checkDrift(app, files, kitFiles);
@@ -1355,6 +1453,7 @@ for (const app of [...APPS, TEMPLATE]) {
     checkSkeleton(app);
     checkRendererSkeleton(app);
     checkLauncher(app);
+    checkServerPeers(app);
     checkDesktopMain(app);
     checkDevPorts(app);
     checkQuasar(app);

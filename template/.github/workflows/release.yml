@@ -109,6 +109,13 @@ jobs:
           (cd just-core/packages/core && npm ci)
           (cd just-core/packages/ui && npm install --no-audit --no-fund)
 
+      # The kit's data-folder code on this system's own file system: real links (a move keeps a model cache's
+      # relative links as they are — a Windows account without the symlink right skips that test) and the lock's
+      # file times. Node 24 here is Electron's Node's version (the kit's own `npm test` runs on Electron's).
+      - name: The kit's data-folder tests on this system
+        working-directory: just-core/packages/core
+        run: node node_modules/vitest/vitest.mjs run tests/data_root.test.js tests/data_lock.test.js
+
       - name: Install the app (the renderer and the server/ workspace)
         working-directory: app
         run: npm ci

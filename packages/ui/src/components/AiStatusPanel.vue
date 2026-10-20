@@ -256,11 +256,12 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
             <div v-if="task.error" class="aip-hist-error">{{ task.error }}</div>
           </div>
           <div class="aip-hist-actions">
-            <UiButton v-if="task._onRetry" intent="ghost" size="icon" @click="tasks.retry(task.id)"
+            <!-- icon-only: named by the words its tooltip shows ("Run it again", "Dismiss") -->
+            <UiButton v-if="task._onRetry" intent="ghost" size="icon" :aria-label="t('kit.aiTasks.again')" @click="tasks.retry(task.id)"
               v-tooltip.bottom="t('kit.aiTasks.again')">
               <template #icon><Icon name="Refresh" :size="11" /></template>
             </UiButton>
-            <UiButton intent="ghost" size="icon" @click="tasks.dismiss(task.id)"
+            <UiButton intent="ghost" size="icon" :aria-label="t('kit.common.dismiss')" @click="tasks.dismiss(task.id)"
               v-tooltip.bottom="t('kit.common.dismiss')">
               <template #icon><Icon name="Close" :size="11" /></template>
             </UiButton>
@@ -290,7 +291,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
                history row (the callback rides the summary; JustVoice's fork
                kept the whole task for the same reason). -->
           <div v-if="h._onRetry" class="aip-hist-actions">
-            <UiButton intent="ghost" size="icon" @click="tasks.retry(h.id)"
+            <UiButton intent="ghost" size="icon" :aria-label="t('kit.aiTasks.again')" @click="tasks.retry(h.id)"
               v-tooltip.bottom="t('kit.aiTasks.again')">
               <template #icon><Icon name="Refresh" :size="11" /></template>
             </UiButton>

@@ -29,14 +29,21 @@
 // its tabs, it scrolls sideways with QTabs' own arrows outside the row (outside-arrows; mobile-arrows
 // so a phone shows them too) — decided 2026-10-20 after Just House Paint's visual review (QTabs' own default
 // and Material's scrollable tabs); it wrapped onto more rows before (the
-// theme, "Tab strip"). The panels live in the consumer, so there is no tabpanel wiring.
+// theme, "Tab strip"). The panels live in the consumer: with `idPrefix` each tab gets an id and
+// names its panel (aria-controls — the APG Tabs pattern), and the consumer gives each panel
+// tabPanelAttrs(idPrefix, id) (./tabPanels.js); `ariaLabel` names the tablist (APG: a tablist has a
+// name). Both added 2026-10-20 (the screens-and-keyboard review: Settings' tablist unnamed, no
+// tabpanels).
 import { QTab, QTabs } from "quasar";
+import { tabId, tabPanelId } from "./tabPanels.js";
 
 defineProps({
   // [{ id, label }] — the same shape SettingsShell has always taken.
   tabs: { type: Array, default: () => [] },
   modelValue: { type: String, default: "" },
   ariaLabel: { type: String, default: undefined },
+  // the prefix of the tabs' and panels' ids (./tabPanels.js); none — no ids, no aria-controls
+  idPrefix: { type: String, default: undefined },
 });
 const emit = defineEmits(["update:modelValue"]);
 </script>
@@ -56,6 +63,8 @@ const emit = defineEmits(["update:modelValue"]);
     <QTab
       v-for="t in tabs" :key="t.id" :name="t.id" :label="t.label" :ripple="false"
       class="ui-tabstrip__tab" :class="{ on: t.id === modelValue }"
+      :id="idPrefix ? tabId(idPrefix, t.id) : undefined"
+      :aria-controls="idPrefix ? tabPanelId(idPrefix, t.id) : undefined"
     />
   </QTabs>
 </template>

@@ -20,7 +20,7 @@
     "devHint": "Development: `npm run dev` starts it, or run it yourself with `npm run server`, then retry.",
     "portTaken": "Another program is using port {port}. Close it, then press {retry}.",
     "portOtherUser": "Another person signed in to this computer has the app open, on port {port}. One copy runs at a time: they can quit theirs (its tray icon), then press {retry}.",
-    "portReserved": "Windows has reserved port {port} for another use (Hyper-V, WSL or Docker), so the app can't use it.",
+    "portReserved": "Windows has reserved port {port} for another use (Hyper-V, WSL or Docker), so the app can't use it. Restarting the computer usually frees it; Troubleshooting in the help says how to keep it free.",
     "serverError": "Its server stopped as it started: {error}"
   },
   "notFound": {

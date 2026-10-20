@@ -9,25 +9,25 @@
 // `editable` — the page's own name, edited in place (v-model:title; `before-title` holds a mark
 // before it, like a strand's colour dot; `after-title` a control that works on it, like a
 // character's Name ideas). The default slot holds the actions. With `helpKey`
-// the "?" affordance (HelpTrigger) pins to the far right.
+// the "?" affordance (HelpTrigger) ends the actions — the last of them, inside their row — or,
+// with no actions, stands at the far right.
 //
 // The title keeps its one-line width: when it and the actions don't fit on one row, the actions
 // drop to the row below — at every width, not only on phones — rather than squeezing the title
-// (a character page's name box had shrunk to 14 px at 1280 px). The "?" then joins the title's
-// row, as on a phone: CSS alone can't tell that the row wrapped, so a resize observer compares
-// the actions' line with the title's (either order wraps at the same total width, so it can't
-// flip-flop).
+// (a character page's name box had shrunk to 14 px at 1280 px). The "?" goes with them: it wraps
+// as one of the actions, so it is never alone on a row (at 960 px a long title made three rows,
+// the "?" alone on the last — the screens-and-keyboard review, 2026-10-20; until then a resize
+// observer moved it to the title's row, which a long title had no room left on).
 //
 // variant "intro": a page-intro block inside the page's scroller rather than the pane's top bar —
 // a larger title, a `sub` line, the actions under them, the "?" in the top-right corner.
 //
 // Exposes focus() and select() on the editable title (a page selects a new entity's name).
-import { onMounted, ref } from "vue";
-import { useResizeObserver } from "@vueuse/core";
+import { ref } from "vue";
 import Breadcrumb from "./Breadcrumb.vue";
 import HelpTrigger from "./HelpTrigger.vue";
 
-const props = defineProps({
+defineProps({
   eyebrow: { type: String, default: "" },
   crumbs: { type: Array, default: null }, // Breadcrumb segments, shown instead of the eyebrow
   title: { type: String, default: "" },
@@ -41,17 +41,6 @@ const props = defineProps({
 const emit = defineEmits(["update:title"]);
 
 const input = ref(null);
-const root = ref(null);
-const titleEl = ref(null);
-const actionsEl = ref(null);
-const wrapped = ref(false);
-function measure() {
-  const a = actionsEl.value;
-  const t = titleEl.value;
-  wrapped.value = props.variant === "bar" && !!(a && t) && a.offsetTop > t.offsetTop + t.offsetHeight / 2;
-}
-useResizeObserver(root, measure);
-onMounted(measure);
 defineExpose({
   focus: () => input.value?.focus(),
   select: () => input.value?.select(),
@@ -59,8 +48,8 @@ defineExpose({
 </script>
 
 <template>
-  <header ref="root" class="pane-header" :class="[`pane-header--${variant}`, { 'pane-header--wrapped': wrapped }]">
-    <div ref="titleEl" class="pane-title">
+  <header class="pane-header" :class="`pane-header--${variant}`">
+    <div class="pane-title">
       <Breadcrumb v-if="crumbs?.length" :segments="crumbs" />
       <span v-else-if="eyebrow" class="pane-eyebrow">{{ eyebrow }}</span>
       <div class="pane-title-row">
@@ -73,10 +62,11 @@ defineExpose({
       </div>
       <p v-if="sub" class="pane-sub">{{ sub }}</p>
     </div>
-    <div ref="actionsEl" class="pane-actions" v-if="$slots.default">
+    <div class="pane-actions" v-if="$slots.default">
       <slot />
+      <HelpTrigger v-if="helpKey" :slug="helpKey" :label="helpLabel || title" class="pane-help" />
     </div>
-    <HelpTrigger v-if="helpKey" :slug="helpKey" :label="helpLabel || title" class="pane-help" />
+    <HelpTrigger v-else-if="helpKey" :slug="helpKey" :label="helpLabel || title" class="pane-help" />
   </header>
 </template>
 
@@ -128,13 +118,12 @@ defineExpose({
    shortens its model name) shrinks to fit — on Brainstorm it held the actions 37 px past a
    390 px window in Spanish, 3 px in English. */
 .pane-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; max-width: 100%; }
-/* The "?" is the far right of the title's row: after the actions while they share it, before
-   them once they've dropped to the row below. */
+/* With no actions the "?" stands at the far right of the title's row; with actions it is their
+   last, wrapping with them (a little apart from them). */
 .pane-help { margin-left: auto; }
-.pane-header--wrapped .pane-help { order: 1; }
-.pane-header--wrapped .pane-actions { order: 2; }
-/* At phone width (Quasar's xs: under 600px — `$breakpoint-xs-max`) the title keeps its row, with
-   the help button, and the actions take the row below. */
+.pane-actions > .pane-help { margin-left: 4px; }
+/* At phone width (Quasar's xs: under 600px — `$breakpoint-xs-max`) the title keeps its row and the
+   actions, the "?" with them, take the row below. */
 @media (max-width: 599.98px) {
   .pane-header { padding: 12px 16px; }
   .pane-actions { order: 3; flex-basis: 100%; }

@@ -106,3 +106,74 @@ test("the anchor unmounted during the show delay never opens one", () => {
   vi.advanceTimersByTime(1000);
   expect(tooltips()).toHaveLength(0);
 });
+
+// The screens-and-keyboard review (2026-10-20): icon buttons with no name, and names read twice. An element
+// with no name of its own takes the tooltip's words as its name; the tooltip describes it only when its words
+// differ from that name.
+test("an icon-only element is named by its tooltip, and the tooltip then describes nothing", () => {
+  const trigger = fakeEl("button");
+  tooltipDirective.mounted(trigger, { value: "Run it again", modifiers: {} });
+  expect(trigger.getAttribute("aria-label")).toBe("Run it again");
+  trigger.dispatch("pointerenter", { pointerType: "mouse" });
+  vi.advanceTimersByTime(1000);
+  expect(tooltips()).toHaveLength(1);
+  expect(trigger.getAttribute("aria-describedby")).toBeNull();
+  // its words change: so does its name
+  tooltipDirective.updated(trigger, { value: "Run it again now", modifiers: {} });
+  expect(trigger.getAttribute("aria-label")).toBe("Run it again now");
+  // gone with the directive
+  tooltipDirective.beforeUnmount(trigger);
+  expect(trigger.getAttribute("aria-label")).toBeNull();
+});
+
+test("an element with words of its own keeps them; a tooltip that says more describes it", () => {
+  const save = fakeEl("button");
+  save.textContent = "Save";
+  tooltipDirective.mounted(save, { value: "Save the house's colors", modifiers: {} });
+  expect(save.getAttribute("aria-label")).toBeNull();
+  save.dispatch("pointerenter", { pointerType: "mouse" });
+  vi.advanceTimersByTime(1000);
+  const tip = tooltips()[0];
+  expect(save.getAttribute("aria-describedby")).toBe(tip.id);
+  save.dispatch("pointerleave");
+  vi.advanceTimersByTime(1000);
+  expect(save.getAttribute("aria-describedby")).toBeNull();
+});
+
+test("a tooltip equal to the element's own name adds no description", () => {
+  const help = fakeEl("button");
+  help.setAttribute("aria-label", "Help — Your houses");
+  tooltipDirective.mounted(help, { value: "Help — Your houses", modifiers: {} });
+  expect(help.getAttribute("aria-label")).toBe("Help — Your houses");
+  help.dispatch("pointerenter", { pointerType: "mouse" });
+  vi.advanceTimersByTime(1000);
+  expect(tooltips()).toHaveLength(1);
+  expect(help.getAttribute("aria-describedby")).toBeNull();
+  // and the directive never takes away a name it didn't give
+  tooltipDirective.beforeUnmount(help);
+  expect(help.getAttribute("aria-label")).toBe("Help — Your houses");
+});
+
+test("a plain <div> or <span> is never named — ARIA prohibits a name on a generic element", () => {
+  const dot = fakeEl("span");
+  tooltipDirective.mounted(dot, { value: "Stalling", modifiers: {} });
+  expect(dot.getAttribute("aria-label")).toBeNull();
+  const swatch = fakeEl("div");
+  swatch.setAttribute("role", "img");
+  tooltipDirective.mounted(swatch, { value: "Rosemary", modifiers: {} });
+  expect(swatch.getAttribute("aria-label")).toBe("Rosemary");
+});
+
+test("an element whose own words arrive later gives the tooltip's name up", () => {
+  const chip = fakeEl("button");
+  tooltipDirective.mounted(chip, { value: "Running: 2 tasks", modifiers: {} });
+  expect(chip.getAttribute("aria-label")).toBe("Running: 2 tasks");
+  chip.textContent = "AI tasks";
+  tooltipDirective.updated(chip, { value: "Running: 2 tasks", modifiers: {} });
+  expect(chip.getAttribute("aria-label")).toBeNull();
+  // its template sets an aria-label of its own: the directive leaves it be
+  chip.textContent = "";
+  chip.setAttribute("aria-label", "AI tasks");
+  tooltipDirective.updated(chip, { value: "Running: 2 tasks", modifiers: {} });
+  expect(chip.getAttribute("aria-label")).toBe("AI tasks");
+});

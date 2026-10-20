@@ -28,17 +28,22 @@ const active = computed(() => count.value > 0);
 const errors = computed(() => tasks.unseenErrors);
 
 function toggle() { tasks.togglePanel(); }
+// Its name is the tooltip's words (it shows only an icon and, while busy, a bare count — "2" was its
+// whole name to a screen reader; unnamed when idle — the screens-and-keyboard review, 2026-10-20).
+const label = computed(() => (errors.value
+  ? t("kit.aiTasks.button.failed", { n: errors.value }, errors.value)
+  : active.value ? t("kit.aiTasks.button.running", { n: count.value }, count.value) : t("kit.aiTasks.button.idle")));
 </script>
 
 <template>
   <div class="ai-status-wrap">
     <button class="ai-status-btn"
       :class="{ active, 'has-errors': errors > 0 }"
+      type="button"
       data-panel-toggle
+      :aria-label="label"
       @click="toggle"
-      v-tooltip.bottom="errors
-        ? t('kit.aiTasks.button.failed', { n: errors }, errors)
-        : active ? t('kit.aiTasks.button.running', { n: count }, count) : t('kit.aiTasks.button.idle')">
+      v-tooltip.bottom="label">
       <Icon name="Sparkle" :size="13" />
       <span v-if="active" class="ai-status-pulse" />
       <span v-if="active" class="ai-status-count">{{ count }}</span>

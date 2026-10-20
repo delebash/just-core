@@ -8,18 +8,21 @@
 // Quasar's QBanner underneath (the kit's controls on Quasar —
 // docs/plans/2026-10-09-kit-controls-on-quasar.md). The look is the kit's theme
 // (../../quasar/theme.css, "Banner"): an intent sets --ui-banner-bg / --ui-banner-ink, so a host
-// adds an intent of its own by setting those two.
+// adds an intent of its own by setting those two. "warning" (2026-10-20) is for what is true but
+// not wrong — it will be slow here, there's little memory — on --warn-bg / --warn-ink with the ⚠ in
+// that ink; "danger" is for what failed or can't be done (the slow and low-memory notes were drawn
+// as errors — the screens-and-keyboard review).
 import { QBanner } from "quasar";
 import { computed } from "vue";
 import Icon from "./Icon.vue";
 
 const props = defineProps({
-  intent: { type: String, default: "danger" }, // danger | info
+  intent: { type: String, default: "danger" }, // danger | warning | info
   // the action beside the words (the default) or under them — a narrow panel's banner with two
   // buttons stacks them, so the words keep their width (just-house-paint's design offer, 2026-10-18)
   inlineActions: { type: Boolean, default: true },
 });
-const ICONS = { danger: "Alert" };
+const ICONS = { danger: "Alert", warning: "Alert" };
 const classes = computed(() => ["ui-banner", `ui-banner--${props.intent}`]);
 </script>
 

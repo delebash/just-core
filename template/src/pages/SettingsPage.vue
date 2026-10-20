@@ -35,7 +35,17 @@ import { useRouter } from "vue-router";
 import GeneralSection from "../components/settings/GeneralSection.vue";
 import { LOCALE_CODES } from "../i18n/index.js";
 import { loadDoc } from "../services/helpDocs.js";
-import { desktopUpdater, pickDirectory, setKeepRunning, shellVersion, storageGetRoot, storageRelocate } from "../services/native.js";
+import {
+  desktopUpdater,
+  pickDirectory,
+  setKeepRunning,
+  shellVersion,
+  storageGetRoot,
+  storageOldCopies,
+  storageRelocate,
+  storageRemoveOldCopy,
+  storageUseDefault,
+} from "../services/native.js";
 import { SETTINGS_SECTION_IDS } from "../services/settingsSections.js";
 import { useUiStore } from "../stores/ui.js";
 
@@ -74,7 +84,14 @@ async function keepRunning(v) {
   await setKeepRunning(v);
 }
 // Storage: the shell's folder calls (each answers null outside the desktop app)
-const storageShell = { getRoot: storageGetRoot, pickDirectory, relocate: storageRelocate };
+const storageShell = {
+  getRoot: storageGetRoot,
+  pickDirectory,
+  relocate: storageRelocate,
+  oldCopies: storageOldCopies,
+  removeOldCopy: storageRemoveOldCopy,
+  useDefault: storageUseDefault,
+};
 
 // Updates — release notes from docs/whats-new.md, loaded when the section first opens; the
 // desktop shell's updater (null in a browser; off in the shell until the app has releases).

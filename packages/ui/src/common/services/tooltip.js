@@ -8,12 +8,54 @@
 //   v-tooltip="'text'"            — defaults to bottom
 //   v-tooltip.top/.bottom/.left/.right="'text'"
 //   v-tooltip.bottom="expr"       — reactive string is fine; updated() syncs
+//
+// What a screen reader hears (the screens-and-keyboard review, 2026-10-20 — icon buttons with no
+// name, and names read twice): an element that can carry a name (a control, a link, an image, an
+// element with a role or a tab stop) with no accessible name of its own — no aria-label or
+// aria-labelledby, no <label>, no text, no alt or title — takes the tooltip's words as its name
+// (aria-label; ARIA's tooltip pattern: an icon button's tooltip text IS its label,
+// w3.org/WAI/ARIA/apg/patterns/tooltip/). While the tooltip shows, it describes the element
+// (aria-describedby) only when its words differ from the element's name — never the name read a
+// second time. So no `title` beside an equal aria-label anywhere: v-tooltip instead.
 
 import { computePosition, autoUpdate, offset, flip, shift } from "@floating-ui/dom";
 
 const SHOW_DELAY = 350;
 const HIDE_DELAY = 80;
 let idCounter = 0;
+
+const squash = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
+
+/** The element's accessible name from its own markup, as far as it can be read without a full
+ *  accessible-name computation (w3.org/TR/accname-1.2): aria-labelledby's elements, aria-label
+ *  (unless it is the one this directive set — `ours`), a form control's <label>s, its text, its alt
+ *  or title. "" when it has none. */
+function ownName(el, ours = null) {
+  const by = el.getAttribute?.("aria-labelledby");
+  if (by) {
+    const doc = el.ownerDocument || (typeof document !== "undefined" ? document : null);
+    const text = squash(by.split(/\s+/).map((id) => doc?.getElementById?.(id)?.textContent || "").join(" "));
+    if (text) return text;
+  }
+  const label = el.getAttribute?.("aria-label");
+  if (label && label !== ours && squash(label)) return squash(label);
+  const labels = el.labels ? [...el.labels].map((l) => l.textContent || "").join(" ") : "";
+  if (squash(labels)) return squash(labels);
+  const text = squash(el.textContent);
+  if (text) return text;
+  return squash(el.getAttribute?.("alt") || el.getAttribute?.("title") || "");
+}
+
+/** Whether a name may stand on the element: a control, a link, an image, or anything with a role of
+ *  its own or a tab stop — never a plain <div>/<span>, where ARIA prohibits aria-label (a generic
+ *  element; the review's "On this wall" on a div). */
+const NAMEABLE_TAGS = new Set(["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA", "IMG", "SVG", "svg"]);
+function nameable(el) {
+  if (NAMEABLE_TAGS.has(el.tagName)) return true;
+  const role = el.getAttribute?.("role");
+  if (role && !["presentation", "none", "generic"].includes(role)) return true;
+  return el.getAttribute?.("tabindex") != null;
+}
 
 function placementFromModifiers(mods) {
   if (mods.top) return "top";
@@ -71,7 +113,19 @@ function setupState(el, content, placement) {
     if (cleanupPos) { cleanupPos(); cleanupPos = null; }
     removeDocListeners();
     if (tooltipEl) { tooltipEl.remove(); tooltipEl = null; }
-    el.removeAttribute("aria-describedby");
+    undescribe();
+  }
+
+  // The tooltip describes the element only when its words aren't the element's name already.
+  let described = false;
+  function describe(id) {
+    if (squash(s.content) === ownName(el)) return;
+    el.setAttribute("aria-describedby", id);
+    described = true;
+  }
+  function undescribe() {
+    if (described) el.removeAttribute("aria-describedby");
+    described = false;
   }
 
   // ONE pending show at a time. A focus and a pointerenter can both arrive
@@ -90,7 +144,7 @@ function setupState(el, content, placement) {
       // a re-rendered row) — never open against a detached node.
       if (!el.isConnected || tooltipEl) return;
       tooltipEl = createTooltipEl(s.content);
-      el.setAttribute("aria-describedby", tooltipEl.id);
+      describe(tooltipEl.id);
       addDocListeners();
       cleanupPos = autoUpdate(el, tooltipEl, () => {
         // QC-33 root cause: an anchor detached by non-Vue DOM ops (editor
@@ -141,18 +195,37 @@ function setupState(el, content, placement) {
       removeDocListeners();
       const node = tooltipEl;
       tooltipEl = null;
-      el.removeAttribute("aria-describedby");
+      undescribe();
       // Let the fade-out finish before removing from the DOM.
       setTimeout(() => node.remove(), 160);
     }, HIDE_DELAY);
   };
 
+  // The tooltip's words as the element's name while it has none of its own (`named` holds the
+  // aria-label this directive set). Run at mount and after every update: an element that gains a
+  // name of its own (its text arrives, its template binds an aria-label) gives ours up.
+  let named = null;
+  function syncName() {
+    const current = el.getAttribute?.("aria-label") ?? null;
+    if (named !== null && current !== named) named = null; // its template set its own since
+    const own = ownName(el, named);
+    if (own || !squash(s.content) || !nameable(el)) {
+      if (named !== null) el.removeAttribute("aria-label");
+      named = null;
+      return;
+    }
+    if (current !== s.content) el.setAttribute("aria-label", s.content);
+    named = s.content;
+  }
+
   const s = {
     content,
     placement,
-    show, hide,
+    show, hide, syncName,
     destroy() {
       killNow();
+      if (named !== null && el.getAttribute?.("aria-label") === named) el.removeAttribute("aria-label");
+      named = null;
       el.removeEventListener("pointerenter", onPointerEnter);
       el.removeEventListener("pointerleave", hide);
       el.removeEventListener("focus", onFocus);
@@ -168,6 +241,7 @@ function setupState(el, content, placement) {
   el.addEventListener("click", killNow);
 
   Object.defineProperty(el, "__uiTooltip", { value: s, configurable: true, writable: true });
+  syncName();
 }
 
 export const tooltipDirective = {
@@ -187,6 +261,7 @@ export const tooltipDirective = {
     if (!content) { s.destroy(); el.__uiTooltip = null; return; }
     s.content = content;
     s.placement = placement;
+    s.syncName();
   },
   beforeUnmount(el) {
     const s = stateFor(el);

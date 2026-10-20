@@ -11,13 +11,16 @@
   seeding: fetches the value once on mount if the singleton hasn't yet.
 -->
 <script setup>
-import { onMounted } from "vue";
+// The switch is named by its visible words (aria-labelledby — a <label> round a role="switch"
+// <div> names nothing; the AI page's unnamed switch, the screens-and-keyboard review 2026-10-20).
+import { onMounted, useId } from "vue";
 import { useI18n } from "vue-i18n";
 
 import UiToggle from "../common/components/UiToggle.vue";
 import { useEngine } from "../composables/useEngine.js";
 
 const { t } = useI18n();
+const capId = `lu-warm-cap-${useId()}`;
 
 const { warmDefaultOnStartup, setWarmDefaultOnStartup, refreshWarm } = useEngine();
 
@@ -28,8 +31,8 @@ onMounted(() => {
 
 <template>
   <label class="lu-warm-toggle">
-    <UiToggle :model-value="!!warmDefaultOnStartup" @update:model-value="setWarmDefaultOnStartup" />
-    <span class="lu-warm-cap">{{ t('kit.warmStartup') }}</span>
+    <UiToggle :model-value="!!warmDefaultOnStartup" :aria-labelledby="capId" @update:model-value="setWarmDefaultOnStartup" />
+    <span :id="capId" class="lu-warm-cap">{{ t('kit.warmStartup') }}</span>
   </label>
 </template>
 

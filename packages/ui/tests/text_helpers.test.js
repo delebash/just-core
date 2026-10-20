@@ -1,13 +1,43 @@
 // SPDX-License-Identifier: MIT
-// A person's name inside a sentence keeps its own direction (isolate — FSI/PDI); a file named by its date takes the
+// A person's name inside a sentence keeps its own direction (isolate — FSI/PDI, only on a name holding a letter of
+// the other direction than the page's: Google Closure's goog.i18n.bidi ranges); a file named by its date takes the
 // computer's own date (localDate), not Greenwich's.
 import { expect, test } from "vitest";
 import { localDate } from "../src/common/services/isoDate.js";
 import { isolate } from "../src/common/services/isolate.js";
 
-test("isolate wraps a name between FIRST STRONG ISOLATE and POP DIRECTIONAL ISOLATE", () => {
-  expect(isolate("בית")).toBe("⁨בית⁩");
-  expect(isolate(null)).toBe("⁨⁩");
+test("isolate marks a name of the other direction than the page's (FSI … PDI) and leaves a plain one as typed", () => {
+  // no document (Node): the page is left-to-right
+  expect(isolate("בית")).toBe("\u2068בית\u2069");
+  expect(isolate("בית הים — 10/20")).toBe("\u2068בית הים — 10/20\u2069");
+  expect(isolate("Maple street")).toBe("Maple street");
+  expect(isolate("Café “Ölmühle”")).toBe("Café “Ölmühle”");
+  expect(isolate("12 / 20")).toBe("12 / 20"); // no strong letter at all
+  expect(isolate("Maple בית")).toBe("\u2068Maple בית\u2069"); // a mix holds the other direction
+  expect(isolate("بيت")).toBe("\u2068بيت\u2069"); // Arabic
+  expect(isolate("𐤀𐤁")).toBe("\u2068𐤀𐤁\u2069"); // Phoenician, outside the BMP (its high surrogate D802)
+  expect(isolate(null)).toBe("");
+  expect(isolate(undefined)).toBe("");
+});
+
+test("on a right-to-left page a left-to-right name is the one marked", () => {
+  expect(isolate("בית", { dir: "rtl" })).toBe("בית");
+  expect(isolate("Maple street", { dir: "rtl" })).toBe("\u2068Maple street\u2069");
+  expect(isolate("12", { dir: "rtl" })).toBe("12");
+});
+
+test("the page's direction is <html dir>", () => {
+  const html = { dir: "rtl" };
+  globalThis.document = { documentElement: html };
+  try {
+    expect(isolate("Maple street")).toBe("\u2068Maple street\u2069");
+    expect(isolate("בית")).toBe("בית");
+    html.dir = "";
+    expect(isolate("Maple street")).toBe("Maple street");
+    expect(isolate("בית")).toBe("\u2068בית\u2069");
+  } finally {
+    delete globalThis.document;
+  }
 });
 
 test("localDate is the computer's own calendar date", () => {

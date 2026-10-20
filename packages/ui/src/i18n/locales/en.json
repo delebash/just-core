@@ -283,18 +283,34 @@
     "storagePanel": {
       "savesDefault": "your work",
       "locationTitle": "Data location",
-      "locationHint": "One folder holds everything the app saves — {saves}, the AI engine and downloaded models, and logs. Changing it moves all of that to the new folder and restarts the app.",
+      "locationHint": "One folder holds everything the app saves — {saves}, the AI engine and downloaded models, and logs. Changing it copies all of that to the new folder and restarts the app; the old folder keeps its copy until you remove it here.",
       "folder": "Folder",
       "type": "Type",
       "portable": "Portable — beside the app",
       "userFolder": "User folder",
       "changeFolder": "Change folder…",
+      "moveBack": "Move back to the default folder…",
       "moving": "Moving your data — the app will restart…",
       "desktopOnly": "Changing the folder is available in the desktop app.",
       "chooseFolder": "Choose a data folder",
       "moveTitle": "Move all app data?",
-      "moveMessage": "Everything the app saves — {saves}, the AI engine and models, and logs — moves into a new folder for the app inside {folder}. The app restarts when the move finishes.",
+      "moveMessage": "Everything the app saves — {saves}, the AI engine and models, and logs — is copied to {folder}, and the app restarts on it. The old folder keeps its copy until you remove it here.",
+      "moveSharedWith": "{apps} use this app's AI models: they keep using the old copy until you remove it, then download their models again.",
       "moveConfirm": "Move & restart",
+      "oldCopy": "Old copy",
+      "removeOld": "Remove the old copy…",
+      "removing": "Removing…",
+      "removeOldTitle": "Remove the old copy?",
+      "removeOldMessage": "This deletes the copy of the data that stayed in {folder} ({size}) when it moved — only what the move copied there. The data the app uses now, in {current}, isn't touched.",
+      "removeOldConfirm": "Remove the old copy",
+      "oldCopyUsed": "The old copy was used after the move — last changed {date}. Removing it removes that work too; move what you need first.",
+      "isOldCopy": "This folder holds the old copy of the data, left here when the data moved to {folder}: what you change here isn't in {folder}.",
+      "setByVariable": "This data folder is set by {name} — change it there.",
+      "defaultThisStart": "This start uses the default folder: {folder} can't be used now. Your data there is kept, and the app looks for it again at its next start.",
+      "useDefault": "Use the default folder from now on…",
+      "useDefaultTitle": "Use the default folder from now on?",
+      "useDefaultMessage": "The app stops looking for {folder} and opens on {default} from now on. Nothing in {folder} is touched.",
+      "useDefaultConfirm": "Use the default folder",
       "diskTitle": "Disk usage",
       "diskHint": "Where the data folder's space goes. Downloaded models and engine logs can be cleared to make room — {saves} and your settings are never touched.",
       "modelsCache": "Models cache",
@@ -617,6 +633,7 @@
     },
     "aiArea": {
       "lede": "Connect AI providers — free local or metered cloud — and manage which models power each feature.",
+      "tabsLabel": "AI settings sections",
       "hw": {
         "os": "OS",
         "cpu": "CPU",
@@ -729,7 +746,10 @@
         "local": "Local · free",
         "localSub": "Runs on your machine — no API key, no per-token cost",
         "online": "Online · metered",
-        "onlineSub": "Your account — API key + URL; pay per token"
+        "onlineSub": "Your account — API key + URL; pay per token",
+        "label": "Where the providers run",
+        "localShort": "Local",
+        "onlineShort": "Online"
       }
     },
     "common": {
@@ -1448,6 +1468,12 @@
       "noneCompleted": "No completed tasks yet.",
       "tokOut": "{n} tok out",
       "again": "Run it again",
+      "announce": {
+        "started": "{label}: started",
+        "done": "{label}: done",
+        "cancelled": "{label}: cancelled",
+        "failed": "{label}: failed — {error}"
+      },
       "showLess": "Show less",
       "showAll": "Show all ({n})",
       "strip": {
@@ -1771,7 +1797,8 @@
     "settings": {
       "language": {
         "label": "Language"
-      }
+      },
+      "sectionsLabel": "Settings sections"
     },
     "knobGrid": {
       "namePlaceholder": "flag (e.g. ctx_len)",

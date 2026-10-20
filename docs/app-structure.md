@@ -138,7 +138,8 @@ opener. The server's own escape hatch is `<ID_UPPER>_DEV_NO_SERVER=1`.
 
 **One bridge object — `window.appShell` — read only by `src/services/native.js`.** The kit's
 preload exposes it: `invoke(command, args)` for the shell's commands (`pickDirectory`,
-`pickFile`, `saveFile`, `storageGetRoot`, `storageRelocate`, `setKeepRunning`, `setTrayLabels`,
+`pickFile`, `saveFile`, `storageGetRoot`, `storageRelocate`, `storageOldCopies`, `storageRemoveOldCopy`,
+`storageUseDefault` (the old copy a move leaves, and the default folder from now on — 2026-10-20), `setKeepRunning`, `setTrayLabels`,
 `setContextMenuLabels` and `setSpellCheckerLanguages` — the right-click menu's words and the
 spellchecker's languages, since the shell draws the menu (electron-context-menu, 2026-10-18) —
 `openExternal`, `openPath`, `serverUrl` — the server's URL once it listens, for the renderer's
@@ -826,7 +827,7 @@ attribution is the reference adapter; without one, columns run the generic
 | **Settings page** | kit `SettingsShell` (TOP TABS — the contract killed the rail, 2026-08-04) over JW's `/settings/:section?` pattern | sections as data + panels below |
 | **First AI contact** | kit `AiSetupOffer` — the ONCE-EVER modal (ruling R3 2026-08-04; permanent setup buttons are retired), host persists the flag + routes the emits | one App-level mount + one flag |
 | — Appearance | kit engine + catalogs (`UI_FONTS`, `ACCENT_PRESETS`, `UI_SCALES`); JV panel shape | mode/font/accent/scale controls over `applyAppearance` |
-| — Storage | kit `StoragePanel` (2026-10-19) over shell `storageGetRoot`/`storageRelocate` (§Q.2) + shared `makeDiskRouter(dataDir)` | `:shell` (native.js's folder calls), `:saves` (what the app keeps, in its words), the `#extra` slot for its own disk rows |
+| — Storage | kit `StoragePanel` (2026-10-19) over shell `storageGetRoot`/`storageRelocate`/`storageOldCopies`/`storageRemoveOldCopy`/`storageUseDefault` (§Q.2) + shared `makeDiskRouter(dataDir)` | `:shell` (native.js's folder calls), `:saves` (what the app keeps, in its words), the `#extra` slot for its own disk rows |
 | — Logs | platform `installLogRing()` + `installFileLog()` + `makeLogsRouter(name)`; kit `LogsPanel` | 3 server lines, one component |
 | — Server | kit `ServerPanel` (2026-10-19; JW's headless/auth section): headless URL + bearer tokens over `/v1/server-auth`, each token's "Copy the address with this token" | `:server-command`, `v-model:keep-running` (the ui store's flag, told to the shell) |
 | — About | kit `AboutPanel` (2026-10-19): version, desktop runtime, data folder, repo | `:app-name`, `:blurb` (the app's words), `:version`/`:data-dir` from /v1/health, `:runtime`, `:source-url` |

@@ -9,6 +9,10 @@
 // Supersedes JvField.
 // A label's trailing "(…)" — a unit, "Head silence (s)" — keeps its case under the uppercase
 // eyebrow (.ui-unit): "(S)" would read as siemens (2026-10-15).
+// `for` is the id of the control the label names (the control's own `id`): the label's `for`, so the
+// control takes the label's words as its accessible name. Declared as a prop it never reaches
+// $attrs, which the label read until 2026-10-20 — every field built on UiField had no name (the
+// screens-and-keyboard review); the template's kitControls.test.js pins it.
 import { computed } from "vue";
 
 const props = defineProps({
@@ -26,8 +30,8 @@ const parts = computed(() => {
 
 <template>
   <div class="ui-field" :class="layout === 'block' ? 'ui-field--block' : ''">
-    <label v-if="$slots.label || label" :for="$attrs.for ?? undefined">
-      <slot name="label">{{ parts.text }}<span v-if="parts.unit" class="ui-unit">{{ ` ${parts.unit}` }}</span></slot>
+    <label v-if="$slots.label || label" :for="props.for">
+      <slot name="label">{{ parts.text }}{{ parts.unit ? " " : "" }}<span v-if="parts.unit" class="ui-unit">{{ parts.unit }}</span></slot>
     </label>
     <div>
       <slot />

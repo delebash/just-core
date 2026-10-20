@@ -225,7 +225,8 @@ test("Suggest a title runs the AI feature, disabled while it runs, and fills the
   // its progress shows in place, under the title — and only there: the global stack leaves it out
   const strip = document.querySelector(".ui-modal .sts");
   expect(strip?.textContent).toContain("Suggesting a title");
-  expect(document.querySelector(".ai-task-stack")).toBeNull();
+  // (the stack's region is always on the page — the kit's, 2026-10-20 — empty here)
+  expect(document.querySelector(".ai-task-stack .sts")).toBeNull();
   // the stream fails before a frame arrives → the kit's one-shot fallback answers
   answerStream(json({ title: "Internal Server Error", status: 500 }, 500));
   await flushPromises();
@@ -247,7 +248,7 @@ test("an AI task no screen shows goes to the global stack: close the dialog mid-
   body.dispatchEvent(new Event("input"));
   await flushPromises();
   await click(byText(".form__inline button", "Suggest a title"));
-  expect(document.querySelector(".ai-task-stack")).toBeNull();
+  expect(document.querySelector(".ai-task-stack .sts")).toBeNull();
   await click(byText(".form__actions button", "Cancel"));
   await new Promise((r) => setTimeout(r, 0));
   await flushPromises();
@@ -259,7 +260,7 @@ test("an AI task no screen shows goes to the global stack: close the dialog mid-
   await flushPromises();
   await new Promise((r) => setTimeout(r, 0));
   await flushPromises();
-  expect(document.querySelector(".ai-task-stack")).toBeNull();
+  expect(document.querySelector(".ai-task-stack .sts")).toBeNull();
 });
 
 test("a delete asks first, naming the note, then removes it", async () => {

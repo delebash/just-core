@@ -26,6 +26,7 @@
 
 import { EnvHttpProxyAgent } from "undici";
 import * as http from "../platform/http.js";
+import { noProxyWithLoopback } from "../platform/no_proxy.js";
 import { cpSlice, errText, pyStr, RuntimeError, splitlines, truthy } from "../platform/py.js";
 import { pyJson } from "../platform/pyjson.js";
 
@@ -184,13 +185,14 @@ const agents = new Map();
  * connect, each read and each write separately — so a long stream that keeps sending
  * never times out, but a silent server does. undici's connect / headers / body (idle)
  * timeouts are exactly that; http.fetch's own `timeoutMs` bounds the WHOLE request,
- * which would cut a long stream. One agent per timeout value, built on first use.
+ * which would cut a long stream. One agent per timeout value, built on first use. This
+ * computer's own addresses (a local engine) never go through a proxy (no_proxy.js).
  */
 export function agentFor(seconds) {
   const ms = Math.max(1, Math.round(Number(seconds) * 1000));
   let a = agents.get(ms);
   if (!a) {
-    a = new EnvHttpProxyAgent({ connectTimeout: ms, headersTimeout: ms, bodyTimeout: ms, ...http.H2_WINDOWS });
+    a = new EnvHttpProxyAgent({ connectTimeout: ms, headersTimeout: ms, bodyTimeout: ms, ...http.H2_WINDOWS, noProxy: noProxyWithLoopback() });
     agents.set(ms, a);
   }
   return a;

@@ -13,13 +13,22 @@
 // UiTabStrip directly instead of inheriting a second scroller; see that file
 // for why two apps had hand-rolled the same strip rather than adopt this one.
 // Renders identically: the CSS went with the component, value for value.
+// The strip is a named tablist (`ariaLabel`, the kit's "Settings sections" unless the app names it)
+// and the panel the active tab's tabpanel (APG Tabs, ./tabPanels.js) — a tab stop of its own, so the
+// keyboard scrolls the panel (2026-10-20, the screens-and-keyboard review).
+import { useId } from "vue";
+import { useI18n } from "vue-i18n";
+import { tabPanelAttrs } from "./tabPanels.js";
 import UiTabStrip from "./UiTabStrip.vue";
 
 defineProps({
   sections: { type: Array, default: () => [] }, // [{ id, label }]
   modelValue: { type: String, default: "" },
+  ariaLabel: { type: String, default: undefined },
 });
 const emit = defineEmits(["update:modelValue"]);
+const { t } = useI18n();
+const prefix = `settings-${useId()}`;
 </script>
 
 <template>
@@ -27,9 +36,11 @@ const emit = defineEmits(["update:modelValue"]);
     <UiTabStrip
       :tabs="sections"
       :model-value="modelValue"
+      :aria-label="ariaLabel || t('kit.settings.sectionsLabel')"
+      :id-prefix="prefix"
       @update:model-value="(v) => emit('update:modelValue', v)"
     />
-    <div class="set-panel"><slot /></div>
+    <div class="set-panel" v-bind="tabPanelAttrs(prefix, modelValue)"><slot /></div>
   </div>
 </template>
 

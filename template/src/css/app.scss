@@ -63,7 +63,9 @@ body {
 .card h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-h2); }
 .card__actions { margin-top: var(--sp-3); }
 .card__note { margin: var(--sp-2) 0 0; }
-.hint { color: var(--muted); font-size: var(--fs-small); margin: 0 0 var(--sp-3); }
+/* a hint's lines at most 70 characters — the typographic measure's 45–75 (Bringhurst; WCAG 1.4.8 asks 80 or
+   fewer): in a Settings card at 1366 px a hint ran 846 px, ~135 characters (the screens review, 2026-10-20) */
+.hint { color: var(--muted); font-size: var(--fs-small); margin: 0 0 var(--sp-3); max-width: 70ch; }
 .muted { color: var(--muted); }
 .mono { font-family: var(--font-mono); font-size: var(--fs-small); }
 /* Not on Quasar's own elements: Quasar names a flex row `row` too, and this rule would outrank

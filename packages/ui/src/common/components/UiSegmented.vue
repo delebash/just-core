@@ -19,11 +19,17 @@
 // that needs a model not yet available is shown off with its reason, never
 // hidden — the user can't tell "off" from "absent" otherwise).
 //
+// The keys are the WAI-ARIA APG Radio Group's (w3.org/WAI/ARIA/apg/patterns/radio/): an arrow,
+// Home or End moves the focus AND picks the option it lands on; an option marked off takes the
+// focus but is never picked there, and an arrow emits no `blocked` (only a click or Enter/Space
+// on it does). One tab stop — the chosen option, or the first one that isn't off when none is.
+// Until 2026-10-20 the arrows only moved the focus (the screens-and-keyboard review).
+//
 // Quasar's QBtnToggle underneath (the kit's controls on Quasar —
 // docs/plans/2026-10-09-kit-controls-on-quasar.md): its group is the row (.ui-seg) and its QBtns
 // the options — native <button>s as before, with the `active` / `is-off` classes — and the look
 // is the kit's theme (../../quasar/theme.css, "Segmented"). The kit keeps what QBtnToggle doesn't
-// do: the radio roles and the roving tabindex (one tab stop; arrows move; Enter/Space pick),
+// do: the radio roles and the roving tabindex (one tab stop; arrows move and pick; Enter/Space pick),
 // type-ahead, and an off option that stays clickable (QBtnToggle's would be disabled). Its value
 // is the option's index, so any option value works; a click on the chosen option reaches
 // QBtnToggle's `clear` (it's clearable for that alone) and is picked again, as before.
@@ -55,18 +61,25 @@ function pick(opt) {
 }
 
 const length = computed(() => props.options.length);
-const { onKeydown: rovingKeydown, registerItem, focusAt } = useRovingTabindex({
+const { activeIndex, onKeydown: rovingKeydown, registerItem, focusAt } = useRovingTabindex({
   length,
   orientation: "both",
   loop: true,
   onActivate: (i) => pick(props.options[i]),
 });
 
+const MOVES = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"]);
 let typeBuffer = "";
 let typeTimer = null;
 function onKeydown(e, idx) {
   if (props.disabled) return;
   rovingKeydown(e, idx);
+  // an arrow, Home or End moved the focus: the option it landed on is picked, unless it is off
+  if (MOVES.has(e.key) && e.defaultPrevented) {
+    const landed = props.options[activeIndex.value];
+    if (landed && !isOff(landed) && !isSelected(landed)) emit("update:modelValue", getValue(landed));
+    return;
+  }
   if (e.defaultPrevented) return;
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
     clearTimeout(typeTimer);
@@ -85,6 +98,12 @@ function onKeydown(e, idx) {
 
 const isSelected = (opt) => props.modelValue === getValue(opt);
 const selectedIndex = computed(() => props.options.findIndex(isSelected));
+// the one tab stop: the chosen option, else the first that isn't off (else the first)
+const tabStop = computed(() => {
+  if (selectedIndex.value >= 0) return selectedIndex.value;
+  const on = props.options.findIndex((o) => !isOff(o));
+  return on >= 0 ? on : 0;
+});
 // QBtnToggle's options: the index as the value, the kit's attributes on each button (QBtnToggle
 // spreads `attrs` into the QBtn), and a slot of its own per option
 const btnOptions = computed(() => props.options.map((opt, i) => ({
@@ -96,7 +115,7 @@ const btnOptions = computed(() => props.options.map((opt, i) => ({
     "aria-checked": isSelected(opt) ? "true" : "false",
     "aria-disabled": isOff(opt) ? "true" : undefined,
     title: opt?.title || undefined,
-    tabindex: isSelected(opt) ? 0 : -1,
+    tabindex: i === tabStop.value ? 0 : -1,
     disabled: props.disabled ? "" : undefined,
     class: { active: isSelected(opt), "is-off": isOff(opt) },
     onKeydown: (e) => onKeydown(e, i),
@@ -136,7 +155,7 @@ onUpdated(registerButtons);
       'ui-seg--connected': variant === 'connected',
       'is-locked': disabled,
     }"
-    role="radiogroup" :aria-label="ariaLabel"
+    role="radiogroup" :aria-label="ariaLabel || undefined"
     @update:model-value="onToggle"
     @clear="onReclick"
   >

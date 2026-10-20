@@ -1539,7 +1539,12 @@ which hid several of these):
   connection page (`serverStatus.serverError`). A named folder over 180 characters or ending in "." or " " is refused
   (native code isn't longPathAware — the AI photo broke past ~190, the finder ~220, SQLite ~245; Windows strips a
   trailing dot: Node made "data.", SQLite opened "data"). A Hyper-V/WSL reserved port answers listen with EACCES
-  (`serverStatus.portReserved`). An Electron invoke's error carries "Error invoking remote method '…': Error: " —
+  (`serverStatus.portReserved`). The remedy the help gives (troubleshooting): a restart usually frees it; to keep
+  it, as administrator `net stop winnat`, `netsh int ipv4 add excludedportrange protocol=tcp startport=<port>
+  numberofports=1 store=persistent`, `net start winnat`, restart — an administered exclusion keeps the dynamic pool
+  off the port and leaves it free for the app to bind (NetBird's Windows guide,
+  docs.netbird.io/help/troubleshooting-client/windows; Microsoft KB 3039044 has a *second* bind to an excluded port
+  fail — the app binds once). Not tried here (it needs an administrator). — *docs, 2026-10-20*. An Electron invoke's error carries "Error invoking remote method '…': Error: " —
   the preload strips it.
 - The renderer: Konva 10.9 reads devicePixelRatio once (a move to another screen blurred the photo — a matchMedia
   resolution listener sets each layer's pixel ratio); Konva's pointercancel also sends pointerup; a decimal comma
@@ -1551,8 +1556,9 @@ which hid several of these):
   server not started, the tray's items off), the marker `{root, entries}` ours only when it names this folder; the
   data moves into `<picked>/<productName>` (a known folder like Documents, only desktop.ini in it, counted as empty
   and was deleted whole by the next start's cleanup), room checked first (`statfs` vs `dirSize` + 256 MB), times
-  kept (`preserveTimestamps` — no re-hash), and the next start removes only the entries it copied (plus the old
-  folder's own Chromium folder and lock), then the folder only if empty. A lost lock is taken back only after
+  kept (`preserveTimestamps` — to the millisecond only, so it did NOT spare the re-hash: the fifteenth review
+  below), and the next start removes only the entries it copied (plus the old folder's own Chromium folder and
+  lock), then the folder only if empty (that cleanup is gone since the fifteenth: the old copy is the user's to remove). A lost lock is taken back only after
   retrying past `stale` (so only a free or our own stale one) — another server holding it fresh ends this one by
   the folder-in-use path (proper-lockfile keeps ONE lock table per process: two lockers in one process can't test
   it — a second process can). "Use the default folder" is this start's only (the pointer kept); the path rule holds
@@ -1571,6 +1577,57 @@ which hid several of these):
   DXGI's EnumAdapters1 index (`dxgiAdapters`, koffi) — the registry's adapter list isn't in that order. The
   engine zips' unpacked sizes (central directories, ranged reads) are 1.1–4.9× their download. `rename_held.js`
   (`renameHeld`, `renameHeldSync`) is the kit's one retrying rename — downloads, unpacks, saves, the restore.
+
+**Change folder's third round; the lock on FAT; loopback headless** (*measured* and *tested*, 2026-10-20;
+just-house-paint's fifteenth review — an agent's scratch scripts on Electron's Node against the kit's own code — and
+its fixes):
+
+- Node 24's `fs.promises.cp` with `preserveTimestamps` sets a file's times to the millisecond; NTFS keeps 100 ns, so
+  0 of 20 copied files read back their time (1792495822578.5093 → …579; *measured*, `adv4/mtime_cp.mjs`). The apps'
+  engines compared `mtimeMs` exactly and hashed 12 GB again after every move. `platform/file_time.js` `sameFileTime`
+  compares within 2 s — rsync's `--modify-window` ("treat timestamps as being equal if they differ by no more
+  than" it), FAT's resolution.
+- `fs.cp` turns a relative symlink absolute, into the old folder (Node's `verbatimSymlinks`, off by default):
+  the move passes `verbatimSymlinks: true`. Not run here — this Windows has no symlink right (EPERM); the option is
+  asserted, the link test skips itself without it.
+- The old folder is never removed by the app on its own any more: the next start's cleanup deleted the copied names
+  whenever it ran — after a start on the old folder (the data-dir variable, "Use the default folder") it deleted a
+  week of new work (*measured*, `adv4/sweep_late.mjs`); a kill while emptying the old folder kept it for good. Now a
+  move copies, checks (each file its source's size, fsync'd), commits the pointer (written, fsync'd,
+  `renameHeldSync`, its folder fsync'd off Windows) and switches; the new root's `electron/old-root.txt` lists the old
+  copies (`{copies: [{root, entries}]}` — carried from move to move), and Storage removes one when asked — only its
+  listed names, never the folder in use or one a server holds (`data_lock.js` `dataFolderHeld`). A pointer that
+  can't be written removes the copy and says so in words (the reviewer's case: a raw EPERM and the full copy left).
+  Each record keeps the move's time; a start on the old copy ("Use the default folder" with the new folder's drive
+  out, the variable) is found from the copy's own `electron/moved-to.json` and said, and work done there is found
+  before a removal — the newest time of the copied entries, the entries right inside them, and the database's files
+  (`*.db`, its -wal/-shm), past the move by more than 2 s (Chromium's folder and the lock left out: the app wrote them
+  until the relaunch). While the data-dir variable names the folder, the next start ignores any pointer, so Change
+  folder, Move back and "Use the default folder from now on" are off in Storage and refused by the shell.
+- A target in the app's own folder is refused: the next update's NSIS uninstall keeps only `data\` and
+  `dataroot.txt` there (*measured*, the installer's removal ported — `adv4/move_crash.mjs`); the default folder
+  itself is allowed ("Move back to the default folder"; its pointer removed). A Mac app's own folder is its `.app`.
+- A server start already waiting (the proxy lookup, the port probe) forked on the old folder mid-copy (*measured*,
+  `adv4/vt/race.test.mjs`): `startServer` checks `state.moving` again right before `utilityProcess.fork`, and the move
+  waits (≤ 60 s) for a start under way to end. Quit (the window, the tray, `before-quit`, "Restart now") is held
+  while the copy runs; a half copy a stop left is found from the old root's `electron/moving-to.json` at the next
+  start and removed — only the names its `.moving` lists, and never when the pointer names that folder.
+- The window's access token lives in the old root's Chromium profile (localStorage): the move leaves it in the new
+  root's `electron/carried.json`; the relaunch reads and removes it and opens the first page at `?token=` — the kit's
+  own sign-in address (serverToken.js `adoptTokenFromAddress`, taken once and removed from the address).
+- proper-lockfile tells a millisecond drive from a whole-second one (lib/mtime-precision.js) but not FAT's 2 s: on
+  FAT32 its own defaults lost the lock every ~20 s, taken back 5–7 s later (*measured*, `adv4/fat_lock.mjs`: 3 lost,
+  3 retaken in 70 s). `data_lock.js` probes the folder's drive (an odd second plus 5 ms set, read back) and, when
+  neither the millisecond nor the second comes back, keeps the lock in `<temp>/just-locks/<sha256 of the folder's
+  real path>.lock` — 0 lost in 70 s (*measured*, the same FAT stat on the data folder only). A fresh lock an earlier
+  version left inside the folder still counts as held.
+- A preallocated `<file>.part` (`fh.truncate`) takes its whole size on NTFS (*measured*: a 2 GiB truncate took
+  2.000 GiB of free space; `st.blocks × 512` equals the size there too) but is sparse on macOS and Linux — the free
+  space check now counts `st.blocks × 512` off Windows, and only the `.part` of a file the install fetches.
+- undici's EnvHttpProxyAgent (8.11.2) reads NO_PROXY from the environment, and with the user's own HTTP_PROXY and no
+  NO_PROXY a headless server's call to 127.0.0.1 went to the proxy ("502 via proxy", `adv4/proxy_loopback.mjs`). Its
+  documented `noProxy` option (it replaces NO_PROXY) is given the environment's list plus `localhost,127.0.0.1,::1`
+  in http.js and llm/base.js (`platform/no_proxy.js`): "200 direct" with the same environment.
 
 **The screens at real sizes, fixed** (*measured*, 2026-10-20; just-house-paint's tenth review, an agent on the
 built app at 960/1366/1920, light and dark):
@@ -1987,6 +2044,47 @@ English".
   retries (3) are the downloader's own (`download.CONNECTIONS`, `RETRIES`); `downloadMaxConcurrent`
   (files at once, 4) stays. Rows already in a database are ignored until its next reset. — *code,
   2026-10-18*.
+
+## 10 · Screens: names, announcements, contrast
+
+From just-house-paint's fifteenth review (2026-10-20: the built app on fake data at 960×700, 1366×768 and
+1920×1032, light and dark, the accessibility tree over CDP) and its fixes in the kit.
+
+- **A UiField's label never reached its input** (since a790b37): it declared `for` as a prop and rendered
+  `<label :for="$attrs.for">` — a declared prop is never in `$attrs`. Every field built on it read `textbox: ""`.
+  Now `props.for`, proved with dom-accessibility-api's computeAccessibleName in a mounted test. — *measured*.
+- **A `title` equal to an `aria-label` is read twice**: Chromium computes the title as the description when it
+  isn't the name (accname 1.2), and NVDA reads name then description. The kit's v-tooltip adds no
+  `aria-describedby` equal to the element's name, and names a control, link, image or role-bearing element that
+  has none (never a plain div or span). — *measured, the accessibility tree*.
+- **Live regions**: a `role="status"` element inserted already filled (each Quasar Notify toast) is often not
+  announced — a live region must exist before its text changes (WAI-ARIA 1.2, live regions). The kit keeps one
+  polite and one assertive visually-hidden log, made at start (`common/services/announce.js`), and writes each
+  toast (errors assertive) and each AI task's start and end into them. `@react-aria/live-announcer` does the same
+  but depends on react-aria (React and react-dom) since 3.5.x — 3.4.4 (2025-07) was its last React-free release.
+  A region that re-renders a ticking timer (AiTaskStack's seconds) is not made live: it would speak every half
+  second. — *npm registry and code, 2026-10-20*.
+- **Numbers typed in a field**: `@internationalized/number`'s NumberParser (3.6.9; React Spectrum's, depends only
+  on @swc/helpers) reads ".7", "5.", "15.", "+15", "1 500", Spanish ",5", the Unicode minus and Arabic digits,
+  says whether a half-typed text can still become a number (`isValidPartialNumber`), and keeps "1,5" in an
+  English whole-number field refused. The kit's strict reading before it refused all of those and UiNumber
+  cleared the box. — *kit tests, 2026-10-20*.
+- **Bidi marks in names**: FSI…PDI around every name reached the accessible names; speech skips them, NVDA's
+  character review and braille (liblouis) show them. A name is marked only when it holds a strong letter of the
+  direction other than the page's (`<html dir>`), by Google Closure's goog.i18n.bidi ranges. — *2026-10-20*.
+- **Contrast at every hue the appearance engine sets** (it moves only the hue, never the lightness; culori,
+  per-channel clip and CSS Color 4 gamut mapping, the worse of the two, hues 0–359): white on the dark theme's
+  accent 2.83:1 → `--on-accent: #1a1a1a` there (5.61 on the accent, 5.24 on the danger); white on the light
+  accent 4.89, on the light danger 4.86; white on the light info at oklch L 0.547 4.43 at hue 192 → L 0.535
+  (4.64); the danger banner's ink with no `--danger-ink` defined fell back to #b91c1c, 2.26:1 in dark → a
+  defined ink per theme (5.83 light, 5.53 dark); the fields' edge `--border` 1.25–1.44:1 → `--border-field`
+  3.21+ / 3.25+ (WCAG 1.4.11 asks 3:1); the chosen segment #fff on #fbfaf7 1.04:1 → accent-soft with the
+  accent ink and an inset accent edge. The numbers sit beside each token in the template's tokens.css; the
+  script is the review's `contrast/measure.mjs`. — *measured, 2026-10-20*.
+- **QTabs clips a focus ring drawn outside the tab** (its content area hides vertical overflow and the tab
+  fills it): the ring is drawn inset. — *measured, screenshots*.
+- **Dragging needs a single-pointer way** (WCAG 2.5.7): a box drawn on the photo by two clicks as well as a
+  drag, pan buttons while zoomed; a freehand path (brush, eraser) is 2.1.1's exception. — *2026-10-20*.
 
 ## Records not yet distilled
 

@@ -25,8 +25,12 @@
 //   - A data root that can't be used (a missing drive, an offline share, read-only, a path the
 //     native code can't take) is said before anything lands in it, in a message box: Try again,
 //     Use the default folder (this start only), Quit (2026-10-20).
-//   - Change folder moves the data into a new folder named for the app inside the one picked, one
-//     move at a time: while it copies the server stays stopped (dataRoot.js, 2026-10-20).
+//   - Change folder copies the data into a new folder named for the app inside the one picked (or back
+//     into the default folder), one move at a time: while it copies the server stays stopped, a start
+//     already under way is checked again before it forks, and Quit is held. The old folder is never
+//     removed by the app on its own — Storage shows the old copy and removes it when asked; a half copy
+//     a stopped move left goes at the next start; the window's token is carried to the new folder
+//     (dataRoot.js, 2026-10-20).
 //   - The server runs with the OS's certificates trusted (NODE_USE_SYSTEM_CA) and the system's
 //     proxy handed down (server_start.js, 2026-10-20).
 //   - The window loads the built UI from `app://<id>/` (ruling 3) — it opens even when
@@ -67,9 +71,26 @@ import {
 } from "electron";
 import contextMenu from "electron-context-menu";
 import { dataFolderInUse } from "../platform/data_lock.js";
-import { cantUseDataDir, samePath } from "../platform/data_paths.js";
+import { cantUseDataDir, dataDirSource, samePath } from "../platform/data_paths.js";
 import { portInUse } from "../platform/port.js";
-import { CHROME_DIR, dataRootProblem, MOVE_UNDER_WAY, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir, useDefaultRoot } from "./dataRoot.js";
+import {
+  appFolderName,
+  CHROME_DIR,
+  dataDirSetBy,
+  dataRootProblem,
+  forgetPointer,
+  MOVE_UNDER_WAY,
+  oldCopiesInfo,
+  oldCopyOf,
+  relocate,
+  removeOldCopy,
+  resolveDataRoot,
+  setByVariable,
+  storageInfo,
+  sweepUnfinishedMove,
+  takeCarried,
+  useDefaultRoot,
+} from "./dataRoot.js";
 import { pickSpellLanguages } from "./spellLanguages.js";
 import { placeSaved } from "./save_place.js";
 import { firstErrorLine, listenFailure, PROXY_PROBE_URL, proxyFromPac, serverEnv } from "./server_start.js";
@@ -83,6 +104,9 @@ export const COMMANDS = [
   "saveFromUrl",
   "storageGetRoot",
   "storageRelocate",
+  "storageOldCopies",
+  "storageRemoveOldCopy",
+  "storageUseDefault",
   "setKeepRunning",
   "setTrayLabels",
   "setContextMenuLabels",
@@ -96,6 +120,22 @@ export const COMMANDS = [
   "serverUrl",
   "serverStatus",
 ];
+
+/** What Quit (the window, the tray, an update's restart) says while Change folder copies (2026-10-20): held. */
+export const QUIT_WHILE_MOVING = "The data is being moved — quit when it's done.";
+
+// The longest a Change folder waits for a server start already under way to end (its own steps are bounded: the
+// proxy 5 s, a stale server's stop 15 s; a server past that is stopped as any other).
+const START_WAIT_MS = 60_000;
+
+/** `home` with the access token a move carried, as the kit's sign-in address takes it (serverToken.js
+ *  `adoptTokenFromAddress` — `?token=`, taken once and removed from the address). */
+export function withCarriedToken(home, token) {
+  if (!token) return home;
+  const u = new URL(home);
+  u.searchParams.set("token", token);
+  return u.toString();
+}
 
 const DEFAULT_TRAY_LABELS = {
   show: "📺 Show window",
@@ -169,8 +209,15 @@ export function runDesktopApp(config) {
     portReserved: null,
     serverError: null,
     // Change folder is copying the data (2026-10-20): one move at a time — a second is refused, the server isn't
-    // started (it would open the old folder mid-copy), and the tray's server items are off.
+    // started (it would open the old folder mid-copy; a start already waiting checks again before it forks), the
+    // tray's server items are off, and Quit is held.
     moving: false,
+    // This start uses the default folder because the folder Change folder's pointer names can't be used ("Use the
+    // default folder", this start only): {folder} — Storage offers "Use the default folder from now on".
+    defaultThisStart: null,
+    // The window was reloaded because another server took the data folder over: its boot shows why (the
+    // connection page) instead of starting a server that would only meet the same lock.
+    skipRetry: false,
     keepRunning: false,
     quitting: false,
     win: null,
@@ -202,12 +249,23 @@ export function runDesktopApp(config) {
   let rootProblem = dataRootProblem(state.root);
   let canUseDefault = false;
   let chromeHome = state.root;
+  // the window's access token a move carried here (dataRoot.js takeCarried): its first page signs in with it
+  let carriedToken = null;
+  const ladder = { appName: config.appName, repoRoot: config.repoRoot, packaged: app.isPackaged };
   if (rootProblem) {
     console.warn(`[shell] ${cantUseDataDir(state.root, rootProblem)}`);
-    const def = storageInfo({ root: state.root, appName: config.appName, repoRoot: config.repoRoot, packaged: app.isPackaged }).default;
+    const def = storageInfo({ root: state.root, ...ladder }).default;
     canUseDefault = !samePath(def, state.root) && !dataRootProblem(def);
     chromeHome = canUseDefault ? def : path.join(os.tmpdir(), `${config.id}-start`);
-  } else sweepOldChromeDir(state.root);
+  } else {
+    // a half copy a stopped Change folder left goes (never anything of the folder in use, nor a committed move's)
+    try {
+      sweepUnfinishedMove(state.root, ladder);
+      carriedToken = takeCarried(state.root);
+    } catch (e) {
+      console.warn(`[shell] the last move's leftovers couldn't be checked: ${e?.message || e}`);
+    }
+  }
   const chromeDir = path.join(chromeHome, CHROME_DIR);
   fs.mkdirSync(chromeDir, { recursive: true });
   for (const k of ["userData", "sessionData", "crashDumps", "logs"]) app.setPath(k, path.join(chromeDir, k === "userData" ? "" : k));
@@ -276,9 +334,31 @@ export function runDesktopApp(config) {
     await stopStaleServer(port, { shutdownPath: config.shutdownPath || null, waitMs: STOP_WAIT_MS });
   }
 
+  /** A start held off by Change folder (its copy runs): the start ends without a server, and whoever waits on it
+   *  (the window's `serverUrl`, the move itself) hears so. */
+  function heldByMove() {
+    if (!state.server && state.serverPhase === "starting") {
+      state.serverPhase = "off";
+      settleServerUrl();
+    }
+    console.warn("[shell] the data folder is being moved — the server starts when the move ends");
+  }
+
+  /** Resolves when no start is under way (a server that listens, or a start that ended), or after `ms`. */
+  function startSettled(ms) {
+    if (state.serverPhase !== "starting") return Promise.resolve();
+    return new Promise((resolve) => {
+      const t = setTimeout(resolve, ms);
+      urlWaiters.push(() => {
+        clearTimeout(t);
+        resolve();
+      });
+    });
+  }
+
   async function startServer({ evicted = false } = {}) {
     if (state.server || (state.serverPhase === "starting" && !evicted)) return;
-    if (state.moving) return console.warn("[shell] the data folder is being moved — the server starts when the move ends");
+    if (state.moving) return heldByMove();
     if (process.env[`${config.id.toUpperCase().replace(/-/g, "_")}_DEV_NO_SERVER`]) return; // run it yourself
     state.serverPhase = "starting";
     Object.assign(state, { portTaken: null, dataFolderInUse: null, portOtherUser: null, portReserved: null, serverError: null });
@@ -294,6 +374,9 @@ export function runDesktopApp(config) {
     // (`ready`), or which port it couldn't take (`listen-failed` — before it opens its database,
     // when the app names its port first).
     const proxy = await systemProxy();
+    // Change folder began while this start waited (the port's owner, a stale server's stop, the proxy): it must not
+    // open the old folder mid-copy (the fifteenth review, measured) — checked again right before the fork
+    if (state.moving) return heldByMove();
     const child = utilityProcess.fork(config.serverEntry, ["serve"], {
       env: serverEnv({ env: process.env, dataDirEnv: config.dataDirEnv, root: state.root, proxy }),
       serviceName: `${config.productName} server`,
@@ -320,10 +403,16 @@ export function runDesktopApp(config) {
       } else if (m?.type === "data-folder-locked") {
         // Another server of this app has the data folder open — found at the start, or taking the
         // folder's lock over while ours ran: ours stops, and the renderer's connection-error screen
-        // says so.
+        // says so. Taken over while ours served (2026-10-20): the window, which knew nothing of it, is
+        // reloaded and shows the connection page's reason.
+        const serving = state.serverPhase === "ready";
         state.dataFolderInUse = dataFolderInUse(config.productName, m.dataDir);
         console.warn(`[shell] ${state.dataFolderInUse}`);
-        stopServer();
+        stopServer().then(() => {
+          if (!serving || state.quitting || !state.win || state.win.isDestroyed()) return;
+          state.skipRetry = true;
+          state.win.webContents.reload();
+        });
       } else if (m?.type === "start-failed") {
         // The server couldn't start (its data folder, its database …): its first line reaches the
         // connection-error screen.
@@ -576,7 +665,9 @@ export function runDesktopApp(config) {
       }
       console.log("[shell] window failed: the app never drew its layout and first page");
     });
-    win.loadURL(home);
+    // the first page after a Change folder signs in with the token the old folder's profile kept (once)
+    win.loadURL(withCarriedToken(home, carriedToken));
+    carriedToken = null;
     state.win = win;
     return win;
   }
@@ -667,8 +758,25 @@ export function runDesktopApp(config) {
     state.tray?.setContextMenu(buildTrayMenu());
   }
 
+  // Quit while Change folder copies is held (2026-10-20): a stop midway left a half copy for good — said in a box
+  // (one at a time), the app goes on; the move's own relaunch ends it.
+  let quitHeld = false;
+  async function holdQuit() {
+    if (quitHeld) return;
+    quitHeld = true;
+    const options = { type: "info", title: config.productName, message: QUIT_WHILE_MOVING, detail: "The app restarts on the new folder when the move finishes.", buttons: ["OK"], noLink: true };
+    try {
+      await (state.win && !state.win.isDestroyed() ? dialog.showMessageBox(state.win, options) : dialog.showMessageBox(options));
+    } catch {
+      /* no box: the move goes on */
+    } finally {
+      quitHeld = false;
+    }
+  }
+
   async function quitApp() {
     if (state.quitting) return;
+    if (state.moving) return holdQuit();
     state.quitting = true;
     await stopServer();
     app.quit();
@@ -805,20 +913,41 @@ export function runDesktopApp(config) {
       }
       return { ok: true, path: r.filePath };
     },
+    // The Storage panel's facts: {root, default, portable} (JustWrite's shape), `atDefault` (the data is in the
+    // default folder — no "Move back"), `folderName` — the folder Change folder makes inside the one picked —,
+    // `defaultThisStart` ({folder} while this start uses the default folder because the pointer's folder can't be
+    // used, else null), `setBy` (the data-dir variable's name while it names the folder: no Change folder — its
+    // pointer would be ignored) and `oldCopyOf` ({root, movedAt} when this folder holds the old copy a move left:
+    // the app runs on stale data).
     storageGetRoot() {
-      return storageInfo({ root: state.root, appName: config.appName, repoRoot: config.repoRoot, packaged: app.isPackaged });
+      const info = storageInfo({ root: state.root, ...ladder });
+      return {
+        ...info,
+        atDefault: samePath(info.root, info.default),
+        folderName: appFolderName(config.productName, config.appName),
+        defaultThisStart: state.defaultThisStart,
+        setBy: dataDirSetBy({ dataDirEnv: config.dataDirEnv }),
+        oldCopyOf: oldCopyOf(state.root),
+      };
     },
-    async storageRelocate({ newRoot }) {
+    async storageRelocate({ newRoot, token }) {
       // Stop the server so nothing holds the database open, move, then ALWAYS bring a
       // server back — under the new root on success, the old one on failure.
       // Chromium's folder can only move with a restart, so a successful move relaunches.
       // One move at a time: while one copies, a second is refused and the server stays stopped (`moving`).
+      // Not while the data-dir variable names the folder: the next start would ignore the pointer (2026-10-20).
+      const setBy = dataDirSetBy({ dataDirEnv: config.dataDirEnv });
+      if (setBy) throw new Error(setByVariable(setBy));
       if (state.moving) throw new Error(MOVE_UNDER_WAY);
       setMoving(true);
       let moved = null;
       try {
+        // a start already under way ends first: it checks `moving` again before it forks, and one that forked
+        // is stopped once it listens (or fails) — never killed midway through opening the database
+        await startSettled(START_WAIT_MS);
         await stopServer();
-        // into a new folder named for the app inside the one picked (dataRoot.js relocate)
+        // into a new folder named for the app inside the one picked, or back into the default folder (dataRoot.js
+        // relocate); the window's token goes with it
         moved = await relocate({
           oldRoot: state.root,
           newRoot,
@@ -826,6 +955,7 @@ export function runDesktopApp(config) {
           folderName: config.productName,
           packaged: app.isPackaged,
           repoRoot: config.repoRoot,
+          token: typeof token === "string" ? token : null,
         });
       } catch (e) {
         setMoving(false);
@@ -840,6 +970,26 @@ export function runDesktopApp(config) {
       state.quitting = true;
       app.relaunch();
       app.exit(0);
+      return null;
+    },
+    // The old copies a move left (dataRoot.js oldCopiesInfo): [{root, bytes}] — Storage shows each with Remove.
+    storageOldCopies() {
+      return oldCopiesInfo(state.root);
+    },
+    // "Remove the old copy": only what the move copied from `root`, never the folder in use; the list after.
+    async storageRemoveOldCopy({ root }) {
+      if (state.moving) throw new Error(MOVE_UNDER_WAY);
+      await removeOldCopy(state.root, String(root || ""));
+      return oldCopiesInfo(state.root);
+    },
+    // "Use the default folder from now on" (while this start uses it — `defaultThisStart`): the pointer forgotten.
+    storageUseDefault() {
+      const setBy = dataDirSetBy({ dataDirEnv: config.dataDirEnv });
+      if (setBy) throw new Error(setByVariable(setBy));
+      if (!state.defaultThisStart) return null;
+      forgetPointer(ladder);
+      console.log(`[shell] the data folder ${state.defaultThisStart.folder} is forgotten — the default folder ${state.root} from now on`);
+      state.defaultThisStart = null;
       return null;
     },
     setKeepRunning({ keepRunning }) {
@@ -887,7 +1037,9 @@ export function runDesktopApp(config) {
     // in). A server stopped from the tray stays stopped.
     serverUrl() {
       const failed = state.portTaken || state.dataFolderInUse || state.portOtherUser || state.portReserved || state.serverError;
-      if (!state.server && state.serverPhase !== "starting" && failed) void startServer();
+      // (not on the reload after another server took the folder over: the page shows why first; its Retry tries)
+      if (!state.server && state.serverPhase !== "starting" && failed && !state.skipRetry) void startServer();
+      state.skipRetry = false;
       if (state.serverPhase !== "starting") return serverUrl();
       return new Promise((resolve) => urlWaiters.push(resolve));
     },
@@ -925,6 +1077,11 @@ export function runDesktopApp(config) {
       // "Restart now": the server stops first, as on any quit; then the installer runs and the
       // app quits without the close handler stepping in.
       if (!updater || update.state !== "ready") return updateNow();
+      // not while Change folder copies: the restart would stop it midway
+      if (state.moving) {
+        void holdQuit();
+        return updateNow();
+      }
       await stopServer();
       state.quitting = true;
       // silently (/S), then the app starts again (--force-run). Without /S the family's assisted
@@ -998,6 +1155,9 @@ export function runDesktopApp(config) {
       const choice = buttons[response];
       if (choice === "Use the default folder") {
         console.log(`[shell] using the default data folder ${def} for this start — the data folder ${state.root} is kept`);
+        // the pointer's folder: Storage offers to forget it ("Use the default folder from now on"); the variable's
+        // is the user's to change where it is set
+        state.defaultThisStart = dataDirSource(state.root) === "pointer" ? { folder: state.root } : null;
         state.root = def;
         rootProblem = null;
         return true;

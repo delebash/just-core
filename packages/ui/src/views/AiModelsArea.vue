@@ -9,7 +9,7 @@
 // own line, model + key on the next, status + Test + Edit). The Features routing
 // table + the per-provider local-model/Fit section are the next chunks.
 import { copyToClipboard } from "quasar";
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import AppModal from "../common/components/AppModal.vue";
@@ -17,6 +17,8 @@ import UiButton from "../common/components/UiButton.vue";
 import UiCheckbox from "../common/components/UiCheckbox.vue";
 import UiSegmented from "../common/components/UiSegmented.vue";
 import UiTable from "../common/components/UiTable.vue";
+import UiTabStrip from "../common/components/UiTabStrip.vue";
+import { tabPanelAttrs } from "../common/components/tabPanels.js";
 import FeatureWorkbench from "./FeatureWorkbench.vue";
 
 const { t, n: fmtNum } = useI18n();
@@ -123,6 +125,20 @@ const emit = defineEmits(["quick-setup-closed"]);
 // existed only for the Tune→Tasks switch-carry handoff, removed with §7.1: engine
 // switches live on the model, so there is nothing to hand to the Lab anymore.)
 const tab = ref("providers");
+// The strip is the kit's UiTabStrip (role tablist / tab, its keys) and each section its tab's
+// tabpanel (APG Tabs — until 2026-10-20 the tabs were <a>s with no href: links a keyboard never
+// reached; the screens-and-keyboard review).
+const tabPrefix = `ai-area-${useId()}`;
+// The tabs that fill the area's height (their own panes scroll); on every other tab the area
+// itself is the ONE scroller — the hardware card, the strip (sticky) and the tab's content
+// together (the tab was a scroller under the hardware card, 195px tall at 960×700).
+const FILL_TABS = new Set(["features", "console"]);
+// A tab opens at the top of the area — a fill tab would otherwise sit under the scroll the last tab
+// left (its overflow hidden, the scroll kept), its bottom cut off.
+const areaEl = ref(null);
+watch(tab, () => {
+  if (areaEl.value) areaEl.value.scrollTop = 0;
+});
 
 // ── The tab strip, as data (multi host tabs, 2026-08-05) ─────────────────────
 // Kit tabs + the host's appTabs merged into ONE ordered list. `after` inserts
@@ -611,7 +627,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="lu-area">
+  <div ref="areaEl" class="lu-area" :class="{ 'lu-area--fill': FILL_TABS.has(tab) }">
     <p class="lu-muted lu-lede">{{ t('kit.aiArea.lede') }}</p>
 
     <!-- The machine strip (OS · CPU · Memory · GPU · Acceleration, then the live
@@ -689,15 +705,13 @@ onMounted(() => {
 
     <!-- ONE strip from tabDefs: kit tab words are the kit's keys (kit.aiTabs.*, one word every
          app — an app rewords one by setting the key in its own catalog); host tabs carry the
-         app's own words. The strip WRAPS (the fit rule) — labels never clip. -->
-    <nav class="lu-subnav">
-      <a v-for="tb in tabDefs" :key="tb.id" :class="{ on: tab === tb.id }" @click="tab = tb.id">{{ tb.label }}</a>
-    </nav>
+         app's own words. The kit's tab strip: one row, QTabs' own arrows when it's too narrow. -->
+    <UiTabStrip v-model="tab" :tabs="tabDefs" class="lu-subnav" :aria-label="t('kit.aiArea.tabsLabel')" :id-prefix="tabPrefix" />
 
     <div v-if="error" class="lu-error" style="margin-top:14px">{{ error }}</div>
 
     <!-- ── Providers & models ── -->
-    <section v-show="tab === 'providers'" class="lu-tab">
+    <section v-show="tab === 'providers'" class="lu-tab" v-bind="tabPanelAttrs(tabPrefix, 'providers')">
       <!-- 2026-07-19 (user ruling): the QC-39 (b) PROMOTION is reversed — the
            built-in provider is now a NORMAL first row in the Local list with the
            same inline Edit as every other provider (the Local tab gives the
@@ -729,6 +743,7 @@ onMounted(() => {
              groups — ONE row template renders the scope you're standing on, so the
              two near-duplicate lists that used to drift are gone. -->
         <UiSegmented v-if="localOn" v-model="providerScope" variant="connected" class="lu-scope"
+          :aria-label="t('kit.aiArea.scope.label')"
           :options="[
             { value: 'local', label: t('kit.aiArea.scope.local'), sublabel: t('kit.aiArea.scope.localSub') },
             { value: 'online', label: t('kit.aiArea.scope.online'), sublabel: t('kit.aiArea.scope.onlineSub') },
@@ -739,8 +754,8 @@ onMounted(() => {
             <span class="lu-prow-ic">
               <!-- The ONLY difference the two old row templates had: the chip glyph on
                    local, the sparkle on online. -->
-              <svg v-if="providerScope === 'local'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4.2" y="4.2" width="7.6" height="7.6" rx="1.2" /><path d="M6.2 1.5v2.7M9.8 1.5v2.7M6.2 11.8v2.7M9.8 11.8v2.7M1.5 6.2h2.7M1.5 9.8h2.7M11.8 6.2h2.7M11.8 9.8h2.7" stroke-linecap="round" /></svg>
-              <svg v-else viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.4l1.4 4.1 4.2 1.5-4.2 1.5L8 12.6 6.6 8.5 2.4 7l4.2-1.5z" /></svg>
+              <svg v-if="providerScope === 'local'" role="img" :aria-label="t('kit.aiArea.scope.localShort')" focusable="false" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4.2" y="4.2" width="7.6" height="7.6" rx="1.2" /><path d="M6.2 1.5v2.7M9.8 1.5v2.7M6.2 11.8v2.7M9.8 11.8v2.7M1.5 6.2h2.7M1.5 9.8h2.7M11.8 6.2h2.7M11.8 9.8h2.7" stroke-linecap="round" /></svg>
+              <svg v-else role="img" :aria-label="t('kit.aiArea.scope.onlineShort')" focusable="false" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.4l1.4 4.1 4.2 1.5-4.2 1.5L8 12.6 6.6 8.5 2.4 7l4.2-1.5z" /></svg>
             </span>
             <div class="lu-prow-info">
               <div class="lu-prow-name">
@@ -859,20 +874,20 @@ onMounted(() => {
     <!-- ── Models (opt-in split, `modelsTab`) — the SAME shared catalog surface the
          built-in provider's Edit mounts; lazy (first visit), then kept mounted so a
          running download's progress survives a tab switch. ── -->
-    <section v-if="props.modelsTab && visitedTabs.has('models')" v-show="tab === 'models'" class="lu-tab">
+    <section v-if="props.modelsTab && visitedTabs.has('models')" v-show="tab === 'models'" class="lu-tab" v-bind="tabPanelAttrs(tabPrefix, 'models')">
       <LuModelCatalog />
     </section>
 
     <!-- ── Routing by feature — the Feature Workbench: per-feature preset (model +
          ask-params/samplers live in the preset; launch switches live on the MODEL —
          Tune & measure, §7.1). ── -->
-    <section v-show="tab === 'features'" class="lu-tab lu-tab-fill">
+    <section v-show="tab === 'features'" class="lu-tab lu-tab-fill" v-bind="tabPanelAttrs(tabPrefix, 'features')">
       <FeatureWorkbench v-if="tab === 'features'" :run-stream="props.runStream"
         :data-links="props.dataLinks" :initial-action="props.initialFeatureAction" />
     </section>
 
     <!-- ── Usage — full ledger: rollup + by-feature + by-provider + reset ── -->
-    <section v-show="tab === 'usage'" class="lu-tab">
+    <section v-show="tab === 'usage'" class="lu-tab" v-bind="tabPanelAttrs(tabPrefix, 'usage')">
       <template v-if="usageView">
         <div class="lu-usagehead">
           <span class="lu-pcard-title">{{ t('kit.aiTabs.usage') }}</span>
@@ -918,22 +933,26 @@ onMounted(() => {
     <!-- ── AI engine console — live follow of the server log ring + the engine
          child's output (QC-43c). Mounted only while active (v-if) so its poll
          stops when the reader leaves the tab. Fills its height (one scroller). ── -->
-    <section v-show="tab === 'console'" class="lu-tab lu-tab-fill">
+    <section v-show="tab === 'console'" class="lu-tab lu-tab-fill" v-bind="tabPanelAttrs(tabPrefix, 'console')">
       <ConsolePanel v-if="tab === 'console'" />
     </section>
 
     <!-- ── App-contributed tabs (host fills #app-tab / #app-tab-<id>; e.g. JW
          "Writing AI", JV "Speech engines"). Lazy: mounted on first visit, kept
          mounted after so tab state (an in-flight install, a scroll) survives. ── -->
-    <section v-for="tb in appTabDefs" :key="tb.id" v-show="tab === tb.id" class="lu-tab">
+    <section v-for="tb in appTabDefs" :key="tb.id" v-show="tab === tb.id" class="lu-tab" v-bind="tabPanelAttrs(tabPrefix, tb.id)">
       <slot v-if="visitedTabs.has(tb.id)" :name="tb.slot" />
     </section>
   </div>
 </template>
 
 <style scoped>
-/* Full width — the host card frames it; no inner cap (matches JV's settings). */
-.lu-area { width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+/* Full width — the host card frames it; no inner cap (matches JV's settings). In a host that gives
+   it a height (the app's page column), the area is the ONE scroller — the hardware card, the sticky
+   tab strip and the tab together; a fill tab (Routing, the console) fills what is left and scrolls
+   in its own panes instead. In a host that scrolls itself, the area grows and the host scrolls. */
+.lu-area { width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+.lu-area.lu-area--fill { overflow: hidden; }
 .lu-h1 { font-size: 22px; font-weight: 600; margin: 0; color: var(--ink); }
 .lu-lede { font-size: 13px; margin: 4px 0 0; }
 /* The machine strip — labelled stat blocks (OS · CPU · Memory · GPU · Accel ·
@@ -982,19 +1001,18 @@ onMounted(() => {
    under it. var(--surface) backing matches the host card so rows pass cleanly
    beneath; the pseudo-element bleeds the bg over the host's scroll padding so
    nothing peeks above the bar. */
-/* flex-wrap is the fit rule: a strip that outgrows its row WRAPS — labels never
-   clip and never overflow (the JV seven-tab console is the sizing case). */
-.lu-subnav { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 22px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; background: var(--surface); }
+/* The strip is UiTabStrip (its look and one-row fit are the kit theme's "Tab strip"); here only
+   where it sits. */
+.lu-subnav { margin-top: 22px; position: sticky; top: 0; z-index: 5; background: var(--surface); }
 /* Cover the host card's scroll padding above the stuck bar so rows don't peek
    through. Height == the subnav's top margin so it fills that gap exactly when
    unstuck (over the same surface bg → invisible) and the padding band when stuck. */
 .lu-subnav::before { content: ""; position: absolute; left: 0; right: 0; top: -22px; height: 22px; background: var(--surface); }
-.lu-subnav a { padding: 11px 16px; font-size: 12.5px; color: var(--ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; font-weight: 600; }
-.lu-subnav a.on { color: var(--ink); border-bottom-color: var(--accent); }
-.lu-tab { padding-top: 14px; flex: 1; min-height: 0; overflow-y: auto; }
+/* A tab's content is as tall as it is — the area scrolls, never the tab. */
+.lu-tab { padding-top: 14px; flex: none; }
 /* Routing-by-feature fills its height (its own nav + content panes scroll); it
    does not scroll as a whole. */
-.lu-tab.lu-tab-fill { overflow: hidden; display: flex; flex-direction: column; }
+.lu-tab.lu-tab-fill { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 
 /* naked control — the host wraps it in its own page card (.pane-card in JW) */
 .lu-pcard-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }

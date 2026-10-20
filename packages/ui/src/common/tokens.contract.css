@@ -21,8 +21,12 @@
  *                      (quasar/theme.css) read it; its colour 3:1 or more against every ground
  *                      it meets, both themes (WCAG 2.2 focus appearance). Without it a control
  *                      falls back to a faint --accent-soft halo (~1.2:1).
- *   --accent-ink       accent text on a soft-accent background
- *   --on-accent        text/icon colour ON a solid --accent fill (usually #fff)
+ *   --accent-ink       accent text on a soft-accent background (the chosen segment, a selected row)
+ *   --on-accent        text/icon colour ON a solid --accent or --danger fill (a primary or danger
+ *                      button, a solid tag, a checked box) — 4.5:1 or more on both at every hue the
+ *                      appearance engine can set (0–359; it moves only the hue). #fff on the light
+ *                      theme's mid fills; near-black (#1a1a1a) on the dark theme's lighter ones, as
+ *                      Material's on-primary — white measured 2.83:1 there.
  *   --ink              primary text
  *   --ink-2            secondary text (button labels, field labels)
  *   --muted            tertiary text (placeholders, hints) — 4.5:1 or more on every ground it sits
@@ -32,11 +36,23 @@
  *   --surface-3        hover background for quiet controls
  *   --border           hairline border
  *   --border-strong    stronger border (checkbox box, secondary button)
+ *   --border-field     a field's edge — inputs, selects, multi-selects and the segmented
+ *                      control's track (quasar/theme.css) — 3:1 or more against every ground a
+ *                      field sits on (--surface, --bg, --surface-2/-3), both themes (WCAG 1.4.11
+ *                      non-text contrast). Without it a field falls back to --border (~1.3:1).
  *   --danger           destructive solid
  *   --danger-bg        destructive soft background (outline-danger hover)
+ *   --danger-ink       danger TEXT: the danger banner's (UiBanner — on 12% of itself over the
+ *                      ground), a failed task's, an error line's — 4.5:1 or more on that tint at
+ *                      every --danger-hue, both themes. Falls back to #b91c1c (2.26:1 in dark).
  *   --success          positive solid (falls back to --accent green)
  *   --info             informational solid (blue)
+ *   --info-ink         info TEXT on --info-bg (the info banner, the info tag) — 4.5:1 or more at
+ *                      every --info-hue, both themes; falls back to --info
  *   --gold             second accent / warn solid
+ *   --warn-bg / --warn-ink  the warning banner (UiBanner intent "warning", its ⚠ in the ink) and
+ *                      the accent2 tag — 4.5:1 or more; the appearance engine sets the pair from
+ *                      the gold hue when it runs
  *   *-bg / *-ink pairs (--success-bg/-ink, --info-bg/-ink, --warn-bg/-ink) tint
  *     the soft tag variants; each falls back to a sensible mix.
  *
@@ -61,11 +77,22 @@
  *     --ink: #1a1a1a; --ink-2: #4a4a4a; --muted: #6b6b6b;   (4.59:1 on these grounds; #888 was 3.05:1)
  *     --surface: #fff; --surface-2: #fbfaf7; --surface-3: #f3f1ec;
  *     --border: #e3e1dc; --border-strong: #cfccc4;
- *     --danger: #a8442e; --danger-bg: #fbecea;
- *     --success: #3a7d63; --info: #2f74b5; --gold: #c89a3a;
+ *     --border-field: #8a867f;      (3.21:1 on --surface-3, 3.62:1 on --surface)
+ *     --danger: #a8442e; --danger-bg: #fbecea;   (#fff on --danger 5.95:1, on --accent 4.89:1)
+ *     --danger-ink: #8a3523;        (5.89:1 on its banner tint over --surface-3, 7.00:1 on --danger-bg)
+ *     --success: #3a7d63; --info: #2f74b5; --info-bg: #e8f0f8;
+ *     --info-ink: #24598c;          (6.33:1 on --info-bg)
+ *     --gold: #c89a3a; --warn-bg: #fff8e3;
+ *     --warn-ink: #6b4f12;          (7.19:1 on --warn-bg)
  *     --r-sm: 6px; --btn-radius: 8px;
  *     --w-token: 110px; --w-id: 180px; --w-name: 280px; --w-url: 360px;
  *     --w-path: 480px; --w-prose: 640px; --w-edit: 880px;
  *     --tag-border-width: 0;
+ *   }
+ *   [data-theme="dark"] {   (the template's dark values, measured at every hue: template/src/css/tokens.css)
+ *     --on-accent: #1a1a1a;   (5.61:1 on --accent, 5.24:1 on --danger; white was 2.83:1)
+ *     --border-field: #787c78;   (3.25:1 on --surface-3)
+ *     --danger-ink: oklch(0.800 0.090 var(--danger-hue));   (5.53:1 on its banner tint)
+ *     --info-ink: oklch(0.820 0.070 var(--info-hue));       (7.71:1 on --info-bg)
  *   }
  */

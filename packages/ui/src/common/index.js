@@ -48,6 +48,8 @@ export { default as SettingsShell } from "./components/SettingsShell.vue";
 // SettingsShell's strip, on its own — for a view that owns its own scroller and
 // would inherit a second one by taking the whole shell.
 export { default as UiTabStrip } from "./components/UiTabStrip.vue";
+// a strip's tabs wired to the panels the consumer renders (APG Tabs: tabpanel, aria-labelledby)
+export { tabPanelAttrs, tabPanelId, tabId } from "./components/tabPanels.js";
 // a picture the app's server holds, through the kit's transport (the bearer token, the phone's in-app server)
 export { default as UiServerImage } from "./components/UiServerImage.vue";
 export { useServerImage } from "./composables/useServerImage.js";
@@ -64,6 +66,9 @@ export { renderHelpMarkdown, slugifyHeading } from "./services/helpMarkdown.js";
 
 // shared toasts — the imperative bridge (Quasar's Notify under the hood)
 export { pushToast, clearToasts } from "./services/toastBridge.js";
+// what a screen reader is told without the focus moving — the one polite and one assertive live
+// region every toast and AI task speaks through (installLlmUi creates them at start)
+export { announce, clearAnnouncer, installAnnouncer } from "./services/announce.js";
 
 // the error and validation contract (app-structure §15): one way to show a failure, form rules
 // from the route's own schema, field errors under their fields, renderer errors into the log

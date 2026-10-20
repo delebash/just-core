@@ -7,6 +7,9 @@ Code in this app that was copied or ported from another project, with its licenc
 
 - **UiTable's filter and sort** (`just-core/packages/ui/src/common/components/tableRows.js`) — ported from
   TanStack Table's table-core 8. MIT License, Copyright (c) 2016 Tanner Linsley.
+- **Which names are marked as right-to-left** (`just-core/packages/ui/src/common/services/isolate.js`) — the
+  strong left-to-right and right-to-left character ranges of Google Closure Library's `closure/goog/i18n/bidi.js`.
+  Apache License 2.0 (apache.org/licenses/LICENSE-2.0), Copyright The Closure Library Authors.
 - **The toasts' kind icons** (`just-core/packages/ui/src/common/services/toastBridge.js`) — Heroicons paths
   (MIT License, Copyright (c) Tailwind Labs, Inc.) as vue-sonner 2.0.9 shipped them. MIT License,
   Copyright (c) 2022 Yunwei Xiao.

@@ -2,7 +2,8 @@
 // The kit's one HTTP client (Python's `requests` / `httpx`): undici's fetch on an agent
 // whose header and body timeouts sit past JustVoice's 900 s request limit (undici's
 // defaults are 300 s — study §3.3), and which honours HTTP(S)_PROXY / NO_PROXY (plain
-// `fetch` ignores them unless NODE_USE_ENV_PROXY=1).
+// `fetch` ignores them unless NODE_USE_ENV_PROXY=1) — this computer's own addresses never
+// through a proxy (no_proxy.js; the environment is read once, when the agent is made).
 //
 // `fetch` is called through this module's namespace everywhere, so a test replaces it
 // with `vi.spyOn(http, "fetch")` — the Python tests' monkeypatch of requests.get.
@@ -10,6 +11,7 @@
 import { randomBytes } from "node:crypto";
 import { EnvHttpProxyAgent, fetch as undiciFetch } from "undici";
 import * as self from "./http.js";
+import { noProxyWithLoopback } from "./no_proxy.js";
 
 const LONG_MS = 15 * 60 * 1000;
 
@@ -28,6 +30,7 @@ const agent = new EnvHttpProxyAgent({
   bodyTimeout: LONG_MS,
   connectTimeout: 30_000,
   ...H2_WINDOWS,
+  noProxy: noProxyWithLoopback(),
 });
 
 /** fetch(url, init) on the kit's agent. `init.timeoutMs` aborts the whole request. */

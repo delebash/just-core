@@ -13,8 +13,14 @@
 //
 // Toasts carry an optional `action` ({ label, fn }) for the inline button that soft-delete
 // uses to surface "Undo".
+//
+// A screen reader hears each toast through the kit's live regions (./announce.js — there from the
+// start; an error assertive, the rest polite), never through the toast itself: a toast inserted
+// already holding its words in a role="status" of its own was likely never read (the
+// screens-and-keyboard review, 2026-10-20), and a live role on it too would read it twice.
 
 import { Notify } from "quasar";
+import { announce } from "./announce.js";
 import { kitT } from "./kitI18n.js";
 
 // sonner's icons for the four kinds (Heroicons, MIT License, Copyright (c) Tailwind Labs,
@@ -104,7 +110,9 @@ export function pushToast({ message, title, description, kind, action, duration 
     textColor: undefined, // Notify's default white text
     icon: k ? ICONS[k] : undefined,
     classes: `ui-toast ui-toast--${k || "normal"}`,
-    attrs: { role: "status", "data-kind": k || "normal", onMouseenter: onEnter, onMouseleave: onLeave },
+    // no live role (Notify gives its toast role="alert" by default — `attrs` replaces it): the
+    // words go through announce() below
+    attrs: { role: null, "data-kind": k || "normal", onMouseenter: onEnter, onMouseleave: onLeave },
     actions: [
       { icon: CLOSE_ICON, class: "ui-toast__close", "aria-label": kitT("kit.toast.close"), round: true, dense: true, ripple: false },
       ...(action ? [{ label: action.label, handler: action.fn, class: "ui-toast__action", noCaps: true, ripple: false }] : []),
@@ -122,6 +130,7 @@ export function pushToast({ message, title, description, kind, action, duration 
   live.push(t);
   sync();
   while (live.length > MAX_VISIBLE) live[0].dismiss();
+  announce([text, description].filter(Boolean).join(". "), k === "error" ? "assertive" : "polite");
 }
 
 // Dismiss any visible toast.

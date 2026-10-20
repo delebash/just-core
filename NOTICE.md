@@ -12,6 +12,9 @@ licence notice of each is kept in the file named; the family rule is `docs/famil
 - **`packages/ui/src/common/services/toastBridge.js`** — the toasts' four kind icons, Heroicons paths (MIT
   License, Copyright (c) Tailwind Labs, Inc.) as vue-sonner 2.0.9 shipped them. MIT License,
   Copyright (c) 2022 Yunwei Xiao.
+- **`packages/ui/src/common/services/isolate.js`** — the strong left-to-right and right-to-left character
+  ranges (`ltrChars_`, `rtlChars_`) of Google Closure Library's `closure/goog/i18n/bidi.js`. Apache License 2.0,
+  Copyright The Closure Library Authors.
 
 - **`packages/ui/src/common/fonts.css`** — bundles font files from the Fontsource packages it imports (Inter,
   Spline Sans, Geist, Hanken Grotesk, Albert Sans, Manrope, DM Sans, Atkinson Hyperlegible, Fraunces, Source Serif 4,

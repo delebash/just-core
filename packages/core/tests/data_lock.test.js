@@ -4,13 +4,13 @@
 // taken over; a clean exit lets the lock go; a server start on a held folder says so and exits 3
 // before anything is built.
 import { spawn } from "node:child_process";
-import fs, { existsSync, mkdirSync, mkdtempSync, utimesSync } from "node:fs";
+import fs, { existsSync, mkdirSync, mkdtempSync, readdirSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import lockfile from "proper-lockfile";
 import { afterEach, expect, test, vi } from "vitest";
-import { dataFolderInUse, LOCK_NAME, lockDataDir } from "../src/platform/data_lock.js";
+import { coarseFileTimes, dataFolderHeld, dataFolderInUse, LOCK_NAME, lockDataDir, TEMP_LOCKS, tempLockPath } from "../src/platform/data_lock.js";
 import { runServer } from "../src/platform/serve.js";
 import { Hono } from "../src/platform/server.js";
 
@@ -153,16 +153,65 @@ const keep = () => {
   return { lines, warn: (s) => lines.push(`warn ${s}`), info: (s) => lines.push(`info ${s}`), error: (s) => lines.push(`error ${s}`) };
 };
 
-test("FAT32's 2-second times: the lost lock is said and taken again — never thrown", async () => {
+// FAT32 keeps a file's time to 2 s: what proper-lockfile reads back isn't the time it wrote (an fs as its `fs` option)
+// — on the FAT drive only (`under`, the data folder's; anything else is the system's own drive)
+const fatFs = (under = null) => ({
+  ...fs,
+  stat: (p, cb) =>
+    fs.stat(p, (e, s) => {
+      const onFat = !under || path.resolve(p).startsWith(path.resolve(under));
+      cb(e, s && (onFat ? { mtime: new Date(Math.floor(s.mtime.getTime() / 2000) * 2000) } : s));
+    }),
+});
+
+test("a time the probe can't see coarse yet comes back coarse: the lost lock is said and taken again — never thrown", async () => {
   const dir = newDir();
-  // FAT32 keeps a file's time to 2 s: what proper-lockfile reads back isn't the time it wrote
-  const fat = { ...fs, stat: (p, cb) => fs.stat(p, (e, s) => cb(e, s && { mtime: new Date(Math.floor(s.mtime.getTime() / 2000) * 2000) })) };
+  // FAT's times on the lock's refreshes only (the probe sees the real drive): the lock stays inside, gets lost
+  let probed = false;
+  const fat = fatFs();
+  const real = fat.stat;
+  fat.stat = (p, cb) => (path.basename(p).startsWith(".lock-time-probe-") ? ((probed = true), fs.stat(p, cb)) : real(p, cb));
   const log = keep();
   releases.push(await lockDataDir(dir, { retries: 0, log, fs: fat, stale: 2000, update: 1000 }));
+  expect(probed).toBe(true);
   await vi.waitFor(() => expect(log.lines.some((l) => l.startsWith("warn the data folder's lock was lost"))).toBe(true), { timeout: 10_000, interval: 100 });
   await vi.waitFor(() => expect(log.lines).toContain("info the data folder's lock is taken again"), { timeout: 10_000, interval: 100 });
   expect(existsSync(path.join(dir, LOCK_NAME))).toBe(true);
 }, 20_000);
+
+// The reviewer's fat_lock.mjs (proper-lockfile's own defaults, 70 s on FAT32's times): the lock lost every ~20 s,
+// taken back 5–7 s later. On a drive whose times are coarse the lock now lives in the system's temp folder.
+test("FAT32's 2-second times: the lock lives in the temp folder, named from the folder, and is never lost", async () => {
+  const dir = newDir();
+  const temp = mkdtempSync(path.join(tmpdir(), "kit-locks-"));
+  const fat = fatFs(dir);
+  expect(await coarseFileTimes((mkdirSync(dir, { recursive: true }), dir), fat)).toBe(true);
+  expect(await coarseFileTimes(dir)).toBe(false); // this machine's own drive: the millisecond
+  const log = keep();
+  releases.push(await lockDataDir(dir, { retries: 0, log, fs: fat, stale: 2000, update: 1000, tmp: temp }));
+  const where = tempLockPath(dir, { tmp: temp });
+  expect(path.dirname(where)).toBe(path.join(temp, TEMP_LOCKS));
+  expect(existsSync(where)).toBe(true);
+  expect(existsSync(path.join(dir, LOCK_NAME))).toBe(false);
+  expect(readdirSync(dir)).toEqual([]); // nothing of the lock — nor the probe — left in the data folder
+  expect(log.lines).toContain(`info the data folder's drive keeps file times too coarsely for its lock (FAT) — the lock is kept in ${where}`);
+  // past several refreshes and `stale`: never lost
+  await new Promise((r) => setTimeout(r, 5000));
+  expect(log.lines.filter((l) => l.startsWith("warn"))).toEqual([]);
+  // a second server of the folder is refused there too, and the folder counts as held
+  await expect(lockDataDir(dir, { retries: 0, log: keep(), fs: fat, tmp: temp })).rejects.toMatchObject({ code: "ELOCKED" });
+  expect(await dataFolderHeld(dir, { tmp: temp })).toBe(true);
+}, 20_000);
+
+test("on a coarse drive, a fresh lock an earlier version left inside the folder still counts as held", async () => {
+  const dir = newDir();
+  mkdirSync(path.join(dir, LOCK_NAME), { recursive: true }); // just refreshed
+  const temp = mkdtempSync(path.join(tmpdir(), "kit-locks-"));
+  await expect(lockDataDir(dir, { retries: 0, log: keep(), fs: fatFs(), tmp: temp })).rejects.toMatchObject({ code: "ELOCKED" });
+  expect(await dataFolderHeld(dir, { tmp: temp })).toBe(true);
+  fs.rmSync(path.join(dir, LOCK_NAME), { recursive: true });
+  expect(await dataFolderHeld(dir, { tmp: temp })).toBe(false);
+});
 
 test("a share that fails once (waking from sleep): the lock is taken again", async () => {
   const dir = newDir();

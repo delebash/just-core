@@ -187,6 +187,8 @@ onMounted(() => {
 .lu-logs-dl { font-size: 12px; font-weight: 600; color: var(--accent-ink, var(--accent)); text-decoration: none; padding: 4px 6px; }
 .lu-logs-dl:hover { text-decoration: underline; }
 /* Box chrome + the .lu-logline* level grammar are shared (.lu-logbox in
-   common/styles.css); LogsPanel only caps the height of its instance. */
-.lu-logs-pre { max-height: 460px; }
+   common/styles.css). This box is never a scroller of its own: it sits in Settings' panel, which
+   scrolls (one scroller per area — a 460px box scrolled inside the panel's scroller; the
+   screens-and-keyboard review, 2026-10-20). Its lines wrap, so nothing runs sideways. */
+.lu-logs-pre { overflow: visible; }
 </style>

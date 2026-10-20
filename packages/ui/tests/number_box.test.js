@@ -4,7 +4,7 @@
 // again — Number(null) is 0, and every slider left by Tab used to go to its minimum. And how it and
 // UiNumber read a decimal comma.
 import { expect, test } from "vitest";
-import { committedNumber, decimalComma, parseLocaleNumber, separators } from "../src/common/components/numberBox.js";
+import { committedNumber, decimalComma, isPartialNumber, parseLocaleNumber, separators } from "../src/common/components/numberBox.js";
 
 test("a typed number commits; nothing typed, an emptied box or a half-typed one commits nothing", () => {
   expect(committedNumber("0.75")).toBe(0.75);
@@ -62,6 +62,38 @@ test("UiNumber reads a decimal comma where it can only be one; its own thousands
   expect(parseLocaleNumber("1,234.5", { locale: "en", step: 0.1 })).toBe(1234.5);
   expect(parseLocaleNumber("", { locale: "en" })).toBeNull();
   expect(parseLocaleNumber("-", { locale: "en" })).toBeNull();
+});
+
+// The fifteenth review (2026-10-20): UiNumber reads with @internationalized/number's NumberParser — a number
+// with digits on one side of its decimal only, a leading + or the language's minus, a space between groups
+// (any language), and a half-typed number while it is typed (isValidPartialNumber).
+test("NumberParser reads what people type: '.7', '5.', '15.', '+15', '1 500', es ',5', the minus signs", () => {
+  expect(parseLocaleNumber(".7", { locale: "en", step: 0.1 })).toBe(0.7);
+  expect(parseLocaleNumber("5.", { locale: "en", step: 0.1 })).toBe(5);
+  expect(parseLocaleNumber("15.", { locale: "en" })).toBe(15);
+  expect(parseLocaleNumber("+15", { locale: "en" })).toBe(15);
+  expect(parseLocaleNumber("1 500", { locale: "en" })).toBe(1500);
+  expect(parseLocaleNumber("1\u00a0500", { locale: "en" })).toBe(1500);
+  expect(parseLocaleNumber("1 500", { locale: "es" })).toBe(1500);
+  expect(parseLocaleNumber(",5", { locale: "es", step: 0.1 })).toBe(0.5);
+  expect(parseLocaleNumber("1.500", { locale: "es" })).toBe(1500);
+  expect(parseLocaleNumber("-2,5", { locale: "es", step: 0.5 })).toBe(-2.5);
+  expect(parseLocaleNumber("\u22123", { locale: "en" })).toBe(-3); // U+2212, as Swedish writes it, in English too
+  expect(parseLocaleNumber("\u22123,5", { locale: "sv", step: 0.5 })).toBe(-3.5);
+  expect(parseLocaleNumber("١٢٣", { locale: "ar-EG" })).toBe(123); // the language's own digits
+  // still strict: a space or a separator where no group can stand, a sign alone, two decimals
+  expect(parseLocaleNumber("1 5", { locale: "en" })).toBeNull();
+  expect(parseLocaleNumber("+", { locale: "en" })).toBeNull();
+  expect(parseLocaleNumber("\u2212", { locale: "en" })).toBeNull();
+  expect(parseLocaleNumber(".", { locale: "en", step: 0.1 })).toBeNull();
+  expect(parseLocaleNumber("1.2.3", { locale: "en", step: 0.1 })).toBeNull();
+  expect(parseLocaleNumber("1,5", { locale: "en" })).toBeNull(); // the fourteenth review's: never 15
+});
+
+test("a number on its way is a partial number; text that can't become one isn't", () => {
+  for (const s of ["", "-", "+", "\u2212", "5.", "1,", "1 5", ".", "0,0"]) expect(isPartialNumber(s, { locale: "en" }), s).toBe(true);
+  for (const s of [",", "-,"]) expect(isPartialNumber(s, { locale: "es" }), s).toBe(true);
+  for (const s of ["abc", "1a", "1-", "--1", "1e3"]) expect(isPartialNumber(s, { locale: "en" }), s).toBe(false);
 });
 
 test("a language's separators come from Intl.NumberFormat", () => {

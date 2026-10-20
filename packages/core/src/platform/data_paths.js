@@ -287,9 +287,15 @@ export function dataDirPathProblem(dir) {
   return null;
 }
 
-/** A failed mkdir or write, in plain words. */
-function fsProblem(e) {
+/** A failed mkdir, write or copy, in plain words (the shell's Change folder says its failures with it too). */
+export function fsProblem(e) {
   switch (e?.code) {
+    case "EFBIG":
+      // a FAT32 drive holds no file of 4 GB or more (the AI photo's models are over 4 GB) — the copy said
+      // "copy failed: EFBIG" until 2026-10-20
+      return "a file is bigger than its drive can hold (a FAT32 drive takes no file over 4 GB — use a drive formatted NTFS, exFAT or APFS)";
+    case "EIO":
+      return "its drive failed to read or write (unplugged, or failing)";
     case "ENOENT":
     case "ENODEV":
     case "ENXIO":

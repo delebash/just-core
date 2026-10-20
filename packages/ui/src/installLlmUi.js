@@ -20,6 +20,7 @@
 // unreachable: ONE base URL feeds both transports, the hosts arrive as a single
 // component, and the nav row's required attribute comes from the composable.
 
+import { installAnnouncer } from "./common/services/announce.js";
 import { configureExternal, isDesktopShell } from "./common/services/external.js";
 import { configureServerApi, makeOriginAwareResolver } from "./common/services/serverApi.js";
 import { configureLlmUi } from "./client.js";
@@ -153,6 +154,10 @@ export function installLlmUi(app, {
   // The kit's controls are Quasar components (docs/plans/2026-10-09-kit-controls-on-quasar.md):
   // Quasar draws its own icons with the kit's line icons.
   installQuasarTheme();
+
+  // The screen reader's two live regions, there from the start so what the toasts and the AI
+  // tasks announce is read (common/services/announce.js).
+  installAnnouncer();
 
   // Registered, not imported: an app that forgets `<LlmUiHosts />` in its shell has
   // one thing missing rather than three, and that one thing is named after the job.

@@ -13,9 +13,15 @@
   overlay (.help-drawer-overlay) with the focus trap, Esc and the outside click; the drawer
   is placed and drawn here as before; the overlay's look is the kit's theme
   (../../quasar/theme.css, "Modal").
+
+  The help's text is a focusable region named by its title (tabindex 0, role="region",
+  aria-labelledby — axe's scrollable-region-focusable, WCAG 2.1.1): QDialog focuses it on open
+  (its data-autofocus), so PageDown, the arrows, Home and End scroll it at once, and Tab wraps
+  through it with the drawer's buttons (useTabWrap). Until 2026-10-20 the focus sat on QDialog's
+  wrapper and the text couldn't be scrolled from the keyboard (the screens-and-keyboard review).
 -->
 <script setup>
-import { computed, watch, nextTick, ref } from "vue";
+import { computed, watch, nextTick, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { QDialog } from "quasar";
 import { wrapTab } from "../composables/useTabWrap.js";
@@ -41,6 +47,7 @@ const renderedHtml = computed(() => renderHelpMarkdown(rawDoc.value));
 
 const contentEl = ref(null);
 const drawerEl = ref(null);
+const titleId = `help-drawer-title-${useId()}`;
 
 // Scroll to the named anchor when the drawer opens with one (or when the
 // slug/anchor changes while open). Falls back to scroll-to-top otherwise.
@@ -105,14 +112,16 @@ function openWeb() { helpConfig.onOpenWeb?.(slug.value); }
       <header class="help-drawer-header">
         <div class="help-drawer-titleblock">
           <div class="help-drawer-eyebrow">{{ t('kit.help.title') }}</div>
-          <div class="help-drawer-title">{{ title }}</div>
+          <div :id="titleId" class="help-drawer-title">{{ title }}</div>
         </div>
         <button type="button" class="help-drawer-close" :aria-label="t('kit.help.close')" @click="closeHelp">
           <Icon name="Close" :size="14" />
         </button>
       </header>
 
-      <div ref="contentEl" class="help-drawer-body" @click="onContentClick">
+      <div
+        ref="contentEl" class="help-drawer-body" tabindex="0" role="region" :aria-labelledby="titleId"
+        data-autofocus @click="onContentClick">
         <article v-if="renderedHtml" class="help-drawer-prose" v-html="renderedHtml" />
         <div v-else class="help-drawer-empty">
           <p>{{ t('kit.help.none') }}</p>

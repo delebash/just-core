@@ -45,15 +45,25 @@ button:not(.ui-btn) { color: inherit; }
 /* ghost — no border/fill (quiet utility) */
 .ui-btn--ghost { color: var(--ink-2, var(--ink)); }
 .ui-btn--ghost:not(:disabled):not(.is-disabled):hover { background: var(--surface-3, var(--surface-2)); }
-/* danger — solid (destructive) */
-.ui-btn--danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+/* danger — solid (destructive). Its text is --on-accent too (tokens.contract.css: 4.5:1 or more on
+   --accent AND --danger at every hue; the dark theme's near-black — white measured 3.29:1 on the
+   dark danger, 2.82:1 on the dark accent; the visual review, 2026-10-20). */
+.ui-btn--danger { background: var(--danger); border-color: var(--danger); color: var(--on-accent, #fff); }
 .ui-btn--danger:not(:disabled):not(.is-disabled):hover { background: color-mix(in oklab, var(--danger) 82%, black); border-color: color-mix(in oklab, var(--danger) 82%, black); }
 /* success — solid (positive) */
-.ui-btn--success { background: var(--success, var(--status-done, #3a7d63)); border-color: var(--success, var(--status-done, #3a7d63)); color: #fff; }
+.ui-btn--success { background: var(--success, var(--status-done, #3a7d63)); border-color: var(--success, var(--status-done, #3a7d63)); color: var(--on-accent, #fff); }
 .ui-btn--success:not(:disabled):not(.is-disabled):hover { background: color-mix(in oklab, var(--success, var(--status-done, #3a7d63)) 82%, black); border-color: color-mix(in oklab, var(--success, var(--status-done, #3a7d63)) 82%, black); }
 /* info — solid (informational) */
-.ui-btn--info { background: var(--info, #3b6ea5); border-color: var(--info, #3b6ea5); color: #fff; }
+.ui-btn--info { background: var(--info, #3b6ea5); border-color: var(--info, #3b6ea5); color: var(--on-accent, #fff); }
 .ui-btn--info:not(:disabled):not(.is-disabled):hover { background: color-mix(in oklab, var(--info, #3b6ea5) 82%, black); border-color: color-mix(in oklab, var(--info, #3b6ea5) 82%, black); }
+/* In the dark theme a solid button's hover LIGHTENS it, away from its near-black text (Material's
+   state layer is the content colour over the container): darkened toward black, the near-black text
+   measured 3.26:1 on the dark danger; lightened 12 % toward white it is 6.18:1 or more on every
+   solid fill at every hue (the dark accent 6.55, danger 6.18, info 7.11). */
+:root[data-theme="dark"] .ui-btn--primary:not(:disabled):not(.is-disabled):hover { background: color-mix(in oklab, var(--accent) 88%, white); border-color: color-mix(in oklab, var(--accent) 88%, white); }
+:root[data-theme="dark"] .ui-btn--danger:not(:disabled):not(.is-disabled):hover { background: color-mix(in oklab, var(--danger) 88%, white); border-color: color-mix(in oklab, var(--danger) 88%, white); }
+:root[data-theme="dark"] .ui-btn--success:not(:disabled):not(.is-disabled):hover { background: color-mix(in oklab, var(--success, var(--status-done, #3a7d63)) 88%, white); border-color: color-mix(in oklab, var(--success, var(--status-done, #3a7d63)) 88%, white); }
+:root[data-theme="dark"] .ui-btn--info:not(:disabled):not(.is-disabled):hover { background: color-mix(in oklab, var(--info, #3b6ea5) 88%, white); border-color: color-mix(in oklab, var(--info, #3b6ea5) 88%, white); }
 /* accent2 — solid gold (second accent) */
 .ui-btn--accent2 { background: var(--gold, #b08a3e); border-color: var(--gold, #b08a3e); color: color-mix(in oklab, var(--gold, #b08a3e) 22%, black); }
 .ui-btn--accent2:not(:disabled):not(.is-disabled):hover { background: color-mix(in oklab, var(--gold, #b08a3e) 82%, black); border-color: color-mix(in oklab, var(--gold, #b08a3e) 82%, black); }

@@ -20,8 +20,8 @@ const mode = computed(() => ui.appearance.mode || "system");
 <template>
   <TitleBar :title="t('app.name')">
     <UiButton
+      v-tooltip.bottom="t('titleBar.theme', { mode: t(`kit.appearance.panel.mode.${mode}`) })"
       intent="ghost" size="icon" class="titlebar__mode"
-      :title="t('titleBar.theme', { mode: t(`kit.appearance.panel.mode.${mode}`) })"
       :aria-label="t('titleBar.theme', { mode: t(`kit.appearance.panel.mode.${mode}`) })"
       @click="ui.cycleMode()"
     >

@@ -36,7 +36,7 @@ export default defineConfig({
       "#q-app": "@quasar/app-vite",
     },
     // The same list as quasar.config.js (extendViteConf), for the same reason — keep them in step.
-    dedupe: ["vue", "quasar", "@floating-ui/dom", "pinia", "vue-router", "vue-i18n", "marked", "@vueuse/core"],
+    dedupe: ["vue", "quasar", "@floating-ui/dom", "pinia", "vue-router", "vue-i18n", "marked", "@vueuse/core", "@internationalized/number"],
   },
   test: {
     environment: "node",

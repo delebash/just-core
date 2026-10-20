@@ -101,9 +101,12 @@ const line = computed(() => {
 .lu-updates-status { font-size: 12.5px; color: var(--ink-2); }
 .lu-updates-spacer { flex: 1; }
 .lu-updates-empty { font-size: 12.5px; }
+/* The release notes are as tall as they are — Settings' panel is the one scroller (a 520px box
+   scrolled inside it; the screens-and-keyboard review, 2026-10-20); a long line breaks, never
+   runs sideways. */
 .lu-updates-log {
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
-  padding: 14px 18px; max-height: 520px; overflow: auto; font-size: 13px; line-height: 1.6; color: var(--ink-2);
+  padding: 14px 18px; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; color: var(--ink-2);
 }
 .lu-updates-log :deep(h1), .lu-updates-log :deep(h2), .lu-updates-log :deep(h3) {
   color: var(--ink); margin: 14px 0 6px; font-size: 14px;
