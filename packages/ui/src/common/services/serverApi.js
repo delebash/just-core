@@ -223,8 +223,11 @@ export async function checkServer({ tries = CHECK.tries, delayMs = CHECK.delayMs
         signal: AbortSignal.timeout(probeTimeoutMs),
       });
       if (res.ok) {
-        serverNeedsToken.value = false;
-        return true;
+        // open from this computer, but the server requires a token even here and this window has
+        // none it takes (bearerAuth marks the health answer): asked for, never a window of 401s
+        const body = await res.json().catch(() => null);
+        serverNeedsToken.value = body?.tokenRequired === true;
+        return !serverNeedsToken.value;
       }
       // up, but it wants a token this browser doesn't have: asking again won't change that
       if (res.status === 401 || res.status === 403) {

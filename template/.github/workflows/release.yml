@@ -145,6 +145,18 @@ jobs:
         shell: bash
         run: node scripts/start-packaged.js --headless
 
+      # No data folder named: the window and the server on its own use the app's default — one folder, never
+      # inside the app's bundle (an update replaces it whole; just-house-paint RESEARCH §13, the ninth review)
+      - name: The window and the server on its own share one data folder
+        if: matrix.target == 'darwin'
+        working-directory: app
+        shell: bash
+        run: |
+          a=$(node scripts/start-packaged.js --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
+          b=$(node scripts/start-packaged.js --headless --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
+          echo "the window: $a"; echo "on its own: $b"
+          test -n "$a" && test "$a" = "$b"
+
       # every platform's files go to the jobs below: the Linux user's check, then the release —
       # nothing is attached before every check has passed (a dry run keeps them here 7 days)
       - name: Keep the files for the next jobs
@@ -202,6 +214,15 @@ jobs:
         working-directory: app
         shell: bash
         run: node scripts/start-packaged.js --appimage --headless
+
+      - name: The AppImage and its server on its own share one data folder
+        working-directory: app
+        shell: bash
+        run: |
+          a=$(xvfb-run -a node scripts/start-packaged.js --appimage --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
+          b=$(node scripts/start-packaged.js --appimage --headless --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
+          echo "the AppImage: $a"; echo "on its own: $b"
+          test -n "$a" && test "$a" = "$b"
 
   # The release: every platform's files attached at once, only when every check above passed.
   publish:

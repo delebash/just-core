@@ -18,6 +18,7 @@ import UiInput from "../common/components/UiInput.vue";
 import UiToggle from "../common/components/UiToggle.vue";
 import { reportError } from "../common/services/reportError.js";
 import { get, put, serverUrl } from "../common/services/serverApi.js";
+import { getServerToken, setServerToken } from "../common/services/serverToken.js";
 import { pushToast } from "../common/services/toastBridge.js";
 
 defineProps({
@@ -51,6 +52,9 @@ async function saveAuth() {
     const a = await put("/v1/server-auth", { tokens: tokens.value, requireForLoopback: requireForLoopback.value });
     tokens.value = a.tokens;
     requireForLoopback.value = !!a.requireForLoopback;
+    // a token required on this computer too: this window keeps one of them, or everything it asks next is
+    // refused (it would have no token to send)
+    if (requireForLoopback.value && tokens.value.length && !tokens.value.includes(getServerToken())) setServerToken(tokens.value[0]);
   } catch (e) {
     reportError(e);
   }

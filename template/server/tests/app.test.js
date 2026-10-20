@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { getLogger } from "@delebash/core/platform/log";
 import { pyPath } from "@delebash/core/runner/cache_registry";
 import * as lifecycle from "@delebash/core/runner/lifecycle";
-import { beforeEach, expect, test } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 import { createApp } from "../src/app.js";
 import { getDb } from "../src/app_state.js";
 import { seedWorkspace } from "../src/database/seed.js";
@@ -146,4 +146,14 @@ test("an unrouted path answers 404 and still names its request id", async () => 
   const r = await client.get("/v1/nothing-here");
   expect(r.statusCode).toBe(404);
   expect(r.headers["x-request-id"]).toBeTruthy();
+});
+
+// a reverse proxy's public name (<APP>_ALLOWED_HOSTS): the browser's Origin there is the server's own, though the
+// server sees another scheme and host behind the proxy — every save was refused as cross-site (2026-10-20)
+test("behind a reverse proxy its public origin may write; any other origin may not", async () => {
+  vi.stubEnv("FAMILY_TEMPLATE_ALLOWED_HOSTS", "testserver,paint.example.com");
+  const c = testClient(await createApp(tmpDir()));
+  const write = (origin) => c.post("/v1/notes", { json: {}, headers: { origin } });
+  expect((await write("https://paint.example.com")).statusCode).not.toBe(403);
+  expect((await write("https://evil.example")).statusCode).toBe(403);
 });

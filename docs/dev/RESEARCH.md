@@ -1406,6 +1406,29 @@ probes through `app.request` with a faked loopback peer reproduced 1–3, each t
   uploads (streamed limits, JPEG/PNG/WebP only, sharp's pixel limit), pinned SHA-256 model and engine downloads,
   `?token=` kept out of logs and history, no `v-html` with user data.
 
+**Where the data lives off Windows; a token on this computer; a proxy's origin** (*code + test*, 2026-10-20;
+just-house-paint's ninth review, a reading of its help against the code):
+
+- The ladder's default was `data/` beside the executable whenever that is writable. On macOS the executable is
+  inside the app bundle (`Contents/MacOS`), and a user-owned app in Applications is writable: the data would live
+  inside the bundle, gone with the next drag-in update (and a signed bundle must not change). On Linux an
+  extracted AppImage (`squashfs-root/`, the headless launcher's way in) is writable while the AppImage's own mount
+  isn't: the launcher's server took a new empty `data/` while the window used the XDG folder. Now
+  `data_paths.bundledInstall` keeps a Mac bundle and an AppImage (mounted — `APPIMAGE` set — or extracted —
+  `AppRun` beside the executable) out of the ladder: their default is the OS folder (Apple's
+  `~/Library/Application Support/<App>`, the XDG data folder), the Change-folder pointer goes beside it, and a data
+  folder an earlier version left in a Mac bundle moves out once. The release checks it: `start-packaged.js
+  --default-data` names no folder and fails when the one used is inside the app; macOS compares the window's with
+  its launcher's, Ubuntu 24.04 the AppImage's with its extracted launcher's.
+- "Require a token on this computer too" left the desktop window useless: `/v1/health` stays open from this
+  computer (the lockout escape), so the boot check passed, and every other call answered 401. Now `bearerAuth` marks
+  an open request from a client without a token it takes, `makeHealthRouter` answers `tokenRequired: true`, and
+  the UI's `checkServer` asks for a token (ConnectionError) instead of loading; the Server panel's window keeps one
+  of the tokens when it turns the setting on.
+- Behind an HTTPS reverse proxy every save was a CSRF 403: the browser's Origin (`https://paint.example.com`) isn't
+  the scheme and Host the server sees (`@hono/node-server` takes the scheme from the socket). The template passes the
+  `<APP>_ALLOWED_HOSTS` names' origins as `csrfOrigin`'s `extraOrigins` — the operator's declared public names.
+
 **The clipboard and the headless launcher off Windows** (*code + measured*, 2026-10-19; just-house-paint's seventh
 review):
 

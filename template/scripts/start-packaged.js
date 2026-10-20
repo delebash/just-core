@@ -14,7 +14,9 @@
 // app's launcher instead (build/launcher: `<name>-server.cmd` beside the Windows exe, `<name>-server`
 // beside the Linux one and in the Mac app's Resources; with `--appimage`, the AppImage extracted as its
 // help says) — no window, no display: it must answer with its version and serve the UI at `/`.
-// Exit 0 = it answered; 1 = it didn't.
+// `--default-data` names no data folder: the app's own default is used and printed ("data folder
+// used: …"), and on macOS and Linux it must lie outside the app (the release compares the window's
+// and the launcher's). Exit 0 = it answered; 1 = it didn't.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
@@ -30,6 +32,9 @@ const out = path.join(root, "dist", "electron", "Packaged");
 const TIMEOUT_MS = 120_000;
 const asUser = process.argv.includes("--appimage");
 const headless = process.argv.includes("--headless");
+// no data folder named: the app's own default, which the health answer names (printed as "data folder used:"),
+// never inside a Mac app's bundle or an AppImage's folder (the kit's data_paths bundledInstall)
+const defaultData = process.argv.includes("--default-data");
 const launcherName = `${pkg.name}-server`;
 const extraPaths = process.argv
   .slice(2)
@@ -104,15 +109,18 @@ async function run() {
   if (await health()) throw new Error(`something already answers on port ${port} — stop it first`);
   const appImage = asUser ? readdirSync(out).find((f) => f.endsWith(".AppImage")) : null;
   if (asUser && !appImage) throw new Error(`no .AppImage in ${out}`);
-  const dataDir = mkdtempSync(path.join(os.tmpdir(), "start-packaged-"));
+  const dataDir = defaultData ? null : mkdtempSync(path.join(os.tmpdir(), "start-packaged-"));
   const scratch = headless && appImage ? mkdtempSync(path.join(os.tmpdir(), "start-packaged-appimage-")) : null;
   const exe = headless ? headlessLauncher(appImage, scratch) : appImage ? path.join(out, appImage) : findExecutable();
   // the unpacked folder on Linux: chrome-sandbox isn't setuid there, so Chromium's sandbox can't start;
   // the AppImage runs exactly as a user's double-click runs it; the launcher takes the server's own command
   const args = headless ? ["serve"] : process.platform === "linux" && !appImage ? ["--no-sandbox"] : [];
-  console.log(`starting ${exe}${headless ? " serve" : ""} (data folder ${dataDir}, port ${port})`);
+  console.log(`starting ${exe}${headless ? " serve" : ""} (data folder ${dataDir ?? "its own default"}, port ${port})`);
   const t0 = Date.now();
-  const options = { env: { ...process.env, [dataDirEnv]: dataDir }, stdio: ["ignore", "pipe", "inherit"], detached: process.platform !== "win32" };
+  const env = { ...process.env };
+  if (dataDir) env[dataDirEnv] = dataDir;
+  else delete env[dataDirEnv];
+  const options = { env, stdio: ["ignore", "pipe", "inherit"], detached: process.platform !== "win32" };
   // a .cmd runs only through the shell on Windows (Node refuses to spawn it directly): one command line
   const child = headless && process.platform === "win32" ? spawn(`"${exe}" ${args.join(" ")}`, { ...options, shell: true }) : spawn(exe, args, options);
   // the shell says when its window drew the app, or why it didn't (the kit's runDesktopApp) — read as one
@@ -144,6 +152,14 @@ async function run() {
       if (h && (windowLoaded || headless)) {
         if (h.version !== pkg.version) throw new Error(`it answered as version ${h.version}, not ${pkg.version}`);
         console.log(`it answered in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${h.product} ${h.version}`);
+        if (defaultData) {
+          if (!h.dataDir) throw new Error("its health answer names no data folder (--default-data needs one)");
+          // on macOS and Linux never inside the app — its bundle, the AppImage's mount or its extracted folder
+          const app = exe.includes(".app/Contents/") ? exe.slice(0, exe.indexOf(".app/Contents/") + 4) : path.dirname(exe);
+          const rel = path.relative(app, h.dataDir);
+          if (process.platform !== "win32" && (!rel.startsWith("..") || /\/\.mount_/.test(h.dataDir))) throw new Error(`its data folder ${h.dataDir} is inside the app (${app})`);
+          console.log(`data folder used: ${h.dataDir}`);
+        }
         if (headless) {
           // the whole app with no window: the server serves its UI too
           const page = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(10_000) });

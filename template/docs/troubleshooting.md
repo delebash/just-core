@@ -7,7 +7,7 @@ Headless, start it with `family-template-server serve` (`npm run server` from a 
 The app won't open without its server: there is no offline mode to lose work in.
 
 **Another copy is already running.** One server per data folder: a second one says that another
-Family Template server is using this data folder. Quit the other copy (the tray's **Quit**), or
+Family Template server is using this data folder. Quit the other copy (the tray's **Quit Family Template**), or
 give the second one its own `--data-dir`.
 
 **"Suggest a title" fails.** No AI is set up yet: open **AI Settings** and run Quick Setup, or add

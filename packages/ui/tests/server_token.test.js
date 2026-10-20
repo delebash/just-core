@@ -25,6 +25,22 @@ function stubFetch() {
   );
 }
 
+describe("a server that requires a token even on this computer", () => {
+  // its health check stays open from this computer (the lockout escape) and says the window has no token
+  // it takes: the window asks for one (ConnectionError) instead of loading into 401s — 2026-10-20
+  test("the boot check asks for a token when the health answer says one is required", async () => {
+    const { checkServer, serverNeedsToken } = await import("../src/common/services/serverApi.js");
+    configureServerApi({ resolveBase: () => "http://127.0.0.1:1" });
+    let tokenRequired = true;
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ status: "ok", ...(tokenRequired ? { tokenRequired } : {}) }))));
+    expect(await checkServer({ tries: 1, delayMs: 0 })).toBe(false);
+    expect(serverNeedsToken.value).toBe(true);
+    tokenRequired = false; // a token it takes, kept
+    expect(await checkServer({ tries: 1, delayMs: 0 })).toBe(true);
+    expect(serverNeedsToken.value).toBe(false);
+  });
+});
+
 describe("the access token on every request", () => {
   test("none kept: requests go as they were", async () => {
     stubFetch();

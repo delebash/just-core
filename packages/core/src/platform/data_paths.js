@@ -28,7 +28,7 @@
 // Paths are strings here (Python handed out `Path`s): each one comes out in the form
 // `str(Path(…))` gives — native separators, no "." parts, no trailing separator.
 
-import { mkdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import * as self from "./data_paths.js";
@@ -248,18 +248,52 @@ export function resolveDataDir({ appName, envVar, sourceRoot = null, env = null 
 }
 
 /**
- * The default data root: `data/` in the install directory when it is writable, else the OS
- * fallback (decided 2026-10-08: `%LOCALAPPDATA%\<App>\<App>` — platformdirs' folder, local,
- * not roaming).
+ * An install folder that is no place for data, writable or not (2026-10-20, a review of the help): a Mac
+ * app's bundle — an update replaces it whole, a signed one must not change, and Apple keeps an app's data
+ * in ~/Library/Application Support; a user-owned app in Applications IS writable, and its houses would
+ * have gone with the next update — and an AppImage's folder, mounted (read-only) or extracted
+ * (`--appimage-extract`, its headless launcher's way in): AppImages keep data in the XDG data folder, so
+ * the extracted launcher's server and the AppImage's window share one.
+ */
+export function bundledInstall(base, { platform = process.platform, env = process.env, exists = existsSync } = {}) {
+  if (base == null) return false;
+  if (platform === "darwin") return /\.app\/Contents\/MacOS\/?$/.test(String(base).replace(/\\/g, "/"));
+  if (platform === "linux") return Boolean(env.APPIMAGE) || exists(path.join(base, "AppRun"));
+  return false;
+}
+
+/**
+ * The default data root: `data/` in the install directory when it is writable (and not a bundle —
+ * bundledInstall), else the OS fallback (decided 2026-10-08: `%LOCALAPPDATA%\<App>\<App>` —
+ * platformdirs' folder, local, not roaming).
  */
 export function defaultDataDir({ appName, sourceRoot = null } = {}) {
   const base = installDir(sourceRoot);
-  if (base != null) {
+  if (base != null && !self.bundledInstall(base)) {
     const candidate = path.join(base, "data");
     if (self._isWritable(candidate)) return candidate;
   }
+  const fallback = userDataDir(appName);
+  if (base != null && self.bundledInstall(base)) self._adoptBundledData(path.join(base, "data"), fallback);
   // Last resort only — a non-writable install (see the header).
-  return userDataDir(appName);
+  return fallback;
+}
+
+/** A data folder an earlier version left inside a bundle (a Mac app's, before 2026-10-20) moves to the
+ *  fallback once, when that has none yet — never left where the next update deletes it. */
+export function _adoptBundledData(old, fallback) {
+  try {
+    if (!existsSync(old) || existsSync(fallback)) return;
+    mkdirSync(path.dirname(fallback), { recursive: true });
+    try {
+      renameSync(old, fallback);
+    } catch {
+      cpSync(old, fallback, { recursive: true });
+      rmSync(old, { recursive: true, force: true });
+    }
+  } catch {
+    // left where it was: the fallback starts empty, the old folder stays to be moved by hand
+  }
 }
 
 /**
@@ -271,7 +305,7 @@ export function defaultDataDir({ appName, sourceRoot = null } = {}) {
  */
 export function pointerFile({ appName, sourceRoot = null } = {}) {
   const base = installDir(sourceRoot);
-  if (base != null && self._isWritable(base)) return path.join(base, "dataroot.txt");
+  if (base != null && !self.bundledInstall(base) && self._isWritable(base)) return path.join(base, "dataroot.txt");
   const fallback = userDataDir(appName);
   return IS_WIN ? path.join(path.dirname(fallback), "dataroot.txt") : path.join(path.dirname(fallback), `${appName}.dataroot.txt`);
 }
@@ -279,7 +313,7 @@ export function pointerFile({ appName, sourceRoot = null } = {}) {
 /** Is `root` the install directory's own `data/` (the Storage panel's "portable")? */
 export function isPortable(root, { sourceRoot = null } = {}) {
   const base = installDir(sourceRoot);
-  if (base == null) return false;
+  if (base == null || self.bundledInstall(base)) return false;
   const rel = path.relative(path.resolve(base), path.resolve(root));
   return !rel.startsWith("..") && !path.isAbsolute(rel);
 }

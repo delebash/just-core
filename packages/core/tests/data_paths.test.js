@@ -81,6 +81,41 @@ test("frozen_default_lands_beside_the_executable", () => {
   expect(dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", env: {} })).toBe(join(path.dirname(exe), "data"));
 });
 
+// 2026-10-20: a Mac app's bundle and an AppImage (mounted or extracted) are no place for data, writable or not
+test("a_mac_bundle_and_an_appimage_are_never_the_data_folder", () => {
+  const mac = { platform: "darwin", env: {}, exists: () => false };
+  expect(dp.bundledInstall("/Applications/Just House Paint.app/Contents/MacOS", mac)).toBe(true);
+  expect(dp.bundledInstall("/Users/me/apps/tool", mac)).toBe(false);
+  const linux = (env, appRun) => ({ platform: "linux", env, exists: () => appRun });
+  expect(dp.bundledInstall("/tmp/.mount_justhoXYZ", linux({ APPIMAGE: "/home/me/x.AppImage" }, true))).toBe(true);
+  expect(dp.bundledInstall("/home/me/squashfs-root", linux({}, true))).toBe(true); // extracted: AppRun beside it
+  expect(dp.bundledInstall("/opt/Just House Paint", linux({}, false))).toBe(false); // a .deb install
+  expect(dp.bundledInstall("C:/Program Files/App", { platform: "win32", env: {}, exists: () => true })).toBe(false);
+  // a bundled install's default is the OS folder, even when the bundle is writable
+  const exe = join(tmp, "app", "justvoice");
+  write(exe);
+  dp.runtime.frozen = true;
+  dp.runtime.executable = exe;
+  vi.spyOn(dp, "bundledInstall").mockReturnValue(true);
+  const got = dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", env: {} });
+  expect(got).not.toBe(join(path.dirname(exe), "data"));
+  expect(got).toContain("JustVoice");
+  expect(dp.isPortable(join(path.dirname(exe), "data"))).toBe(false);
+});
+
+test("a_data_folder_an_earlier_version_left_in_a_bundle_moves_out_once", () => {
+  const old = join(tmp, "Bundle.app", "Contents", "MacOS", "data");
+  write(join(old, "app.db"));
+  const fallback = join(tmp, "Library", "Application Support", "JustVoice");
+  dp._adoptBundledData(old, fallback);
+  expect(existsSync(join(fallback, "app.db"))).toBe(true);
+  expect(existsSync(old)).toBe(false);
+  // never over a fallback that already has data
+  write(join(old, "app.db"));
+  dp._adoptBundledData(old, fallback);
+  expect(existsSync(old)).toBe(true);
+});
+
 test("probe_leaves_nothing_behind", () => {
   const root = join(tmp, "checkout");
   mkdirSync(root);

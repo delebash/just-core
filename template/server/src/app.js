@@ -130,9 +130,12 @@ export async function createApp(dataDir = null) {
   // rebinding; FAMILY_TEMPLATE_ALLOWED_HOSTS names a reverse proxy's public name); the desktop shell's
   // POST /v1/shutdown carries no token and stays open from this machine (the route refuses
   // anyone else itself).
-  app.use("*", csrfOrigin({ appOrigins: APP_ORIGINS, typeBase: TYPE_BASE }));
-  app.use("*", starletteCors({ allowOrigins: [...APP_ORIGINS, ...CAPACITOR_ORIGINS], allowMethods: ["*"], allowHeaders: ["*"] }));
   const allowedHosts = (process.env.FAMILY_TEMPLATE_ALLOWED_HOSTS || "").split(",").map((h) => h.trim()).filter(Boolean);
+  // a reverse proxy's public names: the browser's Origin there (https://paint.example.com) is the server's own,
+  // though the server sees another scheme and host behind the proxy
+  const proxyOrigins = allowedHosts.flatMap((h) => [`https://${h}`, `http://${h}`]);
+  app.use("*", csrfOrigin({ appOrigins: APP_ORIGINS, extraOrigins: proxyOrigins, typeBase: TYPE_BASE }));
+  app.use("*", starletteCors({ allowOrigins: [...APP_ORIGINS, ...CAPACITOR_ORIGINS], allowMethods: ["*"], allowHeaders: ["*"] }));
   app.use("*", bearerAuth({ readAuth, typeBase: TYPE_BASE, loopbackOpenPaths: [SHUTDOWN_PATH], allowedHosts }));
 
   // 4. The database and the app state the routes read.

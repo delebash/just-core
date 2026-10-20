@@ -93,6 +93,12 @@ export function isDirectLoopback(c) {
   return isLoopback(clientHost(c)) && !FORWARDED.some((h) => c.req.header(h));
 }
 
+/** The request's bearer token, or "". */
+const bearerOf = (c) => {
+  const header = c.req.header("authorization") || "";
+  return header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
+};
+
 /** Whether a `Host` header names this computer (see the guards above). No Host: not a browser. */
 export function hostAllowed(hostHeader, allowedHosts = []) {
   if (!hostHeader) return true;
@@ -130,7 +136,13 @@ export function bearerAuth({ readAuth, typeBase, loopbackOpenPaths = [], prefixe
     if (!tokens?.length) return next();
 
     const isLoop = isDirectLoopback(c);
-    if (isLoop && (p === "/v1/health" || p.startsWith("/v1/server-auth") || loopbackOpen.has(p))) return next();
+    if (isLoop && (p === "/v1/health" || p.startsWith("/v1/server-auth") || loopbackOpen.has(p))) {
+      // open from this computer — but a client that would need a token everywhere else is told so (the
+      // health answer's `tokenRequired`): the desktop window then asks for one instead of loading and
+      // getting 401 for everything after
+      if (requireForLoopback && !tokens.includes(bearerOf(c))) c.set("tokenRequired", true);
+      return next();
+    }
     if (isLoop && !requireForLoopback) return next();
 
     const header = c.req.header("authorization") || "";

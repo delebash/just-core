@@ -19,7 +19,10 @@ export function makeHealthRouter({ product, version, apiVersion = "v1", extras =
   const app = new Hono();
   app.get(path, async (c) => {
     const more = extras ? await extras(c) : null;
-    return c.json({ status: "ok", product, version, apiVersion, ...(more || {}) });
+    // the asker has no token the server requires even from this computer (bearerAuth marks it): the
+    // window asks for one before loading (the kit UI's checkServer)
+    const ask = c.get("tokenRequired") ? { tokenRequired: true } : {};
+    return c.json({ status: "ok", product, version, apiVersion, ...(more || {}), ...ask });
   });
   return app;
 }

@@ -11,6 +11,7 @@ import os from "node:os";
 import { expect, test } from "vitest";
 import { bearerAuth, hostAllowed, isLoopback } from "../src/platform/auth.js";
 import { csrfOrigin } from "../src/platform/csrf.js";
+import { makeHealthRouter } from "../src/platform/health_api.js";
 import { createServer } from "../src/platform/server.js";
 
 const LOCAL = "127.0.0.1";
@@ -84,6 +85,21 @@ test("a_page_that_renamed_itself_to_reach_this_computer_is_refused_tokens_or_not
   // from another computer the token is the guard: its own name for this one is fine
   expect(await client([], false, REMOTE).get("/v1/things", { Host: "my-pc.lan:17499" })).toBe(200);
   expect(hostAllowed(undefined)).toBe(true); // no Host: not a browser
+});
+
+test("the_health_answer_says_when_this_computer_needs_a_token_too", async () => {
+  // open from this computer (the lockout escape), but a client with no token the server takes is told so:
+  // the desktop window then asks for one instead of loading into 401s (2026-10-20)
+  const answer = async (requireForLoopback, headers = {}) => {
+    const app = createServer({ typeBase: "https://example.test/errors/" });
+    app.use("*", bearerAuth({ readAuth: () => [["t"], requireForLoopback], typeBase: "https://example.test/errors/" }));
+    app.route("/", makeHealthRouter({ product: "P", version: "1" }));
+    return (await app.request("/v1/health", { headers }, from(LOCAL))).json();
+  };
+  expect((await answer(true)).tokenRequired).toBe(true);
+  expect((await answer(true, { Authorization: "Bearer x" })).tokenRequired).toBe(true); // not one it takes
+  expect((await answer(true, { Authorization: "Bearer t" })).tokenRequired).toBeUndefined();
+  expect((await answer(false)).tokenRequired).toBeUndefined();
 });
 
 test("a_request_through_a_proxy_on_this_computer_is_never_the_loopback_door", async () => {
