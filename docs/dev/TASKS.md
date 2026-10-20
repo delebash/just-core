@@ -53,6 +53,16 @@ OPEN:   found by the checks, not caused by the rename: JustWrite's lint error
         `@../just-core/docs/family-rules.md` import — declined, the family rules silently never load
         (RESEARCH §6).
 
+## What the kit's 2026-10-20 changes need in the apps [2026-10-20]
+STATE:  OPEN — kit 70e6df1 + 010360f (just-house-paint's fifteenth review). JustWrite's and JustVoice's sessions were told;
+        docgen has none, so for its next session: its e2e/tests/smoke.test.js:89 finds the AI page's tabs as links —
+        they are tabs now (`.lu-subnav [role=tab]`); its tokens.css lacks --border-field, --danger-ink, --info-ink,
+        --warn-ink and a dark --on-accent (the template's tokens.css has measured values); @internationalized/number is
+        a kit peer to install; a Change folder move keeps the old folder, removed from Settings → Storage (StoragePanel
+        or the shell's storageOldCopies / storageRemoveOldCopy) — an app that calls storageRelocate itself has no way to
+        remove it yet. JustWrite: 9 providerScope tests need a ResizeObserver stub (the AI page is on Quasar's tabs).
+        The template's start-packaged.js now runs a temp copy of the unpacked build — every app's copy should.
+
 ## The template and the guard: what JustWrite's adoption found [2026-10-20]
 STATE:  OPEN — from JustWrite's session (JW 5c6a33f..949258d, its dry runs). To fix in the template and the guard:
         a .deb needs `homepage` in package.json beside `linux.maintainer` (electron-builder: "Please specify project
