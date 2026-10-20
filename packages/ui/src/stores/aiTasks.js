@@ -31,7 +31,16 @@ import { markRaw } from "vue";
 
 import { FAMILY_TASK_LINGER } from "../common/familyContract.js";
 import { announce, spoken } from "../common/services/announce.js";
+import { errorMessage } from "../common/services/reportError.js";
 import { kitT } from "../common/services/kitI18n.js";
+
+/** A failed task's reason as said: a server's refusal or fault in its own words (reportError's
+ *  errorMessage — the problem's title and detail), any other error by its message. */
+function saidError(err, message) {
+  if (!err || typeof err !== "object" || !(Number(err.status) > 0)) return message;
+  const { title, detail } = errorMessage(err, { t: kitT });
+  return spoken(title, detail);
+}
 
 // The AI tasks panel's id (AiStatusPanel's dialog) — what its triggers' aria-controls name: the title
 // bar's AI status button and the sidebar's AI tasks row (useAiTasksNav).
@@ -415,7 +424,9 @@ export const useAiTasksStore = defineStore("aiTasks", {
       // `failed: null` never leave the panel.
       if (!this.isRunning(id)) return;
       const error = err?.message || String(err || kitT("kit.aiTasks.unknownError"));
-      this._end(t, "error", error);
+      // said in the server's words — its problem's title and detail, as the toast shows them — never the
+      // HTTP status line the error's message carries ("409 Conflict: …" — the seventeenth review)
+      this._end(t, "error", saidError(err, error));
       t.error = error;
       // Said once: _end announced it (assertive), so the page's reportError of the same error shows its
       // toast without saying it again (common/services/reportError.js) — one failure was announced twice,

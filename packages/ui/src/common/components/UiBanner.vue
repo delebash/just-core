@@ -22,7 +22,8 @@ const props = defineProps({
   // buttons stacks them, so the words keep their width (just-house-paint's design offer, 2026-10-18)
   inlineActions: { type: Boolean, default: true },
 });
-const ICONS = { danger: "Alert", warning: "Alert" };
+// danger and warning the ⚠, info Lucide's ⓘ (it wore the ⚠ — the seventeenth review)
+const ICONS = { danger: "Alert", warning: "Alert", info: "Info" };
 // What a screen reader hears when it appears: a danger banner interrupts (role="alert"), an info or
 // warning one waits its turn (role="status") — every banner was an alert (QBanner's own role; the
 // sixteenth review, 2026-10-20).

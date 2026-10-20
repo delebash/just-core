@@ -120,6 +120,8 @@ function setupState(el, content, placement) {
   let described = false;
   function describe(id) {
     if (squash(s.content) === ownName(el)) return;
+    // an element described already keeps its own description (UiSegmented's off option names its reason)
+    if (el.getAttribute?.("aria-describedby")) return;
     el.setAttribute("aria-describedby", id);
     described = true;
   }

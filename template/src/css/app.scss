@@ -53,7 +53,7 @@ body {
 /* ── pages ──────────────────────────────────────────────────────────────── */
 /* about 75 characters a line at the body size (an em is the font's size — ch, a "0", is wider than the
    average letter: 70ch held ~100) */
-.page__lede { margin: var(--sp-2) 0 var(--sp-4); color: var(--ink-2); max-width: 35em; }
+.page__lede { margin: var(--sp-2) 0 var(--sp-4); color: var(--ink-2); max-width: 33em; }
 .page__banner { margin: var(--sp-3) 0; max-width: var(--w-edit); }
 .cards { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-start; }
 .cards > .card { width: 280px; margin-bottom: 0; }
@@ -69,8 +69,9 @@ body {
 .card__note { margin: var(--sp-2) 0 0; }
 /* a hint's lines at most about 70 characters — the typographic measure's 45–75 (Bringhurst; WCAG 1.4.8 asks 80
    or fewer): in a Settings card at 1366 px a hint ran 846 px, ~135 characters (the screens review, 2026-10-20). In
-   em, not ch: a "0" is wider than the average letter, and 70ch held 86–108 (the sixteenth review) */
-.hint { color: var(--muted); font-size: var(--fs-small); margin: 0 0 var(--sp-3); max-width: 33em; }
+   em, not ch: a "0" is wider than the average letter, and 70ch held 86–108 (the sixteenth review); 33em still
+   held 71–77 (the seventeenth) */
+.hint { color: var(--muted); font-size: var(--fs-small); margin: 0 0 var(--sp-3); max-width: 30em; }
 .muted { color: var(--muted); }
 .mono { font-family: var(--font-mono); font-size: var(--fs-small); }
 /* Not on Quasar's own elements: Quasar names a flex row `row` too, and this rule would outrank

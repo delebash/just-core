@@ -1230,7 +1230,8 @@ defineExpose({ openWizard });
    the button alone is 292 px, and the unwrapped row ran 127 px past its card). */
 .lu-qs--bare { border: none; border-radius: 0; background: transparent; padding: 0; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .lu-qs-barefor { font-size: 13.5px; font-weight: 600; color: var(--ink); }
-.lu-qs-baresub { font-size: 12px; line-height: 1.4; }
+/* a note's lines at most 30em (~70 characters; it ran 91 — the seventeenth review, 2026-10-20) */
+.lu-qs-baresub { font-size: 12px; line-height: 1.4; max-width: 30em; }
 .lu-qs-head { display: flex; align-items: center; gap: 12px; }
 .lu-qs-head > div { flex: 1; min-width: 0; }
 .lu-qs-title { font-size: 14px; color: var(--ink); }

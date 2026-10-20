@@ -182,6 +182,30 @@ test("a_restore_whose_tables_fail_puts_the_folders_back", async () => {
   expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("now");
 });
 
+// the seventeenth review's s5: the undo awaited a removal between putting folders back — for 2 s the folders were the
+// backup's while the tables were the old ones (a request served then saw them disagree)
+test("a_restore_s_undo_puts_every_folder_back_in_one_step_before_anything_is_removed", async () => {
+  const tmp = mkdtempSync(join(tmpdir(), "kit-data-journal-"));
+  const db = join(tmp, "app.db");
+  const houses = join(tmp, "houses");
+  const old = `${houses}.replaced-9`;
+  const extra = join(tmp, "audio");
+  mkdirSync(houses);
+  writeFileSync(join(houses, "WHO"), "the backup's copy");
+  mkdirSync(old);
+  writeFileSync(join(old, "WHO"), "the live data");
+  mkdirSync(extra);
+  for (let i = 0; i < 200; i++) writeFileSync(join(extra, `f${i}`), "x");
+  writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 9, dirs: [{ dir: houses, old }, { dir: extra, old: null }] }));
+  const done = finishInterruptedRestore(db);
+  // before the first turn of the event loop: every folder is back, the backup's extra folder out of the way
+  expect(readFileSync(join(houses, "WHO"), "utf8")).toBe("the live data");
+  expect(existsSync(extra)).toBe(false);
+  expect(existsSync(`${db}.restoring`)).toBe(false);
+  expect(await done).toBe("back");
+  expect(existsSync(`${extra}.restoring-9`)).toBe(false);
+});
+
 test("a_restore_stopped_between_its_folders_and_its_tables_is_undone_at_the_next_start", async () => {
   // the record a restore leaves beside the database while its folders are swapped: the next start puts the old
   // folders back (the tables were never replaced) and moves the backup's copy out of the way

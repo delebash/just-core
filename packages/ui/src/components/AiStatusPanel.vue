@@ -21,7 +21,7 @@
 // is AI_TASKS_PANEL_ID, which the triggers' aria-controls name.
 
 import { QDialog } from "quasar";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { wrapTab } from "../common/composables/useTabWrap.js";
 import { AI_TASKS_PANEL_ID, useAiTasksStore } from "../stores/aiTasks.js";
@@ -66,6 +66,26 @@ const open = computed({
   get: () => tasks.panelOpen,
   set: (v) => (v ? tasks.openPanel() : tasks.closePanel()),
 });
+// Its backdrop is see-through (the family's no-dim ruling, 2026-07-19), so a click outside lands on it
+// and closes the panel — and the click's mousedown had taken the focus to <body>: after ANY close the
+// focus goes back to what opened the panel (the seventeenth review, 2026-10-20). The opener is taken
+// before QDialog moves the focus in (a pre-flush watch).
+let opener = null;
+watch(
+  () => tasks.panelOpen,
+  (v) => {
+    if (v) opener = document.activeElement !== document.body ? document.activeElement : null;
+  },
+);
+function onHidden() {
+  const now = document.activeElement;
+  if ((!now || now === document.body) && opener?.isConnected) opener.focus({ preventScroll: true });
+  opener = null;
+}
+// a wheel over the see-through backdrop would scroll the page behind the modal (the seventeenth review)
+function onWheel(e) {
+  if (!panelEl.value?.contains(e.target)) e.preventDefault();
+}
 
 function togglePreview(id) {
   const next = new Set(openPreviews.value);
@@ -131,6 +151,8 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
     :aria-label="t('kit.nav.aiTasks')"
     no-route-dismiss
     @keydown="(e) => wrapTab(e, panelEl)"
+    @wheel="onWheel"
+    @hide="onHidden"
   >
       <aside ref="panelEl" class="aip">
       <header class="aip-head">

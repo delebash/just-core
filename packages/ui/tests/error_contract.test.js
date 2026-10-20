@@ -178,3 +178,26 @@ describe("installErrorReporting", () => {
     await new Promise((r) => setTimeout(r, 10));
   });
 });
+
+// The seventeenth review (2026-10-20): a pattern's words say the form when the schema shows one (JSON Schema's
+// `examples` — WCAG 3.3.3), in the form's rules and in a 422's words; the "takes no null" mark survives a copied
+// rules array.
+describe("a pattern's words and the nullable mark", () => {
+  const HEX = { type: "object", properties: { hex: { type: "string", pattern: "^#[0-9a-fA-F]{6}$", examples: ["#a1b2c3"] }, code: { type: "string", pattern: "^[A-Z]+$" } } };
+  test("a refused pattern says the form its examples show; without examples, as before", () => {
+    const rules = schemaRules(HEX, { t });
+    expect(rules.hex.map((r) => r("blue")).find((x) => x !== true)).toBe('kit.validation.patternExample {"example":"#a1b2c3"}');
+    expect(rules.code.map((r) => r("abc")).find((x) => x !== true)).toBe("kit.validation.pattern");
+    const err = { errors: [{ loc: ["body", "hex"], msg: "x", type: "string_pattern_mismatch" }, { loc: ["body", "code"], msg: "x", type: "string_pattern_mismatch" }] };
+    expect(fieldErrors(err, { t, schema: HEX })).toEqual({ hex: 'kit.validation.patternExample {"example":"#a1b2c3"}', code: "kit.validation.pattern" });
+    expect(fieldErrors(err, { t })).toEqual({ hex: "kit.validation.pattern", code: "kit.validation.pattern" }); // no schema given
+  });
+  test("whether a field takes null is kept on each rule, so a copy of the rules keeps it", async () => {
+    const { takesNull } = await import("../src/common/services/forms.js");
+    const rules = schemaRules({ type: "object", properties: { n: { type: "integer" }, m: { anyOf: [{ type: "integer" }, { type: "null" }] } } }, { t });
+    expect(takesNull(rules.n)).toBe(false);
+    expect(takesNull([...rules.n, () => true])).toBe(false); // a copy, one rule more
+    expect(takesNull(rules.m)).toBe(true);
+    expect(takesNull([() => true])).toBe(true); // rules made by hand say nothing
+  });
+});

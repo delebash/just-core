@@ -31,6 +31,7 @@ import {
   appHome,
   CHROME_DIR,
   canMakeSymlink,
+  dataIsElsewhere,
   dataDirSetBy,
   dataRootProblem,
   forgetPointer,
@@ -48,6 +49,7 @@ import {
   sweepUnfinishedMove,
   takeCarried,
   useDefaultRoot,
+  volume,
   windowsLinkKinds,
 } from "../src/shell/dataRoot.js";
 
@@ -131,10 +133,11 @@ test("a move copies and commits the pointer; the old folder stays whole, recorde
   expect(readdirSync(old).sort()).toEqual(["app.db", CHROME_DIR, "logs"]);
   expect(readFileSync(path.join(old, "app.db"), "utf8")).toBe("db");
   const [record] = oldCopies(target);
-  expect(record).toEqual({ root: old, entries: ["app.db", "logs", CHROME_DIR, LOCK_NAME], movedAt: expect.any(Number) });
+  // known by its volume too (statSync().dev — the volume's serial number on Windows)
+  expect(record).toEqual({ root: old, entries: ["app.db", "logs", CHROME_DIR, LOCK_NAME], movedAt: expect.any(Number), dev: volume.idOf(old) });
   // the old folder says where its data went (its Chromium folder: removed with the old copy)
-  expect(oldCopyOf(old)).toEqual({ root: target, movedAt: record.movedAt });
-  expect(oldCopyOf(target)).toBe(null);
+  expect(await oldCopyOf(old)).toEqual({ root: target, movedAt: record.movedAt, connected: true });
+  expect(await oldCopyOf(target)).toBe(null);
   const chromeBytes = "open while running".length + statSync(path.join(old, CHROME_DIR, "moved-to.json")).size;
   expect(await oldCopiesInfo(target)).toEqual([{ root: old, bytes: 2 + 3 + chromeBytes, movedAt: record.movedAt, changedAt: null, connected: true }]);
   // the next start on the new folder removes nothing either (the old cleanup ran here — and deleted new work)
@@ -205,7 +208,7 @@ test("a record never reaches past the old folder's own entries", async () => {
   writeFileSync(path.join(old, "a.txt"), "x");
   writeFileSync(path.join(parent, "outside.txt"), "x");
   writeFileSync(path.join(root, CHROME_DIR, "old-root.txt"), JSON.stringify({ copies: [{ root: old, entries: ["..", `..${path.sep}outside.txt`, "a.txt"] }] }));
-  expect(oldCopies(root)).toEqual([{ root: old, entries: ["a.txt"], movedAt: null }]);
+  expect(oldCopies(root)).toEqual([{ root: old, entries: ["a.txt"], movedAt: null, dev: null }]);
   await removeOldCopy(root, old);
   expect(existsSync(old)).toBe(false);
   expect(existsSync(path.join(parent, "outside.txt"))).toBe(true);
@@ -216,9 +219,9 @@ test("an earlier version's record (the old root alone, or {root, entries}) is re
   mkdirSync(path.join(root, CHROME_DIR));
   const old = tmp();
   writeFileSync(path.join(root, CHROME_DIR, "old-root.txt"), old);
-  expect(oldCopies(root)).toEqual([{ root: old, entries: [CHROME_DIR], movedAt: null }]);
+  expect(oldCopies(root)).toEqual([{ root: old, entries: [CHROME_DIR], movedAt: null, dev: null }]);
   writeFileSync(path.join(root, CHROME_DIR, "old-root.txt"), JSON.stringify({ root: old, entries: ["app.db"] }));
-  expect(oldCopies(root)).toEqual([{ root: old, entries: ["app.db"], movedAt: null }]);
+  expect(oldCopies(root)).toEqual([{ root: old, entries: ["app.db"], movedAt: null, dev: null }]);
 });
 
 // The coordinator's read of the record (2026-10-20): data moved from the default D to a USB drive E; E unplugged; a
@@ -231,7 +234,7 @@ test("an old copy used after its move says when; a start on an old copy is told 
   const [{ movedAt }] = await oldCopiesInfo(E);
   // E is out: this start runs on the default — the old copy — and says so
   expect(useDefaultRoot({ appName: "TestApp", repoRoot: repo, packaged: false })).toBe(D);
-  expect(oldCopyOf(D)).toEqual({ root: E, movedAt });
+  expect(await oldCopyOf(D)).toEqual({ root: E, movedAt, connected: true });
   // Chromium writing its own folder there (the app ran on D until the move's relaunch) isn't use
   const later = new Date(movedAt + 60_000);
   utimesSync(path.join(D, CHROME_DIR, "Cookies"), later, later);
@@ -244,11 +247,11 @@ test("an old copy used after its move says when; a start on an old copy is told 
     writeFileSync(f, "the system's");
     utimesSync(f, later, later);
   }
-  expect(lastChanged(D, ["app.db", "houses"])).toBeLessThan(movedAt + 2000);
+  expect(await lastChanged(D, ["app.db", "houses"])).toBeLessThan(movedAt + 2000);
   expect((await oldCopiesInfo(E))[0].changedAt).toBe(null);
   // the user's work: the database written — every run writes its files (the database, its -wal beside it)
   utimesSync(path.join(D, "app.db"), later, later);
-  expect(lastChanged(D, ["app.db", "houses"])).toBe(later.getTime());
+  expect(await lastChanged(D, ["app.db", "houses"])).toBe(later.getTime());
   expect((await oldCopiesInfo(E))[0].changedAt).toBe(later.getTime());
   const evenLater = new Date(movedAt + 120_000);
   writeFileSync(path.join(D, "app.db-wal"), "wal");
@@ -695,133 +698,253 @@ test("Use the default folder: this start only — the pointer is kept; from now 
   expect(resolveDataRoot(opts(repo))).toBe(path.join(repo, "data"));
 });
 
-// ── the sixteenth review's attack on the fifteenth's code (2026-10-20; its scripts: the scratchpad's adv16/shell) ──
+// ── the sixteenth and seventeenth reviews' attacks (2026-10-20; scripts: the scratchpad's adv16/shell, adv17/shell) ──
 
-// s1, case A: a second launch of the app while Change folder copies swept the copy under way (its sweep ran before
-// the single-instance lock — main.js now takes the lock first; and the record names the copying process)
-test("a start while another process copies leaves the copy alone (its pid), and the move finishes whole", async () => {
+/** Drives for a test: paths under `prefix` read as volume `dev` (data_paths-style seam — dataRoot.js `volume`). */
+function fakeDrive(prefix, dev) {
+  const real = { idOf: volume.idOf, idAt: volume.idAt };
+  const under = (p) => path.resolve(String(p)).toLowerCase().startsWith(path.resolve(prefix).toLowerCase());
+  volume.idOf = (p) => (under(p) ? String(dev.value) : real.idOf(p));
+  volume.idAt = async (p) => (under(p) ? String(dev.value) : real.idAt(p));
+  return () => Object.assign(volume, real);
+}
+
+// A move is done when its pointer says so (2026-10-20, the seventeenth review: a flag in the marker, set before the
+// pointer, read a stop inside the pointer's write as done — a full stray copy kept, its token in plain text).
+test("a stop before the pointer's step: the copy (its token too) is swept at the next start; after it: never", async () => {
   const { repo, old } = oldRootWithData();
   const picked = tmp();
   const target = path.join(picked, "TestApp");
-  let swept = false;
-  const copy = async (src, dst, o) => {
-    await fsp.cp(src, dst, o);
-    if (!swept) {
-      swept = true;
-      // the second launch: the same root (no pointer yet), the record's process alive
-      expect(JSON.parse(readFileSync(path.join(old, CHROME_DIR, "moving-to.json"), "utf8"))).toEqual({ target, pid: process.pid });
-      await sweepUnfinishedMove(resolveDataRoot(opts(repo)), { ...ladder(repo), alive: (pid) => pid === process.pid });
-      expect(existsSync(path.join(target, ".moving"))).toBe(true);
-    }
-  };
-  expect(await move(old, picked, repo, { copy })).toBe(target);
-  expect(readFileSync(path.join(target, "app.db"), "utf8")).toBe("db");
-  expect(readFileSync(path.join(target, "logs", "a.log"), "utf8")).toBe("log");
-});
-
-// s1, case B: a sweep between the copy's check and the pointer's commit emptied the folder the pointer then named
-test("once the copy is whole its marker says committed: a sweep at the pointer's step never empties it", async () => {
-  const { repo, old } = oldRootWithData();
-  const picked = tmp();
-  const target = path.join(picked, "TestApp");
+  // the reviewer's s7: the copy whole, the records written, the process ends before the pointer
   const realOpen = fs.openSync;
-  let seen = null;
   fs.openSync = (p, ...rest) => {
-    if (String(p).endsWith("dataroot.txt.tmp") && !seen) {
-      seen = JSON.parse(readFileSync(path.join(target, ".moving"), "utf8"));
-      // the worst case: a process that can't be told alive (its pid gone or reused)
-      void sweepUnfinishedMove(old, { ...ladder(repo), alive: () => false });
-    }
+    if (String(p).endsWith("dataroot.txt.tmp")) throw Object.assign(new Error("killed"), { code: "EKILLED" });
     return realOpen(p, ...rest);
   };
+  let carriedSeen = false;
+  const copy = async (src, dst, o) => fsp.cp(src, dst, o);
+  // keep what the stop leaves: the undo is what a kill never runs — so look before it, from the pointer's step
+  const realRm = fsp.rm;
+  fsp.rm = async (p, o) => {
+    if (String(p).endsWith("carried.json") && !carriedSeen) {
+      carriedSeen = true;
+      // the state at the stop: the marker (uncommitted — no pointer names the target) and the token's file
+      expect(readFileSync(path.join(target, ".moving"), "utf8")).not.toContain("committed");
+      expect(JSON.parse(readFileSync(p, "utf8"))).toEqual({ token: "s3cr3t" });
+      await realRm(path.join(old, CHROME_DIR, "moving-to.json"), { force: true }).catch(() => {});
+      writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target, dev: volume.idOf(target) }));
+      // the next start, on the old folder (the pointer never written): its sweep clears the copy, the token first
+      await sweepUnfinishedMove(old, ladder(repo));
+      expect(existsSync(path.join(target, CHROME_DIR, "carried.json"))).toBe(false);
+      expect(existsSync(path.join(target, "app.db"))).toBe(false);
+    }
+    return realRm(p, o);
+  };
   try {
-    expect(await move(old, picked, repo)).toBe(target);
+    await expect(move(old, picked, repo, { copy, token: "s3cr3t" })).rejects.toThrow("The move couldn't be finished");
   } finally {
     fs.openSync = realOpen;
+    fsp.rm = realRm;
   }
-  expect(seen).toMatchObject({ root: old, committed: true });
-  // the new root's own records were written before the commit
-  expect(oldCopies(target).map((c) => c.root)).toEqual([old]);
-  await new Promise((r) => setTimeout(r, 50));
-  expect(readFileSync(path.join(target, "app.db"), "utf8")).toBe("db");
-  expect(readFileSync(path.join(repo, "dataroot.txt"), "utf8")).toBe(target);
+  expect(carriedSeen).toBe(true);
+  expect(readFileSync(path.join(old, "app.db"), "utf8")).toBe("db");
+  // committed (the pointer names it): a sweep with its marker still there never touches it
+  const done = await move(old, tmp(), repo);
+  writeFileSync(path.join(done, ".moving"), JSON.stringify({ root: old, entries: ["app.db", "logs"], made: true }));
+  writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target: done, dev: volume.idOf(done) }));
+  await sweepUnfinishedMove(old, ladder(repo));
+  expect(readFileSync(path.join(done, "app.db"), "utf8")).toBe("db");
+  await sweepUnfinishedMove(done, ladder(repo)); // the start on it: the stray marker goes
+  expect(existsSync(path.join(done, ".moving"))).toBe(false);
 });
 
-test("a move to the default folder stopped after its pointer's step is never swept (its marker committed)", async () => {
-  // the finding: the default as the target, the pointer removed, the marker still there — a start on the old folder
-  // (the variable) swept the default's data as an unfinished copy
+test("a move to the default folder stopped after its pointer's step is never swept (no pointer: the default is it)", async () => {
   const repo = tmp();
   const def = path.join(repo, "data");
   mkdirSync(path.join(def, CHROME_DIR), { recursive: true });
   writeFileSync(path.join(def, "app.db"), "the moved db");
   const old = tmp();
   mkdirSync(path.join(old, CHROME_DIR));
-  writeFileSync(path.join(def, ".moving"), JSON.stringify({ root: old, entries: ["app.db"], made: false, pid: 99999999, committed: true }));
-  writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target: def, pid: 99999999 }));
-  await sweepUnfinishedMove(old, { ...ladder(repo), alive: () => false });
+  writeFileSync(path.join(def, ".moving"), JSON.stringify({ root: old, entries: ["app.db"], made: false }));
+  writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target: def, dev: volume.idOf(def) }));
+  await sweepUnfinishedMove(old, ladder(repo)); // a start on the old folder (the variable)
   expect(readFileSync(path.join(def, "app.db"), "utf8")).toBe("the moved db");
   expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(false);
 });
 
-// s5: the stick pulled (often why the copy stopped): the record went at the next start, and the half copy stayed
-// for good once the stick was back
-test("a half copy whose drive isn't there at the next start keeps its record — swept once the drive is back", async () => {
+// the reviewer's s2 (seventeenth): Move back to the default stopped midway; the next start's "Use the default folder"
+// ran the app on the half copy, removed its marker, and Move back was refused for good
+test("a 'Use the default folder' start clears a half copy of a move into its own folder before the server starts", async () => {
+  const repo = tmp();
+  const A = path.join(repo, "data");
+  const stick = tmp();
+  const B = path.join(stick, "TestApp");
+  mkdirSync(path.join(B, "houses", "1"), { recursive: true });
+  writeFileSync(path.join(B, "app.db"), "the data");
+  writeFileSync(path.join(repo, "dataroot.txt"), B); // the pointer names B
+  // Move back (B → A) stopped after its first entry: A holds a half copy and a marker naming B
+  mkdirSync(path.join(A, CHROME_DIR), { recursive: true });
+  writeFileSync(path.join(A, "app.db"), "half");
+  writeFileSync(path.join(A, CHROME_DIR, "old-root.txt"), JSON.stringify({ copies: [{ root: B, entries: ["app.db"] }] }));
+  writeFileSync(path.join(A, CHROME_DIR, "carried.json"), JSON.stringify({ token: "t" }));
+  writeFileSync(path.join(A, CHROME_DIR, "Cookies"), "Chromium's, in use");
+  writeFileSync(path.join(A, ".moving"), JSON.stringify({ root: B, entries: ["app.db", "houses"], made: false }));
+  // B's drive out: this start runs on A ("Use the default folder")
+  await sweepUnfinishedMove(A, ladder(repo));
+  expect(readdirSync(A).sort()).toEqual([CHROME_DIR]);
+  expect(readdirSync(path.join(A, CHROME_DIR))).toEqual(["Cookies"]);
+  // B back, the next start on it: Move back works
+  const back = await move(B, A, repo);
+  expect(back).toBe(A);
+  expect(readFileSync(path.join(A, "app.db"), "utf8")).toBe("the data");
+});
+
+// s5 (sixteenth): the stick pulled (often why the copy stopped); W9 (seventeenth): a drive told from a folder by its
+// volume, not the parent's presence
+test("a half copy whose drive isn't there keeps its record — swept once the drive is back; a deleted target drops it", async () => {
   const { repo, old } = oldRootWithData();
   const stick = tmp();
   const target = path.join(stick, "TestApp");
-  mkdirSync(target);
-  writeFileSync(path.join(target, "app.db"), "half");
-  writeFileSync(path.join(target, ".moving"), JSON.stringify({ root: old, entries: ["app.db", "logs"], made: true, pid: 99999999, committed: false }));
-  writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target, pid: 99999999 }));
-  renameSync(stick, `${stick}-out`); // unplugged
-  await sweepUnfinishedMove(old, { ...ladder(repo), alive: () => false });
-  expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(true);
-  renameSync(`${stick}-out`, stick); // back
-  await sweepUnfinishedMove(old, { ...ladder(repo), alive: () => false });
-  expect(existsSync(target)).toBe(false);
-  expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(false);
+  const dev = { value: 7001 };
+  const restore = fakeDrive(stick, dev);
+  try {
+    mkdirSync(target);
+    writeFileSync(path.join(target, "app.db"), "half");
+    writeFileSync(path.join(target, ".moving"), JSON.stringify({ root: old, entries: ["app.db", "logs"], made: true }));
+    writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target, dev: 7001 }));
+    renameSync(stick, `${stick}-out`); // unplugged: what is left at that place is another volume's (the parent's)
+    await sweepUnfinishedMove(old, ladder(repo));
+    expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(true);
+    renameSync(`${stick}-out`, stick); // back
+    await sweepUnfinishedMove(old, ladder(repo));
+    expect(existsSync(target)).toBe(false);
+    expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(false);
+    // its drive there, the folder deleted: nothing to clear, the record dropped
+    writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target, dev: 7001 }));
+    await sweepUnfinishedMove(old, ladder(repo));
+    expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(false);
+  } finally {
+    restore();
+  }
   expect(readFileSync(path.join(old, "app.db"), "utf8")).toBe("db");
 });
 
-// s6: the data moved from a USB stick to the computer; Storage opened with the stick out forgot the old copy for good
-test("an old copy whose drive isn't there is listed as not connected and kept — never forgotten for that", async () => {
+// s6 (sixteenth), s3 and s3c (seventeenth): the old copy known by its volume and by its own record naming this root
+test("an old copy is known by its volume and its own record: a drive out, another stick in its letter, a hand copy — not connected, never removed", async () => {
   const repo = tmp();
   const stick = tmp();
   const A = path.join(stick, "TestApp");
-  mkdirSync(A);
-  writeFileSync(path.join(A, "app.db"), "db");
-  writeFileSync(path.join(repo, "dataroot.txt"), A);
-  const B = await move(A, tmp(), repo);
-  renameSync(stick, `${stick}-out`);
-  expect(await oldCopiesInfo(B)).toEqual([{ root: A, bytes: null, movedAt: expect.any(Number), changedAt: null, connected: false }]);
-  await expect(removeOldCopy(B, A)).rejects.toThrow(`The old copy in ${A} isn't connected — connect its drive, then remove it.`);
-  renameSync(`${stick}-out`, stick);
-  expect(await oldCopiesInfo(B)).toMatchObject([{ root: A, connected: true }]);
-  // its drive there and nothing of it left (removed by hand): forgotten
-  rmSync(A, { recursive: true, force: true });
-  expect(await oldCopiesInfo(B)).toEqual([]);
+  const dev = { value: 8001 };
+  const restore = fakeDrive(stick, dev);
+  try {
+    mkdirSync(A);
+    writeFileSync(path.join(A, "app.db"), "db");
+    writeFileSync(path.join(repo, "dataroot.txt"), A);
+    const B = await move(A, tmp(), repo);
+    expect(oldCopies(B)[0]).toMatchObject({ root: A, dev: "8001" });
+    expect(await oldCopiesInfo(B)).toMatchObject([{ root: A, connected: true }]);
+    // the stick out
+    renameSync(stick, `${stick}-out`);
+    expect(await oldCopiesInfo(B)).toEqual([{ root: A, bytes: null, movedAt: expect.any(Number), changedAt: null, connected: false }]);
+    await expect(removeOldCopy(B, A)).rejects.toThrow(`The old copy in ${A} isn't connected — connect its drive, then remove it.`);
+    // another, empty stick in its place (another volume): still the old copy, not connected — never forgotten
+    mkdirSync(stick);
+    dev.value = 8002;
+    expect(await oldCopiesInfo(B)).toMatchObject([{ root: A, connected: false }]);
+    // another stick holding its own TestApp — a hand copy, no record naming B: never taken for it, never removed
+    mkdirSync(A);
+    writeFileSync(path.join(A, "app.db"), "another stick's data");
+    expect(await oldCopiesInfo(B)).toMatchObject([{ root: A, connected: false }]);
+    await expect(removeOldCopy(B, A)).rejects.toThrow("isn't connected");
+    expect(readFileSync(path.join(A, "app.db"), "utf8")).toBe("another stick's data");
+    // the real stick back: the old copy, connected, removable
+    rmSync(stick, { recursive: true, force: true });
+    renameSync(`${stick}-out`, stick);
+    dev.value = 8001;
+    expect(await oldCopiesInfo(B)).toMatchObject([{ root: A, connected: true }]);
+    // its own volume there, the folder deleted (the user removed it by hand): forgotten
+    rmSync(A, { recursive: true, force: true });
+    expect(await oldCopiesInfo(B)).toEqual([]);
+  } finally {
+    restore();
+  }
 });
 
-// s2: Use the default folder from now on — the default's record of where its data went goes with it; a deleted
-// folder named by that record is no banner either
+// s3c (seventeenth): a deleted parent folder read as a missing drive, for good
+test("an old copy whose parent folder was deleted on its drive is forgotten, not 'not connected' for good", async () => {
+  const { repo, old } = oldRootWithData();
+  const parent = tmp();
+  const B = await move(old, path.join(parent), repo);
+  await removeOldCopy(B, old);
+  const C = await move(B, tmp(), repo);
+  expect(await oldCopiesInfo(C)).toMatchObject([{ root: B, connected: true }]);
+  rmSync(parent, { recursive: true, force: true });
+  expect(await oldCopiesInfo(C)).toEqual([]);
+});
+
+// s2 (sixteenth): Use the default folder from now on — the default's record of where its data went goes with it; a
+// deleted folder named by that record is no banner either
 test("from now on, the default's moved-to record goes; a record naming a folder that's gone says nothing", async () => {
   const { repo, old: A } = oldRootWithData();
   const pick = tmp();
   const B = await move(A, pick, repo);
-  expect(oldCopyOf(A)?.root).toBe(B);
-  // B's drive out: still said (the data may be there)
-  renameSync(pick, `${pick}-out`);
-  expect(oldCopyOf(A)?.root).toBe(B);
-  renameSync(`${pick}-out`, pick);
-  // B deleted, its drive there: nothing to say
-  rmSync(B, { recursive: true, force: true });
-  expect(oldCopyOf(A)).toBe(null);
+  expect((await oldCopyOf(A))?.root).toBe(B);
+  // B's drive out (another volume left at that place): still said, not connected
+  const dev = { value: 9001 };
+  const restore = fakeDrive(pick, dev);
+  try {
+    dev.value = 9001;
+    writeFileSync(path.join(A, CHROME_DIR, "moved-to.json"), JSON.stringify({ root: B, movedAt: 1, dev: 9001 }));
+    renameSync(pick, `${pick}-out`);
+    expect(await oldCopyOf(A)).toEqual({ root: B, movedAt: 1, connected: false });
+    renameSync(`${pick}-out`, pick);
+    expect(await oldCopyOf(A)).toEqual({ root: B, movedAt: 1, connected: true });
+    // B deleted, its drive there: nothing to say
+    rmSync(B, { recursive: true, force: true });
+    expect(await oldCopyOf(A)).toBe(null);
+  } finally {
+    restore();
+  }
   // "Use the default folder from now on": the pointer and the default's record go
   writeFileSync(path.join(A, CHROME_DIR, "moved-to.json"), JSON.stringify({ root: path.join(tmp(), "Elsewhere"), movedAt: 1 }));
   forgetPointer(ladder(repo));
   expect(existsSync(path.join(repo, "dataroot.txt"))).toBe(false);
   expect(existsSync(path.join(A, CHROME_DIR, "moved-to.json"))).toBe(false);
-  expect(oldCopyOf(A)).toBe(null);
+  expect(await oldCopyOf(A)).toBe(null);
+});
+
+test("the words when the data is elsewhere: connected, the variable's old copy, out", () => {
+  expect(dataIsElsewhere({ folder: "E:\\Data", connected: true })).toBe("Your data is in E:\\Data — restart the app to use it.");
+  expect(dataIsElsewhere({ folder: "E:\\Data", setBy: "JUST_HOUSE_PAINT_DATA_DIR", oldCopy: true })).toBe("JUST_HOUSE_PAINT_DATA_DIR names this old copy — change it to E:\\Data.");
+  expect(dataIsElsewhere({ folder: "E:\\Data" })).toBe("Your data is in E:\\Data: connect it and restart, or Use the default folder from now on.");
+  expect(dataIsElsewhere({ folder: "E:\\Data", setBy: "X" })).toBe("Your data is in E:\\Data: connect it and restart.");
+});
+
+// the undo said nothing of what it couldn't remove, and left the token's file when Chromium's folder was held
+test("a failed move's undo removes the token's file first and says what it couldn't remove", async () => {
+  const { repo, old } = oldRootWithData();
+  const picked = tmp();
+  const target = path.join(picked, "TestApp");
+  const realRm = fsp.rm;
+  const order = [];
+  fsp.rm = async (p, o) => {
+    order.push(path.basename(String(p)));
+    if (path.basename(String(p)) === "logs" && String(p).startsWith(target)) throw Object.assign(new Error("EBUSY"), { code: "EBUSY" });
+    return realRm(p, o);
+  };
+  const realOpen = fs.openSync;
+  fs.openSync = (p, ...rest) => {
+    if (String(p).endsWith("dataroot.txt.tmp")) throw Object.assign(new Error("EACCES: denied"), { code: "EACCES" });
+    return realOpen(p, ...rest);
+  };
+  try {
+    await expect(move(old, picked, repo, { token: "s3cr3t" })).rejects.toThrow(`(logs couldn't be removed from ${target} — a program may be holding a file in it)`);
+  } finally {
+    fsp.rm = realRm;
+    fs.openSync = realOpen;
+  }
+  expect(order[0]).toBe("carried.json");
+  expect(existsSync(path.join(target, CHROME_DIR, "carried.json"))).toBe(false);
 });
 
 // s3: a junction in the data folder (a models folder kept on another drive) failed every move ("the app isn't allowed
@@ -852,6 +975,22 @@ test("a folder link in the data folder moves as a link to the same folder; remov
 // file link in the model cache; every file link was refused. Now the process is asked once (`canSymlink`): with the
 // right the links are copied as they are, without it a file's link is refused, named, before anything is copied.
 // Both branches need a real file link, which only an account with the right can make — elsewhere these skip.
+// the seventeenth review: off Windows an absolute link inside the data kept pointing into the old copy
+test("a symbolic link whose absolute target is inside the data points into the copy", async () => {
+  const { repo, old } = oldRootWithData();
+  mkdirSync(path.join(old, "cache", "real"), { recursive: true });
+  writeFileSync(path.join(old, "cache", "real", "x.bin"), "inside");
+  try {
+    symlinkSync(path.join(old, "cache", "real"), path.join(old, "cache", "alias"), "dir");
+  } catch {
+    return; // no right to make a symbolic link here (Windows without Developer Mode — junctions are tested above)
+  }
+  const target = await move(old, tmp(), repo);
+  expect(readlinkSync(path.join(target, "cache", "alias"))).toBe(path.join(target, "cache", "real"));
+  await removeOldCopy(target, old);
+  expect(readFileSync(path.join(target, "cache", "alias", "x.bin"), "utf8")).toBe("inside");
+});
+
 test.runIf(process.platform === "win32")("a file link: copied as a link when this process may make one, refused in words when it may not", async () => {
   const { repo, old } = oldRootWithData();
   writeFileSync(path.join(old, "real.txt"), "x");

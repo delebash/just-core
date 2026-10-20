@@ -35,8 +35,9 @@
 // is the option's index, so any option value works; a click on the chosen option reaches
 // QBtnToggle's `clear` (it's clearable for that alone) and is picked again, as before.
 import { QBtnToggle } from "quasar";
-import { computed, nextTick, onMounted, onUpdated, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref, useId } from "vue";
 import { useRovingTabindex } from "../composables/useRovingTabindex.js";
+import { tooltipDirective } from "../services/tooltip.js";
 
 const props = defineProps({
   modelValue: {},
@@ -132,7 +133,9 @@ const btnOptions = computed(() => props.options.map((opt, i) => ({
     "aria-pressed": undefined,
     "aria-checked": isSelected(opt) ? "true" : "false",
     "aria-disabled": isOff(opt) ? "true" : undefined,
-    title: opt?.title || undefined,
+    // its `title` (an off option's reason) is its description and the kit's tooltip — shown on hover
+    // AND on keyboard focus; a native title showed nothing on focus or touch (the seventeenth review)
+    "aria-describedby": opt?.title ? descId(i) : undefined,
     tabindex: i === tabStop.value ? 0 : -1,
     disabled: props.disabled ? "" : undefined,
     class: { active: isSelected(opt), "is-off": isOff(opt) },
@@ -146,14 +149,41 @@ function onReclick() {
   pick(props.options[selectedIndex.value]);
 }
 
-// the roving focus needs the buttons themselves, which QBtnToggle renders
+// an option's description: a hidden element its button names (aria-describedby)
+const uid = useId();
+const descId = (i) => `ui-seg-${uid}-desc-${i}`;
+
+// the roving focus needs the buttons themselves, which QBtnToggle renders — and the tooltips go on
+// them (the kit's v-tooltip, applied here: QBtnToggle builds the buttons, so no directive reaches them
+// from the template)
 const group = ref(null);
+const tipped = new Set();
 function registerButtons() {
   const buttons = group.value?.$el?.querySelectorAll?.(":scope > .q-btn") ?? [];
-  props.options.forEach((_, i) => registerItem(i, buttons[i] ?? null));
+  props.options.forEach((opt, i) => {
+    const el = buttons[i] ?? null;
+    registerItem(i, el);
+    if (!el) return;
+    const binding = { value: opt?.title || "", modifiers: { bottom: true } };
+    if (tipped.has(el)) tooltipDirective.updated(el, binding);
+    else if (binding.value) {
+      tooltipDirective.mounted(el, binding);
+      tipped.add(el);
+    }
+  });
+  for (const el of tipped) {
+    if (![...buttons].includes(el)) {
+      tooltipDirective.beforeUnmount(el);
+      tipped.delete(el);
+    }
+  }
 }
 onMounted(registerButtons);
 onUpdated(registerButtons);
+onBeforeUnmount(() => {
+  for (const el of tipped) tooltipDirective.beforeUnmount(el);
+  tipped.clear();
+});
 </script>
 
 <template>
@@ -182,6 +212,10 @@ onUpdated(registerButtons);
         <b class="ui-seg__label">{{ labelOf(opt) }}</b>
         <span v-if="sublabelOf(opt)" class="ui-seg__sub">{{ sublabelOf(opt) }}</span>
       </slot>
+    </template>
+    <!-- the options' descriptions, hidden, after the buttons (QBtnToggle's default slot) -->
+    <template v-for="(opt, i) in options" :key="`d${i}`">
+      <span v-if="opt?.title" :id="descId(i)" hidden>{{ opt.title }}</span>
     </template>
   </QBtnToggle>
 </template>

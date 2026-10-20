@@ -15,7 +15,8 @@
 // clamped to min/max, the value given) before the form submits — Enter had submitted the old value,
 // or one past the max; a text that isn't a number fails the field by UiNumber's own rule, first,
 // with or without the caller's rules ("1e3" and "0x200" passed a schema's rules and Save sent null;
-// with no rules, "5 min" showed no error), and marks it aria-invalid; the arrows do nothing on such a
+// with no rules, "5 min" showed no error) — aria-invalid and the red edge come with its words (Quasar's
+// error state), never before them (the seventeenth review); the arrows do nothing on such a
 // text (they replaced it with 0 + step) or in a read-only box; "-0" is 0.
 //
 // Locale: the `locale` prop pins one input; otherwise it follows the app's vue-i18n language.
@@ -31,6 +32,7 @@ import { QInput } from "quasar";
 import { computed, ref, useAttrs, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useNativeEvents, withoutListeners } from "../composables/useNativeEvents.js";
+import { takesNull } from "../services/forms.js";
 import { isPartialNumber, parseLocaleNumber } from "./numberBox.js";
 
 defineOptions({ inheritAttrs: false });
@@ -182,7 +184,7 @@ const numberRules = computed(() => {
   // "Required" before anything is sent
   const own = () => {
     if (refusedNow()) return t("kit.validation.number");
-    if (rules.nullable === false && blank(display.value)) return t("kit.validation.required");
+    if (!takesNull(rules) && blank(display.value)) return t("kit.validation.required");
     return true;
   };
   const theirs = rules.map((rule) => (typeof rule === "function" ? () => (refusedNow() || (typing.value && partial(display.value)) ? true : rule(asNumber(display.value))) : rule));
@@ -193,7 +195,7 @@ const classes = computed(() => [
   "ui-input", "ui-number",
   props.size === "small" && "ui-input--small",
   props.width && `ui-w-${props.width}`,
-  { "is-invalid": props.invalid || refusedNow(), "is-disabled": props.disabled },
+  { "is-invalid": props.invalid, "is-disabled": props.disabled },
 ]);
 useNativeEvents(inputEl, attrs, { blur: onBlur, focus: onFocus, keydown: onKeydown });
 </script>
@@ -212,7 +214,7 @@ useNativeEvents(inputEl, attrs, { blur: onBlur, focus: onFocus, keydown: onKeydo
     :readonly="readonly"
     :name="name"
     :for="id || inputId"
-    :aria-invalid="invalid || refusedNow() ? 'true' : undefined"
+    :aria-invalid="invalid ? 'true' : undefined"
     borderless
     dense
     hide-bottom-space

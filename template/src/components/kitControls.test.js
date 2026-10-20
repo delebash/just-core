@@ -28,7 +28,9 @@ import {
   DataManagement,
   SettingsShell,
   UiBanner,
+  UiButton,
   UiSlider,
+  useAiTasksNav,
   closeHelp,
   configureHelp,
   HelpDrawer,
@@ -53,7 +55,7 @@ import {
 } from "@delebash/ui";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
-import { computeAccessibleName } from "dom-accessibility-api";
+import { computeAccessibleDescription, computeAccessibleName } from "dom-accessibility-api";
 import { createPinia, setActivePinia } from "pinia";
 import * as quasar from "quasar";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -482,7 +484,8 @@ test("a failed task is announced once — the task store's words — though the 
   }
   await settle();
   const lines = [...document.querySelector('[data-live-announcer] [aria-live="assertive"]').children].map((d) => d.textContent);
-  expect(lines).toEqual(["The AI photo of Maple street: failed. The GPU ran out of memory."]);
+  // in the server's words — its problem's title and detail — never the HTTP status line (the seventeenth review)
+  expect(lines).toEqual(["The AI photo of Maple street: failed. The AI photo didn't finish. The GPU ran out of memory."]);
   expect(create).toHaveBeenCalledTimes(1); // the toast still shows
   create.mockRestore();
 });
@@ -490,20 +493,25 @@ test("a failed task is announced once — the task store's words — though the 
 test("while a modal dialog is open, what is said is said inside it (outside an aria-modal dialog isn't in the tree)", async () => {
   installAnnouncer();
   await mountHost(() => h(AppDialog));
+  // said in the very tick the dialog opens: it waits a tick, and lands in the dialog (the seventeenth review)
   const answer = promptDialog({ title: "Rename", confirmLabel: "Go", fields: [{ key: "name", label: "Name" }] });
+  announce("Opened");
   await settle();
   const modal = document.querySelector('[role="dialog"][aria-modal="true"]');
   expect(modal).not.toBeNull();
-  // its own pair, there before anything is said
-  expect(modal.querySelector('[data-live-announcer] [aria-live="polite"]')).not.toBeNull();
+  // its own pair
+  const inModal = () => modal.querySelector('[data-live-announcer] [aria-live="polite"]').textContent;
+  expect(inModal()).toContain("Opened");
   announce("Saved");
-  expect(modal.querySelector('[data-live-announcer] [aria-live="polite"]').textContent).toContain("Saved");
+  await settle();
+  expect(inModal()).toContain("Saved");
   expect(document.body.firstElementChild.textContent).not.toContain("Saved"); // not in the page's pair
+  // said in the tick it closes: the page's pair, never the closing dialog's
   [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel")?.click();
+  announce("Closed");
   await answer;
   await settle();
-  announce("Closed");
-  expect(document.body.firstElementChild.textContent).toContain("Closed"); // the page's pair again
+  expect(document.body.firstElementChild.textContent).toContain("Closed");
 });
 
 // ── The sixteenth's screens review (2026-10-20, the scratchpad's screens3) ─────────────────────────────
@@ -598,6 +606,118 @@ test("Reset asks with its sentence as the message, the field 'Type RESET to conf
   expect(resetBtn().disabled).toBe(false);
   [...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel").click();
   await settle();
+});
+
+// ── The seventeenth review (2026-10-20, the scratchpad's screens4 and adv17) ─────────────────────────────
+
+test("an off segment's reason is its description and the kit's tooltip (hover here; focus too, in a browser)", async () => {
+  const options = [
+    { value: "look", label: "Look" },
+    { value: "box", label: "Box", disabled: true, title: "Install the part finder first" },
+  ];
+  await mountHost(() => h(UiSegmented, { modelValue: "look", options, ariaLabel: "Tool" }));
+  const off = document.querySelectorAll('[role="radio"]')[1];
+  expect(off.hasAttribute("title")).toBe(false); // no native title (nothing on focus or touch)
+  expect(computeAccessibleDescription(off)).toBe("Install the part finder first");
+  // jsdom has no keyboard-focus (:focus-visible) state to tell a keyboard focus by; the same show runs on hover
+  off.dispatchEvent(new PointerEvent("pointerenter", { pointerType: "mouse" }));
+  await new Promise((r) => setTimeout(r, 450)); // the tooltip's delay
+  expect([...document.querySelectorAll(".ui-tooltip")].map((el) => el.textContent)).toContain("Install the part finder first");
+  expect(computeAccessibleDescription(off)).toBe("Install the part finder first"); // still its own, not replaced
+});
+
+test("Reset's word in any case, spaces aside; its box a token's width; the dialog's × is Close", async () => {
+  await mountHost(() => [h(AppDialog), h(DataManagement, { appName: "Family Template" })]);
+  [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset…").click();
+  await settle();
+  const dlg = document.querySelector('[role="dialog"][aria-modal="true"]');
+  const field = dlg.querySelector("input");
+  expect(field.closest(".ui-input").classList.contains("ui-w-token")).toBe(true);
+  expect([...dlg.querySelectorAll("button")].filter((b) => computeAccessibleName(b) === "Cancel")).toHaveLength(1);
+  expect([...dlg.querySelectorAll("button")].some((b) => computeAccessibleName(b) === "Close")).toBe(true);
+  const resetBtn = () => [...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset");
+  field.value = " reset ";
+  field.dispatchEvent(new Event("input"));
+  await settle();
+  expect(resetBtn().disabled).toBe(false);
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel").click();
+  await settle();
+});
+
+test("a button off while focused keeps the focus (focusableWhenDisabled): aria-disabled, no click, no submit", async () => {
+  const off = ref(false);
+  const submitted = vi.fn();
+  const clicked = vi.fn();
+  await mountHost(() =>
+    h(quasar.QForm, { onSubmit: submitted }, () =>
+      h(UiButton, { type: "submit", label: "Save", disabled: off.value, focusableWhenDisabled: true, onClick: clicked }),
+    ),
+  );
+  const btn = document.querySelector("button.ui-btn");
+  btn.focus();
+  off.value = true; // saved: nothing left to save
+  await settle();
+  expect(document.activeElement).toBe(btn);
+  expect(btn.disabled).toBe(false);
+  expect(btn.getAttribute("aria-disabled")).toBe("true");
+  expect(btn.classList.contains("is-disabled")).toBe(true);
+  expect(computeAccessibleName(btn)).toBe("Save");
+  btn.click();
+  for (const type of ["keydown", "keyup"]) btn.dispatchEvent(new KeyboardEvent(type, { key: "Enter", keyCode: 13, bubbles: true, cancelable: true }));
+  await settle();
+  expect(clicked).not.toHaveBeenCalled();
+  expect(submitted).not.toHaveBeenCalled();
+  // on again: it works
+  off.value = false;
+  await settle();
+  btn.click();
+  await settle();
+  expect(clicked).toHaveBeenCalledTimes(1);
+});
+
+test("the AI tasks panel gives the focus back after a click outside too, and a wheel over its backdrop scrolls nothing", async () => {
+  setActivePinia(createPinia());
+  await mountHost(() => h(AiStatusButton));
+  const trigger = document.querySelector(".ai-status-btn");
+  trigger.focus();
+  trigger.click();
+  await new Promise((r) => setTimeout(r, 400));
+  await settle();
+  const backdrop = document.querySelector(".aip-overlay .q-dialog__backdrop");
+  const wheel = new WheelEvent("wheel", { deltaY: 300, bubbles: true, cancelable: true });
+  backdrop.dispatchEvent(wheel);
+  expect(wheel.defaultPrevented).toBe(true);
+  // a click outside: the mousedown takes the focus to <body>, then the panel closes
+  document.activeElement.blur();
+  for (const type of ["mousedown", "mouseup", "click"]) backdrop.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));
+  await new Promise((r) => setTimeout(r, 400));
+  await settle();
+  expect(document.querySelector('[role="dialog"][aria-modal="true"]')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+});
+
+test("UiNumber is aria-invalid only while its error's words show", async () => {
+  const { value } = await numberForm(1024);
+  input().focus();
+  await type("abc");
+  await settle();
+  expect(messages()).toBe(""); // lazy rules: no words yet
+  expect(input().hasAttribute("aria-invalid")).toBe(false);
+  input().blur();
+  await form.validate(); // the moment the words show (a blur's, a submit's)
+  await settle();
+  expect(messages()).toContain("Must be a number");
+  expect(input().getAttribute("aria-invalid")).toBe("true");
+  expect(value.value).toBeNull();
+});
+
+test("an info banner wears the info icon; the AI tasks row has no title equal to its words", async () => {
+  await mountHost(() => [h(UiBanner, { intent: "info" }, () => "A note"), h(UiBanner, { intent: "warning" }, () => "Slow here")]);
+  const [info, warning] = [...document.querySelectorAll(".ui-banner path")].map((p) => p.getAttribute("d"));
+  expect(info.startsWith("M12 22a10 10")).toBe(true); // Lucide's info: a circle and an i
+  expect(warning.startsWith("M12 4 2 20h20")).toBe(true); // the triangle
+  setActivePinia(createPinia());
+  expect("title" in useAiTasksNav().navAttrs).toBe(false);
 });
 
 test("a model that failed to load at start offers the app's Troubleshooting page — only when the app has one", async () => {

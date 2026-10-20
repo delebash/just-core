@@ -15,6 +15,18 @@ const FORMATS = {
   uri: /^[a-z][a-z0-9+.-]*:\S+$/i,
 };
 
+// the mark a field's rules carry: whether its schema takes null (takesNull below)
+const NULLABLE = Symbol.for("@delebash/ui:nullable");
+
+/** A pattern refused, worded: the form to write when the schema shows one — JSON Schema's own
+ *  `examples` keyword ("Write it like #a1b2c3", WCAG 3.3.3 — the seventeenth review, 2026-10-20) —
+ *  else that it isn't in the expected form. `schemas` are the field's schema and its wrappers. */
+function patternWords(...args) {
+  const t = args.pop();
+  const example = args.map((s) => (Array.isArray(s?.examples) ? s.examples[0] : undefined)).find((x) => x != null);
+  return example != null ? t("kit.validation.patternExample", { example: String(example) }) : t("kit.validation.pattern");
+}
+
 const isEmpty = (v) => v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
 // ajv counts characters as code points, so a form does too (an emoji is one character).
 const charCount = (v) => [...String(v)].length;
@@ -43,7 +55,7 @@ function rulesFor(raw, required, t) {
     if (s.maxLength != null) rules.push((v) => isEmpty(v) || charCount(v) <= s.maxLength || t("kit.validation.maxLength", { max: s.maxLength }, s.maxLength));
     if (s.pattern) {
       const re = new RegExp(s.pattern, "u");
-      rules.push((v) => isEmpty(v) || re.test(String(v)) || t("kit.validation.pattern"));
+      rules.push((v) => isEmpty(v) || re.test(String(v)) || patternWords(s, raw, t));
     }
     if (s.format && FORMATS[s.format]) rules.push((v) => isEmpty(v) || FORMATS[s.format].test(String(v)) || t(`kit.validation.${s.format}`));
   }
@@ -64,9 +76,20 @@ function rulesFor(raw, required, t) {
   if (Object.hasOwn(s, "const")) rules.push((v) => isEmpty(v) || v === s.const || t("kit.validation.oneOf"));
   // Whether the schema takes null, for a control whose empty value IS null and can't be left out
   // (UiNumber: an emptied box in a settings patch was sent as null and refused, 422 — the sixteenth
-  // review, 2026-10-20). Not enumerable: the array stays Quasar's plain list of rules.
-  Object.defineProperty(rules, "nullable", { value: nullable || (Array.isArray(raw?.type) && raw.type.includes("null")) });
+  // review, 2026-10-20). On the array AND on each rule, so a copy ([...rules, mine]) keeps it (the
+  // seventeenth review); not enumerable — the array stays Quasar's plain list of rules.
+  const takes = nullable || (Array.isArray(raw?.type) && raw.type.includes("null"));
+  Object.defineProperty(rules, "nullable", { value: takes });
+  for (const rule of rules) Object.defineProperty(rule, NULLABLE, { value: takes });
   return rules;
+}
+
+/** Whether a field's rules (schemaRules', or a copy holding them) let its value be null. Rules made
+ *  by hand say nothing: they let it. */
+export function takesNull(rules) {
+  if (!Array.isArray(rules)) return true;
+  if (rules.nullable === false) return false;
+  return !rules.some((r) => typeof r === "function" && r[NULLABLE] === false);
 }
 
 /**
@@ -83,7 +106,9 @@ export function schemaRules(schema, { t = kitT } = {}) {
 }
 
 /** One server-side field error worded in the app's language (falls back to the server's text). */
-export function fieldMessage(e, { t = kitT } = {}) {
+// `schema`: the field's own schema, when the caller has it — a refused pattern then says the form it
+// shows (its `examples`).
+export function fieldMessage(e, { t = kitT, schema = null } = {}) {
   const ctx = e?.ctx || {};
   switch (e?.type) {
     case "missing":
@@ -101,7 +126,7 @@ export function fieldMessage(e, { t = kitT } = {}) {
     case "less_than":
       return ctx.lt != null ? t("kit.validation.lt", { max: ctx.lt }) : e.msg;
     case "string_pattern_mismatch":
-      return t("kit.validation.pattern");
+      return patternWords(schema, unwrap(schema).s, t);
     case "int_parsing":
     case "int_type":
     case "int_from_float":
@@ -119,15 +144,28 @@ export function fieldMessage(e, { t = kitT } = {}) {
 /**
  * A failed request's field errors, keyed by field: `{ title: "At least 3 characters" }` — the
  * location after its part ("body", "query", "path"), nested fields joined with dots; the first
- * error per field wins. Bind each to its input's `:error` / `:error-message`.
+ * error per field wins. Bind each to its input's `:error` / `:error-message`. `schema`: the route's
+ * body schema (the one its form's schemaRules came from) — a refused pattern then says the form its
+ * field's `examples` show.
  */
-export function fieldErrors(err, { t = kitT } = {}) {
+export function fieldErrors(err, { t = kitT, schema = null } = {}) {
   const out = {};
   for (const e of err?.errors || []) {
     const loc = Array.isArray(e?.loc) ? e.loc : [];
-    const field = (["body", "query", "path", "header"].includes(loc[0]) ? loc.slice(1) : loc).join(".");
+    const path = ["body", "query", "path", "header"].includes(loc[0]) ? loc.slice(1) : loc;
+    const field = path.join(".");
     if (!field || field in out) continue;
-    out[field] = fieldMessage(e, { t });
+    out[field] = fieldMessage(e, { t, schema: fieldSchema(schema, path) });
   }
   return out;
+}
+
+/** The schema of the field at `path` (["a", "b"]) in an object schema, through nullable wrappers. */
+function fieldSchema(schema, path) {
+  let s = schema;
+  for (const key of path) {
+    s = unwrap(s).s?.properties?.[key];
+    if (!s) return null;
+  }
+  return s;
 }

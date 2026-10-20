@@ -1661,6 +1661,35 @@ scripts in the scratchpad's adv16/shell — and its fixes):
 - The guard's peer check passed a peer only the kit's own node_modules held (`s4`): a peer now counts when Node
   resolves it from the package that needs it, to a package the tree packs.
 
+**The sixteenth's Change folder, attacked** (*measured* and *tested*, 2026-10-20; just-house-paint's seventeenth
+review — scripts in the scratchpad's adv17/shell — and its fixes; proofs in fix17/):
+
+- `subst` drive letters (no admin needed) reproduce a drive letter's other drives: "connected" read as "its parent
+  folder exists" made another stick's `Q:\TestApp` the old copy — Remove the old copy removed that stick's data — and
+  an empty stick forgot the real one (`s3`). An old copy is now known by its volume and by its own `moved-to.json`
+  naming the folder in use: the volume id is `stat().dev` (on Windows the volume's serial number) plus, on Windows, the
+  drive root's file id (`subst` folders share one volume; their roots are different folders). Rerun: another stick
+  reads "not connected" and Remove refuses; the empty stick keeps the record; the real stick back reads connected.
+- A missing drive is told from a deleted folder by that volume id at the nearest folder that exists (a deleted
+  parent read as a missing drive for good — `s3c`; rerun: forgotten).
+- **`fs.realpathSync.native` and `existsSync` on an offline share hold the calling thread ~21 s** (`s6`): every look
+  at an old copy's or a moved-to folder now goes through `fs.promises` with a 3 s limit (each path looked at once —
+  where it stands first, its real path only when it is there). Measured (fix17/unc_time.mjs, an unreachable
+  192.0.2.x share): `oldCopyOf` and `oldCopiesInfo` answer in 3.0 s, the event loop running meanwhile.
+- Real Electron (`e1`, a 60 000-file half copy): with the sweep awaited before the window, a second launch made a
+  second window. Now the window and the tray first, the sweep, then the server, and "second-instance" only shows a
+  window that exists — rerun: one window. `e2` (the move and relaunch, the token carried) unchanged.
+- A move is done when its pointer says so (the pointer names the target, or there is none and the target is the
+  default): a stop inside the pointer's write left a copy marked committed, never swept, its token in plain text (`s7`;
+  rerun: swept, no token left). The pid check went (the single-instance lock covers a second launch). A "Use the default
+  folder" start clears a half copy of a move into its own folder before the server starts (`s2`; rerun: Move back
+  works again); Chromium's own folder in a target is no data (kept, never a refusal).
+- `finishInterruptedRestore`'s undo awaited a removal between two renames — the folders were the backup's for 2.1 s
+  while the tables were the old ones (`s5`): every folder now moves in one synchronous step, the backup's extra folder
+  aside, removed after (rerun: 0 ms).
+- Clear models and a model's Delete through a junction removed the link and freed nothing (`s8`): a linked folder is
+  now emptied and its link kept (`tests/junction_removers.test.js`).
+
 **The screens at real sizes, fixed** (*measured*, 2026-10-20; just-house-paint's tenth review, an agent on the
 built app at 960/1366/1920, light and dark):
 

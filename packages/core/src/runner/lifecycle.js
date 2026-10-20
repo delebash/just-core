@@ -387,6 +387,18 @@ async function rmTree(p) {
   });
 }
 
+/** Empty `p` — a folder, or a link to one (a junction, a symbolic link: the models kept on another drive) — and keep
+ *  it: what is inside goes (fs.promises.rm), the folder or the link stays (2026-10-20, the seventeenth review: Clear
+ *  models and a model's Delete through a junction removed the link, freed nothing, and left an empty folder in its
+ *  place). True when it is a link. */
+async function emptyKeep(p) {
+  const st = await fsp.lstat(p).catch(() => null);
+  if (!st) return false;
+  const names = await fsp.readdir(p).catch(() => []);
+  for (const name of names) await rmTree(path.join(p, name));
+  return st.isSymbolicLink();
+}
+
 /** shutil.copy2: the bytes + the times. */
 function copy2(src, dst) {
   copyFileSync(src, dst);
@@ -1571,9 +1583,10 @@ export class RunnerService {
     // really do come back — but they come back once, and a `freed` that counted each name
     // would overstate the reclaim (2x on Windows).
     const freed = await dirSize(hf, null, true);
-    await rmTree(hf);
+    // emptied, kept: a link to the models on another drive stays a link (and frees what it held there)
+    await emptyKeep(hf);
     try {
-      mkdirSync(hf, { recursive: true }); // recreate empty so the next download has a home
+      mkdirSync(hf, { recursive: true }); // there empty, so the next download has a home
     } catch (e) {
       log.warning(`could not recreate empty hf cache dir at ${hf}`, e);
     }
@@ -1641,7 +1654,8 @@ export class RunnerService {
       // dedupLinks: this repo dir holds blobs/ AND snapshots/, the same weights under two
       // names — one number, or the caller is told it freed twice the disk.
       freed += await dirSize(repoDir, null, true);
-      await rmTree(repoDir);
+      // a link to the weights kept elsewhere: emptied, the link kept; a folder: gone
+      if (!(await emptyKeep(repoDir))) await rmTree(repoDir);
     }
     return [freed, kept];
   }

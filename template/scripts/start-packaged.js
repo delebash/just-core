@@ -61,11 +61,24 @@ function copyUnpacked(into) {
 }
 
 /** A data folder inside the copy, said where it is in the build itself (each start runs its own copy, and Windows'
- *  and the unpacked Linux build's default is beside the executable): the window's and the launcher's compare. */
-function inBuild(dir, copy) {
-  if (!copy) return dir;
-  const rel = path.relative(copy, realpathSync.native(dir));
-  return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? path.join(out, rel) : dir;
+ *  and the unpacked Linux build's default is beside the executable), and one inside the start's own home folder
+ *  said under "~": the window's and the launcher's compare. */
+function inBuild(dir, copy, home) {
+  let real = dir;
+  try {
+    real = realpathSync.native(dir);
+  } catch {
+    // not there (any more): compared as the app named it
+  }
+  const under = (root) => {
+    if (!root) return null;
+    const rel = path.relative(root, real);
+    return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? rel : null;
+  };
+  const inCopy = under(copy);
+  if (inCopy) return path.join(out, inCopy);
+  const inHome = under(home);
+  return inHome ? `~/${inHome.split(path.sep).join("/")}` : dir;
 }
 
 /** The packaged app's own executable in electron-builder's unpacked folder for this platform. */
@@ -135,6 +148,10 @@ async function run() {
   const appImage = asUser ? readdirSync(out).find((f) => f.endsWith(".AppImage")) : null;
   if (asUser && !appImage) throw new Error(`no .AppImage in ${out}`);
   const dataDir = defaultData ? null : mkdtempSync(path.join(os.tmpdir(), "start-packaged-"));
+  // the app's own default on macOS and Linux is under the home folder (Application Support, ~/.local/share): the
+  // start gets a home of its own in the temp folder, so a check run on a developer's computer never touches their
+  // real data folder (Windows' default is beside the executable — in the copy)
+  const home = defaultData && process.platform !== "win32" ? realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "start-packaged-home-"))) : null;
   const scratch = headless && appImage ? mkdtempSync(path.join(os.tmpdir(), "start-packaged-appimage-")) : null;
   // the unpacked build runs from a copy outside the checkout (the AppImage mounts or extracts outside it already)
   const copy = appImage ? null : copyUnpacked(mkdtempSync(path.join(os.tmpdir(), "start-packaged-app-")));
@@ -147,6 +164,10 @@ async function run() {
   const env = { ...process.env };
   if (dataDir) env[dataDirEnv] = dataDir;
   else delete env[dataDirEnv];
+  if (home) {
+    env.HOME = home;
+    delete env.XDG_DATA_HOME;
+  }
   // started from the temp folder, not the checkout: the server's UI fallback (a dist/spa beside the working
   // folder) must not stand in for the packaged UI
   const options = { env, cwd: os.tmpdir(), stdio: ["ignore", "pipe", "inherit"], detached: process.platform !== "win32" };
@@ -189,7 +210,7 @@ async function run() {
           const app = exe.includes(".app/Contents/") ? exe.slice(0, exe.indexOf(".app/Contents/") + 4) : path.dirname(exe);
           const rel = path.relative(app, h.dataDir);
           if (bundle && (!rel.startsWith("..") || /\/\.mount_/.test(h.dataDir))) throw new Error(`its data folder ${h.dataDir} is inside the app (${app})`);
-          console.log(`data folder used: ${inBuild(h.dataDir, copy)}`);
+          console.log(`data folder used: ${inBuild(h.dataDir, copy, home)}`);
         }
         if (headless) {
           // the whole app with no window: the server serves its UI too
@@ -225,7 +246,7 @@ async function run() {
   } finally {
     stop(child);
     await new Promise((r) => setTimeout(r, 1500)); // let the files go before the folder is removed
-    for (const dir of [dataDir, scratch, copy].filter(Boolean)) {
+    for (const dir of [dataDir, scratch, copy, home].filter(Boolean)) {
       try {
         rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
       } catch (e) {

@@ -957,7 +957,8 @@ onMounted(() => {
 .lu-area { width: 100%; flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
 .lu-area.lu-area--fill { overflow: hidden; }
 .lu-h1 { font-size: 22px; font-weight: 600; margin: 0; color: var(--ink); }
-.lu-lede { font-size: 13px; margin: 4px 0 0; }
+/* a lede's lines at most 33em (~75 characters; it ran 96 — the seventeenth review, 2026-10-20) */
+.lu-lede { font-size: 13px; margin: 4px 0 0; max-width: 33em; }
 /* The machine strip — labelled stat blocks (OS · CPU · Memory · GPU · Accel ·
    the live memory cells), stacked label-over-value-over-detail.
    The cells live in an auto-fit COLUMN GRID: every track is the same width, so

@@ -73,7 +73,7 @@ export { announce, clearAnnouncer, installAnnouncer } from "./services/announce.
 // the error and validation contract (app-structure §15): one way to show a failure, form rules
 // from the route's own schema, field errors under their fields, renderer errors into the log
 export { attachProblem, parseProblem } from "./services/apiError.js";
-export { fieldErrors, fieldMessage, schemaRules } from "./services/forms.js";
+export { fieldErrors, fieldMessage, schemaRules, takesNull } from "./services/forms.js";
 export { errorMessage, reportError } from "./services/reportError.js";
 export { installErrorReporting } from "./services/errorReporting.js";
 

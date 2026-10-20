@@ -79,6 +79,7 @@ import {
   dataDirSetBy,
   dataIsElsewhere,
   dataRootProblem,
+  folderThere,
   forgetMovedTo,
   forgetPointer,
   MOVE_UNDER_WAY,
@@ -862,13 +863,17 @@ export function runDesktopApp(config) {
   // ── the data folder's moves ────────────────────────────────────────────────
   /** Where the data is when this start runs elsewhere — on the default folder this time ("Use the default folder"),
    *  or on the old copy a move left — or null. */
-  const dataElsewhere = () => state.defaultThisStart?.folder || oldCopyOf(state.root)?.root || null;
+  async function dataElsewhere() {
+    if (state.defaultThisStart) return { folder: state.defaultThisStart.folder, connected: await folderThere(state.defaultThisStart.folder), oldCopy: false };
+    const o = await oldCopyOf(state.root);
+    return o ? { folder: o.root, connected: o.connected, oldCopy: true } : null;
+  }
   /** No move from here (2026-10-20, the sixteenth review): while the data is elsewhere — a move would leave it known
    *  nowhere — or while the data-dir variable names the folder (the next start ignores a pointer). Throws the words. */
-  function refuseMoveHere() {
+  async function refuseMoveHere() {
     const setBy = dataDirSetBy({ dataDirEnv: config.dataDirEnv });
-    const elsewhere = dataElsewhere();
-    if (elsewhere) throw new Error(dataIsElsewhere(elsewhere, !setBy));
+    const elsewhere = await dataElsewhere();
+    if (elsewhere) throw new Error(dataIsElsewhere({ ...elsewhere, setBy }));
     if (setBy) throw new Error(setByVariable(setBy));
   }
   /** The window's access token, read from its page (the kit's sign-in keeps it in localStorage under
@@ -953,17 +958,19 @@ export function runDesktopApp(config) {
     // default folder — no "Move back"), `folderName` — the folder Change folder makes inside the one picked —,
     // `defaultThisStart` ({folder} while this start uses the default folder because the pointer's folder can't be
     // used, else null), `setBy` (the data-dir variable's name while it names the folder: no Change folder — its
-    // pointer would be ignored) and `oldCopyOf` ({root, movedAt} when this folder holds the old copy a move left:
-    // the app runs on stale data).
-    storageGetRoot() {
+    // pointer would be ignored) and `oldCopyOf` ({root, movedAt, connected} when this folder holds the old copy a
+    // move left: the app runs on stale data); `defaultThisStart` carries `connected` too (the data's folder is there
+    // now: a restart takes the app to it). Asked asynchronously, in time (an offline share never holds the window).
+    async storageGetRoot() {
       const info = storageInfo({ root: state.root, ...ladder });
+      const dts = state.defaultThisStart;
       return {
         ...info,
         atDefault: samePath(info.root, info.default),
         folderName: appFolderName(config.productName, config.appName),
-        defaultThisStart: state.defaultThisStart,
+        defaultThisStart: dts ? { folder: dts.folder, connected: await folderThere(dts.folder) } : null,
         setBy: dataDirSetBy({ dataDirEnv: config.dataDirEnv }),
-        oldCopyOf: oldCopyOf(state.root),
+        oldCopyOf: await oldCopyOf(state.root),
       };
     },
     async storageRelocate({ newRoot, token }) {
@@ -974,7 +981,7 @@ export function runDesktopApp(config) {
       // Not while the data-dir variable names the folder: the next start would ignore the pointer; nor while this
       // start runs on the default folder this time or on an old copy — the data is elsewhere, and a move from here
       // would leave it known nowhere (2026-10-20, the sixteenth review, measured).
-      refuseMoveHere();
+      await refuseMoveHere();
       if (state.moving) throw new Error(MOVE_UNDER_WAY);
       setMoving(true);
       let moved = null;
@@ -1020,15 +1027,15 @@ export function runDesktopApp(config) {
       return oldCopiesInfo(state.root);
     },
     // "Use the default folder from now on" (while this start uses it — `defaultThisStart`): the pointer forgotten.
-    storageUseDefault() {
+    async storageUseDefault() {
       const setBy = dataDirSetBy({ dataDirEnv: config.dataDirEnv });
       if (setBy) throw new Error(setByVariable(setBy));
-      const elsewhere = dataElsewhere();
+      const elsewhere = await dataElsewhere();
       if (!elsewhere) return null;
       // the pointer forgotten, and this folder's record of where its data went: it is the data folder now
       forgetPointer(ladder);
       forgetMovedTo(state.root);
-      console.log(`[shell] the data folder ${elsewhere} is forgotten — ${state.root} from now on`);
+      console.log(`[shell] the data folder ${elsewhere.folder} is forgotten — ${state.root} from now on`);
       state.defaultThisStart = null;
       return null;
     },
@@ -1153,7 +1160,13 @@ export function runDesktopApp(config) {
 
   // ── boot ───────────────────────────────────────────────────────────────────
   // (not while the data root's message box waits for an answer: the app isn't set up yet)
-  app.on("second-instance", () => !rootProblem && showWindow());
+  // (only a window that exists: one made here before the app:// handler and the start's own window made two —
+  // measured in real Electron, the seventeenth review)
+  app.on("second-instance", () => {
+    if (rootProblem || !state.win || state.win.isDestroyed()) return;
+    state.win.show();
+    state.win.focus();
+  });
   // No page in these apps embeds a <webview>; refuse one outright.
   app.on("web-contents-created", (_e, contents) => {
     contents.on("will-attach-webview", (ev) => ev.preventDefault());
@@ -1215,13 +1228,15 @@ export function runDesktopApp(config) {
 
   app.whenReady().then(async () => {
     if (rootProblem && !(await settleDataRoot())) return;
-    // a half copy a stopped Change folder left goes — never a move whose process still runs, never a committed one's,
-    // never anything of the folder in use (dataRoot.js sweepUnfinishedMove)
-    await sweepUnfinishedMove(state.root, ladder).catch((e) => console.warn(`[shell] the last move's leftovers couldn't be checked: ${e?.message || e}`));
     protocol.handle("app", serveApp);
     guardPermissions();
     createWindow();
     createTray();
+    // the window and the tray first (a long sweep of a big half copy leaves the user no window otherwise, and a second
+    // launch meanwhile made another — the seventeenth review); the server once nothing is left of a stopped move (a
+    // half copy in a folder this start doesn't run on, or — a "Use the default folder" start — in this one; never a
+    // committed move's — dataRoot.js sweepUnfinishedMove)
+    await sweepUnfinishedMove(state.root, ladder).catch((e) => console.warn(`[shell] the last move's leftovers couldn't be checked: ${e?.message || e}`));
     await startServer();
     if (updatesOn) {
       checkForUpdates();

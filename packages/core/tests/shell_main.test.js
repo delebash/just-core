@@ -35,7 +35,7 @@ const fake = vi.hoisted(() => {
     }
   }
   // what the shell asked of Electron
-  const rec = { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null };
+  const rec = { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [] };
   const app = Object.assign(new Emitter(), {
     isPackaged: false,
     setPath() {},
@@ -56,6 +56,7 @@ const fake = vi.hoisted(() => {
   class BrowserWindow extends Emitter {
     constructor(options) {
       super();
+      rec.order.push("window");
       this.options = options;
       this.webContents = Object.assign(new Emitter(), {
         setWindowOpenHandler() {},
@@ -107,6 +108,7 @@ const fake = vi.hoisted(() => {
         },
       });
       rec.forks.push({ entry, args, options, child });
+      rec.order.push("fork");
       return child;
     },
   };
@@ -151,18 +153,20 @@ vi.mock("electron-context-menu", () => ({ default: () => () => {} }));
 // Change folder's copy, held open by a test (the real one otherwise)
 vi.mock("../src/shell/dataRoot.js", async (importOriginal) => {
   const real = await importOriginal();
-  return { ...real, relocate: vi.fn(real.relocate) };
+  return { ...real, relocate: vi.fn(real.relocate), sweepUnfinishedMove: vi.fn(real.sweepUnfinishedMove) };
 });
 
 const { runDesktopApp, QUIT_WHILE_MOVING, WINDOW_TOKEN_KEY } = await import("../src/shell/main.js");
 const dataRoot = await import("../src/shell/dataRoot.js");
 const relocate = vi.mocked(dataRoot.relocate);
+const sweep = vi.mocked(dataRoot.sweepUnfinishedMove);
 const { rec } = fake;
 
 const tmp = () => mkdtempSync(path.join(tmpdir(), "shell-"));
 
 beforeEach(() => {
-  Object.assign(rec, { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null });
+  Object.assign(rec, { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [] });
+  sweep.mockClear();
   fake.electron.session.defaultSession.resolveProxy = async () => "DIRECT";
   relocate.mockReset(); // the real relocate again, no answer queued by another test
 });
@@ -289,7 +293,7 @@ test("Use the default folder: this start only — the pointer kept, the box says
     portable: true,
     atDefault: true,
     folderName: "Demo",
-    defaultThisStart: { folder: blocked },
+    defaultThisStart: { folder: blocked, connected: false },
     setBy: null,
     oldCopyOf: null,
   });
@@ -385,7 +389,7 @@ test("the data-dir variable names the folder: Change folder and the default fold
     expect(shell.state.root).toBe(chosen);
     expect(await invoke("storageGetRoot")).toMatchObject({ root: chosen, setBy: "DEMO_DATA_DIR" });
     await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow("This data folder is set by DEMO_DATA_DIR — change it there.");
-    expect(() => invoke("storageUseDefault")).toThrow("This data folder is set by DEMO_DATA_DIR — change it there.");
+    await expect(invoke("storageUseDefault")).rejects.toThrow("This data folder is set by DEMO_DATA_DIR — change it there.");
     expect(relocate).not.toHaveBeenCalled();
     expect(shell.state.moving).toBe(false);
     expect(shell.state.server).toBe(rec.forks[0].child); // never stopped
@@ -402,9 +406,10 @@ test("a start on the old copy a move left: Storage is told where the data is", a
   writeFileSync(path.join(root, "electron", "moved-to.json"), JSON.stringify({ root: moved, movedAt: 1_700_000_000_000 }));
   mkdirSync(moved, { recursive: true });
   await startShell(repo);
-  expect((await invoke("storageGetRoot")).oldCopyOf).toEqual({ root: moved, movedAt: 1_700_000_000_000 });
-  // no move from the old copy (it would leave the newer data known nowhere); "from now on" makes it the data folder
-  await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow(`Your data is in ${moved}: connect it and restart, or Use the default folder from now on.`);
+  expect((await invoke("storageGetRoot")).oldCopyOf).toEqual({ root: moved, movedAt: 1_700_000_000_000, connected: true });
+  // no move from the old copy (it would leave the newer data known nowhere) — the newer folder is there: a restart
+  // takes the app to it; "from now on" makes this one the data folder
+  await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow(`Your data is in ${moved} — restart the app to use it.`);
   await invoke("storageUseDefault");
   expect(existsSync(path.join(root, "electron", "moved-to.json"))).toBe(false);
   expect((await invoke("storageGetRoot")).oldCopyOf).toBe(null);
@@ -417,9 +422,9 @@ test("the variable's folder missing, the start on the default: the data is elsew
     rec.answer = 1; // "Use the default folder"
     const repo = tmp();
     await startShell(repo);
-    expect(await invoke("storageGetRoot")).toMatchObject({ setBy: "DEMO_DATA_DIR", defaultThisStart: { folder: gone } });
+    expect(await invoke("storageGetRoot")).toMatchObject({ setBy: "DEMO_DATA_DIR", defaultThisStart: { folder: gone, connected: false } });
     await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow(`Your data is in ${gone}: connect it and restart.`);
-    expect(() => invoke("storageUseDefault")).toThrow("This data folder is set by DEMO_DATA_DIR — change it there.");
+    await expect(invoke("storageUseDefault")).rejects.toThrow("This data folder is set by DEMO_DATA_DIR — change it there.");
   } finally {
     vi.unstubAllEnvs();
   }
@@ -427,6 +432,27 @@ test("the variable's folder missing, the start on the default: the data is elsew
 
 // s1: the sweep and the token's pickup ran before the single-instance lock — a second launch during Change folder
 // swept the copy under way
+// the seventeenth review's e1 (real Electron): the sweep was awaited before the window; a second launch during a long
+// sweep made a window of its own through "second-instance", then the start made another — two windows
+test("the window and the tray first, then the sweep, then the server; a second launch only shows a window that exists", async () => {
+  let release;
+  sweep.mockImplementationOnce(async () => {
+    rec.order.push("sweep");
+    await new Promise((r) => (release = r));
+  });
+  const port = await freePort();
+  const repo = tmp();
+  runDesktopApp({ id: "demo", appName: "Demo", productName: "Demo", port, serverEntry: "server.js", dataDirEnv: "DEMO_DATA_DIR", repoRoot: repo, distDir: repo, window: {} });
+  await vi.waitFor(() => expect(rec.order).toContain("sweep"));
+  expect(rec.order).toEqual(["window", "sweep"]);
+  // a second launch while the sweep runs: the window that exists is shown — never another made
+  fake.electron.app.emit("second-instance");
+  expect(rec.order.filter((x) => x === "window")).toHaveLength(1);
+  release();
+  await vi.waitFor(() => expect(rec.forks.length).toBe(1));
+  expect(rec.order).toEqual(["window", "sweep", "fork"]);
+});
+
 test("a second launch (the single-instance lock refused) never looks at what a move left, nor takes its token", async () => {
   const repo = tmp();
   const root = path.join(repo, "data");

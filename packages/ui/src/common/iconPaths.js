@@ -85,5 +85,29 @@ export const ICON_PATHS = {
   Eraser:     "M7.6 20.4 3.6 16.4a1.5 1.5 0 0 1 0-2.1L13 5a1.5 1.5 0 0 1 2.1 0l4.3 4.3a1.5 1.5 0 0 1 0 2.1L12 19M9 12l5 5M9 21h11",
   AlignJustify:"M4 6h16M4 10h16M4 14h16M4 18h16",
   Help:       "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-2.5-11a2.5 2.5 0 0 1 5 .3c0 1.5-2.5 2-2.5 3.7M12 17v.01",
+  // Lucide's "info" (lucide-static 1.60.0, icons/info.svg: a circle r 10 and two strokes, here one path),
+  // derived from Feather — the info banner's icon (the seventeenth review, 2026-10-20). Under its
+  // licences:
+  //   ISC License — Copyright (c) 2026 Lucide Icons and Contributors. Permission to use, copy, modify,
+  //   and/or distribute this software for any purpose with or without fee is hereby granted, provided
+  //   that the above copyright notice and this permission notice appear in all copies. THE SOFTWARE IS
+  //   PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING
+  //   ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+  //   ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+  //   LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+  //   ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  //   The MIT License (MIT) — Copyright (c) 2013-present Cole Bemis (Feather). Permission is hereby
+  //   granted, free of charge, to any person obtaining a copy of this software and associated
+  //   documentation files (the "Software"), to deal in the Software without restriction, including
+  //   without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+  //   and/or sell copies of the Software, and to permit persons to whom the Software is furnished to
+  //   do so, subject to the following conditions: The above copyright notice and this permission
+  //   notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS
+  //   PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+  //   THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO
+  //   EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+  //   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
+  //   THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  Info:       "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 16v-4M12 8h.01",
   ExternalLink:"M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14",
 };

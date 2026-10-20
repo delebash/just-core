@@ -168,6 +168,15 @@ async function removeOldCopy(copy) {
 
 /** Where the data is when this start runs elsewhere — the default folder this time, or an old copy — or "". */
 const elsewhere = () => storageRoot.value?.defaultThisStart?.folder || storageRoot.value?.oldCopyOf?.root || "";
+/** What to do about it (the seventeenth review): the variable names this old copy — change it; the data's folder is
+ *  there now — restart; else connect it and restart (or, with no variable, forget it). */
+function elsewhereWords() {
+  const info = storageRoot.value || {};
+  const folder = elsewhere();
+  if (info.setBy && info.oldCopyOf && !info.defaultThisStart) return t("kit.storagePanel.variableNamesOldCopy", { name: info.setBy, folder });
+  if ((info.defaultThisStart || info.oldCopyOf)?.connected) return t("kit.storagePanel.restartToUse", { folder });
+  return info.setBy ? t("kit.storagePanel.dataIsElsewhereVariable", { folder }) : t("kit.storagePanel.dataIsElsewhere", { folder });
+}
 /** The default folder still holds an old copy: Move back is refused there until it is removed. */
 const defaultHoldsOldCopy = () => oldCopies.value.some((c) => storageRoot.value?.default && pathKey(c.root) === pathKey(storageRoot.value.default));
 
@@ -228,7 +237,7 @@ function clearSpawnLogs() {
          here — it would leave the data known nowhere (the sixteenth review) -->
     <UiBanner v-if="elsewhere()" intent="warning" class="lu-storage__banner">
       {{ storageRoot.defaultThisStart ? t("kit.storagePanel.defaultThisStart", { folder: storageRoot.defaultThisStart.folder }) : t("kit.storagePanel.isOldCopy", { folder: elsewhere() }) }}
-      {{ storageRoot.setBy ? t("kit.storagePanel.dataIsElsewhereVariable", { folder: elsewhere() }) : t("kit.storagePanel.dataIsElsewhere", { folder: elsewhere() }) }}
+      {{ elsewhereWords() }}
       <template v-if="shell?.useDefault && !storageRoot.setBy" #action>
         <UiButton intent="secondary" size="small" :label="t('kit.storagePanel.useDefault')" @click="useDefaultFromNowOn" />
       </template>
@@ -312,8 +321,9 @@ function clearSpawnLogs() {
 <style scoped>
 .lu-storage__mono { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-small, 12.5px); overflow-wrap: anywhere; }
 .lu-storage__banner { margin-block-end: var(--sp-2, 8px); max-inline-size: var(--w-prose, 60ch); }
-/* an old copy used after its move: said in the warning's ink, as long as a sentence reads */
-.lu-storage__used { margin: var(--sp-1, 4px) 0 0; max-inline-size: var(--w-prose, 60ch); color: var(--warn-ink, var(--muted)); font-size: var(--fs-small, 12.5px); }
+/* an old copy used after its move: said in the warning's ink, its lines at most 30em (~70 characters
+   at the small size; it ran 104 — the seventeenth review, 2026-10-20) */
+.lu-storage__used { margin: var(--sp-1, 4px) 0 0; max-inline-size: 30em; color: var(--warn-ink, var(--muted)); font-size: var(--fs-small, 12.5px); }
 /* the disk-usage grid: a label column and a value/action column (JustWrite's) */
 .lu-storage__grid {
   display: grid; grid-template-columns: 150px auto; justify-content: start; align-items: center;

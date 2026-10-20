@@ -212,16 +212,21 @@ export async function finishInterruptedRestore(dbPath) {
     for (const { old } of dirs) if (old) await rm(old, RETRIES).catch(() => {});
     return "forward";
   }
+  // every folder put back in one synchronous step — no request is served between two of them (an awaited removal
+  // here left the folders and the tables disagreeing for 2 s, the seventeenth review, measured); a folder the live
+  // data didn't have (the backup brought it) is moved aside with the others and removed after
+  const aside = [];
   for (const { dir, old } of dirs.reverse()) {
     if (old && !existsSync(old)) continue; // never moved, or already back
     if (existsSync(dir)) {
-      if (old) renameHeldSync(dir, `${dir}.restoring-${record.stamp}`);
+      renameHeldSync(dir, `${dir}.restoring-${record.stamp}`);
       // there was no folder before: this one is the backup's copy, gone (the backup file itself is the user's)
-      else await rm(dir, RETRIES);
+      if (!old) aside.push(`${dir}.restoring-${record.stamp}`);
     }
     if (old) renameHeldSync(old, dir);
   }
   rmSync(journal, { force: true });
+  for (const p of aside) await rm(p, RETRIES).catch(() => {});
   return "back";
 }
 

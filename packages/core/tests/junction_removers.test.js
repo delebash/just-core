@@ -4,14 +4,14 @@
 // fs.promises.rm removes the junction alone). A folder holding a link (a junction on Windows — made without any
 // right — a folder's symbolic link elsewhere) to a folder OUTSIDE it is handed to each of the kit's removers; the
 // outside folder must keep its files.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, test, vi } from "vitest";
 import { finishInterruptedRestore, sweepWorkFolders } from "../src/platform/data_api.js";
 import setupTmp from "../src/platform/vitest_tmp.js";
 import { _swapIntoPlace } from "../src/runner/binary.js";
-import { _rmtreeWithRetry } from "../src/runner/lifecycle.js";
+import { _rmtreeWithRetry, RunnerService } from "../src/runner/lifecycle.js";
 
 const tmp = () => realpathSync.native(mkdtempSync(path.join(tmpdir(), "junction-")));
 
@@ -33,6 +33,30 @@ test("Clear models and the runner's removes (lifecycle rmTree, through _rmtreeWi
   expect(await _rmtreeWithRetry(holder)).toBe(true);
   expect(existsSync(holder)).toBe(false);
   expect(kept(outside)).toBe(true);
+});
+
+// the seventeenth review's s8: through a link Clear models and a model's Delete removed the link, freed nothing, and
+// put an empty folder in its place — now the linked folder is emptied and the link kept
+test("Clear models and a model's Delete on a linked folder: its contents freed, the link kept", async () => {
+  const kind = process.platform === "win32" ? "junction" : "dir";
+  const cache = tmp();
+  const far = path.join(tmp(), "hf");
+  mkdirSync(path.join(far, "models--a--b", "blobs"), { recursive: true });
+  writeFileSync(path.join(far, "models--a--b", "blobs", "w.gguf"), Buffer.alloc(4000, 1));
+  symlinkSync(far, path.join(cache, "hf"), kind);
+  const svc = { _cacheRoot: cache, resident: async () => ({ models: [] }) };
+  expect(await RunnerService.prototype.clearModelsCache.call(svc)).toEqual({ ok: true, bytes: 4000 });
+  expect(lstatSync(path.join(cache, "hf")).isSymbolicLink()).toBe(true);
+  expect(readdirSync(far)).toEqual([]);
+  // one model's repo folder as a link
+  const repoFar = path.join(tmp(), "models--c--d");
+  mkdirSync(path.join(repoFar, "blobs"), { recursive: true });
+  writeFileSync(path.join(repoFar, "blobs", "x.gguf"), Buffer.alloc(2000, 1));
+  symlinkSync(repoFar, path.join(far, "models--c--d"), kind);
+  const [freed] = await RunnerService.prototype._purgeModelWeights.call({ _cacheRoot: cache }, { id: "m", hfRepo: "c/d" }, []);
+  expect(freed).toBe(2000);
+  expect(readdirSync(repoFar)).toEqual([]);
+  expect(lstatSync(path.join(far, "models--c--d")).isSymbolicLink()).toBe(true);
 });
 
 test("an engine's swap (binary.js rmtree on the retired build and the staging)", async () => {

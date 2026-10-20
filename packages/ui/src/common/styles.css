@@ -109,8 +109,10 @@ button:not(.ui-btn) { color: inherit; }
    the words' own case (the sixteenth review, 2026-10-20). All small caps are x-height tall, so the
    size goes from 11px to 14px to keep the capitals about as tall as they were. */
 .ui-field__label, .ui-field--block > label { display: block; font-size: 14px; font-variant-caps: all-small-caps; letter-spacing: .05em; color: var(--muted, var(--ink-2)); font-weight: 600; margin-bottom: 6px; line-height: 1.2; }
-/* a unit in a small-caps label keeps its case — "(s)", not "(S)" */
+/* a unit in a small-caps label keeps its case — "(s)", not "(S)" — at 0.8em, about the small capitals'
+   height (at the label's full 14px the units stood 38% taller — the seventeenth review, 2026-10-20) */
 .ui-unit { text-transform: none; font-variant-caps: normal; }
+:is(.ui-field__label, .ui-field--block > label) .ui-unit { font-size: 0.8em; }
 .ui-field__hint { display: block; font-size: 11px; color: var(--muted, var(--ink-2)); margin-top: 4px; }
 
 /* Tag and Chip: their look is the kit's Quasar theme (../quasar/theme.css) since they moved
@@ -328,7 +330,10 @@ button:not(.ui-btn) { color: inherit; }
 }
 .lu-logline { white-space: pre-wrap; word-break: break-word; }
 .lu-logline--err { color: var(--danger-ink, #b42318); }
-.lu-logline--warn { color: var(--warning-ink, #b54708); }
+/* the contract's warn ink (--warn-ink — "--warning-ink" was no token: the fallback measured 2.82:1 in
+   dark; --warn-ink is 9.30:1 light / 9.92:1 dark on --surface, 7.41 or more at any gold hue — the
+   seventeenth review, 2026-10-20) */
+.lu-logline--warn { color: var(--warn-ink, #b54708); }
 .lu-logline--dim { opacity: 0.6; }
 
 /* Multi-select: its look is the kit's Quasar theme (../quasar/theme.css) since it moved onto

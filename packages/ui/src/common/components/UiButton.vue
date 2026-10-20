@@ -30,9 +30,22 @@ const props = defineProps({
   as: { type: String, default: "button" },       // button|label|a
   label: { type: String, default: "" },
   type: { type: String, default: "button" },     // for a real <button>
+  // An off button that keeps the focus and its Tab stop (the APG's "focusability of disabled
+  // controls"): aria-disabled, not the native disabled — a button turned off while focused (Settings'
+  // Save after a save) dropped the focus on <body> (the seventeenth review, 2026-10-20). It keeps the
+  // disabled look and swallows its click, Enter and Space, and a submit button doesn't submit.
+  focusableWhenDisabled: { type: Boolean, default: false },
 });
 const slots = useSlots();
 const off = computed(() => props.disabled || props.loading);
+const inert = computed(() => off.value && props.focusableWhenDisabled && props.as !== "a");
+// the click an off-but-focusable button would make (a pointer's, Enter's or Space's — QBtn makes the
+// keys' into a click) stops here, before QBtn and the caller hear it, and submits no form
+function swallow(e) {
+  if (!inert.value) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+}
 const classes = computed(() => [
   "ui-btn",
   `ui-btn--${props.intent}`,
@@ -57,9 +70,10 @@ function onPress(e) {
     no-caps
     no-wrap
     :ripple="false"
-    :disabled="as !== 'a' && off ? true : undefined"
-    :aria-disabled="as === 'a' && off ? 'true' : undefined"
+    :disabled="as !== 'a' && off && !inert ? true : undefined"
+    :aria-disabled="(as === 'a' && off) || inert ? 'true' : undefined"
     :aria-busy="loading ? 'true' : undefined"
+    @click.capture="swallow"
     @click="onPress"
   >
     <span v-if="loading" class="ui-btn-spinner" aria-hidden="true" />

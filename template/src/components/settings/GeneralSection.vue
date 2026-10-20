@@ -7,7 +7,7 @@
 // runs and sits on the row of the fields it saves.
 import { fieldErrors, reportError, schemaRules, UiButton, UiField, UiNumber } from "@delebash/ui";
 import { SettingsPatch } from "family-template-server/schemas/settings.js";
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useSettingsStore } from "../../stores/settings.js";
 
@@ -38,6 +38,9 @@ onMounted(async () => {
 });
 
 async function save() {
+  // where the keyboard was (a box Enter was pressed in, or Save): it stays there — Save turning off when nothing is
+  // left to save dropped the focus on <body> (WCAG 2.4.3 — the seventeenth review)
+  const back = document.activeElement;
   saving.value = true;
   serverErrors.value = {};
   try {
@@ -49,6 +52,8 @@ async function save() {
     else reportError(e);
   } finally {
     saving.value = false;
+    await nextTick();
+    if ((!document.activeElement || document.activeElement === document.body) && back?.isConnected) back.focus();
   }
 }
 </script>
@@ -66,7 +71,7 @@ async function save() {
             @update:model-value="serverErrors = {}"
           />
         </UiField>
-        <UiButton type="submit" intent="primary" :disabled="saving || !changedKeys.length" :label="saving ? t('kit.common.saving') : t('kit.common.save')" />
+        <UiButton type="submit" intent="primary" focusable-when-disabled :disabled="saving || !changedKeys.length" :label="saving ? t('kit.common.saving') : t('kit.common.save')" />
       </div>
     </q-form>
   </section>

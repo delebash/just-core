@@ -97,9 +97,11 @@
    current colour) and a link in the words take the intent's ink — a link underlined, never the
    browser's blue (2.6:1 on the dark danger tint; the VC++ link, the visual review 2026-10-20). A
    word with no break in it (a folder's path) breaks anywhere rather than run out of the banner. */
-/* As wide as its words, which run at most 38em (~75 characters at its size — em, not ch: a "0" is
-   wider than the average letter); it ran 767 px, 110–136 characters a line, in the AI photo dialog
-   (the sixteenth review, 2026-10-20). */
+/* As wide as its words, which run at most 34em (~70 characters at its size — em, not ch: a "0" is
+   wider than the average letter; 38em measured 77–84 — the seventeenth review); it ran 767 px,
+   110–136 characters a line, in the AI photo dialog (the sixteenth review, 2026-10-20). The words
+   keep QBanner's own flex (.col, basis 0): a basis of auto put the icon alone on a line above them in
+   a narrow panel, and an action under the icon. */
 .ui-banner {
   width: fit-content; max-width: 100%;
   min-height: 0; padding: 8px 12px; border-radius: 6px; margin: 0 0 10px;
@@ -108,7 +110,7 @@
 }
 .ui-banner:last-child { margin-bottom: 0; }
 .ui-banner .q-banner__avatar { align-self: center; }
-.ui-banner .q-banner__content { font: inherit; letter-spacing: inherit; flex: 1 1 auto; min-width: 0; max-width: 38em; overflow-wrap: anywhere; }
+.ui-banner .q-banner__content { font: inherit; letter-spacing: inherit; flex: 1 1 0%; min-width: 0; max-width: 34em; overflow-wrap: anywhere; }
 .ui-banner .q-banner__content a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .ui-banner .q-banner__avatar:not(:empty) + .q-banner__content { padding-left: 8px; }
 .ui-banner .q-banner__actions.col-auto { padding-left: 10px; }
@@ -238,7 +240,9 @@
 .ui-input:hover:not(.is-disabled):not(:focus-within) { border-color: var(--muted, var(--border-strong, var(--border))); }
 .ui-input:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring, 0 0 0 3px var(--accent-soft)); }
 .ui-input.is-disabled { opacity: .55; cursor: not-allowed; background: var(--surface-2); }
-.ui-input.is-invalid { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 18%, transparent); }
+/* invalid: the caller's `invalid`, or a rule's error showing (Quasar's own error state) */
+.ui-input.is-invalid,
+.ui-input.q-field--error { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 18%, transparent); }
 .ui-input--small { padding: 5px 8px; font-size: 12.5px; }
 /* UiNumber wears .ui-input; this only adds tabular figures so digits don't jitter. */
 .ui-number { font-variant-numeric: tabular-nums; }
@@ -679,9 +683,10 @@
    by its margin-left: auto) instead of squeezing the words into a narrow column. */
 .ui-toast .q-notification__message { display: flex; flex-direction: column; flex: 1 1 180px; min-width: 0; gap: 2px; padding: 0; font-weight: 500; line-height: 1.5; }
 .ui-toast .q-notification__caption { font-size: inherit; font-weight: 400; line-height: 1.4; opacity: 1; }
+/* 24 × 24, the least a pointer target may be (WCAG 2.2 2.5.8; it was 20 × 20 — the seventeenth review) */
 .ui-toast .ui-toast__close {
   position: absolute; left: 0; top: 0; z-index: 1; transform: translate(-35%, -35%);
-  width: 20px; height: 20px; min-width: 0; min-height: 0; padding: 0;
+  width: 24px; height: 24px; min-width: 0; min-height: 0; padding: 0;
   color: var(--ui-toast-text); background: var(--ui-toast-bg); border: 1px solid var(--ui-toast-border); border-radius: 50%;
   cursor: pointer;
 }

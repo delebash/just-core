@@ -113,7 +113,8 @@ const line = computed(() => {
 }
 .lu-updates-log :deep(h1:first-child), .lu-updates-log :deep(h2:first-child) { margin-top: 0; }
 .lu-updates-log :deep(ul) { margin: 6px 0; padding-left: 20px; }
-.lu-updates-log :deep(li) { margin: 3px 0; }
-.lu-updates-log :deep(p) { margin: 6px 0; }
+/* What's new's lines at most 33em (~75 characters; a list item ran 137 — the seventeenth review) */
+.lu-updates-log :deep(li) { margin: 3px 0; max-width: 33em; }
+.lu-updates-log :deep(p) { margin: 6px 0; max-width: 33em; }
 .lu-updates-log :deep(code) { font-family: var(--font-mono, monospace); font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 </style>

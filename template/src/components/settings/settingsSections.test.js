@@ -212,11 +212,10 @@ describe("Storage", () => {
     expect(shell.removed).toEqual(["C:\\App\\data"]);
     expect(removeOld()).toBeUndefined();
     button("Move back to the default folder").click();
-    await flushPromises();
-    expect(text()).toContain("is copied to C:\\App\\data, and the app restarts on it");
+    // the second question, once the first dialog has closed (AppDialog waits a tick around open and close)
+    await vi.waitFor(() => expect(text()).toContain("is copied to C:\\App\\data, and the app restarts on it"));
     _resolveDialog(true);
-    await flushPromises();
-    expect(shell.relocated).toEqual(["C:\\App\\data"]);
+    await vi.waitFor(() => expect(shell.relocated).toEqual(["C:\\App\\data"]));
     wrapper.unmount();
     shell.root = { root: "C:\\App\\data", default: "C:\\App\\data", portable: true, atDefault: true, folderName: "Family Template", defaultThisStart: { folder: "E:\\Family Template" } };
     await mountSettings("storage");
@@ -245,6 +244,27 @@ describe("Storage", () => {
     expect(text()).toContain("Your data is in E:\\Family Template: connect it and restart.");
     expect(text()).not.toContain("set by VARNAME");
     expect(button("Use the default folder from now on")).toBeUndefined();
+  });
+
+  // the seventeenth review: "connect it and restart" said when the data's folder is connected and a restart won't help
+  test("the data's folder connected: restart to use it; the variable naming the old copy: change it to the data's folder", async () => {
+    shell.root = { root: "C:\\App\\data", default: "C:\\App\\data", portable: true, atDefault: true, folderName: "Family Template", defaultThisStart: { folder: "E:\\Family Template", connected: true } };
+    await mountSettings("storage");
+    expect(text()).toContain("Your data is in E:\\Family Template — restart the app to use it.");
+    wrapper.unmount();
+    shell.root = {
+      root: "C:\\App\\data",
+      default: "C:\\App\\data",
+      portable: true,
+      atDefault: true,
+      folderName: "Family Template",
+      defaultThisStart: null,
+      setBy: "FAMILY_TEMPLATE_DATA_DIR",
+      oldCopyOf: { root: "E:\\Family Template", movedAt: 1, connected: true },
+    };
+    await mountSettings("storage");
+    expect(text()).toContain("FAMILY_TEMPLATE_DATA_DIR names this old copy — change it to E:\\Family Template.");
+    expect(button("Change folder")).toBeUndefined();
   });
 
   test("an old copy on a drive that isn't there: not connected, not removable; Move back said while the default holds one", async () => {

@@ -53,6 +53,7 @@ const dialog = computed(() => {
         defaultValue: opts.defaultValue ?? "",
         type: opts.type || "text",
         options: opts.options,
+        width: opts.width || "",
       }];
   return {
     kind: "prompt",
@@ -64,7 +65,8 @@ const dialog = computed(() => {
     fields,
     isSingle: !Array.isArray(opts.fields),
     // requireMatch: the first field's value must equal this string before
-    // Confirm enables ("type DELETE to confirm"-style guards).
+    // Confirm enables ("type DELETE to confirm"-style guards) — in any case, spaces around it
+    // aside ("reset", "RESET " — the seventeenth review, 2026-10-20).
     requireMatch: opts.requireMatch || null,
   };
 });
@@ -98,12 +100,15 @@ watch(
   { immediate: true },
 );
 
+// the word typed and the word asked for, the same in any case, spaces around it aside
+const sameWord = (typed, word) => String(typed ?? "").trim().toLocaleLowerCase() === String(word).trim().toLocaleLowerCase();
+
 const canSubmit = computed(() => {
   const d = dialog.value;
   if (d?.kind !== "prompt") return true;
   if (d.requireMatch != null) {
     const first = d.fields[0]?.key;
-    if (String(values.value[first] ?? "") !== d.requireMatch) return false;
+    if (!sameWord(values.value[first], d.requireMatch)) return false;
   }
   for (const f of d.fields) {
     if (f.type === "select" || f.type === "checkbox") continue;
@@ -168,7 +173,7 @@ function onEnter(e, isLastField) {
     v-if="hostOpen"
     ref="modalRef"
     :title="dialog?.title || ''"
-    :close-label="dialog?.cancelLabel || t('kit.common.close')"
+    :close-label="t('kit.common.close')"
     :max-width="'440px'"
     dismissable
     @close="onClosed"
@@ -210,6 +215,7 @@ function onEnter(e, isLastField) {
             :id="`ui-field-${f.key}`"
             :ref="el => captureFirst(el, i)"
             :type="f.type || 'text'"
+            :width="f.width || ''"
             :placeholder="f.placeholder || ''"
             v-model="values[f.key]"
             @keydown.enter="onEnter($event, i === dialog.fields.length - 1)"
@@ -242,11 +248,14 @@ function onEnter(e, isLastField) {
   margin: 0;
 }
 .ui-dialog__field { display: flex; flex-direction: column; gap: 6px; }
+/* small capitals by font-variant-caps, as .ui-field__label (common/styles.css): text-transform put
+   the capitals into the field's name ("TYPE RESET TO CONFIRM" — the seventeenth review, 2026-10-20) */
 .ui-dialog__label {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
-  text-transform: uppercase;
+  font-variant-caps: all-small-caps;
   letter-spacing: 0.06em;
+  line-height: 1.2;
   color: var(--muted);
 }
 .ui-dialog__help { font-size: 11.5px; color: var(--muted); }

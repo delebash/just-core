@@ -26,18 +26,35 @@ test("on a right-to-left page a left-to-right name is the one marked", () => {
   expect(isolate("12", { dir: "rtl" })).toBe("12");
 });
 
-// The sixteenth review (2026-10-20): a Latin name holding an override (RLO) came back unwrapped, and the override
-// turned the rest of the sentence backwards. Any bidi control — LRM, RLM, LRE…RLO, LRI…PDI — gets the marks.
-test("a name holding a bidi control is isolated whatever its letters", () => {
+// The sixteenth review (2026-10-20): a Latin name holding an override (RLO) turned the rest of the sentence
+// backwards; the seventeenth: a stray PDI in a name closed its isolate early. A name's bidi controls — LRM, RLM,
+// LRE…RLO, LRI…PDI — are taken out before it is judged and marked.
+test("a name's bidi controls are taken out before it is judged and marked", () => {
   const ch = (cp) => String.fromCharCode(cp);
   const FSI = ch(0x2068);
   const PDI = ch(0x2069);
   for (const cp of [0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069]) {
-    const name = `abc${ch(cp)}def`;
-    expect(isolate(name), cp.toString(16)).toBe(`${FSI}${name}${PDI}`);
-    expect(isolate(name, { dir: "rtl" }), cp.toString(16)).toBe(`${FSI}${name}${PDI}`);
+    expect(isolate(`abc${ch(cp)}def`), cp.toString(16)).toBe("abcdef");
+    expect(isolate(`abc${ch(cp)}def`, { dir: "rtl" }), cp.toString(16)).toBe(`${FSI}abcdef${PDI}`);
   }
+  // a stray PDI can't close the isolate early: the Hebrew name comes out whole, inside one isolate
+  expect(isolate(`בית${PDI} הים`)).toBe(`${FSI}בית הים${PDI}`);
   expect(isolate("abc def")).toBe("abc def");
+});
+
+// A server's detail is a lowercase phrase: on its own it starts a sentence — but a first word that is a name or
+// code keeps its case (the seventeenth review: "sd-cli", "macOS"). Said with its title: "Title. Detail."
+test("sentence() capitalizes a detail's first word, never a name's or code's; spoken() joins title and detail", async () => {
+  const { sentence, spoken } = await import("../src/common/services/announce.js");
+  expect(sentence("download the part-finding model first")).toBe("Download the part-finding model first");
+  expect(sentence("sd-cli failed (exit 3)")).toBe("sd-cli failed (exit 3)");
+  expect(sentence("macOS 26 or later")).toBe("macOS 26 or later");
+  expect(sentence("llama.cpp stopped")).toBe("llama.cpp stopped");
+  expect(sentence("x64 builds only")).toBe("x64 builds only");
+  expect(sentence("épuisé")).toBe("Épuisé");
+  expect(spoken("The AI photo didn't finish", "the GPU ran out of memory")).toBe("The AI photo didn't finish. The GPU ran out of memory.");
+  expect(spoken("Saved.", "")).toBe("Saved.");
+  expect(spoken("Can't install:", "sd-cli is missing.")).toBe("Can't install: sd-cli is missing.");
 });
 
 test("the page's direction is <html dir>", () => {
