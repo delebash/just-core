@@ -1376,6 +1376,36 @@ sixth review):
   (required for the template and just-house-paint; JustWrite's and docgen's restores are advisory findings until
   they take it). *code + test* (`template/server/tests/data.test.js`), 2026-10-19.
 
+**The servers' guards, attacked** (*measured + code*, 2026-10-19; just-house-paint's eighth review — an agent's
+probes through `app.request` with a faked loopback peer reproduced 1–3, each then pinned by a test):
+
+- **CORS for every origin + loopback skipping auth = any web page reads this computer's server.** The template's
+  (and just-house-paint's) `app.js` allowed `*`; a page the user visits fetched `/v1/data/backup` (every photo and
+  `llm_providers.api_key` in plain text) and `/v1/server-auth` (the tokens). Now CORS answers the app's own origins
+  and the Capacitor ones only (`APP_ORIGINS`, `CAPACITOR_ORIGINS`); the UI the server hosts is its own origin.
+  Chrome 142+ also asks before a public page reaches a local address (Local Network Access); other browsers don't.
+- **DNS rebinding passed the CSRF check**: `csrf.js` takes an Origin equal to the request's own Host as same-origin,
+  and nothing checked the Host — a rebinding page (`Host: rebind.evil.example`) wrote engine-config binary URLs
+  with no hash, which the next engine install downloads and runs. Now `bearerAuth` refuses a request from this
+  computer whose Host isn't this computer's (localhost, *.localhost, an IP literal, its own hostname) or an app's
+  `allowedHosts` (`<APP>_ALLOWED_HOSTS`, a reverse proxy's public name) — before tokens, with or without them
+  (`packages/core/src/platform/auth.js` `hostAllowed`). The standard defense (Vite's `server.allowedHosts`, Django's
+  `ALLOWED_HOSTS`).
+- **A malicious backup restored engine rows** (`runner_binary`, `runner_setting`) — code at the next engine install.
+  The restore now keeps this computer's (`makeDataRouter` `keepTables`, default `RUNNER_MACHINE_TABLES`).
+- **A reverse proxy on the machine made every client loopback** (tokens skipped, `/v1/server-auth` open). A request
+  with `Forwarded` / `X-Forwarded-For` / `X-Real-IP` is never the loopback door now (`isDirectLoopback`; the
+  shutdown route too).
+- **Backups carried the tokens** — now scrubbed from the backup's own copy (`scrubBackup`, the template's
+  `keepAuth`); the AI providers' keys stay (a restore on a new computer needs them: the help says to keep the
+  file like a password).
+- **A restore's zip inflated with no cap** — an entry that inflates past its stated size stops (`zip.js`), and a
+  backup whose stated sizes don't fit the drive is refused before unpacking (`checkUnpackedFits`).
+- Clean (checked by the same agent): zip-slip (`..`, roots and drive letters dropped), triggers/views in a backup's
+  database (never fire on `main`; views aren't copied), path inputs (`safeName`, `basename`), the static UI,
+  uploads (streamed limits, JPEG/PNG/WebP only, sharp's pixel limit), pinned SHA-256 model and engine downloads,
+  `?token=` kept out of logs and history, no `v-html` with user data.
+
 **The clipboard and the headless launcher off Windows** (*code + measured*, 2026-10-19; just-house-paint's seventh
 review):
 
@@ -1389,8 +1419,10 @@ review):
   `.cmd` alone. The template's `build/launcher/<app>-server` is its shell-script twin for macOS and Linux
   (`ELECTRON_RUN_AS_NODE=1` on the app's own executable — no display needed, where Electron's main process would
   stop without one), copied beside the Linux executable and into the Mac app's `Contents/Resources`;
-  `start-packaged.js --headless` runs it on every release runner. Windows measured on this machine: it answered in
-  1.1 s and served the page; the other runners in the release's dry run.
+  `start-packaged.js --headless` runs it on every release runner. Measured (just-house-paint's dry run
+  39363747241, kit 95f63c0): Windows' .cmd 1.0 s, Linux's script beside the unpacked exe with no display 1.0 s,
+  the Mac app's `Contents/Resources` script 1.0 s, the AppImage's after `--appimage-extract` on Ubuntu 24.04
+  1.5 s — each answered with its version and served the page at `/`.
 
 ## 3 · AI tasks and the stream frames
 

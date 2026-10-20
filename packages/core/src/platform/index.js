@@ -4,7 +4,7 @@
 
 export { bearerAuth } from "./auth.js";
 export { starletteCors } from "./cors.js";
-export { csrfOrigin } from "./csrf.js";
+export { CAPACITOR_ORIGINS, csrfOrigin } from "./csrf.js";
 export { makeDataRouter } from "./data_api.js";
 export { fromDataRelative, installDir, resolveDataDir, toDataRelative } from "./data_paths.js";
 export { dirSize, makeDiskRouter } from "./disk_api.js";

@@ -4,11 +4,11 @@
 // Python's SQLAlchemy `MetaData` + `Table("notes", …)` is a one-table TABLES list here;
 // the zip is read back with the module's own reader (its Python interop was checked by
 // hand, 2026-10-07: Python's zipfile reads these backups and these read Python's).
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
-import { makeDataRouter, sortedTables } from "../src/platform/data_api.js";
+import { checkUnpackedFits, makeDataRouter, sortedTables } from "../src/platform/data_api.js";
 import { ApiError } from "../src/platform/errors.js";
 import { createServer } from "../src/platform/server.js";
 import { openDatabase } from "../src/platform/sql.js";
@@ -116,6 +116,66 @@ test("restore_into_a_folder_windows_holds_lands_every_file_and_drops_the_rest", 
   expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("backed up");
   expect(readdirSync(assets)).toEqual(["a.txt"]);
 }, 30000);
+
+// 2026-10-19, the security review (just-house-paint): a backup's engine rows name the executables the next
+// engine install runs; a backup carries what the app scrubs out of it; a zip can lie about its sizes.
+test("restore_keeps_this_computers_engine_tables_and_a_backup_leaves_out_what_the_app_scrubs", async () => {
+  const tmp = mkdtempSync(join(tmpdir(), "kit-data-"));
+  const RB = { name: "runner_binary", ddl: "CREATE TABLE runner_binary (platform VARCHAR NOT NULL, asset_url VARCHAR, PRIMARY KEY (platform))" };
+  const make = (file, url, note) => {
+    const h = openDatabase(file, { foreignKeys: false });
+    h.exec(NOTES.ddl);
+    h.exec(RB.ddl);
+    h.run("INSERT INTO runner_binary VALUES ('windows', ?)", [url]);
+    h.run("INSERT INTO notes (id, body) VALUES (1, ?)", [note]);
+    return h;
+  };
+  const db = join(tmp, "app.db");
+  const engine = make(db, "https://github.com/ggml-org/llama.cpp/releases/x.zip", "a token");
+  const app = createServer({ typeBase: "https://example.test/errors/" });
+  const scrubBackup = (h) => h.run("UPDATE notes SET body = 'scrubbed'");
+  app.route("/", makeDataRouter({ getDbPath: () => db, metadata: [NOTES, RB], runReset: () => {}, scrubBackup }));
+  // the backup's own database copy is scrubbed; the live one isn't
+  const backup = join(tmp, "backup.zip");
+  writeFileSync(backup, await bytes(await app.request("/v1/data/backup", { method: "GET" })));
+  const out = join(tmp, "out");
+  await (await ZipReader.open(backup)).extractAll(out);
+  const copy = openDatabase(join(out, "db.sqlite"), { foreignKeys: false });
+  expect(copy.all("SELECT body FROM notes")).toEqual([{ body: "scrubbed" }]);
+  copy.close();
+  expect(rows(engine)).toEqual({ 1: "a token" });
+  // a malicious backup naming another executable: its notes come back, this computer's engine rows stay
+  const evil = make(join(tmp, "evil.db"), "https://evil.example/llama.zip", "from the backup");
+  evil.close();
+  const zip = new ZipWriter();
+  await zip.addFile(join(tmp, "evil.db"), "db.sqlite");
+  expect((await upload(app, Buffer.concat(zip.finish()))).status).toBe(200);
+  expect(rows(engine)).toEqual({ 1: "from the backup" });
+  expect(engine.all("SELECT asset_url FROM runner_binary")).toEqual([{ asset_url: "https://github.com/ggml-org/llama.cpp/releases/x.zip" }]);
+});
+
+test("restore_refuses_an_entry_that_unpacks_past_its_stated_size_and_a_backup_too_big_for_the_drive", async () => {
+  const { app, engine, tmp } = makeApp();
+  engine.run("INSERT INTO notes (id, body) VALUES (1, 'kept')");
+  const zip = new ZipWriter();
+  await zip.addFile(join(tmp, "app.db"), "db.sqlite");
+  writeFileSync(join(tmp, "big.txt"), "a".repeat(200_000));
+  await zip.addFile(join(tmp, "big.txt"), "images/big.txt");
+  const buf = Buffer.concat(zip.finish());
+  // the central directory says images/big.txt is 10 bytes (a zip bomb lies the same way)
+  const name = Buffer.from("images/big.txt");
+  for (let at = buf.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02])); at >= 0; at = buf.indexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]), at + 4)) {
+    if (buf.subarray(at + 46, at + 46 + name.length).equals(name)) buf.writeUInt32LE(10, at + 24);
+  }
+  const r = await upload(app, buf);
+  expect(r.status).toBe(400);
+  expect((await r.json()).detail).toMatch(/unpacks past its stated size/);
+  expect(rows(engine)).toEqual({ 1: "kept" }); // nothing restored
+  // stated sizes past the drive's free space: refused before anything is unpacked
+  const drive = statfsSync(tmp);
+  const huge = { names: () => ["db.sqlite"], info: () => ({ size: drive.bavail * drive.bsize * 2 }) };
+  expect(() => checkUnpackedFits(huge, tmp)).toThrow(/the drive has/);
+});
 
 test("restore_rejects_bad_zip", async () => {
   const { app } = makeApp();

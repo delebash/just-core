@@ -7,8 +7,9 @@
 // machine itself); and an app's own `loopbackOpenPaths` (2026-09-30 — JustVoice's
 // `/v1/shutdown`, so its shell can close the server with that setting on), which stay
 // gated from anywhere else. The parametrized Python test runs its two cases in one test.
+import os from "node:os";
 import { expect, test } from "vitest";
-import { bearerAuth, isLoopback } from "../src/platform/auth.js";
+import { bearerAuth, hostAllowed, isLoopback } from "../src/platform/auth.js";
 import { csrfOrigin } from "../src/platform/csrf.js";
 import { createServer } from "../src/platform/server.js";
 
@@ -67,6 +68,29 @@ test("an_apps_own_open_paths_answer_from_the_machine_only", async () => {
 
 test("an_app_that_names_no_paths_is_unchanged", async () => {
   expect(await client(["t"], true, LOCAL).post("/v1/shutdown")).toBe(401);
+});
+
+// 2026-10-19, the security review (each reproduced against just-house-paint): a web page that renamed
+// itself to 127.0.0.1 (DNS rebinding) calls the server as its own origin, with its name in Host.
+test("a_page_that_renamed_itself_to_reach_this_computer_is_refused_tokens_or_not", async () => {
+  const evil = { Host: "rebind.evil.example:17499" };
+  expect(await client([], false, LOCAL).get("/v1/things", evil)).toBe(403);
+  expect(await client(["t"], false, LOCAL).get("/v1/server-auth", evil)).toBe(403);
+  for (const Host of ["127.0.0.1:17499", "localhost:17499", "[::1]:17499", "app.localhost", "192.168.1.5:17499", `${os.hostname()}:17499`, `${os.hostname()}.local`]) {
+    expect(await client([], false, LOCAL).get("/v1/things", { Host })).toBe(200);
+  }
+  // a reverse proxy's public name, when the app names it
+  expect(await client([], false, LOCAL, { allowedHosts: ["paint.example.com"] }).get("/v1/things", { Host: "paint.example.com" })).toBe(200);
+  // from another computer the token is the guard: its own name for this one is fine
+  expect(await client([], false, REMOTE).get("/v1/things", { Host: "my-pc.lan:17499" })).toBe(200);
+  expect(hostAllowed(undefined)).toBe(true); // no Host: not a browser
+});
+
+test("a_request_through_a_proxy_on_this_computer_is_never_the_loopback_door", async () => {
+  expect(await client(["t"], false, LOCAL).get("/v1/things", { "X-Forwarded-For": "203.0.113.7" })).toBe(401);
+  expect(await client(["t"], false, LOCAL).get("/v1/server-auth", { Forwarded: "for=203.0.113.7" })).toBe(401);
+  expect(await client(["t"], false, LOCAL).get("/v1/things", { "X-Real-IP": "203.0.113.7", Authorization: "Bearer t" })).toBe(200);
+  expect(await client(["t"], false, LOCAL).get("/v1/things")).toBe(200); // straight from this computer, as before
 });
 
 // Not in the Python file: the bodies Python sends (measured against the Python

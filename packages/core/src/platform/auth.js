@@ -30,8 +30,18 @@
 // Wiring: `app.use("*", bearerAuth({readAuth, typeBase, loopbackOpenPaths}))` on the app,
 // before its routes. Starlette ran the LAST-added middleware first; Hono runs middleware in the
 // order added — so add the outermost first (the apps: CSRF, then CORS, then auth).
+//
+// Two guards on "this computer" (just-house-paint's security review, 2026-10-19, each reproduced):
+//   - DNS rebinding: a web page can rename itself to 127.0.0.1 and call this server as its own
+//     origin — the browser then sends the page's name in `Host`. A request from this computer
+//     must name it: localhost (and *.localhost), an IP literal, the computer's own hostname, or
+//     an app's `allowedHosts` (a reverse proxy's public name). Checked before anything else, with
+//     or without tokens — the standard defense (Vite's `server.allowedHosts`, Django's ALLOWED_HOSTS).
+//   - A reverse proxy on this computer makes every client look like loopback: a request carrying a
+//     proxy's forwarding header is never the loopback door (tokens apply; isDirectLoopback).
 
 import { BlockList, isIP } from "node:net";
+import os from "node:os";
 import { getConnInfo } from "@hono/node-server/conninfo";
 
 const LOOPBACK = new BlockList();
@@ -74,9 +84,31 @@ export function clientHost(c) {
   }
 }
 
+// the headers a proxy in front adds (RFC 7239 and the common two)
+const FORWARDED = ["forwarded", "x-forwarded-for", "x-real-ip"];
+
+/** A request straight from this computer: a loopback peer, and no proxy's forwarding header (a
+ *  proxy's client is somewhere else). */
+export function isDirectLoopback(c) {
+  return isLoopback(clientHost(c)) && !FORWARDED.some((h) => c.req.header(h));
+}
+
+/** Whether a `Host` header names this computer (see the guards above). No Host: not a browser. */
+export function hostAllowed(hostHeader, allowedHosts = []) {
+  if (!hostHeader) return true;
+  let name = String(hostHeader).trim().toLowerCase();
+  name = name.startsWith("[") ? name.slice(1, name.indexOf("]")) : name.replace(/:\d*$/, "");
+  name = name.replace(/\.$/, "");
+  if (isIP(name) || name === "localhost" || name.endsWith(".localhost")) return true;
+  const own = os.hostname().toLowerCase();
+  if (name === own || name === `${own}.local`) return true;
+  return (allowedHosts || []).some((h) => String(h).trim().toLowerCase().replace(/\.$/, "") === name);
+}
+
 /** `app.add_middleware(BearerAuthMiddleware, …)` → `app.use("*", bearerAuth({…}))`, added before
- * the routes so it covers every route and the 404 answer. */
-export function bearerAuth({ readAuth, typeBase, loopbackOpenPaths = [], prefixes = ["/v1"] }) {
+ * the routes so it covers every route and the 404 answer. `allowedHosts`: more names this computer
+ * answers to from itself (a reverse proxy's public name, from the app's `<APP>_ALLOWED_HOSTS`). */
+export function bearerAuth({ readAuth, typeBase, loopbackOpenPaths = [], prefixes = ["/v1"], allowedHosts = [] }) {
   const loopbackOpen = new Set(loopbackOpenPaths || []);
   const guarded = (p) => (prefixes || []).some((pre) => p.startsWith(pre));
   const problem = (c, status, slug, title, detail, p) =>
@@ -88,10 +120,16 @@ export function bearerAuth({ readAuth, typeBase, loopbackOpenPaths = [], prefixe
     // mount always pass (so the headless browser can load the app + log in).
     if (!guarded(p)) return next();
 
+    // a page that renamed itself to reach this computer's server (DNS rebinding): before anything
+    const host = c.req.header("host");
+    if (isLoopback(clientHost(c)) && !hostAllowed(host, allowedHosts)) {
+      return problem(c, 403, "host-not-allowed", "Forbidden", `this server answers to this computer's own names, not ${host}`, p);
+    }
+
     const [tokens, requireForLoopback] = await readAuth();
     if (!tokens?.length) return next();
 
-    const isLoop = isLoopback(clientHost(c));
+    const isLoop = isDirectLoopback(c);
     if (isLoop && (p === "/v1/health" || p.startsWith("/v1/server-auth") || loopbackOpen.has(p))) return next();
     if (isLoop && !requireForLoopback) return next();
 

@@ -136,8 +136,10 @@ test("a browser origin gets CORS headers (the dev server and the desktop window 
   for (const origin of ["http://localhost:9000", "app://familytemplate"]) {
     const r = await client.get("/v1/notes", { headers: { origin } });
     expect(r.statusCode).toBe(200);
-    expect(r.headers["access-control-allow-origin"]).toBe("*");
+    expect(r.headers["access-control-allow-origin"]).toBe(origin); // its own origin, never every origin
   }
+  const evil = await client.get("/v1/data/backup", { headers: { origin: "https://evil.example" } });
+  expect(evil.headers["access-control-allow-origin"]).toBeUndefined();
 });
 
 test("an unrouted path answers 404 and still names its request id", async () => {

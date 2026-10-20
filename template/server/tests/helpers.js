@@ -51,6 +51,9 @@ export function useHermeticKit() {
     const t = tmpDir("family-template-kit-");
     vi.stubEnv("JUST_AI_HOME", join(t, "family"));
     vi.stubEnv("LLM_RUNNER_CACHE", join(t, "user-cache"));
+    // testClient names the server `testserver` (Starlette's TestClient name): allowed as a reverse proxy's public
+    // name would be — the guard against a renamed page (DNS rebinding) refuses every other name from this machine
+    vi.stubEnv("FAMILY_TEMPLATE_ALLOWED_HOSTS", "testserver");
     const box = fakeHw();
     hardware.setDetected(box);
     vi.spyOn(hardware, "detect").mockImplementation(async () => box);

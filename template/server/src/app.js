@@ -19,6 +19,7 @@ import path from "node:path";
 import { installLlm, runnerRouter } from "@delebash/core/llm";
 import {
   bearerAuth,
+  CAPACITOR_ORIGINS,
   createServer,
   csrfOrigin,
   installFileLog,
@@ -120,14 +121,19 @@ export async function createApp(dataDir = null) {
   const app = createServer({ typeBase: TYPE_BASE });
 
   // 3. The guards. CSRF refuses a cross-site browser write to /v1 (no token, so it can never
-  // lock anyone out). CORS allows every origin: the kit's resolver calls this port directly
-  // from the dev server and from the desktop window (app://), and nothing works without it —
-  // server/tests/real_server.test.js proves it through a real socket. Bearer auth is off until
-  // Settings → Server adds a token; the desktop shell's POST /v1/shutdown carries none and stays
-  // open from this machine (the route refuses anyone else itself).
+  // lock anyone out). CORS answers the app's own origins only — the desktop window (app://), the
+  // dev server, the phone — which call this port directly (server/tests/real_server.test.js proves
+  // it through a real socket); the UI this server hosts is its own origin and needs none. Never
+  // every origin: any web page the user opened could then read this computer's server, backups
+  // and keys included (the security review, 2026-10-19). Bearer auth is off until Settings →
+  // Server adds a token, and refuses a page that renamed itself to reach this computer (DNS
+  // rebinding; FAMILY_TEMPLATE_ALLOWED_HOSTS names a reverse proxy's public name); the desktop shell's
+  // POST /v1/shutdown carries no token and stays open from this machine (the route refuses
+  // anyone else itself).
   app.use("*", csrfOrigin({ appOrigins: APP_ORIGINS, typeBase: TYPE_BASE }));
-  app.use("*", starletteCors({ allowOrigins: ["*"], allowMethods: ["*"], allowHeaders: ["*"] }));
-  app.use("*", bearerAuth({ readAuth, typeBase: TYPE_BASE, loopbackOpenPaths: [SHUTDOWN_PATH] }));
+  app.use("*", starletteCors({ allowOrigins: [...APP_ORIGINS, ...CAPACITOR_ORIGINS], allowMethods: ["*"], allowHeaders: ["*"] }));
+  const allowedHosts = (process.env.FAMILY_TEMPLATE_ALLOWED_HOSTS || "").split(",").map((h) => h.trim()).filter(Boolean);
+  app.use("*", bearerAuth({ readAuth, typeBase: TYPE_BASE, loopbackOpenPaths: [SHUTDOWN_PATH], allowedHosts }));
 
   // 4. The database and the app state the routes read.
   const db = openAppDatabase(dataDir);

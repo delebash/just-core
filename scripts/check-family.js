@@ -30,6 +30,7 @@
 // don't apply). The Tauri + Python kind and its checks were deleted 2026-10-08, the Electron +
 // Vite kind and its checks 2026-10-09: no family app runs either.
 
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
@@ -811,9 +812,16 @@ function checkLauncher(app) {
   if (!launchers.some((f) => basename(f, extname(f)).endsWith("-server"))) {
     fail(name, "build/launcher/ has no <name>-server launcher — headless is the app's own exe run as Node (§Q.3)");
   }
-  // macOS and Linux: the shell script twin (the template's, 2026-10-19) — required where the release is
-  if (!launchers.some((f) => f.endsWith("-server") && !extname(f))) {
-    (RELEASE_REQUIRED.has(name) ? fail : info)(name, "build/launcher/ has no <name>-server shell script — the headless server on macOS and Linux (the template's; §Q.3)");
+  // macOS and Linux: the shell script twin (the template's, 2026-10-19) — required where the release is —
+  // and executable in git (Windows' git records a new file 100644: the builds would pack it not runnable)
+  const script = launchers.find((f) => f.endsWith("-server") && !extname(f));
+  const required = RELEASE_REQUIRED.has(name) ? fail : info;
+  if (!script) {
+    required(name, "build/launcher/ has no <name>-server shell script — the headless server on macOS and Linux (the template's; §Q.3)");
+  } else {
+    const r = spawnSync("git", ["-C", app.dir, "ls-files", "-s", "--", `build/launcher/${script}`], { encoding: "utf8" });
+    const mode = r.status === 0 ? r.stdout.split(" ")[0] : "";
+    if (mode && mode !== "100755") required(name, `build/launcher/${script} is ${mode} in git, not executable — git update-index --chmod=+x build/launcher/${script} (§Q.3)`);
   }
   const cfg = existsSync(join(app.dir, "quasar.config.js")) ? readFileSync(join(app.dir, "quasar.config.js"), "utf8") : "";
   // path.join(root, 'build', 'launcher') or 'build/launcher'
@@ -1206,6 +1214,18 @@ function checkChrome(app, files) {
 // advisory for the older apps (JustWrite's workflow predates the feed; JustVoice's runs on a tag).
 const RELEASE_REQUIRED = new Set(["template", "just-house-paint"]);
 
+// ── CORS for the app's own origins only ───────────────────────────────────────
+// CORS for every origin, with loopback skipping auth, let any web page the user opened read this computer's
+// server — backups with the AI keys, the tokens (the security review, 2026-10-19: reproduced). The template
+// answers APP_ORIGINS and the Capacitor origins only; required where the release is, advisory elsewhere.
+function checkCorsOrigins(app) {
+  const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
+  for (const f of walk(join(app.dir, "server", "src")).filter((p) => p.endsWith(".js"))) {
+    if (/starletteCors\(\s*\{[^}]*allowOrigins:\s*\[\s*["']\*["']\s*\]/.test(readFileSync(f, "utf8")))
+      report(`${relative(app.dir, f).replace(/\\/g, "/")} allows CORS from every origin — any web page could read this computer's server; answer the app's own origins (the template's APP_ORIGINS + CAPACITOR_ORIGINS)`);
+  }
+}
+
 // ── a restore keeps the server's access tokens ────────────────────────────────
 // The tokens are the server's, not the data's: a restore that brings a backup's `auth` row — or none —
 // opens an exposed headless server, or locks every client out (the template's data_admin.js `keepAuth`,
@@ -1292,6 +1312,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkChrome(app, files);
   checkRelease(app);
   checkRestoreKeepsTokens(app);
+  checkCorsOrigins(app);
   checkClipboard(app.name, app.dir, files, RELEASE_REQUIRED.has(app.name));
   checkOneSaveDoor(app, files);
   checkOneShellDoor(app, files);

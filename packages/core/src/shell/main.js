@@ -454,8 +454,9 @@ export function runDesktopApp(config) {
     // missing bundle "finishes loading" too (measured, Electron 44.7), so the app's own layout is asked for
     // (Quasar's .q-layout in #q-app — a failed start's message has none); a failed load says so instead.
     let failedLoad = null;
-    win.webContents.on("did-fail-load", (_e, code, description) => {
-      if (code !== -3) failedLoad = `${code} ${description}`; // -3: a navigation the page itself replaced
+    win.webContents.on("did-fail-load", (_e, code, description, _url, isMainFrame) => {
+      // the page itself (a frame inside it failing isn't the window failing); -3: a navigation the page replaced
+      if (isMainFrame && code !== -3) failedLoad = `${code} ${description}`;
     });
     win.webContents.on("render-process-gone", (_e, d) => console.log(`[shell] window failed: the page's process ${d.reason}`));
     win.webContents.once("did-finish-load", async () => {

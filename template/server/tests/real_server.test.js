@@ -46,7 +46,7 @@ function send(method, path, { headers = {}, body } = {}) {
 test("a read from the dev server's origin gets its CORS answer", async () => {
   const r = await send("GET", "/v1/notes", { headers: { origin: "http://localhost:9000" } });
   expect(r.status).toBe(200);
-  expect(r.headers["access-control-allow-origin"]).toBe("*");
+  expect(r.headers["access-control-allow-origin"]).toBe("http://localhost:9000");
 });
 
 test("the desktop window's preflight and JSON write go through", async () => {
@@ -61,7 +61,7 @@ test("the desktop window's preflight and JSON write go through", async () => {
   const body = JSON.stringify({ title: "Through the socket" });
   const r = await send("POST", "/v1/notes", { headers: { origin, "content-type": "application/json", "content-length": Buffer.byteLength(body) }, body });
   expect(r.status).toBe(201);
-  expect(r.headers["access-control-allow-origin"]).toBe("*");
+  expect(r.headers["access-control-allow-origin"]).toBe(origin);
   expect(JSON.parse(r.text).title).toBe("Through the socket");
 });
 
@@ -72,6 +72,24 @@ test("an error answer carries CORS too, so the browser sees the error and not a 
     body,
   });
   expect(r.status).toBe(422);
-  expect(r.headers["access-control-allow-origin"]).toBe("*");
+  expect(r.headers["access-control-allow-origin"]).toBe("http://127.0.0.1:9000");
   expect(JSON.parse(r.text).requestId).toBe(r.headers["x-request-id"]);
+});
+
+// 2026-10-19, the security review: CORS for every origin let any web page the user opened read this
+// computer's server — backups and keys included; a page that renamed itself to 127.0.0.1 called it as its own.
+test("a page from anywhere else gets no CORS answer: it can't read this computer's server", async () => {
+  const r = await send("GET", "/v1/data/backup", { headers: { origin: "https://evil.example" } });
+  expect(r.headers["access-control-allow-origin"]).toBeUndefined();
+  const pre = await send("OPTIONS", "/v1/server-auth", { headers: { origin: "https://evil.example", "access-control-request-method": "GET" } });
+  expect(pre.headers["access-control-allow-origin"]).toBeUndefined();
+});
+
+test("a page that renamed itself to reach this computer (DNS rebinding) is refused", async () => {
+  const evil = `rebind.evil.example:${served.port}`;
+  const r = await send("GET", "/v1/server-auth", { headers: { host: evil, origin: `http://${evil}` } });
+  expect(r.status).toBe(403);
+  expect(JSON.parse(r.text).type).toMatch(/host-not-allowed$/);
+  // this computer's own names still answer
+  expect((await send("GET", "/v1/notes", { headers: { host: `localhost:${served.port}` } })).status).toBe(200);
 });

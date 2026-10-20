@@ -35,6 +35,9 @@ test("only_this_machine_may_ask", async () => {
   registerServerStop(async (why) => stops.push(why));
   const r = await post(appWith(), "192.168.1.20");
   expect(r.status).toBe(403);
+  // nor a proxy on this machine for a client elsewhere (its forwarding header)
+  const proxied = await appWith().request(SHUTDOWN_PATH, { method: "POST", headers: { "X-Forwarded-For": "203.0.113.7" } }, from("127.0.0.1"));
+  expect(proxied.status).toBe(403);
   await nextTurn();
   expect(stops).toEqual([]);
 });

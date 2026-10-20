@@ -502,8 +502,12 @@ export class ZipReader {
     }
     const at = this.dataStart(e);
     let crc = 0;
+    let written = 0;
     const tap = new Transform({
       transform(chunk, _enc, cb) {
+        // an entry that inflates past the size it states (a zip bomb) stops here, not at a full disk
+        written += chunk.length;
+        if (written > e.size) return cb(new BadZipFile(`'${e.name}' unpacks past its stated size`));
         crc = zlib.crc32(chunk, crc);
         cb(null, chunk);
       },

@@ -30,7 +30,7 @@
 // It does not commit, and never creates a GitHub repository — the skill asks the user first.
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -324,12 +324,17 @@ export async function main(argv = process.argv.slice(2)) {
   const purpose = existsSync(prdPath) ? purposeFromPrd(readFileSync(prdPath, "utf8")) : null;
   console.log(purpose ? "  described from docs/dev/PRD.md" : "  no PRD purpose yet — README, AGENTS.md and package.json get a placeholder");
 
-  const files = execFileSync("git", ["-C", KIT, "ls-files", "-z", "template"], { encoding: "utf8" })
+  // each template file with its git mode: an executable (the headless launcher's shell script) stays one
+  const listed = execFileSync("git", ["-C", KIT, "ls-files", "-s", "-z", "template"], { encoding: "utf8" })
     .split("\0")
     .filter(Boolean)
-    .map((f) => f.slice("template/".length))
+    .map((line) => ({ mode: line.split(" ")[0], rel: line.slice(line.indexOf("\t") + 1).slice("template/".length) }));
+  const executable = new Set(listed.filter((f) => f.mode === "100755").map((f) => f.rel));
+  const files = listed
+    .map((f) => f.rel)
     .filter((f) => !LOCKFILE.test(f))
     .filter((f) => opts.phone || !f.startsWith("src-capacitor/"));
+  const executables = [];
 
   const copied = [];
   const skipped = [];
@@ -351,6 +356,10 @@ export async function main(argv = process.argv.slice(2)) {
       const renamed = addHmrPort(repointKitPaths(renameText(text, names, ports), rel), ports);
       writeFileSync(out, describeApp(outRel, renamed, names, purpose));
     }
+    if (executable.has(rel)) {
+      chmodSync(out, 0o755);
+      executables.push(outRel);
+    }
   }
   console.log(`  copied ${copied.length} files; kept ${skipped.length} that already existed${skipped.length ? `: ${skipped.join(", ")}` : ""}`);
   if (opts.dryRun) return { names, ports, dest, copied, skipped };
@@ -367,6 +376,12 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (!existsSync(path.join(dest, ".git"))) run("git", ["init", "-b", "main"], dest);
+  // staged executable: git on Windows (core.filemode false) would record a new file's mode as 100644, and
+  // the macOS and Linux builds would pack the launcher not runnable
+  for (const rel of executables) {
+    run("git", ["add", "--", rel], dest);
+    run("git", ["update-index", "--chmod=+x", "--", rel], dest);
+  }
   if (opts.install) {
     run("npm", ["install", "--no-audit", "--no-fund"], dest);
     for (const sub of ["src-electron", "src-capacitor", "e2e"]) {

@@ -26,7 +26,7 @@
 // The ZIP is platform/zip.js — what Python's zipfile writes and reads, so Python-made
 // backups restore. Uploads are streamed to a temp file rather than held in memory.
 
-import { createWriteStream, existsSync, mkdtempSync, statSync } from "node:fs";
+import { createWriteStream, existsSync, mkdtempSync, statfsSync, statSync } from "node:fs";
 import { cp, readdir, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -46,6 +46,30 @@ const tablesOf = (metadata) => {
   const list = Array.isArray(metadata) ? metadata : [metadata];
   return list.length && list.every(Array.isArray) ? list : [list];
 };
+
+/** The runner's own tables — this computer's engine builds and settings: a restore keeps them (makeDataRouter
+ *  `keepTables`). */
+export const RUNNER_MACHINE_TABLES = Object.freeze(["runner_binary", "runner_setting"]);
+
+/** Room the drive keeps beyond what a restore unpacks (the database's own copy, the logs). */
+const UNPACK_MARGIN = 256 * 1024 * 1024;
+
+/** A backup unpacks to what its entries say (ZipReader.extract stops an entry that inflates past its size):
+ *  refused when that won't fit the drive with room to spare — never a full disk. */
+export function checkUnpackedFits(zf, dir) {
+  const total = zf.names().reduce((n, name) => n + (zf.info(name).size || 0), 0);
+  let free = Number.POSITIVE_INFINITY;
+  try {
+    const drive = statfsSync(dir);
+    free = drive.bavail * drive.bsize;
+  } catch {
+    // no answer from the drive: the extract's own checks still stand
+  }
+  if (total + UNPACK_MARGIN > free) {
+    const gb = (n) => (n / 1e9).toFixed(1);
+    throw new HttpError(413, `the backup unpacks to ${gb(total)} GB; the drive has ${gb(free)} GB free`);
+  }
+}
 
 const RETRIES = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
 const HELD = new Set(["EPERM", "EACCES", "EBUSY"]);
@@ -258,14 +282,35 @@ async function receiveUpload(c, dest) {
  *                      folders are replaced (which can take minutes, and can fail): a synced app
  *                      runs its sync engine's step here, so no sync and no failed asset copy comes
  *                      between the restored rows and that step.
+ *   - `keepTables`   → tables a RESTORE leaves as they are: this computer's, not the data's. By
+ *                      default the runner's engine builds and settings (`runner_binary`,
+ *                      `runner_setting`): a backup's rows there name the executables the next engine
+ *                      install downloads and runs — a malicious backup's run its code (the security
+ *                      review, 2026-10-19).
+ *   - `scrubBackup(h)` → runs on the BACKUP's own copy of the database before it is zipped, to drop
+ *                      what must not leave this computer (the template: the access tokens, which a
+ *                      restore keeps from the server anyway).
  */
-export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null, prefix = "/v1/data", onReplaced = null, beforeCopy = null, afterCopy = null, afterTables = null }) {
+export function makeDataRouter({
+  getDbPath,
+  metadata,
+  runReset,
+  assetDirs = null,
+  prefix = "/v1/data",
+  onReplaced = null,
+  beforeCopy = null,
+  afterCopy = null,
+  afterTables = null,
+  keepTables = RUNNER_MACHINE_TABLES,
+  scrubBackup = null,
+}) {
   const assets = async () => entriesOf(assetDirs ? await assetDirs() : {});
   /** Every table across all metadatas, FK-ordered within each (parents first). */
   const orderedTables = () => tablesOf(metadata).flatMap(sortedTables);
+  const kept = new Set(keepTables || []);
 
   // FastAPI has no upload limit; a backup with audio is easily over 1 GiB — the restore streams
-  // its upload to disk (receiveUpload), with no limit.
+  // its upload to disk (receiveUpload); what it unpacks to must fit the drive (checkUnpackedFits).
   const app = new Hono();
 
   app.get(`${prefix}/backup`, async (c) => {
@@ -294,6 +339,15 @@ export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null
         h.run("VACUUM INTO ?", [clean]);
       } finally {
         h.close();
+      }
+      if (scrubBackup) {
+        const copy = openDatabase(clean, { foreignKeys: false, timeoutMs: 5000 });
+        try {
+          await scrubBackup(copy);
+          copy.run("VACUUM"); // what was dropped leaves no trace in the file's free pages
+        } finally {
+          copy.close();
+        }
       }
       const zip = new ZipWriter();
       await zip.addFile(clean, DB_ARCNAME);
@@ -325,12 +379,19 @@ export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null
         throw e;
       }
       if (!zf.names().includes(DB_ARCNAME)) throw new HttpError(400, `backup is missing ${DB_ARCNAME}`);
-      await zf.extractAll(tmp);
+      checkUnpackedFits(zf, tmp);
+      try {
+        await zf.extractAll(tmp);
+      } catch (e) {
+        if (e instanceof BadZipFile) throw new HttpError(400, `not a valid backup zip: ${e.message}`);
+        throw e;
+      }
       const srcDb = path.join(tmp, DB_ARCNAME);
       const h = openDatabase(String(await getDbPath()), { foreignKeys: false, timeoutMs: 5000 });
       try {
         h.run("ATTACH ? AS src", [srcDb]);
-        const tables = orderedTables();
+        // this computer's own tables stay as they are (`keepTables`)
+        const tables = orderedTables().filter((t) => !kept.has(t));
         const srcTables = new Set(h.all("SELECT name FROM src.sqlite_master WHERE type='table'").map((r) => r.name));
         h.tx(() => {
           if (beforeCopy) beforeCopy(h);

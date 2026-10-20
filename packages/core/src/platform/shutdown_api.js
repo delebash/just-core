@@ -17,7 +17,7 @@
 // §2); an app with bearer auth on lists the path in `loopbackOpenPaths`, as the shell carries no
 // token.
 
-import { clientHost } from "./auth.js";
+import { clientHost, isDirectLoopback } from "./auth.js";
 import { HttpError } from "./errors.js";
 import { getLogger } from "./log.js";
 import { Hono } from "./server.js";
@@ -51,7 +51,8 @@ export function makeShutdownRouter({ beforeStop = null } = {}) {
   const app = new Hono();
   app.post(SHUTDOWN_PATH, async (c) => {
     const host = clientHost(c);
-    if (!isLoopback(host)) throw new HttpError(403, "The server can only be shut down from this machine.");
+    // from this machine itself — not through a proxy on it (its client is elsewhere)
+    if (!isLoopback(host) || !isDirectLoopback(c)) throw new HttpError(403, "The server can only be shut down from this machine.");
     log.info(`shutdown requested from ${host} — stopping engines, then exiting`);
     if (beforeStop) await beforeStop();
     if (serverStop === null) return c.json({ ok: true, exiting: false });

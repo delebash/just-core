@@ -21,13 +21,22 @@ per-user folder.
 - **Headless** — the same server without a window: run `family-template-server serve` (from a
   source checkout, `npm run server`) and open its address (`http://127.0.0.1:17490`) in a
   browser. The server hosts the whole app. The command is beside the app on Windows (in its
-  folder) and Linux (an AppImage: after `--appimage-extract`, in `squashfs-root/`), and in the Mac
-  app's `Contents/Resources`. The server answers only on its own computer; for other computers,
-  start it with `--host 0.0.0.0` and use that computer's network address. Add an access token
-  first in **Settings → Server**: a browser elsewhere then asks for it once — or open the address
-  **Copy the address with this token** gives (with the network address in place of `127.0.0.1`),
-  and it signs in by itself. The desktop app and a headless server share the data folder one at a
-  time: opening the desktop app stops a headless server on its port.
+  folder: `.\family-template-server serve` in PowerShell) and Linux (an AppImage: after
+  `--appimage-extract`, in `squashfs-root/`), and in the Mac app's `Contents/Resources`. The server
+  answers only on its own computer; for other computers, start it with `--host 0.0.0.0` and use
+  that computer's network address. Add an access token first in **Settings → Server**: a browser
+  elsewhere then asks for it once — or open the address **Copy the address with this token** gives
+  (with the network address in place of `127.0.0.1`), and it signs in by itself. The desktop app
+  and a headless server share the data folder one at a time: quit the desktop app first; opening it
+  stops a headless server on its port. Behind a reverse proxy on the same computer, name its public
+  address in `FAMILY_TEMPLATE_ALLOWED_HOSTS` (the server answers its own computer only under its
+  own names) and keep a token on: requests through a proxy always need one.
+
+## Backups
+
+**Settings → Backups** saves everything in one file, your AI providers' keys included — keep it like
+a password. The access tokens aren't in it, and a restore keeps this computer's own (and its
+downloaded engines' settings).
 
 ## First launch
 
