@@ -6,6 +6,13 @@ The holding pen for unscheduled ideas about the shared stack — same charter as
 
 ---
 
+- **2026-10-20 · Several windows in the template.** just-house-paint now counts each window's changes
+  apart (its server/src/changes.js, `X-Client-Id` — installLlmUi `sendClientId`), answers `GET
+  /v1/sync/rev` so the kit's watchSync re-reads the open page, and versions what two windows could save
+  over each other (ETag / If-Match / 412, JSON Merge Patch for per-part maps). The template's notes have
+  the same lost update (two windows saving one note). Moving `changes.js` into the kit
+  (`platform/changes.js`) and giving the template's notes an If-Match would make it the family's.
+
 - **2026-10-19 · The kit's leftover-engine sweep (JustVoice's `engines/leftovers.js` for llama-server).**
   A failed warm start now offers the app's Troubleshooting page (BootModelLoad's default `#failed`).
   JustVoice also finds and stops ITS engines left by an earlier server. For the kit's llama-server:
