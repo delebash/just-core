@@ -156,10 +156,12 @@ async function run() {
         console.log(`it answered in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${h.product} ${h.version}`);
         if (defaultData) {
           if (!h.dataDir) throw new Error("its health answer names no data folder (--default-data needs one)");
-          // on macOS and Linux never inside the app — its bundle, the AppImage's mount or its extracted folder
+          // never inside a bundle — a Mac app, the AppImage's mount or its extracted folder, which an update replaces
+          // whole; Windows' and the unpacked Linux build's are beside the executable by design (the kit's data_paths)
+          const bundle = exe.includes(".app/Contents/") || asUser;
           const app = exe.includes(".app/Contents/") ? exe.slice(0, exe.indexOf(".app/Contents/") + 4) : path.dirname(exe);
           const rel = path.relative(app, h.dataDir);
-          if (process.platform !== "win32" && (!rel.startsWith("..") || /\/\.mount_/.test(h.dataDir))) throw new Error(`its data folder ${h.dataDir} is inside the app (${app})`);
+          if (bundle && (!rel.startsWith("..") || /\/\.mount_/.test(h.dataDir))) throw new Error(`its data folder ${h.dataDir} is inside the app (${app})`);
           console.log(`data folder used: ${h.dataDir}`);
         }
         if (headless) {

@@ -154,8 +154,11 @@ jobs:
         run: |
           window="node"
           if [ "${{ matrix.target }}" = linux ]; then window="xvfb-run -a node"; fi
-          a=$($window scripts/start-packaged.js --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
-          b=$(node scripts/start-packaged.js --headless --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
+          # each run's lines shown and kept in a file (Git Bash on Windows has no /dev/stderr to tee to)
+          $window scripts/start-packaged.js --default-data | tee window.log
+          node scripts/start-packaged.js --headless --default-data | tee headless.log
+          a=$(sed -n 's/^data folder used: //p' window.log)
+          b=$(sed -n 's/^data folder used: //p' headless.log)
           echo "the window: $a"; echo "on its own: $b"
           test -n "$a" && test "$a" = "$b"
 
@@ -221,8 +224,10 @@ jobs:
         working-directory: app
         shell: bash
         run: |
-          a=$(xvfb-run -a node scripts/start-packaged.js --appimage --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
-          b=$(node scripts/start-packaged.js --appimage --headless --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
+          xvfb-run -a node scripts/start-packaged.js --appimage --default-data | tee window.log
+          node scripts/start-packaged.js --appimage --headless --default-data | tee headless.log
+          a=$(sed -n 's/^data folder used: //p' window.log)
+          b=$(sed -n 's/^data folder used: //p' headless.log)
           echo "the AppImage: $a"; echo "on its own: $b"
           test -n "$a" && test "$a" = "$b"
 
