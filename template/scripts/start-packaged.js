@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
-// The packaged app, started as a user starts it on a fresh data folder, must answer on its own port
-// with its own version — the release run's check on every runner, before anything is attached (the
+// The packaged app, started as a user starts it on a fresh data folder, must load its window's page
+// (the shell's "[shell] window loaded") and answer on its own port with its own version — the release run's check on every runner, before anything is attached (the
 // macOS and Linux builds are never opened by hand; just-house-paint RESEARCH §12). Run after
 // `quasar build -m electron` (dist/electron/Packaged/<platform>-unpacked); on Linux under a display
 // (`xvfb-run -a node scripts/start-packaged.js` — the release workflow does).
@@ -84,7 +84,13 @@ async function run() {
   const args = process.platform === "linux" && !appImage ? ["--no-sandbox"] : [];
   console.log(`starting ${exe} (data folder ${dataDir}, port ${port})`);
   const t0 = Date.now();
-  const child = spawn(exe, args, { env: { ...process.env, [dataDirEnv]: dataDir }, stdio: ["ignore", "inherit", "inherit"], detached: process.platform !== "win32" });
+  const child = spawn(exe, args, { env: { ...process.env, [dataDirEnv]: dataDir }, stdio: ["ignore", "pipe", "inherit"], detached: process.platform !== "win32" });
+  // the shell says when its window's page loaded (the kit's runDesktopApp): the window, not only the server
+  let windowLoaded = false;
+  child.stdout.on("data", (chunk) => {
+    process.stdout.write(chunk);
+    if (String(chunk).includes("[shell] window loaded")) windowLoaded = true;
+  });
   let exited = null;
   child.on("exit", (code, signal) => {
     exited = { code, signal };
@@ -96,7 +102,7 @@ async function run() {
     for (;;) {
       if (exited) throw new Error(`the app quit before it answered (exit ${exited.code ?? exited.signal})`);
       const h = await health();
-      if (h) {
+      if (h && windowLoaded) {
         if (h.version !== pkg.version) throw new Error(`it answered as version ${h.version}, not ${pkg.version}`);
         console.log(`it answered in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${h.product} ${h.version}`);
         for (const p of extraPaths) {
@@ -107,7 +113,7 @@ async function run() {
         }
         return;
       }
-      if (Date.now() - t0 > TIMEOUT_MS) throw new Error(`no answer on port ${port} in ${TIMEOUT_MS / 1000} s`);
+      if (Date.now() - t0 > TIMEOUT_MS) throw new Error(h ? `the server answered, but the window never loaded its page in ${TIMEOUT_MS / 1000} s` : `no answer on port ${port} in ${TIMEOUT_MS / 1000} s`);
       await new Promise((r) => setTimeout(r, 500));
     }
   } finally {

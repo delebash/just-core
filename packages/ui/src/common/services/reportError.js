@@ -10,7 +10,6 @@ import { pushToast } from "./toastBridge.js";
 
 const isCancel = (err) => err?.name === "AbortError" || err?.cancelled === true || err?.cutOff === true;
 
-/** `{ title, detail, reference }` for a failure, in the app's language. */
 /** HTTP's own words for a 5xx (and the server's plain "Error"): never shown as a title — the kit's are. */
 const HTTP_TITLES = new Set([
   "Error",
@@ -25,6 +24,7 @@ const HTTP_TITLES = new Set([
   "Network Authentication Required",
 ]);
 
+/** `{ title, detail, reference }` for a failure, in the app's language. */
 export function errorMessage(err, { t = kitT } = {}) {
   const status = Number(err?.status) || 0;
   const problem = err?.problem || null;

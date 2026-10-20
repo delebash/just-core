@@ -4,7 +4,7 @@
 // Python's SQLAlchemy `MetaData` + `Table("notes", …)` is a one-table TABLES list here;
 // the zip is read back with the module's own reader (its Python interop was checked by
 // hand, 2026-10-07: Python's zipfile reads these backups and these read Python's).
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
@@ -81,6 +81,22 @@ test("backup_restore_reset_roundtrip", async () => {
   // Reset wipes to the host seed.
   expect((await app.request("/v1/data/reset", { method: "POST" })).status).toBe(200);
   expect(rows(engine)).toEqual({ 1: "seed" });
+});
+
+test("restore_swaps_the_asset_folder_whole_and_takes_an_earlier_restores_leftovers", async () => {
+  const { app, assets, tmp } = makeApp();
+  writeFileSync(join(assets, "a.txt"), "backed up");
+  const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
+  // after the backup: a file the backup doesn't have, and an earlier restore's held leftover beside it
+  writeFileSync(join(assets, "later.txt"), "not in the backup");
+  mkdirSync(join(tmp, "images.replaced-1700000000000"));
+  expect((await upload(app, blob)).status).toBe(200);
+  // the folder is the backup's, whole — not the old one with the backup copied over it
+  expect(readdirSync(assets)).toEqual(["a.txt"]);
+  expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("backed up");
+  // nothing staged or replaced is left beside it
+  expect(readdirSync(tmp).filter((n) => n.startsWith("images."))).toEqual([]);
+  expect(existsSync(assets)).toBe(true);
 });
 
 test("restore_rejects_bad_zip", async () => {

@@ -449,6 +449,9 @@ export function runDesktopApp(config) {
       e.preventDefault();
       quitApp();
     });
+    // the window's page loaded — the release's start check waits for this line (scripts/start-packaged.js):
+    // a server that answers behind a window that never draws isn't a working app
+    win.webContents.once("did-finish-load", () => console.log("[shell] window loaded"));
     win.loadURL(home);
     state.win = win;
     return win;

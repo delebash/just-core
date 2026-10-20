@@ -86,7 +86,8 @@ What a speech model costs, measured, is in JustVoice's register §2.
   "Local Usage"): Windows' Desktop Window Manager `dwm.exe` held **317 MB** — past the 200 MB floor that kept it
   out at 162 MB on 2026-09-29 — and a desktop app's own window process (the Electron shell, the server's PARENT,
   so outside `processTreePids(process.pid)`) counted as another program. Now the system's compositors (dwm, csrss;
-  Xorg, Xwayland, gnome-shell, kwin; WindowServer) are never named, and a server in an Electron utility process
+  Xorg, Xwayland, gnome-shell, kwin_x11, kwin_wayland; WindowServer — the Linux and macOS names only in case a probe
+  ever lists them: nvidia-smi lists compute processes) are never named, and a server in an Electron utility process
   (`process.parentPort` set) counts its parent's tree as its own. — *measured + code, 2026-10-19* ·
   `packages/core/src/runner/hardware.js` `_shellTreePids`, `SYSTEM_GPU_PROCESSES`.
 

@@ -27,7 +27,7 @@
 // backups restore. Uploads are streamed to a temp file rather than held in memory.
 
 import { createWriteStream, existsSync, mkdtempSync, statSync } from "node:fs";
-import { cp, readdir, rm } from "node:fs/promises";
+import { cp, readdir, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -46,6 +46,33 @@ const tablesOf = (metadata) => {
   const list = Array.isArray(metadata) ? metadata : [metadata];
   return list.length && list.every(Array.isArray) ? list : [list];
 };
+
+const RETRIES = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
+
+/** Put the backup's copy `from` in place of the asset folder `dir` (see the restore route). */
+async function replaceAssetDir(from, dir) {
+  const parent = path.dirname(dir);
+  const base = path.basename(dir);
+  // an earlier restore's held leftovers beside it
+  for (const name of existsSync(parent) ? await readdir(parent) : []) {
+    if (name.startsWith(`${base}.replaced-`) || name.startsWith(`${base}.restoring-`)) await rm(path.join(parent, name), RETRIES).catch(() => {});
+  }
+  const stamp = Date.now();
+  const staged = `${dir}.restoring-${stamp}`;
+  await cp(from, staged, { recursive: true, preserveTimestamps: true });
+  if (!existsSync(dir)) return rename(staged, dir);
+  const old = `${dir}.replaced-${stamp}`;
+  try {
+    await rename(dir, old);
+  } catch {
+    // held: the backup's files copied over the folder as it is, every one of them landing
+    await cp(staged, dir, { recursive: true, force: true, preserveTimestamps: true });
+    await rm(staged, RETRIES).catch(() => {});
+    return;
+  }
+  await rename(staged, dir);
+  await rm(old, RETRIES).catch(() => {}); // held: the next restore takes it
+}
 
 /** One metadata's tables: by name, then layered so every parent precedes its children
  * (sqlalchemy.util.topological.sort with deterministic order; self-references ignored). */
@@ -273,14 +300,13 @@ export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null
         h.close();
       }
       if (afterTables) await afterTables();
-      // Replace each declared asset dir with the backup's copy.
+      // Replace each declared asset dir with the backup's copy — never half: the copy is made beside it
+      // first, then swapped in (renames); the old one is removed after. Windows holds a just-written
+      // file a moment: a held old folder is copied over instead (the backup's files all land), and a
+      // held leftover is tried again at the next restore.
       for (const [arcname, d] of await assets()) {
         const bdir = path.join(tmp, arcname);
-        if (existsSync(bdir) && statSync(bdir).isDirectory()) {
-          // Windows holds a just-written file a moment: Node's own retries (EBUSY / EPERM / ENOTEMPTY)
-          if (existsSync(String(d))) await rm(String(d), { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-          await cp(bdir, String(d), { recursive: true, preserveTimestamps: true });
-        }
+        if (existsSync(bdir) && statSync(bdir).isDirectory()) await replaceAssetDir(bdir, String(d));
       }
     } finally {
       await rm(upDir, { recursive: true, force: true });
