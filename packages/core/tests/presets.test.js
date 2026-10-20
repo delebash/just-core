@@ -307,3 +307,37 @@ test("a_blank_recipe_follows_the_provider", () => {
   expect(presetRecipe({ providerId: "gone", recipe: "" })).toBe("local");
   expect(presetRecipe(null)).toBe("local");
 });
+
+// the twentieth review: a feature assigned to a preset that doesn't exist answered 500 (FOREIGN KEY failed), the
+// default stored any id (a 1,000,000-character one), and any key was taken as a feature
+test("an assignment names a preset that exists and an action the app has — else 422 at its field; ids and keys bounded", async () => {
+  seed.configureAppSeed({
+    featureCatalog: [{ key: "schemes.suggest", label: "Suggest" }],
+    featurePresets: { "writerAI.continue": "p_prose" },
+  });
+  const a = await pid(await req("POST", "/v1/ai/engine-presets", { name: "A" }), "A");
+  const errorsOf = async (r) => {
+    expect(r.status).toBe(422);
+    return (await r.json()).errors.map((e) => [e.loc, e.msg]);
+  };
+  expect(await errorsOf(await req("PUT", "/v1/ai/preset-assignments/default", { presetId: "no-such-preset" }))).toEqual([
+    [["body", "presetId"], "No preset with the id 'no-such-preset'"],
+  ]);
+  expect(await errorsOf(await req("PUT", "/v1/ai/preset-assignments/feature", { featureKey: "schemes.suggest", presetId: "gone" }))).toEqual([
+    [["body", "presetId"], "No preset with the id 'gone'"],
+  ]);
+  expect(await errorsOf(await req("PUT", "/v1/ai/preset-assignments/feature", { featureKey: "not.a.feature", presetId: a }))).toEqual([
+    [["body", "featureKey"], "No AI feature with the key 'not.a.feature'"],
+  ]);
+  // bounded before anything is looked up
+  expect((await req("PUT", "/v1/ai/preset-assignments/default", { presetId: "x".repeat(1_000_000) })).status).toBe(422);
+  expect((await req("PUT", "/v1/ai/preset-assignments/feature", { featureKey: "k".repeat(201), presetId: a })).status).toBe(422);
+  // the catalog's feature, a routed action, a clear: as before
+  for (const featureKey of ["schemes.suggest", "writerAI.continue"]) {
+    const r = await req("PUT", "/v1/ai/preset-assignments/feature", { featureKey, presetId: a });
+    expect(r.status, featureKey).toBe(200);
+  }
+  expect((await req("PUT", "/v1/ai/preset-assignments/feature", { featureKey: "schemes.suggest", presetId: "" })).status).toBe(200);
+  expect((await req("PUT", "/v1/ai/preset-assignments/default", { presetId: a })).status).toBe(200);
+  expect((await (await req("GET", "/v1/ai/preset-assignments")).json()).defaultPresetId).toBe(a);
+});

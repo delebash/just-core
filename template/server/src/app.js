@@ -30,11 +30,10 @@ import {
   makeShutdownRouter,
   resourceIsolation,
   SHUTDOWN_PATH,
-  serveStatic,
+  serveUi,
   starletteCors,
 } from "@delebash/core/platform";
 import { purePath } from "@delebash/core/platform/data_paths";
-import { HttpError } from "@delebash/core/platform/errors";
 import { getLogger } from "@delebash/core/platform/log";
 import { router as healthRouter } from "./api/health_api.js";
 import { router as notesRouter } from "./api/notes_api.js";
@@ -172,14 +171,12 @@ export async function createApp(dataDir = null) {
   app.route("/", settingsRouter());
   app.route("/", notesRouter());
 
-  // 8. The built UI, served for the headless path — a browser at this address is the whole app.
-  // Every /v1 route above wins first (Hono runs routes in the order added).
+  // 8. The built UI, served for the headless path — a browser at this address is the whole app
+  // (the kit's serveUi: a write there 405, hashed files kept, the rest revalidated). Every /v1 route
+  // above wins first (Hono runs routes in the order added).
   const uiDir = locateUiDir();
   if (uiDir !== null) {
-    app.on(["POST", "PUT", "PATCH", "DELETE", "OPTIONS"], "/*", () => {
-      throw new HttpError(405, "Method Not Allowed");
-    });
-    app.get("/*", serveStatic({ root: uiDir }));
+    serveUi(app, uiDir);
     log.info(`UI served from ${uiDir}`);
   } else {
     log.warning("no built UI found — the headless UI is off. `npm run build:spa` makes dist/spa/, or set FAMILY_TEMPLATE_UI_DIR.");

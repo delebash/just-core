@@ -24,9 +24,11 @@ export const dialogState = reactive({
 // language — the host AppDialog reads them through vue-i18n.
 
 function openDialog(kind, options) {
-  // If something is already open, cancel it first so the new prompt wins.
+  // If something is already open, cancel it first so the new prompt wins — answered as ITS kind cancels (a prompt
+  // null, a confirm false): a prompt cancelled by a confirm was answered false, and Reset's prompt read that as a
+  // typed word and said "Confirmation didn't match" (the twentieth review, 2026-10-20).
   if (dialogState.open && dialogState._resolve) {
-    dialogState._resolve(kind === "confirm" ? false : null);
+    dialogState._resolve(dialogState.kind === "confirm" ? false : null);
   }
   return new Promise((resolve) => {
     dialogState.kind = kind;

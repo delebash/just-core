@@ -21,9 +21,19 @@ import { model, nullable, opt, T } from "../platform/models.js";
 import { FileNotFoundError, pyStr, truthy } from "../platform/py.js";
 import { pyStrScalar } from "../platform/pyjson.js";
 import { input } from "../platform/server.js";
-import { isHfRepo, isRepoPath } from "../runner/models.js";
+import { isHfRepo, isRepoPath, normalizeHfRepo } from "../runner/models.js";
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
+
+// What a repo must be, in words (the catalog's PUT, list-files, inspect).
+const REPO_RULE = "A Hugging Face repo is <owner>/<name> (or its huggingface.co address) — letters, digits, '_', '.' and '-' only";
+
+/** The repo a list-files or inspect query names, as the PUT takes it — or a 422 at the query's `repo`. */
+function queryRepo(repo) {
+  const r = normalizeHfRepo(repo);
+  if (!isHfRepo(r)) throw new RequestValidationError([{ type: "value_error", loc: ["query", "repo"], msg: REPO_RULE }]);
+  return r;
+}
 
 /** One downloadable llama.cpp model — catalog fields only. `builtIn` marks a seeded row
  * (so the editor can offer 'reset to factory'). */
@@ -289,9 +299,12 @@ export function makeCatalogRouter(
     if (!strip(body.id)) throw new HttpError(400, "id is required");
     // where the row's files go and come from: a repo the hub has, a path inside it — never a folder outside the cache
     // (the nineteenth review: "x/..\\..\\victim" made Clear models remove one)
+    // (given as the form's listing takes it: trimmed, its huggingface.co / hf.co address's prefix off — normalizeHfRepo)
     const errors = [];
     for (const k of ["hfRepo", "mtpDraftRepo"]) {
-      if (body[k] && !isHfRepo(body[k])) errors.push({ type: "value_error", loc: ["body", k], msg: "A Hugging Face repo is <owner>/<name> — letters, digits, '_', '.' and '-' only" });
+      if (!body[k]) continue;
+      body[k] = normalizeHfRepo(body[k]);
+      if (!isHfRepo(body[k])) errors.push({ type: "value_error", loc: ["body", k], msg: REPO_RULE });
     }
     if (body.mtpDraftFile && !isRepoPath(body.mtpDraftFile)) {
       errors.push({ type: "value_error", loc: ["body", "mtpDraftFile"], msg: "A file in the repo is a path inside it — forward slashes, no '..'" });
@@ -399,11 +412,12 @@ export function makeCatalogRouter(
       "/v1/ai/model-catalog/list-files",
       input({ querystring: T.Object({ repo: T.String(), revision: opt(T.String(), "main") }) }),
       async (c) => {
-        const { repo, revision } = c.req.valid("query");
-        if (!strip(repo)) throw new HttpError(400, "repo is required");
+        const { repo: given, revision } = c.req.valid("query");
+        if (!strip(given)) throw new HttpError(400, "repo is required");
+        const repo = queryRepo(given);
         let data;
         try {
-          data = await listFilesFn(strip(repo), strip(revision || "main"));
+          data = await listFilesFn(repo, strip(revision || "main"));
         } catch (e) {
           // network/bad-repo → a clean 502
           throw new HttpError(502, `couldn't list ${repo}: ${excStr(e)}`);
@@ -423,11 +437,12 @@ export function makeCatalogRouter(
         querystring: T.Object({ repo: T.String(), quant: opt(T.String(), ""), revision: opt(T.String(), "main") }),
       }),
       async (c) => {
-        const { repo, quant, revision } = c.req.valid("query");
-        if (!strip(repo)) throw new HttpError(400, "repo is required");
+        const { repo: given, quant, revision } = c.req.valid("query");
+        if (!strip(given)) throw new HttpError(400, "repo is required");
+        const repo = queryRepo(given);
         let data;
         try {
-          data = await inspectFn(strip(repo), strip(quant), strip(revision || "main"));
+          data = await inspectFn(repo, strip(quant), strip(revision || "main"));
         } catch (e) {
           if (e instanceof FileNotFoundError || e?.code === "ENOENT") {
             throw new HttpError(404, excStr(e) || "no GGUF for that repo/quant");

@@ -17,5 +17,6 @@ export { makePrefsRouter } from "./prefs_api.js";
 export * as procs from "./procs.js";
 export { attachment, closeApp, createServer, Hono, input, installPyFloatBodies, onClose, readJson, schemaProblem, stream, uploadLimit } from "./server.js";
 export { runServer, serveStatic } from "./serve.js";
+export { serveUi } from "./serve_ui.js";
 export { makeShutdownRouter, SHUTDOWN_PATH } from "./shutdown_api.js";
 export { openDatabase } from "./sql.js";

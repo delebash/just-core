@@ -2844,8 +2844,10 @@ export class RunnerService {
     // model. Inside the tombstone window the ensure REFUSES instead — the user starts the model
     // again from the app if they meant to (any direct load() clears the stamp).
     const ts = this._stopTombstones.get(modelId);
+    // (each refusal below marked `localNotReady`: an AI run answers 503 in its words — prompts.js aiRunHttpError)
+    const notReady = (words) => Object.assign(new RuntimeError(words), { localNotReady: true });
     if (ts !== undefined && this._now() - ts < _STOP_TOMBSTONE_S) {
-      throw new RuntimeError(`the local model "${modelId}" was just stopped — start it again from the app to use it`);
+      throw notReady(`the local model "${modelId}" was just stopped — start it again from the app to use it`);
     }
     // Same path ensureEmbedding uses: download-if-needed + lazy-spawn the router + reserve,
     // on the background load task. A re-load of an already-in-flight / running model is
@@ -2859,10 +2861,12 @@ export class RunnerService {
       if (this._residentReady(modelId)) return;
       const st = this._resident.get(modelId) || {};
       if (st.status === "error") {
-        throw new RuntimeError(`The local model "${modelId}" failed to load: ${st.error || "unknown error"}`);
+        // the engine not installed: said as what to do (its code meant nothing to a user — the twentieth review)
+        if (st.error === "engine-not-installed") throw notReady(`The local model "${modelId}" can't run yet: the AI engine isn't installed — install it first (AI Settings).`);
+        throw notReady(`The local model "${modelId}" failed to load: ${st.error || "unknown error"}`);
       }
       if (this._now() >= deadline) {
-        throw new RuntimeError(`Timed out preparing the local model "${modelId}" after ${Math.trunc(timeoutS)}s.`);
+        throw notReady(`Timed out preparing the local model "${modelId}" after ${Math.trunc(timeoutS)}s.`);
       }
       await this._sleep(this._loadPollInterval);
     }

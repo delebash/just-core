@@ -83,18 +83,29 @@ async function focusAfterRow(index) {
   target?.focus();
 }
 
-/** Try again (a copy that didn't answer just now): looked at now, not after the minute. */
+/** Try again (a copy that didn't answer just now): looked at now, not after the minute. Its answer said (the kit's
+ *  announcer — WCAG 4.1.3) and the focus kept on its row, as after Forget: a copy that answers now loses its Try
+ *  again, and the focus fell to <body> with nothing said (the twentieth review, 2026-10-20). */
 const trying = ref(false);
-async function tryAgain() {
+async function tryAgain(copy) {
+  const index = oldCopies.value.indexOf(copy);
   trying.value = true;
   try {
     oldCopies.value = (await props.shell.oldCopies({ again: true })) || [];
   } catch (e) {
     reportError(e);
+    return;
   } finally {
     trying.value = false;
   }
+  const now = oldCopies.value.find((c) => c.root === copy.root);
+  await focusAfterRow(index);
+  if (now && now.connected !== false) announce(t("kit.storagePanel.answersNow", { folder: copy.root }));
+  else if (now) announce(t("kit.storagePanel.stillNoAnswer", { folder: copy.root }));
 }
+
+// (each row's buttons are named with their folder in the template, their visible words first — WCAG 2.5.3: the rows'
+// buttons were all "Forget…" and "Remove the old copy…" to a screen reader — the twentieth review)
 async function loadDiskUsage() {
   diskUsage.value = await safeRequest("/v1/disk/usage", null);
 }
@@ -201,7 +212,11 @@ async function removeOldCopy(copy) {
   } finally {
     removing.value = "";
   }
-  if (!oldCopies.value.some((c) => c.root === copy.root)) await focusAfterRow(index);
+  if (!oldCopies.value.some((c) => c.root === copy.root)) {
+    await focusAfterRow(index);
+    // said, as Forget is (it was removed in silence — the twentieth review)
+    announce(t("kit.storagePanel.removedOld", { folder: copy.root }));
+  }
 }
 
 /** An old copy whose folder doesn't answer to its move (`connected: false`): Not found, and Forget offered. */
@@ -346,7 +361,8 @@ function clearSpawnLogs() {
                 size="small"
                 :disabled="!!removing || relocating || trying"
                 :label="t('kit.storagePanel.tryAgain')"
-                @click="tryAgain"
+                :aria-label="t('kit.storagePanel.tryAgainNamed', { label: t('kit.storagePanel.tryAgain'), folder: copy.root })"
+                @click="tryAgain(copy)"
               />
               <UiButton
                 v-if="copy.connected === false && shell?.forgetOldCopy"
@@ -354,6 +370,7 @@ function clearSpawnLogs() {
                 size="small"
                 :disabled="!!removing || relocating"
                 :label="t('kit.storagePanel.forgetOld')"
+                :aria-label="t('kit.storagePanel.forgetOldNamed', { label: t('kit.storagePanel.forgetOld'), folder: copy.root })"
                 @click="forgetOldCopy(copy)"
               />
               <UiButton
@@ -362,6 +379,7 @@ function clearSpawnLogs() {
                 size="small"
                 :disabled="!!removing || relocating || copy.connected === false"
                 :label="removing === copy.root ? t('kit.storagePanel.removing') : t('kit.storagePanel.removeOld')"
+                :aria-label="t('kit.storagePanel.removeOldNamed', { label: removing === copy.root ? t('kit.storagePanel.removing') : t('kit.storagePanel.removeOld'), folder: copy.root })"
                 @click="removeOldCopy(copy)"
               />
             </div>

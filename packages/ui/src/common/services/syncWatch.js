@@ -33,6 +33,17 @@ export function isEditing(doc = globalThis.document) {
   return el.tagName === "INPUT" && !NOT_TEXT.has(String(el.type || "text").toLowerCase());
 }
 
+// This window's own restore or reset (DataManagement): the server's counter moves — a new epoch — before the answer
+// comes, and the window reloads itself once it has it; a change seen meanwhile is its own, so it waits (the twentieth
+// review: the restoring window reloaded as "replaced in another window", its "Restored" and the settings it reset
+// unsaid). Held from the request until the reload; let go when the request failed (nothing was replaced).
+let replacingHere = false;
+
+/** This window is replacing the server's data (true), or its attempt ended without the reload (false). */
+export function replacingData(on) {
+  replacingHere = !!on;
+}
+
 // While the page is hidden (a minimized window, a background tab, a sleeping phone) it asks nothing; it asks at once
 // when the page shows again or the network comes back (visibility.js).
 export function watchSync(onChange, { waitWhileEditing = false, waitWhile = null } = {}) {
@@ -51,7 +62,7 @@ export function watchSync(onChange, { waitWhileEditing = false, waitWhile = null
       wait = Number(r?.pollSeconds) > 0 ? Number(r.pollSeconds) : wait;
       const changed = last !== null && r.rev !== last;
       // mid-edit: `last` stays, so the next check sees the change again
-      const hold = changed && ((waitWhileEditing && isEditing()) || waitWhile?.());
+      const hold = changed && (replacingHere || (waitWhileEditing && isEditing()) || waitWhile?.());
       if (!hold) {
         if (changed) await onChange(r);
         last = r.rev;

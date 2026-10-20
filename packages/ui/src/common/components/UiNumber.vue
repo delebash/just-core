@@ -203,6 +203,7 @@ useNativeEvents(inputEl, attrs, { blur: onBlur, focus: onFocus, keydown: onKeydo
 <template>
   <QInput
     ref="field"
+    no-error-icon
     v-bind="withoutListeners(attrs)"
     :rules="numberRules"
     :class="classes"

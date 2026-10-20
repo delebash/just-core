@@ -40,6 +40,7 @@
 //   - A reverse proxy on this computer makes every client look like loopback: a request carrying a
 //     proxy's forwarding header is never the loopback door (tokens apply; isDirectLoopback).
 
+import { createHash, timingSafeEqual } from "node:crypto";
 import { BlockList, isIP } from "node:net";
 import os from "node:os";
 import { getConnInfo } from "@hono/node-server/conninfo";
@@ -93,11 +94,27 @@ export function isDirectLoopback(c) {
   return isLoopback(clientHost(c)) && !FORWARDED.some((h) => c.req.header(h));
 }
 
+// The scheme's name in any case (RFC 9110 §11.1 — Hono's bearerAuth matches it so too).
+const BEARER = /^bearer\s/i;
+
 /** The request's bearer token, or "". */
 const bearerOf = (c) => {
   const header = c.req.header("authorization") || "";
-  return header.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : "";
+  return BEARER.test(header) ? header.slice("Bearer ".length).trim() : "";
 };
+
+const digest = (s) => createHash("sha256").update(String(s)).digest();
+
+/** Whether `token` is one of `tokens`, compared in constant time: their SHA-256 digests through
+ *  crypto.timingSafeEqual, every token tried (Hono's bearerAuth does the same), so neither a token's
+ *  length nor where it first differs shows in the time the answer takes. */
+function tokenAccepted(tokens, token) {
+  if (!token) return false;
+  const want = digest(token);
+  let found = false;
+  for (const t of tokens) found = timingSafeEqual(digest(t), want) || found;
+  return found;
+}
 
 /** Whether a `Host` header names this computer (see the guards above). No Host: not a browser. */
 export function hostAllowed(hostHeader, allowedHosts = []) {
@@ -129,7 +146,9 @@ export function bearerAuth({ readAuth, typeBase, loopbackOpenPaths = [], prefixe
     // a page that renamed itself to reach this computer's server (DNS rebinding): before anything
     const host = c.req.header("host");
     if (isLoopback(clientHost(c)) && !hostAllowed(host, allowedHosts)) {
-      return problem(c, 403, "host-not-allowed", "Forbidden", `this server answers to this computer's own names, not ${host}`, p);
+      // the name cut: a header is the caller's text, up to the server's 16 KB
+      const named = host.length > 100 ? `${host.slice(0, 100)}…` : host;
+      return problem(c, 403, "host-not-allowed", "Forbidden", `this server answers to this computer's own names, not ${named}`, p);
     }
 
     const [tokens, requireForLoopback] = await readAuth();
@@ -140,17 +159,15 @@ export function bearerAuth({ readAuth, typeBase, loopbackOpenPaths = [], prefixe
       // open from this computer — but a client that would need a token everywhere else is told so (the
       // health answer's `tokenRequired`): the desktop window then asks for one instead of loading and
       // getting 401 for everything after
-      if (requireForLoopback && !tokens.includes(bearerOf(c))) c.set("tokenRequired", true);
+      if (requireForLoopback && !tokenAccepted(tokens, bearerOf(c))) c.set("tokenRequired", true);
       return next();
     }
     if (isLoop && !requireForLoopback) return next();
 
-    const header = c.req.header("authorization") || "";
-    if (!header.startsWith("Bearer ")) {
+    if (!BEARER.test(c.req.header("authorization") || "")) {
       return problem(c, 401, "unauthorized", "Unauthorized", "Authorization header missing or malformed", p);
     }
-    const token = header.slice("Bearer ".length).trim();
-    if (!tokens.includes(token)) return problem(c, 403, "forbidden", "Forbidden", "Bearer token not accepted", p);
+    if (!tokenAccepted(tokens, bearerOf(c))) return problem(c, 403, "forbidden", "Forbidden", "Bearer token not accepted", p);
     return next();
   };
 }

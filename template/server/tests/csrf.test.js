@@ -58,7 +58,10 @@ test("the app's own windows, the UI's own pages, a navigation to them and a requ
   const c = await client();
   // the desktop window fetches its server cross-site, with its Origin (measured in Electron 44)
   expect((await c.get("/v1/settings", { headers: META("cross-site", "cors", "empty", { origin: "app://familytemplate" }) })).statusCode).toBe(200);
-  for (const site of ["same-origin", "same-site", "none"]) expect((await c.get("/v1/settings", { headers: META(site, "cors", "empty") })).statusCode, site).toBe(200);
+  for (const site of ["same-origin", "none"]) expect((await c.get("/v1/settings", { headers: META(site, "cors", "empty") })).statusCode, site).toBe(200);
+  // same-site is held as cross-site (the twentieth review: a page on another loopback port is same-site) — refused
+  // without an allowed Origin
+  expect((await c.get("/v1/settings", { headers: META("same-site", "no-cors", "image") })).statusCode).toBe(403);
   expect((await c.get("/v1/settings")).statusCode).toBe(200);
   // a link from another site to the app's page: past the guard (the page itself may not be built here)
   expect((await c.get("/", { headers: META("cross-site", "navigate", "document") })).statusCode).not.toBe(403);

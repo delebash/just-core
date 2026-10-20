@@ -146,6 +146,7 @@ function itemAttrs(p, opt) {
 <template>
   <QSelect
     ref="field"
+    no-error-icon
     :model-value="modelValue"
     :options="filtered"
     option-label="label"

@@ -128,6 +128,7 @@ export class OpenAICompatAdapter {
       if (e instanceof TransportError) {
         const err = new RuntimeError(`${this.provider_type} request failed: ${e.message}`);
         err.cause = e;
+        err.unreachable = true; // (prompts.js aiRunHttpError: 502)
         throw err;
       }
       throw e;

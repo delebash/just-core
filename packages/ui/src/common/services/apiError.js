@@ -20,16 +20,48 @@ export function parseProblem(raw) {
   try {
     const j = JSON.parse(raw);
     if (j && typeof j === "object") problem = j;
-    if (j && typeof j.detail === "string") human = j.detail;
-    else if (j && Array.isArray(j.detail)) human = j.detail.map((d) => d?.msg || JSON.stringify(d)).join("; ");
-    else if (j?.detail && typeof j.detail === "object") human = j.detail.error || JSON.stringify(j.detail);
-    else if (j?.title) human = j.detail ? `${j.title} — ${j.detail}` : j.title;
   } catch {
     // not JSON — the raw text IS the message
   }
   const errors = Array.isArray(problem?.errors) ? problem.errors : Array.isArray(problem?.detail) ? problem.detail : [];
+  if (problem) {
+    const j = problem;
+    if (typeof j.detail === "string") human = problemDetail(j, errors) || j.detail;
+    else if (Array.isArray(j.detail)) human = j.detail.map((d) => d?.msg || JSON.stringify(d)).join("; ");
+    else if (j.detail && typeof j.detail === "object") human = j.detail.error || JSON.stringify(j.detail);
+    else if (j.title) {
+      const said = problemDetail(j, errors);
+      human = said ? `${j.title} — ${said}` : j.title;
+    }
+  }
   const requestId = typeof problem?.requestId === "string" ? problem.requestId : null;
   return { problem, human, errors, requestId };
+}
+
+// the server's own sentence for any refused request (packages/core's validation envelope): it says
+// nothing a person can act on — the words are in the problem's errors
+const GENERIC_DETAIL = /^Request (body|query|path|headers?) failed validation\.?$/i;
+const MAX_MESSAGES = 3;
+const MAX_CHARS = 300;
+
+/**
+ * The words a refusal is said in: its `detail`, unless that is the generic validation sentence
+ * ("Request body failed validation.") or empty while the problem lists its `errors` — then the
+ * errors' own messages, the first few, each once, at most a few hundred characters. A 422 whose
+ * words moved into `errors[]` toasted only the generic sentence ("That wasn't accepted — Request body
+ * failed validation." for an empty palette file — the twentieth review, 2026-10-20). `fieldErrors`
+ * (forms.js) still puts each under its field.
+ */
+export function problemDetail(problem, errors = problem?.errors) {
+  const detail = typeof problem?.detail === "string" ? problem.detail.trim() : "";
+  const list = Array.isArray(errors) ? errors : [];
+  if (!list.length || (detail && !GENERIC_DETAIL.test(detail))) return detail;
+  const messages = [...new Set(list.map((e) => String(e?.msg ?? "").trim()).filter(Boolean))];
+  if (!messages.length) return detail;
+  let text = messages.slice(0, MAX_MESSAGES).join("; ");
+  if (messages.length > MAX_MESSAGES) text += "; …";
+  if (text.length > MAX_CHARS) text = `${text.slice(0, MAX_CHARS - 1).trimEnd()}…`;
+  return text;
 }
 
 /** Hang a parsed failure on `err` (the Error a transport throws). */

@@ -656,7 +656,9 @@ export async function usedDeviceMemMb() {
 // gone). One TTL cache, two speeds, in ONE place: two caches over one probe could disagree
 // at the same instant — the two-truths defect the strip redesign exists to kill.
 export const _USED_TTL_S = 2.0;
-export const _GPU_PROCS_TTL_S = 2.0;
+// the GPU's process list: 5 s — on Windows its counters take ~2.6 s a read (measured, the twentieth review), so a 2 s
+// cache had expired before the next ask came; a refresh the user asks for (`fresh`) still reads anew
+export const _GPU_PROCS_TTL_S = 5.0;
 /** The two TTL caches as [monotonic seconds, value] (tests reset them: `cache.gpuProcs = null`). */
 export const cache = { used: null, gpuProcs: null };
 const usedLock = new Mutex();
@@ -1140,6 +1142,10 @@ export async function gpuProcesses({ fresh = false } = {}) {
     if (hit != null && now - hit[0] < _GPU_PROCS_TTL_S) return hit[1];
   }
   return gpuProcsLock.run(async () => {
+    // a read that finished while this ask waited for the lock answers it too — it is newer than the ask (asks at once,
+    // a Refresh among them, read the counters once)
+    const done = cache.gpuProcs;
+    if (done != null && done[0] >= now) return done[1];
     let rows = null;
     let source = "";
     let additive = true;

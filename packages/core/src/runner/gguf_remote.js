@@ -18,7 +18,7 @@ import { isJsonObject, pySorted, ValueError } from "../platform/py.js";
 import { iterBody, raiseForStatus, readTimeout } from "./download.js";
 import { _classify, _parseHeader, _tensorSizes, ByteStream, readGgufMetadataFromStream } from "./gguf.js";
 import * as models from "./models.js";
-import { _entrySize, _HF_BASE } from "./models.js";
+import { _entrySize, _HF_BASE, encodeRepo } from "./models.js";
 import * as self from "./gguf_remote.js";
 
 const log = getLogger("llm_runner.runner.gguf_remote");
@@ -66,7 +66,7 @@ export async function fetchGgufMeta(repo, quant, revision = "main", headerBytes 
   const [, entries] = await models.selectFiles(repo, quant, null, revision);
   const total = entries.reduce((a, e) => a + _entrySize(e), 0);
   const main = entries.find((e) => e.path.includes("00001")) ?? entries[0];
-  const url = `${_HF_BASE}/${repo}/resolve/${revision}/${main.path}`;
+  const url = `${_HF_BASE}/${encodeRepo(repo)}/resolve/${encodeURIComponent(revision)}/${encodeRepo(main.path)}`;
   // The WHOLE shard's size (not the prefix): the tensor table sizes each tensor by offset
   // delta, and the last one runs to the end of the file (vram-truth §6.1).
   const mainSize = _entrySize(main) || null;
@@ -96,7 +96,7 @@ async function mergeSplitTensorTables(meta, repo, revision, entries) {
   try {
     const sized = [];
     for (const e of pySorted(entries, (x) => x.path)) {
-      const url = `${_HF_BASE}/${repo}/resolve/${revision}/${e.path}`;
+      const url = `${_HF_BASE}/${encodeRepo(repo)}/resolve/${encodeURIComponent(revision)}/${encodeRepo(e.path)}`;
       let raw = await self._rangeRead(url, SHARD_HEADER_BYTES);
       let infos;
       let dataStart;
@@ -144,7 +144,7 @@ export function _repoFromUrl(url) {
 export async function fetchGenerationConfigSamplers(baseRepoUrl, revision = "main") {
   const repo = _repoFromUrl(baseRepoUrl);
   if (!repo) return {};
-  const url = `${_HF_BASE}/${repo}/resolve/${revision}/generation_config.json`;
+  const url = `${_HF_BASE}/${encodeRepo(repo)}/resolve/${encodeURIComponent(revision)}/generation_config.json`;
   let cfg;
   try {
     const r = await http.fetch(url, { timeoutMs: 2 * TIMEOUT * 1000 });

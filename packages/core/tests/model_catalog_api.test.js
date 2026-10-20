@@ -10,7 +10,7 @@ import * as stores from "../src/llm/stores.js";
 import { HttpError } from "../src/platform/errors.js";
 import { FileNotFoundError, RuntimeError, ValueError } from "../src/platform/py.js";
 import { createServer } from "../src/platform/server.js";
-import { classifyGgufEntries } from "../src/runner/models.js";
+import { classifyGgufEntries, encodeRepo, isHfRepo, normalizeHfRepo } from "../src/runner/models.js";
 import { freshDb } from "./helpers.js";
 
 const CATALOG = [
@@ -61,13 +61,14 @@ beforeEach(() => {
         return { ok: true, nGpuLayers: 81, ctxLen: 32768, isMoe: mid === "moe-d", nCpuMoe: 12 };
       },
       inspectFn: async (repo, quant, revision) => {
-        if (repo === "missing") throw new FileNotFoundError(`no .gguf matching quant '${quant}' in ${repo}@${revision}`);
-        if (repo === "bad") throw new RuntimeError("network down");
-        if (repo === "http") throw new HttpError(418, "teapot");
+        // (a repo is <owner>/<name> since the twentieth review: the triggers are x/…)
+        if (repo === "x/missing") throw new FileNotFoundError(`no .gguf matching quant '${quant}' in ${repo}@${revision}`);
+        if (repo === "x/bad") throw new RuntimeError("network down");
+        if (repo === "x/http") throw new HttpError(418, "teapot");
         return { ...INSPECT };
       },
       listFilesFn: async (repo) => {
-        if (repo === "bad") throw new ValueError("nope");
+        if (repo === "x/bad") throw new ValueError("nope");
         return classifyGgufEntries(ENTRIES);
       },
       classTuneRefsFn: () => [{ modelId: "dense-a", classKey: "dgpu-vram8|ram32", extra: 1 }],
@@ -172,9 +173,9 @@ test("list-files keeps every declared row field and only those", async () => {
       ],
     },
   ]);
-  const [status, body] = await call("POST", "/v1/ai/model-catalog/list-files?repo=bad");
+  const [status, body] = await call("POST", "/v1/ai/model-catalog/list-files?repo=x/bad");
   expect(status).toBe(502);
-  expect(body.detail).toBe("couldn't list bad: nope");
+  expect(body.detail).toBe("couldn't list x/bad: nope");
 });
 
 test("inspect: the response model, 404 for no file, 502 for the rest, an HttpError passes", async () => {
@@ -182,12 +183,13 @@ test("inspect: the response model, 404 for no file, 502 for the rest, an HttpErr
   expect(status).toBe(200);
   expect(Object.keys(body)).toEqual(Object.keys(INSPECT).filter((k) => k !== "junk"));
   const inst = "/v1/ai/model-catalog/inspect";
-  expect(await call("POST", `${inst}?repo=missing`)).toEqual([
+  expect(await call("POST", `${inst}?repo=x/missing`)).toEqual([
     404,
-    problem(404, "Not Found", "not-found", "no .gguf matching quant '' in missing@main", inst),
+    problem(404, "Not Found", "not-found", "no .gguf matching quant '' in x/missing@main", inst),
   ]);
-  expect(await call("POST", `${inst}?repo=bad`)).toEqual([502, problem(502, "Error", "error", "inspect failed: network down", inst)]);
-  expect(await call("POST", `${inst}?repo=http`)).toEqual([418, problem(418, "Error", "error", "teapot", inst)]);
+  // (502 its own problem type since the twentieth review)
+  expect(await call("POST", `${inst}?repo=x/bad`)).toEqual([502, problem(502, "Bad Gateway", "bad-gateway", "inspect failed: network down", inst)]);
+  expect(await call("POST", `${inst}?repo=x/http`)).toEqual([418, problem(418, "Error", "error", "teapot", inst)]);
 });
 
 test("the catalog response carries the refs and this box's class; reset calls the host", async () => {
@@ -220,4 +222,35 @@ test("a row's repo is <owner>/<name> of word characters, dots and dashes, its dr
   expect(body.rows.find((r) => r.id === "user-z").hfRepo).toBe("unsloth/Qwen3.5-27B-GGUF");
   // an empty repo (a row not yet linked) as before
   expect((await call("PUT", "/v1/ai/model-catalog", { id: "user-w" }))[0]).toBe(200);
+  // given as the form's listing takes it (the twentieth attack): trimmed, a huggingface.co or hf.co address — stored as
+  // <owner>/<name>
+  for (const given of [" unsloth/Qwen3-GGUF ", "https://huggingface.co/unsloth/Qwen3-GGUF", "https://huggingface.co/unsloth/Qwen3-GGUF/", "hf.co/unsloth/Qwen3-GGUF", "huggingface.co/unsloth/Qwen3-GGUF"]) {
+    [status, body] = await call("PUT", "/v1/ai/model-catalog", { id: "user-u", hfRepo: given });
+    expect([status, body.rows?.find((r) => r.id === "user-u")?.hfRepo], given).toEqual([200, "unsloth/Qwen3-GGUF"]);
+  }
+  // a refusal says why, at its field
+  [status, body] = await call("PUT", "/v1/ai/model-catalog", { id: "user-u", hfRepo: "https://huggingface.co/unsloth/Qwen3-GGUF/tree/main" });
+  expect([status, body.errors[0].loc, body.errors[0].msg]).toEqual([
+    422,
+    ["body", "hfRepo"],
+    "A Hugging Face repo is <owner>/<name> (or its huggingface.co address) — letters, digits, '_', '.' and '-' only",
+  ]);
+});
+
+// the twentieth review: list-files and inspect took any repo, unencoded into the HF URL — now checked as the PUT checks
+// it (the same normalizing) and the normalized repo passed on
+test("list-files and inspect take the repo as the PUT does: normalized, checked (422 at the query's repo)", async () => {
+  const [status, body] = await call("POST", "/v1/ai/model-catalog/list-files?repo=x%2F..%2F..%2Fvictim");
+  expect([status, body.errors?.[0]?.loc]).toEqual([422, ["query", "repo"]]);
+  expect((await call("POST", "/v1/ai/model-catalog/inspect?repo=a%2Fb%2Fc"))[0]).toBe(422);
+  // an address is taken as its repo
+  const [ok] = await call("POST", `/v1/ai/model-catalog/inspect?repo=${encodeURIComponent("https://huggingface.co/x/y")}&quant=Q4`);
+  expect(ok).toBe(200);
+});
+
+test("one helper normalizes a repo, another encodes it (and a file's path) for a Hugging Face URL", () => {
+  for (const given of [" a/b ", "https://huggingface.co/a/b/", "http://www.huggingface.co/a/b", "HF.CO/a/b", "huggingface.co/a/b"]) expect(normalizeHfRepo(given), given).toBe("a/b");
+  expect(isHfRepo(normalizeHfRepo("https://example.com/a/b"))).toBe(false);
+  expect(encodeRepo("MTP/m Q4#1?.gguf")).toBe("MTP/m%20Q4%231%3F.gguf");
+  expect(encodeRepo("unsloth/Qwen3.5-27B-GGUF")).toBe("unsloth/Qwen3.5-27B-GGUF");
 });

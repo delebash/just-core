@@ -636,7 +636,8 @@ test("the runner router answers as FastAPI did", async () => {
       type: "https://example.test/errors/validation-error",
       title: "Validation Error",
       status: 422,
-      detail: "Request body failed validation.",
+      // where it failed (a path's or query's said so since the twentieth review)
+      detail: `Request ${{ query: "query", path: "path", header: "headers" }[errors[0]?.loc?.[0]] ?? "body"} failed validation.`,
       errors,
       instance,
       requestId: expect.any(String),
@@ -733,4 +734,26 @@ test("idle_rows_carry_an_empty_operation", async () => {
   patch({ hw, svc: new FakeService([mkModel("m1", 4096)]) });
   const row = (await (await client().get("/v1/llm-runner/models")).json()).models[0];
   expect([row.detail, row.error, row.opDone, row.opTotal]).toEqual(["", "", 0, 0]);
+});
+
+// the twentieth review: an id the catalog doesn't have was queued for load or download
+test("load and download of a model the catalog doesn't have: 404 in words, nothing started; an unwired catalog isn't empty", async () => {
+  patchModels({ hw: hwOf({ os: "Linux", platform: "linux", cpuCores: 8, ramMb: 16000, gpus: [] }), models: [mkModel("a", 4000)] });
+  const svc = await lifecycle.getService();
+  const started = [];
+  svc.load = async (id) => started.push(["load", id]) && { ok: true };
+  svc.download = async (id) => started.push(["download", id]) && { ok: true };
+  for (const url of ["/v1/llm-runner/load", "/v1/llm-runner/download"]) {
+    const r = await client().post(url, { modelId: "no-such-model" });
+    expect(r.status, url).toBe(404);
+    expect((await r.json()).detail).toBe("no model 'no-such-model' in the catalog — add it there first");
+  }
+  expect(started).toEqual([]);
+  expect((await client().post("/v1/llm-runner/load", { modelId: "a" })).status).toBe(200);
+  expect(started).toEqual([["load", "a"]]);
+  // no catalog wired: not refused (an unwired catalog is not an empty one)
+  patchModels({ hw: hwOf({ os: "Linux", platform: "linux", cpuCores: 8, ramMb: 16000, gpus: [] }), models: [], catalogWired: false });
+  const unwired = await lifecycle.getService();
+  unwired.download = async () => ({ ok: true });
+  expect((await client().post("/v1/llm-runner/download", { modelId: "x" })).status).toBe(200);
 });

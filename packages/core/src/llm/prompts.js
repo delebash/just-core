@@ -16,7 +16,7 @@
 import { Hono } from "hono";
 import { stream } from "hono/streaming";
 import { getLogger } from "../platform/log.js";
-import { HttpError } from "../platform/errors.js";
+import { ApiError, HttpError } from "../platform/errors.js";
 import { model, nullable, opt, T } from "../platform/models.js";
 import { input } from "../platform/server.js";
 import { PyFloat, pyFloat, pyFloatValue, pyJson } from "../platform/pyjson.js";
@@ -783,13 +783,27 @@ export async function measureAction(store, config, body) {
  * `progress` are Python floats). */
 const sseFrame = (frame) => `data: ${pyJson(frame, { floats: ["cost", "progress"] })}\n\n`;
 
+/**
+ * The answer for an AI run that can't reach its model (2026-10-20, the twentieth review: both were 500s — "Internal
+ * Server Error" for a model that only needed its engine installed): 503 when the local engine or model isn't ready
+ * (`localNotReady` — the runner's ensureModelReady, in its words), 502 when the provider can't be reached (`unreachable`
+ * — the adapters' transport failures, as the embeddings route answers) — or null. An app's own route that runs an action
+ * (just-house-paint's /v1/schemes/ai) answers the same: `throw aiRunHttpError(e) ?? e`.
+ */
+export function aiRunHttpError(e) {
+  const words = cpSlice(errText(e), 0, 400);
+  if (e?.localNotReady) return new ApiError(503, "engine-not-ready", "The local AI model isn't ready", words);
+  if (e?.unreachable || e?.cause?.unreachable) return new ApiError(502, "provider-unreachable", "The AI provider can't be reached", words);
+  return null;
+}
+
 /** Map the run path's own errors to HTTP (the rest are 500s, as in Python). */
 function runErrorToHttp(e, body) {
   if (e instanceof UnknownActionError) return new HttpError(404, `unknown AI action ${strRepr(body.action)}`);
   // 400, not 500: the caller's variables don't cover the template — a wiring/sample bug the
   // author must see named, never a blank prompt.
   if (e instanceof MissingTemplateVariables) return new HttpError(400, `${body.action}: ${e.message}`);
-  return null;
+  return aiRunHttpError(e);
 }
 
 /**

@@ -102,3 +102,30 @@ test("a preference past the limits is refused, named, and nothing is written —
   expect((await client.patch("/v1/prefs", { theme: "dark", nested: { a: [1, { b: 2 }] } })).status).toBe(200);
   expect(store).toEqual({ theme: "dark", nested: { a: [1, { b: 2 }] } });
 });
+
+// the twentieth attack: the caps were per patch only — three patches made GET /v1/prefs 36.9 MB — and a
+// 5,000,000-character key was taken
+test("the whole document is capped after the merge (64 KB, 200 keys) and a key's name at 200 characters; one past them can shrink", async () => {
+  const { client, store } = makeClient();
+  const chunk = "x".repeat(30 * 1024);
+  expect((await client.patch("/v1/prefs", { a: chunk })).status).toBe(200);
+  expect((await client.patch("/v1/prefs", { b: chunk })).status).toBe(200);
+  let r = await client.patch("/v1/prefs", { c: chunk }); // ~90 KB in all
+  expect(r.status).toBe(422);
+  expect((await r.json()).errors).toEqual([{ loc: ["body"], msg: "The preferences would be 91 KB — at most 64 KB in all", type: "too_long" }]);
+  expect(Object.keys(store)).toEqual(["a", "b"]);
+  // 200 keys at most, in all
+  expect((await client.delete("/v1/prefs")).status).toBe(204);
+  expect((await client.patch("/v1/prefs", Object.fromEntries(Array.from({ length: 150 }, (_, i) => [`k${i}`, i])))).status).toBe(200);
+  r = await client.patch("/v1/prefs", Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`m${i}`, i])));
+  expect((await r.json()).errors[0].msg).toBe("The preferences would hold 210 keys — at most 200");
+  // a key's name
+  r = await client.patch("/v1/prefs", { ["k".repeat(5_000_000)]: 1 });
+  expect(r.status).toBe(422);
+  expect((await r.json()).errors[0].msg).toBe("A preference's name is at most 200 characters");
+  // a document already past a cap (an earlier version's) can shrink, never grow
+  for (const k of Object.keys(store)) delete store[k];
+  Object.assign(store, { a: chunk, b: chunk, c: chunk });
+  expect((await client.patch("/v1/prefs", { c: "" })).status).toBe(200);
+  expect((await client.patch("/v1/prefs", { c: chunk })).status).toBe(422);
+});

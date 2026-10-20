@@ -84,13 +84,26 @@ export const serviceUnavailable = (detail) =>
 export const internal = (detail = "An internal error occurred. See server logs for details.") =>
   new ApiError(500, "internal", "Internal Server Error", detail);
 
+// each plain HttpError status its own problem type (the twentieth review: 405, 409, 502 and 503 were all typed "error")
 const HTTP_SLUGS = {
   404: ["not-found", "Not Found"],
   400: ["bad-request", "Bad Request"],
   401: ["unauthorized", "Unauthorized"],
   403: ["forbidden", "Forbidden"],
+  405: ["method-not-allowed", "Method Not Allowed"],
+  409: ["conflict", "Conflict"],
   422: ["validation-error", "Validation Error"],
+  502: ["bad-gateway", "Bad Gateway"],
+  503: ["service-unavailable", "Service Unavailable"],
 };
+
+// Where a request failed its validation, by its errors' first place (the twentieth review: a bad path or query was said
+// as "Request body failed validation.").
+const PART_WORDS = { body: "body", query: "query", path: "path", header: "headers", headers: "headers" };
+function validationDetail(errors) {
+  const part = PART_WORDS[String(errors?.[0]?.loc?.[0] ?? "body")] || "body";
+  return `Request ${part} failed validation.`;
+}
 
 /** Python's str() of a detail, for the plain-HTTPException body and the log. */
 function pyStr(detail) {
@@ -388,7 +401,7 @@ export function installErrorHandlers(app, { typeBase, onUnhandled = null }) {
           type: `${typeBase}validation-error`,
           title: "Validation Error",
           status: 422,
-          detail: "Request body failed validation.",
+          detail: validationDetail(errors),
           errors: jsonableErrors(errors),
           instance,
         }),

@@ -29,12 +29,14 @@ import {
   clearToasts,
   DataManagement,
   SettingsShell,
+  StoragePanel,
   UiBanner,
   UiButton,
   UiSlider,
   useAiTasksNav,
   closeHelp,
   configureHelp,
+  confirmDialog,
   HelpDrawer,
   helpState,
   installAnnouncer,
@@ -42,6 +44,7 @@ import {
   PaneHeader,
   promptDialog,
   pushToast,
+  replacingData,
   reportError,
   schemaRules,
   tooltipDirective,
@@ -49,8 +52,11 @@ import {
   UiInput,
   UiMenu,
   UiMenuItem,
+  UiMultiSelect,
   UiNumber,
   UiSegmented,
+  UiSelect,
+  UiTextarea,
   useAiTasksStore,
   warmModelId,
   withAiTask,
@@ -821,4 +827,165 @@ test("a model that failed to load at start offers the app's Troubleshooting page
   await flushPromises();
   expect(warmModelId.value).toBe(""); // the splash goes, so the help shows over the app
   expect(helpState.slug).toBe("troubleshooting");
+});
+
+// ── The twentieth review (2026-10-20): a field in error ─────────────────────────────────────────────────
+
+test("a field in error says its rule's words under the box, outside its edge, with no error icon — every kit field on QField", async () => {
+  const fail = [() => "Write it like #a1b2c3"];
+  await mountHost(() =>
+    // greedy: every field validated, not only up to the first that fails
+    h(quasar.QForm, { ref: (f) => (form = f), greedy: true }, () => [
+      h(UiInput, { id: "e-text", modelValue: "zz", rules: fail }),
+      h(UiNumber, { id: "e-num", modelValue: 5, rules: fail }),
+      h(UiTextarea, { id: "e-area", modelValue: "zz", rules: fail }),
+      h(UiSelect, { id: "e-sel", modelValue: "a", options: ["a", "b"], rules: fail }),
+      h(UiMultiSelect, { id: "e-msel", modelValue: ["a"], options: ["a", "b"], rules: fail }),
+      h(UiInput, { id: "e-icon", modelValue: "zz", rules: fail, noErrorIcon: false }),
+    ]),
+  );
+  expect(await form.validate()).toBe(false);
+  await settle();
+  for (const id of ["e-text", "e-num", "e-area", "e-sel", "e-msel"]) {
+    const field = document.getElementById(id).closest(".q-field");
+    expect(field.classList.contains("q-field--error"), id).toBe(true);
+    const bottom = field.querySelector(".q-field__bottom");
+    expect(bottom?.textContent.trim(), id).toBe("Write it like #a1b2c3");
+    // the words are the box's sibling, never inside the control (the box's edge, for a select)
+    expect(bottom.closest(".q-field__control"), id).toBeNull();
+    expect(field.querySelector(".q-field__control").compareDocumentPosition(bottom) & Node.DOCUMENT_POSITION_FOLLOWING, id).toBeTruthy();
+    // no Quasar error icon of its own (its own row, 40px)
+    expect(field.querySelector(".q-icon.text-negative"), id).toBeNull();
+  }
+  // the words describe the text box (aria-describedby, Quasar's)
+  expect(computeAccessibleDescription(document.getElementById("e-text"))).toBe("Write it like #a1b2c3");
+  // an app that wants Quasar's icon asks for it
+  expect(document.getElementById("e-icon").closest(".q-field").querySelector(".q-icon.text-negative")).not.toBeNull();
+});
+
+// The backup panel's restore: a file chosen, the confirm answered, what the server said back
+async function restoreWith(response, props = {}) {
+  // the reload a restore starts is never run here (jsdom can't navigate): from the request on, the timers are fake
+  vi.stubGlobal("fetch", vi.fn(async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    return response;
+  }));
+  await mountHost(() => [h(AppDialog), h(DataManagement, { appName: "Family Template", ...props })]);
+  const create = vi.spyOn(quasar.Notify, "create");
+  const picker = document.querySelector('input[type="file"]');
+  Object.defineProperty(picker, "files", { value: [new File(["zip"], "old.zip", { type: "application/zip" })], configurable: true });
+  picker.dispatchEvent(new Event("change"));
+  await settle();
+  [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Restore").click();
+  // the dialog closes (Quasar's transition, a real timer), then the request (its timers fake from then on)
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+  for (let i = 0; i < 6; i++) await flushPromises();
+  vi.useRealTimers();
+  replacingData(false);
+  const said = create.mock.calls.map(([o]) => o.message);
+  create.mockRestore();
+  clearToasts();
+  return said;
+}
+const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": status < 400 ? "application/json" : "application/problem+json" } });
+
+test("a restore that fails says the server's words — never 'HTTP 400 —'", async () => {
+  const said = await restoreWith(json(400, { type: "about:blank", title: "Bad Request", status: 400, detail: "not a valid backup zip" }));
+  expect(said).toEqual(["Restore failed: not a valid backup zip"]);
+});
+
+test("a restore's settings set back to their defaults are named each in quotes, in the language's list", async () => {
+  sessionStorage.clear();
+  const labels = { "render.size": "Size, in pixels", "render.light": "Light, outdoors", "ui.zoom": "Zoom" };
+  await restoreWith(json(200, { restored: true, resetSettings: ["render.size", "render.light", "ui.zoom"] }), { settingLabel: (k) => labels[k] });
+  // said after the reload the restore starts (kept in this tab's sessionStorage until then)
+  expect(JSON.parse(sessionStorage.getItem("kit.dataManagement.afterRestore")).message).toBe(
+    "Some settings in the backup didn't fit this version and were set back to their defaults: “Size, in pixels”, “Light, outdoors”, and “Zoom”.",
+  );
+  sessionStorage.clear();
+});
+
+test("a reset that fails says the server's words and the reference that finds its log line — never 'HTTP 500 —'", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => json(500, { type: "about:blank", title: "Internal Server Error", status: 500, detail: "database is locked", requestId: "r-42" })));
+  await mountHost(() => [h(AppDialog), h(DataManagement, { appName: "Family Template" })]);
+  const create = vi.spyOn(quasar.Notify, "create");
+  [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset…").click();
+  await settle();
+  const dlg = document.querySelector('[role="dialog"][aria-modal="true"]');
+  dlg.querySelector("input").value = "RESET";
+  dlg.querySelector("input").dispatchEvent(new Event("input"));
+  await settle();
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset").click();
+  await vi.waitFor(() => expect(create).toHaveBeenCalled());
+  expect(create.mock.calls.map(([o]) => o.message)).toEqual(["Reset failed: database is locked · Reference r-42"]);
+  create.mockRestore();
+  clearToasts();
+});
+
+test("Storage's old copies: each button named with its folder; Try again and Remove keep the focus on the rows and say what happened", async () => {
+  installAnnouncer();
+  vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200, headers: { "content-type": "application/json" } })));
+  let copies = [
+    { root: "F:\\old", bytes: 0, connected: false, cause: "slow" },
+    { root: "E:\\older", bytes: 1048576, connected: true },
+  ];
+  const list = async () => copies.map((c) => ({ ...c }));
+  const shell = {
+    getRoot: async () => ({ root: "D:\\data", default: "C:\\data", portable: false }),
+    oldCopies: vi.fn(list),
+    forgetOldCopy: async (root) => {
+      copies = copies.filter((c) => c.root !== root);
+      return list();
+    },
+    removeOldCopy: async (root) => {
+      copies = copies.filter((c) => c.root !== root);
+      return list();
+    },
+    pickDirectory: async () => null,
+  };
+  await mountHost(() => [h(AppDialog), h(StoragePanel, { shell })]);
+  await settle();
+  const polite = () => document.querySelector('[data-live-announcer] [aria-live="polite"]').textContent;
+  const named = (name) => [...document.querySelectorAll("button")].find((b) => computeAccessibleName(b) === name);
+  // the visible words first, then the folder (WCAG 2.5.3)
+  expect(named("Try again: the old copy in F:\\old")).toBeTruthy();
+  expect(named("Forget… the old copy in F:\\old")).toBeTruthy();
+  expect(named("Remove the old copy… in E:\\older")).toBeTruthy();
+  // the row that didn't answer says so once
+  const row = document.querySelector("[data-old-copy-row]");
+  expect(row.textContent.split("Didn't answer just now").length - 1).toBe(1);
+
+  // Try again, and it still doesn't answer: the focus stays on its row, and that is said
+  named("Try again: the old copy in F:\\old").focus();
+  named("Try again: the old copy in F:\\old").click();
+  await settle();
+  expect(shell.oldCopies).toHaveBeenLastCalledWith({ again: true });
+  expect(computeAccessibleName(document.activeElement)).toBe("Try again: the old copy in F:\\old");
+  expect(polite()).toContain("The old copy in F:\\old still doesn't answer");
+
+  // Try again, and it answers now: its Try again is gone — the focus goes to its row's Remove, and that is said
+  copies[0] = { root: "F:\\old", bytes: 2048, connected: true };
+  named("Try again: the old copy in F:\\old").click();
+  await settle();
+  expect(computeAccessibleName(document.activeElement)).toBe("Remove the old copy… in F:\\old");
+  expect(polite()).toContain("The old copy in F:\\old answers now");
+
+  // Remove: asked, removed, the focus on the copy in its place, and said
+  named("Remove the old copy… in F:\\old").click();
+  await settle();
+  [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Remove the old copy").click();
+  await vi.waitFor(() => expect(polite()).toContain("The old copy in F:\\old was removed"));
+  expect(computeAccessibleName(document.activeElement)).toBe("Remove the old copy… in E:\\older");
+});
+
+test("a dialog opened over another cancels it as its own kind cancels — a prompt null, a confirm false", async () => {
+  await mountHost(() => h(AppDialog));
+  const prompt = promptDialog({ title: "Type RESET" });
+  const confirm = confirmDialog({ title: "Restore from backup?" });
+  expect(await prompt).toBeNull(); // it was false: Reset's prompt read it as a typed word ("Confirmation didn't match")
+  const again = promptDialog({ title: "Name?" });
+  expect(await confirm).toBe(false);
+  await settle();
+  [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Cancel").click();
+  expect(await again).toBeNull();
 });

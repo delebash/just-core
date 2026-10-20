@@ -327,8 +327,9 @@ describe("Storage", () => {
       { root: "G:\\Family Template", bytes: null, movedAt: 1, changedAt: null, connected: false, cause: "other" },
     ];
     await mountSettings("storage");
-    expect(text()).toContain("Didn't answer just now");
-    expect(text()).toContain("Its drive didn't answer just now — a network folder offline, or a drive waking. Try again in a moment, or Forget it");
+    // said once: the row's label, then its note without the same words again (the twentieth review)
+    expect(text().split("Didn't answer just now").length - 1).toBe(1);
+    expect(text()).toContain("A network folder offline, or a drive waking? Try again in a moment, or Forget it");
     expect(text()).toContain("The folder there now isn't this copy — another drive in its place, or a folder copied by hand — so it isn't removed.");
     // Try again: looked at now
     shell.oldCopies = [shell.oldCopies[1]];

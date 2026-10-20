@@ -2,11 +2,12 @@
 // A restore under broken and hostile input (the nineteenth review: read in the code — a broken multipart answered
 // 500, the upload was unbounded and could fill the drive before the room check, any zip error but a bad zip answered
 // 500, and nothing let an app refuse a backup by its own rules). Each answers in words, and nothing is replaced.
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Writable } from "node:stream";
 import { afterEach, expect, test, vi } from "vitest";
 import { drive, makeDataRouter } from "../src/platform/data_api.js";
 import { runServer } from "../src/platform/serve.js";
@@ -66,8 +67,10 @@ function upload(app, blob) {
 }
 
 const realFree = drive.freeBytes;
+const realOpen = drive.openUpload;
 afterEach(() => {
   drive.freeBytes = realFree;
+  drive.openUpload = realOpen;
 });
 
 test("a multipart form that breaks off, or has no boundary: 422, said as broken — never a 500", async () => {
@@ -165,9 +168,9 @@ test("an app's own rules for a backup (checkBackup) refuse it before anything is
   expect((await upload(other.app, await backup(other.tmp))).status).toBe(409);
 });
 
-test("through the real server: past the room the answer comes while the client is still sending — it isn't read to the end", async () => {
-  const { app, engine, tmp } = makeApp();
-  drive.freeBytes = () => 256 * 1024 * 1024 + 100_000;
+/** The restore app on the real server (@hono/node-server, as the desktop app runs it); a multipart upload of `mb` MB
+ *  sent through a real socket, a chunk at a time; resolves {status, text, sent} or {error}. */
+async function realUpload(app, mb) {
   const probe = net.createServer();
   await new Promise((r) => probe.listen(0, "127.0.0.1", r));
   const { port } = probe.address();
@@ -181,7 +184,7 @@ test("through the real server: past the room the answer comes while the client i
   try {
     const boundary = "----kitboundary";
     let sent = 0;
-    const answer = await new Promise((resolve, reject) => {
+    return await new Promise((resolve) => {
       const req = http.request({ host: "127.0.0.1", port, path: "/v1/data/restore", method: "POST", headers: { "content-type": `multipart/form-data; boundary=${boundary}`, "transfer-encoding": "chunked" } }, (res) => {
         let text = "";
         res.on("data", (b) => {
@@ -189,34 +192,67 @@ test("through the real server: past the room the answer comes while the client i
         });
         res.on("end", () => resolve({ status: res.statusCode, text, sent }));
       });
-      req.on("error", (e) => (e.code === "ECONNRESET" || e.code === "EPIPE" ? null : reject(e)));
+      req.on("error", (e) => resolve({ error: e.code || e.message, sent }));
       req.write(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="backup.zip"\r\nContent-Type: application/zip\r\n\r\n`);
-      // 64 MB, a chunk at a time, for as long as no answer has come
       const chunk = Buffer.alloc(64 * 1024, 1);
-      let stopped = false;
-      req.on("response", () => {
-        stopped = true;
-      });
       const pump = () => {
-        if (stopped || req.destroyed) return;
-        if (sent >= 64 * 1024 * 1024) return req.end(`\r\n--${boundary}--\r\n`);
+        if (req.destroyed) return;
+        if (sent >= mb * 1024 * 1024) return req.end(`\r\n--${boundary}--\r\n`);
         sent += chunk.length;
         if (req.write(chunk)) setImmediate(pump);
         else req.once("drain", pump);
       };
       pump();
     });
-    expect(answer.status).toBe(413);
-    expect(JSON.parse(answer.text).detail).toMatch(/bigger than the drive's free room/);
-    expect(answer.sent).toBeLessThan(64 * 1024 * 1024);
-    expect(rows(engine)).toEqual(["live"]);
   } finally {
     for (const fn of handlers) fn({ data: { type: "stop" } });
     await exited;
     vi.restoreAllMocks();
   }
+}
+
+// the twentieth attack: past the room the 413 was answered without reading the rest — the connection reset, and
+// Electron's fetch said only "Failed to fetch" (20 MB and 300 MB with 8 MB of room). Now the rest is read and dropped
+test("through the real server: past the room the rest is read and dropped — the client hears the 413, never a reset", async () => {
+  const { app, engine, tmp } = makeApp();
+  drive.freeBytes = () => 256 * 1024 * 1024 + 100_000;
+  const answer = await realUpload(app, 64);
+  expect(answer.error).toBeUndefined();
+  expect(answer.status).toBe(413);
+  expect(JSON.parse(answer.text).detail).toMatch(/bigger than the drive's free room/);
+  expect(answer.sent).toBe(64 * 1024 * 1024);
+  expect(rows(engine)).toEqual(["live"]);
   expect(workLeft(tmp)).toEqual([]);
-}, 30_000);
+}, 60_000);
+
+test("through the real server: a drive that fills mid-upload — writing stops, the rest is read, the client hears the 507", async () => {
+  const { app, engine, tmp } = makeApp();
+  // a drive with room for 1 MB of the upload's file, then full
+  drive.openUpload = (file) => {
+    let n = 0;
+    const real = createWriteStream(file);
+    return new Writable({
+      write(chunk, _enc, cb) {
+        n += chunk.length;
+        if (n > 1024 * 1024) return cb(Object.assign(new Error("ENOSPC: no space left on device, write"), { code: "ENOSPC" }));
+        real.write(chunk, cb);
+      },
+      final(cb) {
+        real.end(cb);
+      },
+      destroy(err, cb) {
+        real.destroy();
+        cb(err);
+      },
+    });
+  };
+  const answer = await realUpload(app, 8);
+  expect(answer.error).toBeUndefined();
+  expect(answer.status).toBe(507);
+  expect(JSON.parse(answer.text)).toMatchObject({ title: "Not enough room to restore", detail: "the upload doesn't fit the drive — nothing was changed" });
+  expect(rows(engine)).toEqual(["live"]);
+  expect(workLeft(tmp)).toEqual([]);
+}, 60_000);
 
 test("what an app's afterCopy returns joins the restore's answer (just-house-paint names the settings it set back)", async () => {
   const { app, tmp } = makeApp({ afterCopy: () => ({ resetSettings: ["a.b"] }) });
@@ -224,4 +260,15 @@ test("what an app's afterCopy returns joins the restore's answer (just-house-pai
   expect(await r.json()).toEqual({ resetSettings: ["a.b"], ok: true });
   const plain = makeApp();
   expect(await (await upload(plain.app, await backup(plain.tmp))).json()).toEqual({ ok: true });
+});
+
+// the twentieth screens review: "restore failed: …" from the server, then the screen's own "Restore failed: …" — twice
+test("a restore's refusal is its words alone, never its own 'restore failed:' (the screen says that)", async () => {
+  const { app, tmp } = makeApp();
+  writeFileSync(join(tmp, "junk.db"), "not a database at all".repeat(100));
+  const zip = new ZipWriter();
+  await zip.addFile(join(tmp, "junk.db"), "db.sqlite");
+  const r = await upload(app, Buffer.concat(zip.finish()));
+  expect(r.status).toBe(400);
+  expect((await r.json()).detail).toBe("the backup's database is damaged");
 });

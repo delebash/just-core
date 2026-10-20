@@ -81,6 +81,7 @@ function itemAttrs(p) {
 <template>
   <QSelect
     ref="field"
+    no-error-icon
     :model-value="modelValue"
     :options="normalized"
     option-label="label"

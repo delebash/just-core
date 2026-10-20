@@ -811,3 +811,39 @@ test("an action's catalog keys come from the host's seed spec, on the list and o
   expect(list.find((p) => p.key === "farewell")).toMatchObject({ labelKey: "", descriptionKey: "", groupKey: "" });
   expect(await (await c.get("/v1/ai/prompts/greet")).json()).toMatchObject({ labelKey: "ai.greet" });
 });
+
+// the twentieth review: an AI run that couldn't reach its model answered 500 — the local engine not installed, a
+// provider unreachable — while the embeddings route answered 502
+test("a run whose local model isn't ready answers 503 in its words; one whose provider can't be reached 502", async () => {
+  const { RuntimeError } = await import("../src/platform/py.js");
+  const { adapterHttpError } = await import("../src/llm/base.js");
+  const { aiRunHttpError } = await import("../src/llm/prompts.js");
+  setEnsureLocalModel(() => {
+    throw Object.assign(new RuntimeError(`The local model "m" can't run yet: the AI engine isn't installed — install it first (AI Settings).`), { localNotReady: true });
+  });
+  let [c] = localRouteClient("local-llamacpp");
+  let r = await c.post("/v1/ai/run", { action: "greet", variables: GREET_VARS });
+  expect(r.status).toBe(503);
+  expect(await r.json()).toMatchObject({
+    type: "https://example.test/errors/engine-not-ready",
+    title: "The local AI model isn't ready",
+    detail: `The local model "m" can't run yet: the AI engine isn't installed — install it first (AI Settings).`,
+  });
+  setEnsureLocalModel(null);
+  let adapter;
+  [c, adapter] = featureClient(new MemPromptStore());
+  adapter.chat = async () => {
+    throw adapterHttpError("openai-compat", null, "connect ECONNREFUSED 127.0.0.1:9");
+  };
+  r = await c.post("/v1/ai/run", { action: "greet", variables: GREET_VARS });
+  expect(r.status).toBe(502);
+  expect(await r.json()).toMatchObject({ type: "https://example.test/errors/provider-unreachable", title: "The AI provider can't be reached", detail: "openai-compat request failed: connect ECONNREFUSED 127.0.0.1:9" });
+  // a provider that answered with an error of its own: as before (not "unreachable")
+  adapter.chat = async () => {
+    throw adapterHttpError("openai-compat", 400, "bad request");
+  };
+  expect((await c.post("/v1/ai/run", { action: "greet", variables: GREET_VARS })).status).toBe(500);
+  // the helper an app's own route uses: the same answers, or null for anything else
+  expect(aiRunHttpError(new Error("other"))).toBe(null);
+  expect(aiRunHttpError(Object.assign(new Error("x"), { localNotReady: true })).statusCode).toBe(503);
+});

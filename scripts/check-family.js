@@ -1378,6 +1378,20 @@ function checkMaintenanceGate(app) {
     if (!/\bbeforeReplace\s*:/.test(y)) report(`${where}: makeDataRouter without beforeReplace — the app's jobs run on while the data is replaced (the template's data_admin.js)`);
   }
 }
+// ── the built UI through the kit's serveUi ────────────────────────────────────
+// Every app served its built UI with its own block — a write to an unknown /v1 path answered 405, no validator or cache
+// rule on any file, an index.html a browser could keep past an update (just-house-paint's twentieth review,
+// 2026-10-20). The kit's platform serveUi is the one copy: an app's server that mounts serveStatic on "/*" itself is
+// told so. Required where the release is, advisory elsewhere until each app takes it.
+function checkServesUi(app) {
+  const src = join(app.dir, "server", "src");
+  if (!existsSync(src)) return;
+  const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
+  for (const f of walk(src).filter((p) => p.endsWith(".js"))) {
+    if (/\.(?:get|use)\(\s*["']\/\*["']\s*,\s*serveStatic\s*\(/.test(codeOf(f)))
+      report(`${relative(app.dir, f).replace(/\\/g, "/")} serves its built UI by hand — the kit's serveUi(app, uiDir) (@delebash/core/platform): 405 with Allow, an unknown /v1 write the API's 404, ETags, hashed assets kept`);
+  }
+}
 // ── the connection page says why ──────────────────────────────────────────────
 // The shell's serverStatus names why the server didn't start (2026-10-20, the thirteenth review): another OS user's
 // copy on the port, a port Windows reserved, the server's own first error — the app's connection page says each.
@@ -1470,6 +1484,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkRelease(app);
   checkRestoreKeepsTokens(app);
   checkMaintenanceGate(app);
+  checkServesUi(app);
   checkConnectionReasons(app);
   checkCorsOrigins(app);
   checkClipboard(app.name, app.dir, files, RELEASE_REQUIRED.has(app.name));

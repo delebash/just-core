@@ -25,7 +25,10 @@ import { readJson } from "./server.js";
 // What a preference may be (the nineteenth review's fuzz, just-house-paint, 2026-10-20: a value nested 5,000 deep
 // was stored, and from then every GET /v1/prefs answered 500 "Maximum call stack size exceeded" until a DELETE): a
 // screen's remembered choice is small — at most this deep, this long as JSON, and this many keys in one patch.
-export const PREF_LIMITS = Object.freeze({ depth: 32, bytes: 64 * 1024, keys: 200 });
+// Since the twentieth review the document as a whole too — after the patch is merged, at most `keys` keys and `bytes`
+// as JSON (three patches made GET /v1/prefs 36.9 MB) — and a key's name at most `keyChars` long (a 5,000,000-character
+// one was taken).
+export const PREF_LIMITS = Object.freeze({ depth: 32, bytes: 64 * 1024, keys: 200, keyChars: 200 });
 
 /** How deep `v` nests (a scalar is 0), stopping once past `max` — never recursing on what it refuses. */
 function depthOver(v, max) {
@@ -48,6 +51,8 @@ function refusedPrefs(patch) {
     const value = patch[key];
     if (key === "__proto__" || key === "constructor" || key === "prototype") {
       errors.push({ loc: ["body", key], msg: "Not a name a preference can have", type: "value_error" });
+    } else if (key.length > PREF_LIMITS.keyChars) {
+      errors.push({ loc: ["body", key.slice(0, 40)], msg: `A preference's name is at most ${PREF_LIMITS.keyChars} characters`, type: "too_long" });
     } else if (typeof value === "number" && !Number.isFinite(value)) {
       errors.push({ loc: ["body", key], msg: "Input should be a finite number", type: "finite_number" });
     } else if (depthOver(value, PREF_LIMITS.depth)) {
@@ -81,6 +86,15 @@ export function makePrefsRouter({ readAll, writeMany, clear, prefix = "/v1/prefs
     }
     const refused = refusedPrefs(patch);
     if (refused.length) throw new RequestValidationError(refused);
+    // the document after the patch: within its caps — or no bigger than it is now (one already past them can shrink)
+    const now = (await readAll()) || {};
+    const after = { ...now, ...patch };
+    const [keysNow, keysAfter] = [Object.keys(now).length, Object.keys(after).length];
+    const [bytesNow, bytesAfter] = [JSON.stringify(now).length, JSON.stringify(after).length];
+    const over = [];
+    if (keysAfter > PREF_LIMITS.keys && keysAfter > keysNow) over.push({ loc: ["body"], msg: `The preferences would hold ${keysAfter} keys — at most ${PREF_LIMITS.keys}`, type: "too_long" });
+    if (bytesAfter > PREF_LIMITS.bytes && bytesAfter > bytesNow) over.push({ loc: ["body"], msg: `The preferences would be ${Math.ceil(bytesAfter / 1024)} KB — at most ${PREF_LIMITS.bytes / 1024} KB in all`, type: "too_long" });
+    if (over.length) throw new RequestValidationError(over);
     await writeMany(patch);
     return c.json(await readAll());
   });

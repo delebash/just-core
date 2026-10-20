@@ -184,6 +184,23 @@ test("result_is_ttl_cached", async () => {
 
   await hw.gpuProcesses({ fresh: true });
   expect(n, "fresh: true must bypass the cache").toBe(2);
+
+  // the twentieth review: a read takes ~2.6 s on Windows, longer than the old 2 s cache — kept 5 s now, and asks that
+  // came while one read ran are answered by it (four at once: one read)
+  expect(hw._GPU_PROCS_TTL_S).toBe(5);
+  let release;
+  hw._nvidiaGpuProcessRows.mockImplementation(async () => {
+    n += 1;
+    await new Promise((r) => (release = r));
+    return new Map([[4242, 64]]);
+  });
+  hw.cache.gpuProcs = null;
+  const asks = [hw.gpuProcesses({ fresh: true }), hw.gpuProcesses(), hw.gpuProcesses(), hw.gpuProcesses({ fresh: true })];
+  await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+  release();
+  const answers = await Promise.all(asks);
+  expect(n).toBe(3); // one read for the four
+  expect(new Set(answers).size).toBe(1);
 });
 
 // ── otherGpuHolders: what a failed model load names (2026-09-29) ─────────

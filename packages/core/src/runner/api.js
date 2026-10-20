@@ -28,7 +28,7 @@ import { Hono } from "hono";
 import { HttpError, RequestValidationError } from "../platform/errors.js";
 import { getLogger } from "../platform/log.js";
 import { model, opt, strictObject, T } from "../platform/models.js";
-import { pyFloatParse, pyInt, pyRound, pyStr, truthy } from "../platform/py.js";
+import { pyFloatParse, pyInt, pyRound, pyStr, strRepr, truthy } from "../platform/py.js";
 import { input, readJson } from "../platform/server.js";
 import { dictBody } from "./autotune.js";
 import * as bandwidth from "./bandwidth.js";
@@ -322,6 +322,19 @@ export function runnerRouter() {
 
   // ── Lifecycle: choose → load on demand → use ──────────────────────────────────
 
+  /** A model the catalog doesn't have isn't loaded or downloaded (the twentieth review: an unknown id was queued) —
+   *  404 in words. Only with a catalog wired: an unwired one isn't an empty one. */
+  const refuseUnknownModel = (svc, modelId) => {
+    if (svc.catalogWired !== true) return;
+    let rows = null;
+    try {
+      rows = svc.catalog();
+    } catch {
+      return;
+    }
+    if (Array.isArray(rows) && !rows.some((m) => m?.id === modelId)) throw new HttpError(404, `no model ${strRepr(modelId)} in the catalog — add it there first`);
+  };
+
   // Load a model, optionally with Plane-1 engine overrides for tuning/testing (n_cpu_moe /
   // n_gpu_layers / ctx / KV-cache type / flags / …). Omitted fields fall back to the computed
   // Fit + the manifest's base preset. See docs/plans/2026-06-24-llamacpp-switches.md (Plane 1).
@@ -332,6 +345,8 @@ export function runnerRouter() {
     async (c) => {
       const body = c.req.valid("json");
       if (!body.modelId) throw new HttpError(400, "modelId required");
+      const svc = await lifecycle.getService();
+      refuseUnknownModel(svc, body.modelId);
       const overrides = new Overrides({
         nGpuLayers: body.nGpuLayers,
         nCpuMoe: body.nCpuMoe,
@@ -358,7 +373,7 @@ export function runnerRouter() {
         extraFlags: [...(body.extraFlags || [])],
       });
       return c.json(
-        await (await lifecycle.getService()).load(body.modelId, {
+        await svc.load(body.modelId, {
           overrides,
           jobId: body.jobId,
           switches: body.switches,
@@ -378,7 +393,9 @@ export function runnerRouter() {
     async (c) => {
       const body = c.req.valid("json");
       if (!body.modelId) throw new HttpError(400, "modelId required");
-      return c.json(await (await lifecycle.getService()).download(body.modelId));
+      const svc = await lifecycle.getService();
+      refuseUnknownModel(svc, body.modelId);
+      return c.json(await svc.download(body.modelId));
     },
   );
 

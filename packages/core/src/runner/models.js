@@ -128,13 +128,13 @@ export function hfCacheRoot() {
 }
 
 export async function _revisionSha(repo, revision) {
-  const j = await hfGetJson(`${_HF_BASE}/api/models/${repo}/revision/${revision}`);
+  const j = await hfGetJson(`${_HF_BASE}/api/models/${encodeRepo(repo)}/revision/${encodeURIComponent(revision)}`);
   if (j === null || typeof j !== "object" || Array.isArray(j) || !Object.hasOwn(j, "sha")) throw new KeyError("'sha'");
   return j.sha;
 }
 
 export async function _tree(repo, revision) {
-  const j = await hfGetJson(`${_HF_BASE}/api/models/${repo}/tree/${revision}`, { recursive: "true" });
+  const j = await hfGetJson(`${_HF_BASE}/api/models/${encodeRepo(repo)}/tree/${encodeURIComponent(revision)}`, { recursive: "true" });
   if (!Array.isArray(j)) throw new TypeError("the tree listing is not a list");
   return j.filter((e) => e?.type === "file");
 }
@@ -341,7 +341,7 @@ const DRAFTER_SUFFIXES = ["-assistant", "-MTP", "-mtp"]; // official companion-d
 const OFFICIAL_ORGS = ["google/", "qwen/", "deepseek-ai/"]; // trust the vendor's own drafter, not a repackage
 
 export async function _modelCard(repo, revision = "main") {
-  return hfGetJson(`${_HF_BASE}/api/models/${repo}/revision/${revision}`);
+  return hfGetJson(`${_HF_BASE}/api/models/${encodeRepo(repo)}/revision/${encodeURIComponent(revision)}`);
 }
 
 /** 'https://huggingface.co/google/gemma-4-26B-A4B-it' | 'google/…' → 'google/…'. */
@@ -566,6 +566,20 @@ export function isHfRepo(repo) {
   return !!m && ![m[1], m[2]].some((s) => s === "." || s === "..");
 }
 
+/** A repo as the user may give it — trimmed, its Hugging Face address's prefix taken off (`https://huggingface.co/`,
+ *  `huggingface.co/`, `hf.co/`, http or https, `www.`) and a trailing slash — before isHfRepo judges it. One helper for
+ *  the catalog's PUT, list-files and inspect (the twentieth review: the PUT refused " owner/name", a full address and an
+ *  hf.co/ one that the form's own listing took). */
+export function normalizeHfRepo(input) {
+  return String(input ?? "")
+    .trim()
+    .replace(/^(?:https?:\/\/)?(?:www\.)?(?:huggingface\.co|hf\.co)\//i, "")
+    .replace(/\/+$/, "");
+}
+
+/** A repo's name for a Hugging Face URL: each part URL-encoded, the slash between them kept. */
+export const encodeRepo = (repo) => String(repo).split("/").map(encodeURIComponent).join("/");
+
 /** A path inside a repo (a draft's `mtpDraftFile`): relative, forward slashes, no "." or ".." part, no backslash. */
 export function isRepoPath(p) {
   const s = String(p ?? "");
@@ -635,7 +649,7 @@ export async function acquireModel(
 
     if (!existsSync(blob) || statSync(blob).size !== size) {
       // Re-stream over any partial of a different size (truncates dest).
-      const fileUrl = `${_HF_BASE}/${repo}/resolve/${revision}/${path}`;
+      const fileUrl = `${_HF_BASE}/${encodeRepo(repo)}/resolve/${encodeURIComponent(revision)}/${encodeRepo(path)}`;
       const base = cumulative;
       log.info(`downloading ${path} (${size} bytes) from ${repo}`);
       await download.streamDownload(fileUrl, blob, {

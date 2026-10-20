@@ -11,6 +11,8 @@ import UiButton from "../common/components/UiButton.vue";
 import UiCheckbox from "../common/components/UiCheckbox.vue";
 import { confirmDialog, promptDialog } from "../common/services/dialog.js";
 import { saveUrlAs } from "../common/services/fileSave.js";
+import { errorMessage } from "../common/services/reportError.js";
+import { replacingData } from "../common/services/syncWatch.js";
 import { pushToast } from "../common/services/toastBridge.js";
 
 const { t, locale } = useI18n();
@@ -29,6 +31,15 @@ onMounted(() => {
 });
 // The word the reset prompt asks for — the same in every language, since the code compares it.
 const RESET_WORD = "RESET";
+
+// Why a backup, a restore or a reset failed, in the kit's words for a failure (reportError's errorMessage): the
+// server's own — "not a valid backup zip", never "HTTP 400 — not a valid backup zip" — or, where it said none, the
+// kit's (the server unreachable, a fault on it), with the reference a server fault carries (the twentieth review,
+// 2026-10-20).
+function failure(err) {
+  const { title, detail, reference } = errorMessage(err, { t });
+  return [detail || title, reference].filter(Boolean).join(" · ");
+}
 
 const props = defineProps({
   appName: { type: String, default: "" },
@@ -95,7 +106,7 @@ async function exportBackup() {
       kind: "success",
     });
   } catch (e) {
-    pushToast({ message: t("kit.dataManagement.err.backup", { error: e.message }), kind: "error" });
+    pushToast({ message: t("kit.dataManagement.err.backup", { error: failure(e) }), kind: "error" });
   } finally {
     busy.value = "";
   }
@@ -113,14 +124,18 @@ async function onImport(e) {
   });
   if (!ok) return;
   busy.value = "restore";
+  replacingData(true); // the change the sync watcher would see is this window's own: it reloads below
   try {
     const fd = new FormData();
     fd.append("file", file);
     const answer = await postForm("/v1/data/restore", fd);
     pushToast({ message: t("kit.dataManagement.restore.done"), kind: "success" });
     // an older version's settings that don't fit this one were set back to their defaults (the server names them —
-    // just-house-paint's `resetSettings`, the nineteenth review): said after the reload
-    const reset = Array.isArray(answer?.resetSettings) ? answer.resetSettings.map((k) => props.settingLabel?.(String(k)) || String(k)) : [];
+    // just-house-paint's `resetSettings`, the nineteenth review): said after the reload, each name in quotes — a
+    // label with a comma of its own ran into the list's (the twentieth review)
+    const reset = Array.isArray(answer?.resetSettings)
+      ? answer.resetSettings.map((k) => t("kit.dataManagement.restore.settingName", { name: props.settingLabel?.(String(k)) || String(k) }))
+      : [];
     if (reset.length) {
       const message = t("kit.dataManagement.restore.settingsReset", { keys: new Intl.ListFormat(locale.value, { type: "conjunction" }).format(reset) });
       try {
@@ -134,8 +149,9 @@ async function onImport(e) {
     // A synced app refuses a backup from another sync library while it syncs (the sync package's
     // restore hooks: 409, `error: "restore-other-library"`) — its own words, not "Restore failed".
     const otherLibrary = err.problem?.error === "restore-other-library";
-    const message = otherLibrary ? t("kit.dataManagement.err.otherLibrary") : t("kit.dataManagement.err.restore", { error: err.message });
+    const message = otherLibrary ? t("kit.dataManagement.err.otherLibrary") : t("kit.dataManagement.err.restore", { error: failure(err) });
     pushToast({ message, kind: "error" });
+    replacingData(false);
     busy.value = "";
   }
 }
@@ -158,12 +174,14 @@ async function reset() {
     return;
   }
   busy.value = "reset";
+  replacingData(true);
   try {
     await request("/v1/data/reset", { method: "POST" });
     pushToast({ message: t("kit.dataManagement.reset.done"), kind: "success" });
     setTimeout(() => window.location.reload(), 700);
   } catch (e) {
-    pushToast({ message: t("kit.dataManagement.err.reset", { error: e.message }), kind: "error" });
+    pushToast({ message: t("kit.dataManagement.err.reset", { error: failure(e) }), kind: "error" });
+    replacingData(false);
     busy.value = "";
   }
 }

@@ -6,7 +6,7 @@
 // check after.
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { configureServerApi } from "../src/common/services/serverApi.js";
-import { watchSync } from "../src/common/services/syncWatch.js";
+import { replacingData, watchSync } from "../src/common/services/syncWatch.js";
 import { clientId, serverFetch } from "../src/common/services/transport.js";
 
 afterEach(() => {
@@ -54,6 +54,26 @@ describe("watchSync", () => {
     expect(seen).toEqual([{ rev: 2, pollSeconds: 1, epoch: "e1" }]);
     await vi.advanceTimersByTimeAsync(1000);
     expect(seen.length).toBe(1); // once
+    stop();
+  });
+});
+
+describe("this window's own restore or reset (the twentieth review)", () => {
+  test("a change seen while this window replaces the data waits — it reloads itself; a failed attempt lets it land", async () => {
+    vi.useFakeTimers();
+    configureServerApi({ resolveBase: () => "http://127.0.0.1:1" });
+    let answer = { rev: 1, pollSeconds: 1, epoch: "e1" };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(answer), { headers: { "content-type": "application/json" } })));
+    const seen = [];
+    const stop = watchSync((r) => seen.push(r.epoch));
+    await vi.advanceTimersByTimeAsync(10);
+    replacingData(true);
+    answer = { rev: 2, pollSeconds: 1, epoch: "e2" }; // the server moved before the restore's answer came
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(seen).toEqual([]); // its own: held through to the reload
+    replacingData(false); // (the attempt failed after all)
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(seen).toEqual(["e2"]);
     stop();
   });
 });

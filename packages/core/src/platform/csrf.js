@@ -98,14 +98,17 @@ export function csrfOrigin({ appOrigins = [], extraOrigins = [], originRegex = "
 // refused — unless it carries an Origin the allowlist above takes (the app's own windows: the desktop window's
 // `app://<id>` fetches its server cross-site, measured in Electron 44 — `mode=cors`, `Origin: app://<id>`; the dev
 // server, the phone), or it is a top-level navigation (`Sec-Fetch-Mode: navigate`, `Sec-Fetch-Dest: document`) to
-// the UI's own pages (not the API: a link elsewhere to /v1/data/backup is refused too). `same-origin`, `same-site`
-// and `none` (the user's own typing, a bookmark) pass, and so does a request without the header (curl, another app,
-// an older browser, a page over plain http to another computer — browsers send it only to secure and loopback
-// addresses). A no-cors load from the app's own window (`<img>`, `<audio>` with the server's address) carries no
+// the UI's own pages (not the API: a link elsewhere to /v1/data/backup is refused too). `same-origin` and `none`
+// (the user's own typing, a bookmark) pass, and so does a request without the header (curl, another app, an older
+// browser, a page over plain http to another computer — browsers send it only to secure and loopback addresses).
+// `same-site` is held as cross-site — NOT STANDARD (the policy passes it): a site is scheme + registrable domain,
+// ports aside, so every page on http://127.0.0.1:<any port> or localhost is same-site to this server, and an <img>
+// from one arrives `same-site` with no Origin (measured in Electron 44, the twentieth review: a backup made from
+// another local web server). The app's own windows still pass — by their Origin, or same-origin. A no-cors load from the app's own window (`<img>`, `<audio>` with the server's address) carries no
 // Origin and is refused: an app that loads its server's files that way fetches them instead (the kit's
 // useServerImage). Wired by the app beside csrfOrigin, before its routes.
 const READS = new Set(["GET", "HEAD"]);
-const PASSING_SITES = new Set(["same-origin", "same-site", "none"]);
+const PASSING_SITES = new Set(["same-origin", "none"]);
 
 /** `app.use("*", resourceIsolation({appOrigins, extraOrigins, originRegex, typeBase, apiPrefixes}))` — refuses a
  *  read the browser marks cross-site (403 problem+json), but the app's own origins and a navigation to its pages. */

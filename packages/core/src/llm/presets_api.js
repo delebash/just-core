@@ -18,7 +18,7 @@
 
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
-import { HttpError } from "../platform/errors.js";
+import { HttpError, RequestValidationError } from "../platform/errors.js";
 import { model, nullable, opt, T } from "../platform/models.js";
 import { pyOr, strip, strRepr, truthy, ValueError } from "../platform/py.js";
 import { pyStrScalar } from "../platform/pyjson.js";
@@ -61,19 +61,23 @@ export const EnginePresetRow = T.Object({
   nameKey: opt(T.String(), ""),
 });
 
+// An action's key and a preset's id are short names (the twentieth review: a 1,000,000-character id was stored).
+const KEY_MAX = 200;
+const ID_MAX = 100;
+
 export const FeatureAssignment = T.Object({
-  featureKey: T.String(), // the ACTION id
-  presetId: opt(T.String(), ""), // "" → clear the ref (the feature falls to the default preset)
+  featureKey: T.String({ maxLength: KEY_MAX }), // the ACTION id
+  presetId: opt(T.String({ maxLength: ID_MAX }), ""), // "" → clear the ref (the feature falls to the default preset)
 });
 
 /** Bulk-clear the per-feature overrides for a set of features so each falls back to the
  * default preset (used by the per-feature Reset). */
 export const FeatureClearRequest = T.Object({
-  featureKeys: opt(T.Array(T.String()), []),
+  featureKeys: opt(T.Array(T.String({ maxLength: KEY_MAX }), { maxItems: 1000 }), []),
 });
 
 export const DefaultAssignment = T.Object({
-  presetId: opt(T.String(), ""),
+  presetId: opt(T.String({ maxLength: ID_MAX }), ""),
 });
 
 export const PresetsResponse = T.Object({
@@ -101,6 +105,25 @@ const KEY_PARAMS = T.Object({ key: T.String() });
  */
 export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, resetAllFn = null, resetOneFn = null) {
   const app = new Hono();
+  // An assignment names a preset that exists and an action the app has (the twentieth review: a feature assigned to a
+  // missing preset answered 500 — FOREIGN KEY failed —, the default stored any id, any key was taken).
+  const refuse = (field, msg) => new RequestValidationError([{ type: "value_error", loc: ["body", field], msg }]);
+  const checkPreset = (presetId) => {
+    if (presetId && !getPresets().list().some((p) => p.id === presetId)) throw refuse("presetId", `No preset with the id ${strRepr(presetId)}`);
+  };
+  // the app's actions: its feature catalog's keys, the actions its seed routes, its prompts' keys — and the ones already
+  // assigned (a ref an earlier version made). An app that registered none takes any key, as before.
+  const knownActions = () =>
+    new Set([
+      ...seed.appFeatureCatalog().map((e) => e.key),
+      ...Object.keys(seed.appFeaturePresets() || {}),
+      ...Object.keys(seed.appFeaturePrompts() || {}),
+      ...Object.keys(getRefs().list() || {}),
+    ]);
+  const checkAction = (featureKey) => {
+    const known = knownActions();
+    if (known.size && !known.has(featureKey)) throw refuse("featureKey", `No AI feature with the key ${strRepr(featureKey)}`);
+  };
   const presets = () => {
     const rows = getPresets().list();
     // D4-1 leg 3: annotate each row with its factory model (the app's registered seed
@@ -169,6 +192,7 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
   app.get("/v1/ai/preset-assignments", async (c) => c.json(assignments()));
 
   app.put("/v1/ai/preset-assignments/default", input({ body: DefaultAssignment }), async (c) => {
+    checkPreset(c.req.valid("json").presetId);
     setDefault(c.req.valid("json").presetId);
     return c.json(assignments());
   });
@@ -178,6 +202,8 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
   app.put("/v1/ai/preset-assignments/feature", input({ body: FeatureAssignment }), async (c) => {
     const body = c.req.valid("json");
     if (!strip(body.featureKey)) throw new HttpError(400, "featureKey is required");
+    checkAction(body.featureKey);
+    checkPreset(body.presetId);
     getRefs().set(body.featureKey, body.presetId);
     return c.json(assignments());
   });

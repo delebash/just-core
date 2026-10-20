@@ -1774,6 +1774,40 @@ review — scripts in the scratchpad's adv18/shell — and its fixes; reruns in 
     the real server (@hono/node-server) the 413 came while the client was still sending (64 MB offered), the rest
     never read. `Readable.fromWeb(body).destroy()` on a request still sending never settles (it waits on its reader):
     the answer is given without it.
+- **The twentieth's kit fixes** (*tested*, 2026-10-20; the scratchpad's fuzz20 found them):
+  - **A request body that stops arriving**: Node's server has no idle limit for a body (`requestTimeout` is the whole
+    request — 0 here, so a big backup isn't cut). `req.setTimeout(ms)` is the socket's idle timer; on it the server
+    emits the request's `timeout` instead of destroying the socket, so serve.js answers as Node answers its own
+    requestTimeout (a raw `HTTP/1.1 408`, `Connection: close`), then `destroySoon()`; the route's body read ends
+    ("aborted") and the maintenance gate's count with it. Off once the body has arrived (a streamed answer isn't timed).
+    Tested through @hono/node-server: a stalled upload's Reset ran, a lying Content-Length got its 408.
+  - **@hono/node-server drains an unread request body for 500 ms (at most 64 MB) after the answer, then closes the
+    socket** (its `drainIncoming`): a route that answers before reading an upload resets the client's connection —
+    Electron's fetch then says only "Failed to fetch". A restore past the room now reads and drops the rest (counted,
+    up to 1 GiB past it), then answers 413 / 507; a real client got the 413 after 64 MB, the 507 after a drive full at
+    1 MB.
+  - An AI run that can't reach its model: the runner's ensure-ready refusals are marked `localNotReady` (503,
+    "engine-not-ready"), the adapters' no-status failures `unreachable` (502, "provider-unreachable");
+    `aiRunHttpError` (@delebash/core/llm) answers both for an app's own route.
+  - **Sec-Fetch-Site `same-site` from another loopback port** (*measured*, Electron 44, the twentieth attack —
+    scratchpad adv20/eprobe): an `<img>` or a no-cors fetch on http://127.0.0.1:A to http://127.0.0.1:B arrives
+    `same-site` with no Origin — a site is scheme + registrable domain, ports aside (the HTML standard's "same site").
+    web.dev's Resource Isolation Policy passes same-site; resourceIsolation holds it as cross-site instead —
+    **NOT STANDARD**, for the loopback case the policy doesn't consider: any local web server could take a backup. The
+    app's own windows pass by Origin (their fetches are cors) or same-origin (the headless UI).
+  - **Bearer auth as Hono's bearerAuth does it** (*code*, hono/src/middleware/bearer-auth/index.ts, read 2026-10-20):
+    the scheme matched in any case (RFC 9110 §11.1), each token compared with `timingSafeEqual` over hashes, every
+    token tried. platform/auth.js does the same with node:crypto (SHA-256 digests); a header trimmed to "Bearer" by the
+    Fetch Headers API is no scheme and its token (401).
+  - **The built UI's caching** (*code + web*: Vite's "Deploying a Static Site" and build.assetsDir — content-hashed
+    files under `assets/`; RFC 9111 §4.2.2 heuristic freshness, a tenth of the time since Last-Modified;
+    @hono/node-server 2.1.4's serveStatic sets Last-Modified but answers no conditional request, and its `onFound`
+    runs after the Response is built, so a header set there is lost — *measured* 2026-10-20 with a probe test,
+    `c.header()` in onFound: null on the answer, though Hono's docs show Cache-Control set that way — set on `c.res`
+    after `next()` instead):
+    platform/serve_ui.js gives every file a weak stat ETag (size-mtime, Express's serve-static form) with hono/etag's
+    304, `assets/` `public, max-age=31536000, immutable`, the rest `no-cache`; a write to the UI 405 with
+    `Allow: GET, HEAD`, one under /v1 left to the API's 404.
 - **`will-prevent-unload`** (electronjs.org/docs/latest/api/web-contents#event-will-prevent-unload; real Electron 44,
   fix18/out/e5.txt): a page whose `beforeunload` calls `preventDefault()` raises it on a reload, the window's close
   and a Quit; the shell asks "Leave without saving?" (Leave / Stay), `preventDefault()` on Leave. It fires on a page
@@ -2230,6 +2264,20 @@ English".
 
 From just-house-paint's fifteenth review (2026-10-20: the built app on fake data at 960×700, 1366×768 and
 1920×1032, light and dark, the accessibility tree over CDP) and its fixes in the kit.
+
+- **A kit text field in error broke its own box** (*measured*, headless Edge on the mounted controls' DOM with
+  Quasar's CSS in `@layer quasar`, 2026-10-20 — the scratchpad's fielderr/measure.mjs and its shots): the kit's box
+  is QInput's root, so QField's bottom (in flow, as Quasar 2.35 draws it) sat inside the border, and Quasar's error
+  icon took a row of its own: 38 → 98 px. Now `no-error-icon` on all five QField-based controls (an app may pass
+  `noErrorIcon: false`), the message absolutely placed 6 px under the box's edge while the box keeps that line's
+  room below it (`:has(.q-field__bottom)` — with `hide-bottom-space` Quasar renders the bottom only while a message
+  or hint shows, so a field at rest is unchanged): 38.3 px in error. **NOT STANDARD** — Quasar's own bottom is in
+  flow under `.q-field__control`; the standard fix is the edge on `.q-field__control` (as UiSelect has it), which
+  moves every caller's box styling (JustWrite's and JustVoice's app.scss, UiSecretInput's `:deep(.ui-input)`).
+  Hover no longer turns an error edge grey (the hover rules skip `.q-field--error`).
+- **openDialog cancelled an open dialog with the new dialog's kind** (*code + test*, 2026-10-20): a prompt cancelled
+  by a confirm was answered `false`, which Reset read as a typed word ("Confirmation didn't match"); it now answers
+  with the open dialog's own kind.
 
 - **A UiField's label never reached its input** (since a790b37): it declared `for` as a prop and rendered
   `<label :for="$attrs.for">` — a declared prop is never in `$attrs`. Every field built on it read `textbox: ""`.

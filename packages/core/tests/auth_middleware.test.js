@@ -85,6 +85,21 @@ test("a_page_that_renamed_itself_to_reach_this_computer_is_refused_tokens_or_not
   // from another computer the token is the guard: its own name for this one is fine
   expect(await client([], false, REMOTE).get("/v1/things", { Host: "my-pc.lan:17499" })).toBe(200);
   expect(hostAllowed(undefined)).toBe(true); // no Host: not a browser
+  // the refusal names the Host cut to 100 characters (the twentieth review: it echoed 5,000)
+  const long = `${"a".repeat(5000)}.example`;
+  const r = await client([], false, LOCAL).app.request("/v1/things", { headers: { Host: long } }, from(LOCAL));
+  expect((await r.json()).detail).toBe(`this server answers to this computer's own names, not ${"a".repeat(100)}…`);
+});
+
+test("the_scheme_is_any_case_and_every_token_is_tried", async () => {
+  const remote = client(["first", "second"], false, REMOTE);
+  for (const Authorization of ["Bearer second", "bearer second", "BEARER first", "Bearer   first  "]) {
+    expect(await remote.get("/v1/things", { Authorization }), Authorization).toBe(200);
+  }
+  expect(await remote.get("/v1/things", { Authorization: "Bearer secon" })).toBe(403); // a prefix isn't the token
+  expect(await remote.get("/v1/things", { Authorization: "Bearer " })).toBe(401); // the header is trimmed: "Bearer"
+  expect(await remote.get("/v1/things", { Authorization: "Basic second" })).toBe(401);
+  expect(await remote.get("/v1/things", { Authorization: "Bearersecond" })).toBe(401);
 });
 
 test("the_health_answer_says_when_this_computer_needs_a_token_too", async () => {

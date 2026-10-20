@@ -87,7 +87,7 @@ export class OllamaAdapter {
       r = await httpxRequest("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds });
     } catch (e) {
       if (e instanceof TransportError) {
-        const err = new RuntimeError(`ollama request failed: ${e.message}`);
+        const err = Object.assign(new RuntimeError(`ollama request failed: ${e.message}`), { unreachable: true });
         err.cause = e;
         throw err;
       }

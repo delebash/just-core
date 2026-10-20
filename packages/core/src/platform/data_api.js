@@ -46,7 +46,7 @@ import {
 } from "node:fs";
 import { cp, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import { Readable, Transform } from "node:stream";
+import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import Busboy from "@fastify/busboy";
 import { Hono } from "hono";
@@ -137,12 +137,14 @@ function restoreRows(h, held) {
 /** Room the drive keeps beyond what a restore unpacks (the database's own copy, the logs). */
 const UNPACK_MARGIN = 256 * 1024 * 1024;
 
-/** How a drive's free room is read (a test's small drive replaces it, as dataRoot.js's `volume`). */
+/** How a drive's free room is read and an upload's file opened (a test's small or full drive replaces them, as
+ *  dataRoot.js's `volume`). */
 export const drive = {
   freeBytes(dir) {
     const d = statfsSync(dir);
     return d.bavail * d.bsize;
   },
+  openUpload: (file) => createWriteStream(file),
 };
 
 /** The drive's free bytes at `dir`, or Infinity when it doesn't say (the other checks still stand). */
@@ -510,10 +512,62 @@ const BROKEN_UPLOAD = () =>
   });
 const UPLOAD_TOO_BIG = "UPLOAD_TOO_BIG";
 
+// How much of an upload past the room is read and dropped before the connection is cut: the kit's own body limit (as
+// server.js's BODY_LIMIT). Read to its end the client hears the answer — cut, Electron's fetch says only "Failed to
+// fetch" (the twentieth attack, measured: 20 MB and 300 MB uploads with 8 MB of room).
+const DRAIN_MAX = 1024 * 1024 * 1024;
+
+/** `file` (a form's file part) into `dest` — or, once past `maxBytes` or the drive full, read on and dropped (counted,
+ *  never written) so the client hears the answer; past `maxBytes + DRAIN_MAX` read no more (`cut()`). Resolves
+ *  `{failed}`: null, UPLOAD_TOO_BIG, the write's error (ENOSPC, …) or the part's own (a form that broke off). */
+function writeOrDrain(file, dest, maxBytes, cut) {
+  return new Promise((resolve) => {
+    let failed = null;
+    let written = 0;
+    let ended = false;
+    const ws = drive.openUpload(dest);
+    const dropWrites = () => {
+      if (!ws.destroyed) ws.destroy();
+      file.resume();
+    };
+    ws.on("error", (e) => {
+      failed ??= e;
+      dropWrites();
+      if (ended) resolve({ failed });
+    });
+    file.on("data", (chunk) => {
+      written += chunk.length;
+      if (failed) {
+        if (written > maxBytes + DRAIN_MAX) cut();
+        return; // dropped
+      }
+      if (written > maxBytes) {
+        failed = Object.assign(new Error("the upload is past the room"), { code: UPLOAD_TOO_BIG });
+        return dropWrites();
+      }
+      if (!ws.write(chunk)) {
+        file.pause();
+        ws.once("drain", () => file.resume());
+      }
+    });
+    file.on("error", (e) => {
+      failed ??= e;
+      dropWrites();
+      resolve({ failed });
+    });
+    file.on("end", () => {
+      ended = true;
+      if (ws.destroyed) return resolve({ failed });
+      ws.end(() => resolve({ failed }));
+    });
+  });
+}
+
 /** FastAPI's `file: UploadFile`: the form's last `file` part, streamed to `dest` (busboy over the
  * request's own body stream — never held in memory); a missing one, or a plain field in its
- * place, is pydantic's 422 (measured answers). Counted as it streams: past `maxBytes` the upload stops at once, its
- * `tooBig()` the answer (the drive's room — never filled before the room check, the nineteenth review); a form that
+ * place, is pydantic's 422 (measured answers). Counted as it streams: past `maxBytes` (the drive's room) nothing more
+ * is written — the rest is read and dropped, then `tooBig()` is the answer (the drive never filled before the room
+ * check, the nineteenth review; the client hears it, the twentieth); a drive full meanwhile the same, 507; a form that
  * breaks off is a 422 (BROKEN_UPLOAD). */
 async function receiveUpload(c, dest, { maxBytes = Number.POSITIVE_INFINITY, tooBig = () => new HttpError(413, "the upload is too big") } = {}) {
   let kind = null; // "file" | "field"
@@ -527,13 +581,20 @@ async function receiveUpload(c, dest, { maxBytes = Number.POSITIVE_INFINITY, too
     }
     const source = Readable.fromWeb(c.req.raw.body);
     let failed = null; // the file part's own failure (past the room, a write)
-    // past the room, or the drive full: the answer at once — the rest of the body is never read (destroying the
-    // request's stream waits on its reader, which a client still sending never lets go)
+    // past the drain's limit: read no more (destroying the request's stream waits on its reader, which a client still
+    // sending never lets go — the answer is given without waiting)
     let stop;
     const stopped = new Promise((_, reject) => {
       stop = reject;
     });
     stopped.catch(() => {});
+    let wasCut = false;
+    const cut = () => {
+      if (wasCut) return;
+      wasCut = true;
+      source.unpipe(bb);
+      stop(new Error("the upload is past what is read"));
+    };
     // Parts arrive in order; each `file` part is written after the one before, so the last wins.
     let writes = Promise.resolve();
     bb.on("file", (fieldname, file) => {
@@ -541,20 +602,8 @@ async function receiveUpload(c, dest, { maxBytes = Number.POSITIVE_INFINITY, too
       kind = "file";
       writes = writes.then(async () => {
         if (failed) return file.resume();
-        let written = 0;
-        const count = new Transform({
-          transform(chunk, _enc, cb) {
-            written += chunk.length;
-            if (written > maxBytes) cb(Object.assign(new Error("the upload is past the room"), { code: UPLOAD_TOO_BIG }));
-            else cb(null, chunk);
-          },
-        });
-        try {
-          await pipeline(file, count, createWriteStream(dest));
-        } catch (e) {
-          failed ??= e;
-          if (e?.code === UPLOAD_TOO_BIG || e?.code === "ENOSPC") stop(e);
-        }
+        const r = await writeOrDrain(file, dest, maxBytes, cut);
+        failed ??= r.failed;
       });
     });
     bb.on("field", (fieldname) => {
@@ -564,10 +613,9 @@ async function receiveUpload(c, dest, { maxBytes = Number.POSITIVE_INFINITY, too
     try {
       await Promise.race([pipeline(source, bb), stopped]);
     } catch {
-      broken = !failed;
+      broken = !wasCut;
     }
-    if (failed?.code === UPLOAD_TOO_BIG || failed?.code === "ENOSPC") source.unpipe(bb);
-    else await writes;
+    if (!wasCut) await writes;
     if (failed?.code === UPLOAD_TOO_BIG) throw tooBig();
     if (failed?.code === "ENOSPC") throw new ApiError(507, "disk-full", "Not enough room to restore", "the upload doesn't fit the drive — nothing was changed");
     // the form broke off (its file part fails with it): said as broken
@@ -800,7 +848,7 @@ export function makeDataRouter({
       // another sync library: 409 with its code); anything else is a failed restore — either way
       // the transaction rolled back
       if (Number.isInteger(e?.statusCode)) throw e;
-      throw new HttpError(400, `restore failed: ${String(e?.message ?? e).slice(0, 300)}`);
+      throw new HttpError(400, String(e?.message ?? e).slice(0, 300));
     } finally {
       h.close();
     }
@@ -822,7 +870,8 @@ export function makeDataRouter({
     } catch {
       ok = false;
     }
-    if (!ok) throw new HttpError(400, "restore failed: the backup's database is damaged");
+    // (the words alone: the screen says "Restore failed" itself — the twentieth review read it twice)
+    if (!ok) throw new HttpError(400, "the backup's database is damaged");
     if (checkBackup) {
       const b = openDatabase(srcDb, { foreignKeys: false, timeoutMs: 5000 });
       try {
@@ -848,7 +897,7 @@ export function makeDataRouter({
       h.exec("DETACH src");
     } catch (e) {
       if (Number.isInteger(e?.statusCode)) throw e;
-      throw new HttpError(400, `restore failed: ${String(e?.message ?? e).slice(0, 300)}`);
+      throw new HttpError(400, String(e?.message ?? e).slice(0, 300));
     } finally {
       h.close();
     }

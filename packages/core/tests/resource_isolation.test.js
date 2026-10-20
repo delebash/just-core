@@ -3,8 +3,8 @@
 // nineteenth review: a cross-site <img src=".../v1/data/backup"> made full backups). Each case the policy names: a
 // cross-site read refused; the app's own windows (the desktop window's app://<id>, measured cross-site in Electron 44),
 // the dev server and the phone pass by their Origin; a top-level navigation to the UI's pages passes, to the API not;
-// same-origin, same-site and "none" pass; a request without the header (curl, another app) passes; writes are
-// csrfOrigin's, untouched here.
+// same-origin and "none" pass, same-site is held as cross-site (any other loopback port is same-site — the twentieth
+// review); a request without the header (curl, another app) passes; writes are csrfOrigin's, untouched here.
 import { expect, test } from "vitest";
 import { resourceIsolation } from "../src/platform/csrf.js";
 import { createServer } from "../src/platform/server.js";
@@ -59,9 +59,19 @@ test("a top-level navigation passes to the UI's pages, never to the API", async 
   expect((await get(a, "/", meta("cross-site", "navigate", "object"))).status).toBe(403);
 });
 
-test("same-origin, same-site, none and no header pass; writes are left to csrfOrigin", async () => {
+test("a page on another loopback port is same-site, and held as cross-site: refused without the app's Origin", async () => {
   const a = app();
-  for (const site of ["same-origin", "same-site", "none"]) {
+  // <img src="http://127.0.0.1:17499/v1/data/backup"> on http://127.0.0.1:8080 — no Origin (measured in Electron 44)
+  expect((await get(a, "/v1/data/backup", meta("same-site", "no-cors", "image"))).status).toBe(403);
+  expect((await get(a, "/v1/data/backup", meta("same-site", "cors", "empty", { origin: "http://127.0.0.1:8080" }))).status).toBe(403);
+  // the dev server's own fetch carries its Origin; a link from another port to the UI is a navigation
+  expect((await get(a, "/v1/data/backup", meta("same-site", "cors", "empty", { origin: "http://localhost:1460" }))).status).toBe(200);
+  expect((await get(a, "/", meta("same-site", "navigate", "document"))).status).toBe(200);
+});
+
+test("same-origin, none and no header pass; writes are left to csrfOrigin", async () => {
+  const a = app();
+  for (const site of ["same-origin", "none"]) {
     expect((await get(a, "/v1/data/backup", meta(site, "no-cors", "image"))).status, site).toBe(200);
   }
   expect((await get(a, "/v1/data/backup", {})).status).toBe(200); // curl, another app, a browser over plain http elsewhere

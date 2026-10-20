@@ -86,7 +86,8 @@ describe("a failed answer", () => {
   test("parseProblem reads the parts", () => {
     const p = parseProblem(JSON.stringify(body));
     expect(p.problem.title).toBe("Validation Error");
-    expect(p.human).toBe("Request body failed validation.");
+    // the generic sentence gives way to the errors' own words, the first three, each once (the twentieth review)
+    expect(p.human).toBe("String should have at least 3 characters; second error on the same field; Field required; …");
     expect(p.errors).toHaveLength(4);
     expect(p.requestId).toBe("rid-1");
     expect(parseProblem("plain text")).toEqual({ problem: null, human: "plain text", errors: [], requestId: null });
@@ -176,6 +177,41 @@ describe("installErrorReporting", () => {
     installErrorReporting(app, { send: async () => Promise.reject(new Error("server down")), notify: false });
     expect(() => app.config.errorHandler(new Error("x"), null, "y")).not.toThrow();
     await new Promise((r) => setTimeout(r, 10));
+  });
+});
+
+// The twentieth review (2026-10-20): a 422 whose words moved into `errors[]` toasted only the generic sentence
+// ("That wasn't accepted — Request body failed validation." for an empty palette file). Its errors' own messages are
+// said instead, on every screen: reportError's toast, serverApi's and the llm client's error text.
+describe("a validation refusal said in its errors' words", () => {
+  const NO_COLORS = { type: "https://x/errors/validation-error", title: "Validation Error", status: 422, detail: "Request body failed validation.", errors: [{ loc: ["body", "file"], msg: "No colors in the file — 3 colors without a number left out", type: "value_error" }] };
+  test("problemDetail: the errors' messages for the generic sentence or none; the detail otherwise", async () => {
+    const { problemDetail } = await import("../src/common/services/apiError.js");
+    expect(problemDetail(NO_COLORS)).toBe("No colors in the file — 3 colors without a number left out");
+    expect(problemDetail({ ...NO_COLORS, detail: "Request query failed validation." })).toBe("No colors in the file — 3 colors without a number left out");
+    expect(problemDetail({ ...NO_COLORS, detail: "" })).toBe("No colors in the file — 3 colors without a number left out");
+    expect(problemDetail({ ...NO_COLORS, detail: "the file is too big" })).toBe("the file is too big"); // a detail of its own stays
+    expect(problemDetail({ detail: "Request body failed validation." })).toBe("Request body failed validation."); // no errors: as it was
+    // the first few, each once, bounded
+    const many = { detail: "Request body failed validation.", errors: ["a", "b", "a", "c", "d"].map((msg) => ({ msg })) };
+    expect(problemDetail(many)).toBe("a; b; c; …");
+    const long = { detail: "", errors: [{ msg: "x".repeat(500) }] };
+    expect(problemDetail(long).length).toBeLessThanOrEqual(300);
+  });
+  test("the toast, serverApi's message and the llm client's message say them", async () => {
+    const err = attachProblem(new Error("422"), 422, parseProblem(JSON.stringify(NO_COLORS)));
+    expect(errorMessage(err, { t })).toMatchObject({ title: "kit.errors.refused", detail: "No colors in the file — 3 colors without a number left out" });
+    expect(parseProblem(JSON.stringify(NO_COLORS)).human).toBe("No colors in the file — 3 colors without a number left out");
+    // fieldErrors keeps putting it under its field
+    expect(fieldErrors(err, { t })).toEqual({ file: "No colors in the file — 3 colors without a number left out" });
+    const { configureLlmUi, request } = await import("../src/client.js");
+    configureLlmUi({ baseUrl: "http://127.0.0.1:1" });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(NO_COLORS), { status: 422, headers: { "content-type": "application/problem+json" } })));
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const failed = await request("/v1/ai/models", { method: "POST", body: {} }).catch((e) => e);
+    spy.mockRestore();
+    vi.unstubAllGlobals();
+    expect(failed.message).toBe("HTTP 422 — No colors in the file — 3 colors without a number left out");
   });
 });
 

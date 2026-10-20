@@ -5,6 +5,7 @@
 // A form's field errors never come here (forms.js `fieldErrors` puts them under their fields);
 // a cancelled request reports nothing.
 
+import { problemDetail } from "./apiError.js";
 import { kitT } from "./kitI18n.js";
 import { pushToast } from "./toastBridge.js";
 
@@ -38,7 +39,10 @@ export function errorMessage(err, { t = kitT } = {}) {
     return { title: own || t("kit.errors.server"), detail, reference: reference || t("kit.errors.seeLogs") };
   }
   if (status >= 400) {
-    const detail = typeof problem?.detail === "string" ? problem.detail : String(err?.message || "");
+    // a validation refusal's words are its errors' own when its detail is only the generic sentence
+    // (apiError.js problemDetail — the twentieth review)
+    const said = problem ? problemDetail(problem, err?.errors ?? problem.errors) : "";
+    const detail = said || (typeof problem?.detail === "string" ? problem.detail : String(err?.message || ""));
     return { title: problem?.title && problem.title !== "Validation Error" ? problem.title : t("kit.errors.refused"), detail, reference: "" };
   }
   return { title: t("kit.errors.title"), detail: String(err?.message || err || ""), reference: "" };

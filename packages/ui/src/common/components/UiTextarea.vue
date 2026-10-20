@@ -98,6 +98,7 @@ defineExpose({
 <template>
   <QInput
     ref="field"
+    no-error-icon
     v-bind="passAttrs()"
     type="textarea"
     :class="classes"

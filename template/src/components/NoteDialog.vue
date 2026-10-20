@@ -29,7 +29,7 @@ import {
   useSurfaceTask,
 } from "@delebash/ui";
 import { NoteIn } from "family-template-server/schemas/notes.js";
-import { computed, reactive, ref } from "vue";
+import { computed, nextTick, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useNotesStore } from "../stores/notes.js";
 
@@ -77,6 +77,11 @@ async function save() {
     serverErrors.value = mine;
     // a failure no field of this form can show — a refusal, a server fault, no connection
     if (!Object.keys(mine).length || Object.keys(fields).length > Object.keys(mine).length) reportError(e);
+    // back in the first field in error, or the title, to put it right (the WAI-ARIA APG dialog pattern): Save was
+    // off while it saved, and the focus fell to the page behind the dialog (just-house-paint's twentieth review)
+    saving.value = false;
+    await nextTick();
+    document.getElementById(mine.body && !mine.title ? "note-body" : "note-title")?.focus();
   } finally {
     saving.value = false;
   }

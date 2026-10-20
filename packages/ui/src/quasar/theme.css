@@ -238,7 +238,23 @@
   transition: border-color .12s, box-shadow .12s, background-color .12s;
 }
 .ui-input .q-field__native::placeholder { color: var(--muted); opacity: 1; }
-.ui-input:hover:not(.is-disabled):not(:focus-within) { border-color: var(--muted, var(--border-strong, var(--border))); }
+/* hovered, never while in error (its red edge stays under the pointer — the twentieth review) */
+.ui-input:hover:not(.is-disabled):not(:focus-within):not(.is-invalid):not(.q-field--error) { border-color: var(--muted, var(--border-strong, var(--border))); }
+/* A rule's words (QField's bottom) under the box, outside its edge, as Quasar draws a field's message:
+   the box here is QInput's root, so its bottom — in flow — sat inside the border and grew the box
+   38 → 98 px with Quasar's error icon on a row of its own (the twentieth review, 2026-10-20; the icon
+   is off: no-error-icon on every field the kit draws). The words sit just past the error ring, the
+   size of a field's hint (.ui-field__hint), on one line up to 34em; the box keeps that line's room
+   below it while they show (Quasar keeps one line too), so they never cover what follows. */
+.ui-input { position: relative; }
+.ui-input:has(.q-field__bottom) { margin-bottom: calc(11px * 1.35 + 6px); }
+.ui-input .q-field__bottom {
+  position: absolute; top: calc(100% + 6px); inset-inline-start: 0; z-index: 1;
+  width: max-content; max-width: 34em; min-height: 0; padding: 0;
+  font-size: 11px; line-height: 1.35; color: var(--muted, var(--ink-2)); cursor: default;
+}
+.ui-input .q-field__messages { line-height: inherit; }
+.ui-input.q-field--error .q-field__bottom { color: var(--danger-ink, var(--danger)); }
 .ui-input:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring, 0 0 0 3px var(--accent-soft)); }
 .ui-input.is-disabled { opacity: .55; cursor: not-allowed; background: var(--surface-2); }
 /* invalid: the caller's `invalid`, or a rule's error showing (Quasar's own error state) */
@@ -304,7 +320,7 @@
   border: 1px solid var(--border-field, var(--border, var(--line))); border-radius: var(--r-sm, 6px);
   transition: border-color .12s, box-shadow .12s;
 }
-.ui-select-trigger:hover:not(.is-disabled) .q-field__control { border-color: var(--muted, var(--border-strong, var(--border))); }
+.ui-select-trigger:hover:not(.is-disabled):not(.q-field--error) .q-field__control { border-color: var(--muted, var(--border-strong, var(--border))); }
 .ui-select-trigger.is-open .q-field__control,
 .ui-select-trigger:has(.q-select__focus-target:focus-visible) .q-field__control { border-color: var(--accent); box-shadow: var(--focus-ring, 0 0 0 3px var(--accent-soft)); }
 /* width="fit": the box as wide as its choice, not its column (the language picker) */
@@ -370,9 +386,25 @@
   border: 1px solid var(--border-field, var(--border, var(--line))); border-radius: var(--r-sm, 6px);
   transition: border-color .12s, box-shadow .12s;
 }
-.ui-mselect-trigger:hover:not(.is-disabled) .q-field__control { border-color: var(--muted, var(--border-strong, var(--border))); }
+.ui-mselect-trigger:hover:not(.is-disabled):not(.q-field--error) .q-field__control { border-color: var(--muted, var(--border-strong, var(--border))); }
 .ui-mselect-trigger.is-open .q-field__control,
 .ui-mselect-trigger:has(.q-select__focus-target:focus-visible) .q-field__control { border-color: var(--accent); box-shadow: var(--focus-ring, 0 0 0 3px var(--accent-soft)); }
+/* Both selects in error (a rule): the box's edge red, as a text field's, open or not; the rule's words
+   — QField's bottom, in flow as Quasar has it — on a line of their own under the box (the root's
+   row wraps), the size of a field's hint (the twentieth review, 2026-10-20). */
+.ui-select-trigger.q-field--error .q-field__control,
+.ui-mselect-trigger.q-field--error .q-field__control { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 18%, transparent); }
+.ui-select-trigger:has(.q-field__bottom),
+.ui-mselect-trigger:has(.q-field__bottom) { flex-wrap: wrap; }
+.ui-select-trigger .q-field__bottom,
+.ui-mselect-trigger .q-field__bottom {
+  flex: 0 0 100%; min-height: 0; padding: 6px 0 0;
+  font-size: 11px; font-weight: 400; line-height: 1.35; color: var(--muted, var(--ink-2)); cursor: default;
+}
+.ui-select-trigger .q-field__messages,
+.ui-mselect-trigger .q-field__messages { line-height: inherit; }
+.ui-select-trigger.q-field--error .q-field__bottom,
+.ui-mselect-trigger.q-field--error .q-field__bottom { color: var(--danger-ink, var(--danger)); }
 .ui-mselect-trigger.is-disabled { opacity: .55; cursor: not-allowed; }
 .ui-mselect-trigger.is-disabled .q-field__control { background: var(--surface-2); }
 .ui-mselect-placeholder { color: var(--muted, var(--ink-3)); flex: 1; }

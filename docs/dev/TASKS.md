@@ -62,6 +62,18 @@ STATE:  OPEN — kit 70e6df1 + 010360f (just-house-paint's fifteenth review). Ju
         or the shell's storageOldCopies / storageRemoveOldCopy) — an app that calls storageRelocate itself has no way to
         remove it yet. JustWrite: 9 providerScope tests need a ResizeObserver stub (the AI page is on Quasar's tabs).
         The template's start-packaged.js now runs a temp copy of the unpacked build — every app's copy should.
+        The twentieth review's kit changes (just-house-paint's): serve the built UI with platform `serveUi(app, uiDir)`
+        in place of the hand-made `app.on([...writes], "/*", 405)` + `app.get("/*", serveStatic(...))` (the guard says
+        so, advisory); resourceIsolation now holds `same-site` as cross-site — a page of the app on another loopback
+        port (a dev server) passes only by its Origin, so its /v1 files are fetched (useServerImage), never an <img>;
+        an app's own route that runs an AI action answers `throw aiRunHttpError(e) ?? e` (503 engine-not-ready, 502
+        provider-unreachable); a form's dialog puts the focus back in the field in error after the server's 422 (the
+        template's NoteDialog) — Save is off while it saves and the focus fell to <body>; an app's own restore or reset
+        screen calls the kit's `replacingData(true)` until it reloads (DataManagement does); the kit's fields show a
+        rule's message under the box with no icon — a row of controls beside a ruled field aligns `flex-start`, and app
+        CSS that styled `.ui-input .q-field__bottom` should be looked at; 405, 409, 502 and 503 have their own problem
+        types and a 422 says which part failed ("Request query failed validation."); a request body silent for 60 s
+        is answered 408; prefs are capped in all (200 keys, 64 KB) after the merge.
 
 ## A standard start for every new just app: a `/new-just-app` skill on the kit's `template/` [2026-10-17]
 STATE:  PARTLY DECIDED 2026-10-17 (session web-2a, run from `E:\Dev\Web`). The user, verbatim:

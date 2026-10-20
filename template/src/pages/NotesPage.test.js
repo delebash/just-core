@@ -202,9 +202,11 @@ describe("the form", () => {
     await mountPage();
     const title = await openNew();
     await type(title, "Too long for the server");
+    byText(".form__actions button", "Save").focus(); // as a click leaves it (then Save is off while it saves)
     await submit();
     expect(text()).toContain("At most 120 characters"); // kit.validation.maxLength, from the 422's ctx
     expect(document.querySelector(".ui-modal")).not.toBeNull(); // the dialog stays open
+    expect(document.activeElement).toBe(title); // the focus back in the field in error (the APG dialog pattern)
   });
 });
 

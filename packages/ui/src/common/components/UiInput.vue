@@ -10,6 +10,9 @@
 // attributes (title, maxlength, aria-*, data-*) reach the native input, and its listeners and this
 // field's blur/focus/keydown are the native input's own events (../composables/useNativeEvents.js
 // — QInput would replace a caller's input/change/blur with its own); `el` is that native input.
+// A rule's error shows its words under the box with no icon (no-error-icon, set before the caller's attributes, so an
+// app that wants Quasar's icon asks for it — the twentieth review, 2026-10-20); UiTextarea, UiNumber and both selects
+// alike.
 import { QInput } from "quasar";
 import { computed, ref, useAttrs } from "vue";
 import { useNativeEvents, withoutListeners } from "../composables/useNativeEvents.js";
@@ -71,6 +74,7 @@ const classes = computed(() => [
 <template>
   <QInput
     ref="field"
+    no-error-icon
     v-bind="passAttrs()"
     :class="classes"
     :model-value="current()"

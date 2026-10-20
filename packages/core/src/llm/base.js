@@ -148,7 +148,8 @@ export function selectAllowed(extra, allowed, renames = null) {
  * `status` null (transport/connection) → `"{ptype} request failed: {detail}"`.
  */
 export function adapterHttpError(providerType, status, detail, { stream = false } = {}) {
-  if (status == null) return new RuntimeError(`${providerType} request failed: ${detail}`);
+  // no status: the provider wasn't reached (connection, timeout) — marked, so a run answers 502 (prompts.js aiRunHttpError)
+  if (status == null) return Object.assign(new RuntimeError(`${providerType} request failed: ${detail}`), { unreachable: true });
   const kind = stream ? "stream " : "";
   return new RuntimeError(`${providerType} ${kind}${status}: ${cpSlice(pyStr(detail), 0, 400)}`);
 }

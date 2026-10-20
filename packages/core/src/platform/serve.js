@@ -40,9 +40,41 @@ const GRACE_MS = 3000;
 // Node's own server settings as Fastify set them: no limit on receiving a request (Node's
 // default 300 s would cut off a large backup upload) and Fastify's 72 s keep-alive.
 const SERVER_OPTIONS = { requestTimeout: 0, keepAliveTimeout: 72_000 };
+// A request body that sends nothing this long is cut (2026-10-20, the twentieth review: an upload stalled halfway held
+// the maintenance gate — every Reset and Restore waited out its 60 s drain and was refused — and a body that never came
+// never timed out). Idle, not total: a long backup that keeps flowing is never cut, and once the body has arrived the
+// timer is off — a response that streams (an AI answer, a backup's download) is never timed.
+const BODY_IDLE_MS = 60_000;
+
+/** The socket's idle timer while `req`'s body is being read (Node's `req.setTimeout` — its socket's): past `idleMs` with
+ *  nothing received, a 408 when nothing has been answered yet (a Content-Length that lies gets an answer) — written to
+ *  the socket the way Node's own server answers its requestTimeout (ERR_HTTP_REQUEST_TIMEOUT: a raw 408, Connection:
+ *  close) — then the socket goes once that is sent: the route's read of the body ends, and the gate's count with it. */
+export function cutIdleBodies(server, idleMs = BODY_IDLE_MS) {
+  server.on("request", (req, res) => {
+    if (req.complete) return;
+    const te = req.headers["transfer-encoding"];
+    const cl = Number(req.headers["content-length"] || 0);
+    if (te === undefined && !(cl > 0)) return; // no body: nothing to wait for
+    const off = () => req.setTimeout(0);
+    req.once("end", off);
+    req.once("close", off);
+    req.setTimeout(idleMs, () => {
+      if (req.complete) return off(); // all of it arrived (a route that hasn't read it yet): not a stall
+      const sock = req.socket;
+      if (!sock || sock.destroyed) return;
+      if (!res.headersSent && sock.writable) {
+        const body = JSON.stringify({ type: "about:blank", title: "Request Timeout", status: 408, detail: `the request's body stopped coming for ${Math.round(idleMs / 1000)} s` });
+        const head = ["HTTP/1.1 408 Request Timeout", "Content-Type: application/problem+json", `Content-Length: ${Buffer.byteLength(body)}`, "Connection: close"];
+        sock.write(`${head.join("\r\n")}\r\n\r\n${body}`);
+      }
+      sock.destroySoon();
+    });
+  });
+}
 
 /** Listen with `app` on host:port; resolves the Node server once it listens. */
-function listen(app, host, port) {
+function listen(app, host, port, { bodyIdleMs = BODY_IDLE_MS } = {}) {
   return new Promise((resolve, reject) => {
     const server = serve(
       // The adapter's default: its Request/Response become the globals. They are what make
@@ -56,6 +88,7 @@ function listen(app, host, port) {
         resolve(server);
       },
     );
+    cutIdleBodies(server, bodyIdleMs);
     server.once("error", reject);
   });
 }
@@ -173,6 +206,7 @@ function startFailed(error) {
  * another server while this one runs (data_lock.js `onLost`), the same words are said (under the
  * desktop app the shell is told, `data-folder-locked`), this server stops serving and exits 3.
  * `lockRetries` overrides proper-lockfile's retries, `lockOptions` its `stale` / `update` (tests).
+ * `bodyIdleMs` (60 s; a test's shorter): a request body that sends nothing this long is cut (`cutIdleBodies`).
  * `defaultDataDir`, when given, is the app's own default folder (its family ladder), used when
  * neither `--data-dir` nor `<APP>_DATA_DIR` names one — so a headless run with no folder named is
  * locked too, and `build` gets the same folder.
@@ -185,7 +219,7 @@ function startFailed(error) {
  * checked the folder before handing it down; a start that fails there anyway — or in `build` — tells the shell
  * its first line (`start-failed`).
  */
-export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, productName, lockRetries, lockOptions, defaultDataDir, log = console }) {
+export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, productName, lockRetries, lockOptions, defaultDataDir, bodyIdleMs = BODY_IDLE_MS, log = console }) {
   const args = parseServeArgs(argv, { envPrefix });
   const namedHere = !!args.dataDir;
   if (!args.dataDir && defaultDataDir) args.dataDir = path.resolve(await defaultDataDir());
@@ -234,7 +268,7 @@ export async function runServer({ argv = process.argv.slice(2), envPrefix, build
   const { app, host, port, banner } = built;
   let server;
   try {
-    server = await listen(app, host, port);
+    server = await listen(app, host, port, { bodyIdleMs });
   } catch (e) {
     return cantListen(app, host, port, e, log);
   }
