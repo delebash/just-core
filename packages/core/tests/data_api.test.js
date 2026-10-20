@@ -216,6 +216,14 @@ test("a_restore_stopped_between_its_folders_and_its_tables_is_undone_at_the_next
   expect(readdirSync(dir)).toEqual(["mine.txt"]);
   expect(existsSync(`${dir}.replaced-7`)).toBe(false);
   expect(existsSync(`${db}.restoring`)).toBe(false);
+  // there was no folder before the restore (a first restore): the backup's copy goes, never left to be put back
+  const fresh = join(tmp, "audio");
+  mkdirSync(fresh);
+  writeFileSync(join(fresh, "from-backup.wav"), "b");
+  writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 8, dirs: [{ dir: fresh, old: null }] }));
+  expect(finishInterruptedRestore(db)).toBe("back");
+  expect(existsSync(fresh)).toBe(false);
+  expect(readdirSync(tmp).filter((n) => n.startsWith("audio"))).toEqual([]);
 });
 
 test("a_restore_whose_record_is_still_there_refuses_the_next_restore_and_a_reset_and_its_commit_is_recorded", async () => {
@@ -247,8 +255,24 @@ test("the_gate_refuses_a_restore_when_a_write_runs_past_the_drain_and_shuts_unti
   await write;
   expect(await gate.closeFor("restore", async () => "replaced")).toBe("replaced");
   gate.closeUntilRestart();
-  await expect(gate.closeFor("restore", async () => "replaced")).rejects.toMatchObject({ statusCode: 409 });
+  // shut until a restart: its own words everywhere — never "try again when it's done"
+  await expect(gate.closeFor("restore", async () => "replaced")).rejects.toMatchObject({ statusCode: 503, title: "The app needs a restart" });
   await expect(gate.middleware()({ req: { method: "POST", path: "/v1/x" } }, async () => {})).rejects.toMatchObject({ statusCode: 503, title: "The app needs a restart" });
+  expect(gate.refusal("try the backup again in a moment").detail).toMatch(/restart the app/);
+});
+
+test("a gate given the app's data writes shuts out and waits for those only", async () => {
+  // a slow AI run or a brand's download is no reason to hold or refuse a restore (the thirteenth review)
+  const gate = new MaintenanceGate({ isDataWrite: (c) => c.req.path.startsWith("/v1/houses") });
+  let release;
+  const slowAi = gate.middleware()({ req: { method: "POST", path: "/v1/schemes/ai" } }, () => new Promise((r) => (release = r)));
+  expect(await gate.closeFor("restore", async () => "replaced", { drainMs: 30 })).toBe("replaced");
+  await gate.closeFor("restore", async () => {
+    await expect(gate.middleware()({ req: { method: "POST", path: "/v1/houses" } }, async () => {})).rejects.toMatchObject({ statusCode: 503 });
+    await gate.middleware()({ req: { method: "POST", path: "/v1/schemes/ai" } }, async () => {}); // passes
+  });
+  release();
+  await slowAi;
 });
 
 test("the_gate_refuses_other_writes_while_a_restore_replaces_the_data_after_the_running_ones_end", async () => {

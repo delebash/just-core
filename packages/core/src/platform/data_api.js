@@ -227,12 +227,23 @@ export function finishInterruptedRestore(dbPath) {
   const dirs = [...(record.dirs || [])];
   if (committedStamp(String(dbPath)) === record.stamp) {
     rmSync(journal, { force: true });
-    for (const { old } of dirs) if (old) rmSync(old, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    // the old copies: best effort — one held stays beside, for the app's start-up sweep or the next restore
+    for (const { old } of dirs) {
+      try {
+        if (old) rmSync(old, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      } catch {
+        // left beside
+      }
+    }
     return "forward";
   }
   for (const { dir, old } of dirs.reverse()) {
     if (old && !existsSync(old)) continue; // never moved, or already back
-    if (existsSync(dir)) renameHeldSync(dir, `${dir}.restoring-${record.stamp}`);
+    if (existsSync(dir)) {
+      if (old) renameHeldSync(dir, `${dir}.restoring-${record.stamp}`);
+      // there was no folder before: this one is the backup's copy, gone (the backup file itself is the user's)
+      else rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    }
     if (old) renameHeldSync(old, dir);
   }
   rmSync(journal, { force: true });
@@ -260,10 +271,17 @@ function swapRefusal(e, dir) {
 async function swapAssetDirs(pairs, journal) {
   const stamp = Date.now();
   const steps = []; // { dir, old (null: there was none), moved, placed }
-  const record = () => writeFileSync(journal, JSON.stringify({ stamp, dirs: steps.map(({ dir, old }) => ({ dir, old })) }));
+  // written beside and renamed in: a stop while it is written never leaves a record that can't be read
+  const record = () => {
+    writeFileSync(`${journal}.new`, JSON.stringify({ stamp, dirs: steps.map(({ dir, old }) => ({ dir, old })) }));
+    renameSync(`${journal}.new`, journal);
+  };
   const undo = async () => {
     for (const step of [...steps].reverse()) {
-      if (step.placed) await renameHeld(step.dir, `${step.dir}.restoring-${stamp}`);
+      if (step.placed) {
+        if (step.old) await renameHeld(step.dir, `${step.dir}.restoring-${stamp}`);
+        else await rm(step.dir, RETRIES); // no folder before: the backup's copy goes
+      }
       if (step.moved) await renameHeld(step.old, step.dir);
       step.placed = step.moved = false;
     }
@@ -615,7 +633,7 @@ export function makeDataRouter({
         .filter(Boolean),
     );
     await recovered;
-    if (gate.reason) throw gate.refusal("try the backup again in a moment");
+    if (gate.reason) throw gate.refusal("try the backup again in a moment"); // the restart's own words when shut for one
     const dbPath = String(await getDbPath());
     if (!existsSync(dbPath)) throw new HttpError(404, "no database to back up");
     const dirs = (await assets()).filter(([arcname]) => !skip.has(arcname)).map(([arcname, d]) => [arcname, String(d)]);
@@ -761,7 +779,8 @@ export function makeDataRouter({
 
   app.post(`${prefix}/restore`, async (c) => {
     await recovered;
-    // another restore or a reset running: refused before an upload of gigabytes
+    // another restore or a reset running: refused before an upload of gigabytes (shut until a restart: its words)
+    if (gate.reason === "restart") throw gate.refusal();
     if (gate.reason) throw new ApiError(409, "maintenance-busy", gate.refusal().title, "try again when it's done");
     const liveDb = String(await getDbPath());
     // an earlier restore's record still names folders: never another on top of it

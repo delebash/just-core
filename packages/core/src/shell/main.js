@@ -623,13 +623,19 @@ export function runDesktopApp(config) {
     updater = autoUpdater;
     return updater;
   }
-  async function checkForUpdates() {
+  // a check of its own (every six hours, on wake): one that fails — no network yet — leaves the panel as it was
+  let quietFrom = null;
+  async function checkForUpdates({ quiet = false } = {}) {
     const u = await loadUpdater();
     if (!u || ["checking", "downloading", "ready"].includes(update.state)) return updateNow();
+    if (quiet) quietFrom = { ...update };
     try {
       await u.checkForUpdates();
     } catch (e) {
-      setUpdate({ state: "error", error: firstLine(e) });
+      if (!quietFrom) setUpdate({ state: "error", error: firstLine(e) });
+    } finally {
+      if (quietFrom && update.state === "error") setUpdate(quietFrom);
+      quietFrom = null;
     }
     return updateNow();
   }
@@ -854,8 +860,9 @@ export function runDesktopApp(config) {
       checkForUpdates();
       // a copy left running for weeks hears of a release too: every six hours, and when the computer wakes (the
       // twelfth review, 2026-10-20 — electron-updater checks only when asked)
-      setInterval(() => checkForUpdates().catch(() => {}), 6 * 3600_000).unref?.();
-      powerMonitor.on("resume", () => checkForUpdates().catch(() => {}));
+      setInterval(() => checkForUpdates({ quiet: true }).catch(() => {}), 6 * 3600_000).unref?.();
+      // on wake the network is often not back yet: a moment later
+      powerMonitor.on("resume", () => setTimeout(() => checkForUpdates({ quiet: true }).catch(() => {}), 30_000));
     }
   });
   return { state, startServer, stopServer, quitApp };

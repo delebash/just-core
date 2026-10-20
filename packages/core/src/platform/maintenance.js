@@ -28,11 +28,16 @@ export class MaintenanceGate {
   #exempt;
   #retryAfter;
 
+  #isData;
+
   /** `exempt`: paths whose writes pass even while it is closed (the shell's shutdown) — the data router adds
-   *  its own. `retryAfterSeconds`: the Retry-After a refused write carries. */
-  constructor({ exempt = [], retryAfterSeconds = 5 } = {}) {
+   *  its own. `retryAfterSeconds`: the Retry-After a refused write carries. `isDataWrite(c)`: the writes it shuts
+   *  out and waits for — by default every write; an app names its data writes (a slow AI run or a brand's download
+   *  is no reason to hold a restore — just-house-paint's thirteenth review), the others pass. */
+  constructor({ exempt = [], retryAfterSeconds = 5, isDataWrite = null } = {}) {
     this.#exempt = new Set(exempt);
     this.#retryAfter = retryAfterSeconds;
+    this.#isData = isDataWrite;
   }
 
   /** What is running ("restore" | "reset"), "restart" (shut until the server starts again), or null. */
@@ -45,10 +50,11 @@ export class MaintenanceGate {
     this.#exempt.add(path);
   }
 
-  /** The 503 a write gets while the gate is closed (`detail` in place of the write's). */
+  /** The 503 a write gets while the gate is closed (`detail` in place of the write's — never in place of the
+   *  restart's own words). */
   refusal(detail = null) {
     const [title, words] = WORDS[this.#reason] || WORDS.restore;
-    const e = new ApiError(503, "maintenance", title, detail || words);
+    const e = new ApiError(503, "maintenance", title, (this.#reason !== "restart" && detail) || words);
     e.headers = { "Retry-After": String(this.#retryAfter) };
     return e;
   }
@@ -56,7 +62,7 @@ export class MaintenanceGate {
   /** Hono middleware: a write is refused while the gate is closed, and counted while it runs. */
   middleware() {
     return async (c, next) => {
-      if (SAFE_METHODS.has(c.req.method) || this.#exempt.has(c.req.path)) return next();
+      if (SAFE_METHODS.has(c.req.method) || this.#exempt.has(c.req.path) || (this.#isData && !this.#isData(c))) return next();
       if (this.#reason) throw this.refusal();
       this.#active += 1;
       try {
@@ -81,6 +87,7 @@ export class MaintenanceGate {
    * restart meanwhile.
    */
   async closeFor(reason, fn, { drainMs = 60_000 } = {}) {
+    if (this.#reason === "restart") throw this.refusal();
     if (this.#reason) throw new ApiError(409, "maintenance-busy", WORDS[this.#reason]?.[0] || "The data is being replaced", "try again when it's done");
     this.#reason = reason;
     try {
