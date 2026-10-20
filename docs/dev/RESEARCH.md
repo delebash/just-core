@@ -1133,9 +1133,12 @@ GitHub API and raw files, unpkg; the plan:
   `toolsets.appimage: "1.0.3"` builds on the AppImage project's static runtime (type2-runtime 20251108), which
   doesn't (electron-builder marks it beta) — the template carries it. Next on that machine: Chromium's sandbox
   can't start in an AppImage (no setuid helper on its read-only mount, user namespaces restricted — Ubuntu MATE
-  and Launchpad #2046844 reports; chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md),
-  so the shell turns it off then, and only then (`shell/linuxSandbox.js`). GitHub's 24.04 runners have the
-  restriction (Playwright had to lift it to run Electron there). — *measured + web, 2026-10-19*.
+  and Launchpad #2046844 reports; chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md).
+  **electron-builder handles it**: the AppImage's launcher (`AppRun`, app-builder-lib `appImageUtil.js`
+  generateAppRunScript, on the static runtime too) adds `--no-sandbox` when `unshare -Ur true` fails — so the kit
+  does nothing of its own (a shell switch added for it, bb10b45, was removed: Chromium decides its sandbox before the
+  app's JavaScript runs, and the launcher already passes the flag). GitHub's 24.04 runners have the restriction
+  (Playwright had to lift it to run Electron there). — *measured + code, 2026-10-19*.
 
 ---
 

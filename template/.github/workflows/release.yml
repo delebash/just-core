@@ -43,6 +43,11 @@ on:
 permissions:
   contents: write # creates the release and attaches the files
 
+# one release run per tag at a time (a second waits; it never attaches beside the first)
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
   setup:
     runs-on: ubuntu-latest
@@ -144,6 +149,7 @@ jobs:
             app/dist/electron/Packaged/*.dmg
             app/dist/electron/Packaged/*.zip
             app/dist/electron/Packaged/*.AppImage
+            app/dist/electron/Packaged/*.deb
             app/dist/electron/Packaged/*.blockmap
             app/dist/electron/Packaged/latest*.yml
           if-no-files-found: error
@@ -189,13 +195,19 @@ jobs:
   publish:
     needs: [build, linux-user]
     if: ${{ inputs.publish && !cancelled() && needs.build.result == 'success' && (needs.linux-user.result == 'success' || needs.linux-user.result == 'skipped') }}
-    runs-on: ubuntu-latest
+    # pinned, with its own Node: ubuntu-latest moves to a new image now and then
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout the app (at the tag) — its name and What's new
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag }}
           path: app
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: Every platform's files
         uses: actions/download-artifact@v4

@@ -56,7 +56,6 @@ import contextMenu from "electron-context-menu";
 import { dataFolderInUse } from "../platform/data_lock.js";
 import { portInUse } from "../platform/port.js";
 import { CHROME_DIR, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir } from "./dataRoot.js";
-import { sandboxBlocked } from "./linuxSandbox.js";
 import { pickSpellLanguages } from "./spellLanguages.js";
 import { stopStaleServer } from "./stale_server.js";
 
@@ -138,12 +137,6 @@ const STOP_WAIT_MS = 15_000;
  *                 itself from the feed its electron-builder `publish` names (none: updates off)
  */
 export function runDesktopApp(config) {
-  // An AppImage on a Linux that keeps it out of user namespaces (Ubuntu 24.04's default) can't start
-  // Chromium's sandbox, and the window would never open: it runs without (linuxSandbox.js says why)
-  if (sandboxBlocked()) {
-    app.commandLine.appendSwitch("no-sandbox");
-    console.log("[shell] Chromium's sandbox can't start in an AppImage here (user namespaces restricted): running without it");
-  }
   const state = {
     root: null,
     server: null, // the utilityProcess
