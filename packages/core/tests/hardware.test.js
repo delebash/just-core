@@ -542,3 +542,68 @@ test("parseCsv reads like csv.reader (quotes, embedded commas, blank lines)", ()
   expect(hw.parseCsv('"a","b,c",d\n\n"x""y",z\r\nlast')).toEqual([["a", "b,c", "d"], [], ['x"y', "z"], ["last"]]);
   expect(splitlines("a\r\nb\rc\n")).toEqual(["a", "b", "c"]);
 });
+
+// ── what an engine's prebuilt binaries need from the system (2026-10-20) ──────────────
+
+test("missing_dlls_follows_the_loaders_search_and_is_empty_off_windows", () => {
+  vi.spyOn(hw, "platformKey").mockReturnValue("windows");
+  const env = { SystemRoot: "C:\\Windows", PATH: "C:\\Tools;D:\\conda\\Library\\bin" };
+  const present = new Set(["C:\\Windows\\System32\\MSVCP140.dll", "D:\\conda\\Library\\bin\\VCRUNTIME140.dll", "E:\\app\\engine.dll"]);
+  const exists = (p) => present.has(p);
+  // System32, then PATH; the program's own folder first when named
+  expect(hw.missingDlls(["MSVCP140.dll", "VCRUNTIME140.dll", "VCOMP140.DLL", "engine.dll"], { env, exists })).toEqual(["VCOMP140.DLL", "engine.dll"]);
+  expect(hw.missingDlls(["engine.dll"], { appDir: "E:\\app", env, exists })).toEqual([]);
+  vi.spyOn(hw, "platformKey").mockReturnValue("linux");
+  expect(hw.missingDlls(["MSVCP140.dll"], { env, exists: () => false })).toEqual([]);
+});
+
+test("system_versions_reads_darwin_macos_and_glibc", () => {
+  const plist = "<dict><key>ProductName</key><string>macOS</string><key>ProductVersion</key><string>15.6.1</string></dict>";
+  expect(hw.systemVersions({ platform: "darwin", release: "24.6.0", readText: () => plist })).toEqual({ darwin: 24, macos: "15.6.1", glibc: null });
+  // no readable plist: macOS from Darwin's number (25 is macOS 26 — Apple's numbering jumped to the year)
+  const none = () => {
+    throw new Error("ENOENT");
+  };
+  expect(hw.systemVersions({ platform: "darwin", release: "25.0.0", readText: none }).macos).toBe("26");
+  expect(hw.systemVersions({ platform: "darwin", release: "23.1.0", readText: none }).macos).toBe("14");
+  expect(hw.systemVersions({ platform: "linux", report: () => ({ header: { glibcVersionRuntime: "2.35" } }) })).toEqual({ darwin: null, macos: null, glibc: "2.35" });
+  expect(hw.systemVersions({ platform: "linux", report: () => ({ header: {} }) }).glibc).toBeNull(); // musl
+  expect(hw.systemVersions({ platform: "win32" })).toEqual({ darwin: null, macos: null, glibc: null });
+  // this machine answers without throwing
+  expect(hw.systemVersions()).toHaveProperty("glibc");
+});
+
+test("version_at_least_compares_part_by_part", () => {
+  expect(hw.versionAtLeast("2.39", "2.38")).toBe(true);
+  expect(hw.versionAtLeast("2.38", "2.38")).toBe(true);
+  expect(hw.versionAtLeast("2.35", "2.38")).toBe(false);
+  expect(hw.versionAtLeast("26", "26.0")).toBe(true);
+  expect(hw.versionAtLeast("15.6.1", "26.0")).toBe(false);
+  expect(hw.versionAtLeast("2.100", "2.38")).toBe(true); // numbers, not text
+  expect(hw.versionAtLeast(null, "2.38")).toBe(false);
+});
+
+test("loaded_module_path_names_the_copy_the_loader_took", () => {
+  if (process.platform === "win32") {
+    expect(hw.loadedModulePath("kernel32.dll")).toMatch(/\\System32\\kernel32\.dll$/i);
+    expect(hw.loadedModulePath("no-such-module-here.dll")).toBeNull();
+  }
+  vi.spyOn(hw, "platformKey").mockReturnValue("linux");
+  expect(hw.loadedModulePath("kernel32.dll")).toBeNull();
+});
+
+test("dxgi_adapters_lists_directx_order_with_dedicated_memory", () => {
+  if (process.platform === "win32") {
+    const rows = hw.dxgiAdapters();
+    // every Windows has at least the Basic Render Driver, last, as software
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.map((r) => r.index)).toEqual(rows.map((_, i) => i));
+    for (const r of rows) {
+      expect(r.name).toEqual(expect.any(String));
+      expect(r.dedicatedMb).toBeGreaterThanOrEqual(0);
+    }
+    expect(rows.some((r) => r.software)).toBe(true);
+  }
+  vi.spyOn(hw, "platformKey").mockReturnValue("macos");
+  expect(hw.dxgiAdapters()).toEqual([]);
+});

@@ -37,7 +37,11 @@ const COMMANDS = new Set([
 contextBridge.exposeInMainWorld("appShell", {
   invoke(command, args) {
     if (!COMMANDS.has(command)) return Promise.reject(new Error(`unknown shell command: ${command}`));
-    return ipcRenderer.invoke(`shell:${command}`, args ?? {});
+    // a refusal reaches the window in its own words: Electron prefixes an invoke's error with "Error invoking remote
+    // method 'shell:…': Error: " (Change folder's "isn't empty" read that way — the thirteenth review)
+    return ipcRenderer.invoke(`shell:${command}`, args ?? {}).catch((e) => {
+      throw new Error(String(e?.message || e).replace(/^Error invoking remote method '[^']*': (?:\w*Error: )?/, ""));
+    });
   },
   on(event, fn) {
     if (!/^(tray|update):/.test(String(event))) throw new Error(`not a shell event: ${event}`);

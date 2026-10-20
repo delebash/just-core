@@ -19,7 +19,14 @@
 //     `parentPort`, waits, then kills — graceful for all three apps (JustWrite and docgen only
 //     hard-killed under Tauri). The renderer asks for the URL (`serverUrl`), and on its
 //     connection-error screen why a start failed (`serverStatus`: the port held by another
-//     program, or the data folder held by another server of the app — platform/data_lock.js).
+//     program, or the data folder held by another server of the app — platform/data_lock.js;
+//     since 2026-10-20 also the port held by another OS user's copy of the app — never stopped —,
+//     a port Windows has reserved, and the first error line of a server that couldn't start).
+//   - A data root that can't be used (a missing drive, an offline share, read-only, a path the
+//     native code can't take) is said before anything lands in it, in a message box: Try again,
+//     Use the default folder, Quit (2026-10-20).
+//   - The server runs with the OS's certificates trusted (NODE_USE_SYSTEM_CA) and the system's
+//     proxy handed down (server_start.js, 2026-10-20).
 //   - The window loads the built UI from `app://<id>/` (ruling 3) — it opens even when
 //     the server is down and shows the kit's connection-error screen; in development it
 //     loads the Vite dev server instead.
@@ -35,6 +42,7 @@
 //     (package.json `build.electronFuses`).
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -57,11 +65,13 @@ import {
 } from "electron";
 import contextMenu from "electron-context-menu";
 import { dataFolderInUse } from "../platform/data_lock.js";
+import { cantUseDataDir, samePath } from "../platform/data_paths.js";
 import { portInUse } from "../platform/port.js";
-import { CHROME_DIR, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir } from "./dataRoot.js";
+import { CHROME_DIR, dataRootProblem, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir, useDefaultRoot } from "./dataRoot.js";
 import { pickSpellLanguages } from "./spellLanguages.js";
 import { placeSaved } from "./save_place.js";
-import { stopStaleServer } from "./stale_server.js";
+import { firstErrorLine, listenFailure, PROXY_PROBE_URL, proxyFromPac, serverEnv } from "./server_start.js";
+import { stopStaleServer, whoseServer } from "./stale_server.js";
 
 /** The renderer's commands — the preload exposes exactly these (`appShell.invoke`). */
 export const COMMANDS = [
@@ -148,9 +158,14 @@ export function runDesktopApp(config) {
     serverPhase: "off", // off · starting · ready
     port: config.port ?? null,
     // Why the last start failed, for the renderer's connection-error screen (`serverStatus`): the
-    // port another program holds, or the words for a data folder another server of the app holds.
+    // port another program holds, or the words for a data folder another server of the app holds;
+    // since 2026-10-20 the port another OS user's copy of the app holds, a port Windows has
+    // reserved, and the first error line of a server that couldn't start.
     portTaken: null,
     dataFolderInUse: null,
+    portOtherUser: null,
+    portReserved: null,
+    serverError: null,
     keepRunning: false,
     quitting: false,
     win: null,
@@ -173,8 +188,21 @@ export function runDesktopApp(config) {
     repoRoot: config.repoRoot,
     packaged: app.isPackaged,
   });
-  sweepOldChromeDir(state.root);
-  const chromeDir = path.join(state.root, CHROME_DIR);
+  // A root that can't be used — a missing drive, an unplugged USB stick, an offline share, read-only, Controlled
+  // Folder Access, or a path named by the user that the native code can't take — is said before anything lands
+  // in it (2026-10-20: the mkdir below threw Electron's "JavaScript error in the main process" dialog). Until the
+  // user answers (`settleDataRoot`, once the app is ready), Chromium's folder goes under the default folder — the
+  // one "Use the default folder" goes on in — or, when that can't be used either, the system's temp folder.
+  let rootProblem = dataRootProblem(state.root);
+  let canUseDefault = false;
+  let chromeHome = state.root;
+  if (rootProblem) {
+    console.warn(`[shell] ${cantUseDataDir(state.root, rootProblem)}`);
+    const def = storageInfo({ root: state.root, appName: config.appName, repoRoot: config.repoRoot, packaged: app.isPackaged }).default;
+    canUseDefault = !samePath(def, state.root) && !dataRootProblem(def);
+    chromeHome = canUseDefault ? def : path.join(os.tmpdir(), `${config.id}-start`);
+  } else sweepOldChromeDir(state.root);
+  const chromeDir = path.join(chromeHome, CHROME_DIR);
   fs.mkdirSync(chromeDir, { recursive: true });
   for (const k of ["userData", "sessionData", "crashDumps", "logs"]) app.setPath(k, path.join(chromeDir, k === "userData" ? "" : k));
   if (process.platform === "win32") app.setAppUserModelId(`com.${config.id}.app`);
@@ -209,17 +237,28 @@ export function runDesktopApp(config) {
     for (const resolve of urlWaiters.splice(0)) resolve(serverUrl());
   }
 
-  /** Is the listener on `port` this app's own server? It answers GET /v1/health with the app's
-   * `product` (the family health baseline). The wait is the window's own for one health probe
-   * (the kit UI's `checkServer`, `probeTimeoutMs` 500 ms): a listener that takes the connection
+  /** Whose is the listener on `port` (stale_server.js `whoseServer`)? This app's own server answers GET /v1/health
+   * with the app's `product` (the family health baseline), and since 2026-10-20 its OS user's `owner`: "mine",
+   * "other-user" (another OS user's copy of the app — never stopped), or null. The wait is the window's own for
+   * one health probe (the kit UI's `checkServer`, `probeTimeoutMs` 500 ms): a listener that takes the connection
    * and never answers is not taken for this app's server. */
-  async function answersAsThisApp(port) {
+  async function whoAnswers(port) {
     try {
       const r = await fetch(`http://127.0.0.1:${port}/v1/health`, { signal: AbortSignal.timeout(500) });
       const body = r.ok ? await r.json() : null;
-      return body?.product === (config.serverProduct || config.productName);
+      return whoseServer(body, { product: config.serverProduct || config.productName });
     } catch {
-      return false;
+      return null;
+    }
+  }
+
+  /** The system's proxy for the server's downloads, or null (DIRECT, none, or no answer in 5 s). */
+  async function systemProxy() {
+    try {
+      const pac = await Promise.race([session.defaultSession.resolveProxy(PROXY_PROBE_URL), new Promise((r) => setTimeout(() => r(null), 5000))]);
+      return proxyFromPac(pac);
+    } catch {
+      return null;
     }
   }
 
@@ -235,30 +274,38 @@ export function runDesktopApp(config) {
     if (state.server || (state.serverPhase === "starting" && !evicted)) return;
     if (process.env[`${config.id.toUpperCase().replace(/-/g, "_")}_DEV_NO_SERVER`]) return; // run it yourself
     state.serverPhase = "starting";
-    state.portTaken = null;
-    state.dataFolderInUse = null;
+    Object.assign(state, { portTaken: null, dataFolderInUse: null, portOtherUser: null, portReserved: null, serverError: null });
     // Before the start: this app's own server left on its usual port (a crashed run, a headless
     // server) is stopped first, so the new one never opens the database beside it. An app whose
     // port is a setting checks that port too, before it opens anything (platform/serve.js
-    // `resolvePort`).
-    if (!evicted && config.port && (await portInUse(config.port)) && (await answersAsThisApp(config.port))) {
+    // `resolvePort`). Another OS user's copy of the app on the port is left running: the start
+    // below can't listen and says so.
+    if (!evicted && config.port && (await portInUse(config.port)) && (await whoAnswers(config.port)) === "mine") {
       await evictListener(config.port);
     }
     // No --port: the server listens where its own settings say, and says where once it listens
     // (`ready`), or which port it couldn't take (`listen-failed` — before it opens its database,
     // when the app names its port first).
+    const proxy = await systemProxy();
     const child = utilityProcess.fork(config.serverEntry, ["serve"], {
-      env: { ...process.env, [config.dataDirEnv]: state.root },
+      env: serverEnv({ env: process.env, dataDirEnv: config.dataDirEnv, root: state.root, proxy }),
       serviceName: `${config.productName} server`,
       stdio: "pipe",
     });
     state.server = child;
+    // what it wrote to stderr while starting: a server that dies before it can say why (a module that won't
+    // load) left its error there
+    let startOutput = "";
     child.stdout?.on("data", (d) => process.stdout.write(d));
-    child.stderr?.on("data", (d) => process.stderr.write(d));
+    child.stderr?.on("data", (d) => {
+      process.stderr.write(d);
+      if (state.server === child && state.serverPhase === "starting" && startOutput.length < 16_384) startOutput += d;
+    });
     child.on("message", (m) => {
       if (m?.type === "ready") {
         state.port = m.port;
         state.serverPhase = "ready";
+        guardOtherUsersPort(null);
         console.log(`[shell] server listening on ${m.port}`);
         settleServerUrl();
       } else if (m?.type === "listen-failed") {
@@ -269,10 +316,18 @@ export function runDesktopApp(config) {
         state.dataFolderInUse = dataFolderInUse(config.productName, m.dataDir);
         console.warn(`[shell] ${state.dataFolderInUse}`);
         stopServer();
+      } else if (m?.type === "start-failed") {
+        // The server couldn't start (its data folder, its database …): its first line reaches the
+        // connection-error screen.
+        state.serverError = String(m.error || "") || null;
+        console.warn(`[shell] the server couldn't start: ${state.serverError}`);
+        stopServer();
       }
     });
     child.on("exit", (code) => {
       if (state.server === child) {
+        const why = ["portTaken", "dataFolderInUse", "portOtherUser", "portReserved", "serverError"].some((k) => state[k]);
+        if (state.serverPhase === "starting" && !why) state.serverError = firstErrorLine(startOutput);
         state.server = null;
         state.serverPhase = "off";
         settleServerUrl();
@@ -281,15 +336,41 @@ export function runDesktopApp(config) {
     });
   }
 
+  // Another OS user's copy of the app holds the port: its data is theirs, so this window must not use it — it
+  // answers as this app, and the window would boot on it. The window's requests to that port are refused
+  // (Electron's webRequest.onBeforeRequest — electronjs.org/docs/latest/api/web-request) until our own server
+  // listens (`port` null); the connection-error screen says why (`serverStatus` portOtherUser).
+  let guardedPort = null;
+  function guardOtherUsersPort(port) {
+    if (port === guardedPort) return;
+    guardedPort = port;
+    const ses = session.defaultSession;
+    if (!port) return ses.webRequest.onBeforeRequest(null);
+    ses.webRequest.onBeforeRequest({ urls: ["http://*/*"] }, (d, callback) => {
+      let held = false;
+      try {
+        const u = new URL(d.url);
+        held = ["127.0.0.1", "localhost", "[::1]"].includes(u.hostname) && u.port === String(guardedPort);
+      } catch {
+        /* not a URL */
+      }
+      callback({ cancel: held });
+    });
+  }
+
   // The server couldn't listen; it waits for our stop. When this app's own server holds the
-  // port, stop that one and start again (once); any other program keeps the port.
+  // port, stop that one and start again (once); any other program — or another OS user's copy of
+  // the app — keeps the port, and the connection-error screen says which (`serverStatus`).
   async function listenFailed({ port, code }, evicted) {
     state.port = port; // the server's port, taken or not
-    const ours = code === "EADDRINUSE" && !evicted && (await answersAsThisApp(port));
+    const who = code === "EADDRINUSE" ? await whoAnswers(port) : null;
+    const ours = who === "mine" && !evicted;
     if (!ours) {
-      console.warn(`[shell] the server could not listen on port ${port} (${code}) — whatever holds it is left running`);
-      // Another program holds it: the renderer's connection-error screen says so (`serverStatus`).
-      if (code === "EADDRINUSE") state.portTaken = port;
+      Object.assign(state, listenFailure(code, port, who));
+      if (state.portOtherUser) guardOtherUsersPort(port);
+      if (state.portOtherUser) console.warn(`[shell] another user of this computer has ${config.productName} running on port ${port} — left running`);
+      else if (state.portReserved) console.warn(`[shell] the server may not use port ${port} (${code}) — on Windows, a port Hyper-V or WSL reserved`);
+      else console.warn(`[shell] the server could not listen on port ${port} (${code}) — whatever holds it is left running`);
     }
     await stopServer({ restarting: ours });
     if (!ours) return;
@@ -713,7 +794,7 @@ export function runDesktopApp(config) {
       await stopServer();
       let moved = null;
       try {
-        moved = relocate({
+        moved = await relocate({
           oldRoot: state.root,
           newRoot,
           appName: config.appName,
@@ -771,20 +852,31 @@ export function runDesktopApp(config) {
       return null;
     },
     // The server's URL for the renderer's API base: at once when the server listens (or none
-    // is starting), else once its start ends. A start that failed because another program held
-    // the port or another server the data folder is tried again first: the connection-error
-    // screen's Retry reloads the window, and its boot asks here (P6, 2026-10-15 — that program
-    // may be closed by now). A server stopped from the tray stays stopped.
+    // is starting), else once its start ends. A start that failed — another program or user held
+    // the port, Windows reserved it, another server held the data folder, the server couldn't
+    // start — is tried again first: the connection-error screen's Retry reloads the window, and
+    // its boot asks here (P6, 2026-10-15 — that program may be closed by now, the drive plugged
+    // in). A server stopped from the tray stays stopped.
     serverUrl() {
-      if (!state.server && state.serverPhase !== "starting" && (state.portTaken || state.dataFolderInUse)) void startServer();
+      const failed = state.portTaken || state.dataFolderInUse || state.portOtherUser || state.portReserved || state.serverError;
+      if (!state.server && state.serverPhase !== "starting" && failed) void startServer();
       if (state.serverPhase !== "starting") return serverUrl();
       return new Promise((resolve) => urlWaiters.push(resolve));
     },
-    // The server's URL and why its last start failed — {url, portTaken, dataFolderInUse} — when it
-    // is known: at once, or once a start under way ends. The renderer's connection-error screen
-    // asks.
+    // The server's URL and why its last start failed — {url, portTaken, dataFolderInUse,
+    // portOtherUser, portReserved, serverError} — when it is known: at once, or once a start under
+    // way ends. The renderer's connection-error screen asks. `portTaken`, `portOtherUser` (another
+    // OS user's copy of the app) and `portReserved` (Windows reserved it) are port numbers;
+    // `dataFolderInUse` and `serverError` (the server's first error line) are words.
     serverStatus() {
-      const status = () => ({ url: serverUrl(), portTaken: state.portTaken, dataFolderInUse: state.dataFolderInUse });
+      const status = () => ({
+        url: serverUrl(),
+        portTaken: state.portTaken,
+        dataFolderInUse: state.dataFolderInUse,
+        portOtherUser: state.portOtherUser,
+        portReserved: state.portReserved,
+        serverError: state.serverError,
+      });
       if (state.serverPhase !== "starting") return status();
       return new Promise((resolve) => urlWaiters.push(() => resolve(status())));
     },
@@ -835,7 +927,8 @@ export function runDesktopApp(config) {
   }
 
   // ── boot ───────────────────────────────────────────────────────────────────
-  app.on("second-instance", () => showWindow());
+  // (not while the data root's message box waits for an answer: the app isn't set up yet)
+  app.on("second-instance", () => !rootProblem && showWindow());
   // No page in these apps embeds a <webview>; refuse one outright.
   app.on("web-contents-created", (_e, contents) => {
     contents.on("will-attach-webview", (ev) => ev.preventDefault());
@@ -850,7 +943,43 @@ export function runDesktopApp(config) {
       quitApp();
     }
   });
+  // The data root can't be used (above): the user says what now, in Electron's message box
+  // (electronjs.org/docs/latest/api/dialog#dialogshowmessageboxwindow-options), asked once the app is ready —
+  // "Try again" (a drive plugged back in: the app starts again, its Chromium folder under the root), "Use the
+  // default folder" (the Change-folder pointer goes — dataRoot.js useDefaultRoot — and the app goes on in it) or
+  // "Quit". True when the app goes on.
+  async function settleDataRoot() {
+    const buttons = canUseDefault ? ["Try again", "Use the default folder", "Quit"] : ["Try again", "Quit"];
+    for (;;) {
+      const { response } = await dialog.showMessageBox({
+        type: "warning",
+        title: config.productName,
+        message: cantUseDataDir(state.root, rootProblem),
+        buttons,
+        defaultId: 0,
+        cancelId: buttons.length - 1,
+        noLink: true,
+      });
+      const choice = buttons[response];
+      if (choice === "Use the default folder") {
+        state.root = useDefaultRoot({ appName: config.appName, repoRoot: config.repoRoot, packaged: app.isPackaged });
+        rootProblem = null;
+        console.log(`[shell] using the default data folder ${state.root}`);
+        return true;
+      }
+      if (choice === "Try again") {
+        rootProblem = dataRootProblem(state.root);
+        if (rootProblem) continue;
+        app.relaunch();
+      }
+      state.quitting = true;
+      app.exit(0);
+      return false;
+    }
+  }
+
   app.whenReady().then(async () => {
+    if (rootProblem && !(await settleDataRoot())) return;
     protocol.handle("app", serveApp);
     guardPermissions();
     createWindow();

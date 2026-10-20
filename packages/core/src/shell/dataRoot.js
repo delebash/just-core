@@ -49,42 +49,85 @@ function writePointer(pointer, root) {
   fs.renameSync(tmp, pointer); // atomic: a torn write never strands the app
 }
 
+// A copy under way in the picked folder: it is ours to clear until the move is whole (a move that died midway).
+const MOVING_MARKER = ".moving";
+// Files the system makes in a folder the user only looked at: the folder is still empty to them.
+const SYSTEM_FILES = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
+
 /**
- * Move every file to `newRoot` (the Change-folder verb). Crash-safe as the Rust was: copy
- * to a staging sibling, rename it into place, commit the pointer, and only THEN delete the
- * old root — a crash before the commit leaves the old root intact and resolvable. Chromium's
- * own folder is open while the app runs: it isn't copied (it rebuilds), and the old one is
- * deleted at the next start (`sweepOldChromeDir`). Returns the new root, or null when it
- * equals the old one.
+ * Move every file into `newRoot` (the Change-folder verb). The folder picker hands back a folder that already
+ * exists, and Windows refuses a rename onto one (EPERM — every Change folder failed there, 2026-10-20): so the
+ * picked folder must be empty (a non-empty one is refused in words), and the data is copied into it with the
+ * async `fs.promises.cp` (nodejs.org/api/fs.html#fspromisescpsrc-dest-options — the window stays live; cpSync
+ * froze it), marked unfinished by a `.moving` file until whole. Then the pointer is committed and only THEN is
+ * the old root emptied — a crash before the commit leaves the old root intact and resolvable, and the unfinished
+ * copy is cleared by the next try. Any failure removes what was copied. Chromium's own folder is open while the
+ * app runs: it isn't copied (it rebuilds), and the old one is deleted at the next start (`sweepOldChromeDir`).
+ * Resolves the new root, or null when it equals the old one. `copy` is fs.promises.cp (a test passes one that fails).
  */
-export function relocate({ oldRoot, newRoot, appName, packaged = true, repoRoot }) {
+export async function relocate({ oldRoot, newRoot, appName, packaged = true, repoRoot, copy = fs.promises.cp }) {
   const target = path.resolve(String(newRoot).trim());
   if (target === path.resolve(oldRoot)) return null;
-  if (!isWritable(path.dirname(target))) throw new Error(`cannot write to ${target}`);
-  const staging = path.join(path.dirname(target), `${path.basename(target) || "data"}.moving`);
-  fs.rmSync(staging, { recursive: true, force: true });
+  const pathProblem = dataPaths.dataDirPathProblem(target);
+  if (pathProblem) throw new Error(dataPaths.cantUseDataDir(target, pathProblem));
+  const existed = fs.existsSync(target);
+  if (existed) {
+    if (!fs.statSync(target).isDirectory()) throw new Error(dataPaths.cantUseDataDir(target, "a file has that name"));
+    const names = fs.readdirSync(target);
+    if (names.includes(MOVING_MARKER)) {
+      // a move into it that never finished: its copy is ours
+      for (const name of names) await fs.promises.rm(path.join(target, name), { recursive: true, force: true });
+    } else if (names.some((n) => !SYSTEM_FILES.has(n))) {
+      throw new Error(`The folder ${target} isn't empty — choose an empty folder for the data.`);
+    }
+  }
+  const problem = dataPaths.dataDirProblem(target, { named: false }); // made when missing, then written to
+  if (problem) throw new Error(dataPaths.cantUseDataDir(target, problem));
+  const before = new Set(fs.readdirSync(target));
+  const marker = path.join(target, MOVING_MARKER);
   const chrome = path.join(path.resolve(oldRoot), CHROME_DIR);
   try {
-    fs.cpSync(oldRoot, staging, { recursive: true, filter: (src) => path.resolve(src) !== chrome });
+    fs.writeFileSync(marker, path.resolve(oldRoot));
+    await copy(oldRoot, target, { recursive: true, filter: (src) => path.resolve(src) !== chrome });
+    fs.rmSync(marker, { force: true });
   } catch (e) {
+    // nothing of the copy stays: a folder made here goes, a picked one is left as it was
+    if (existed) {
+      for (const name of fs.readdirSync(target)) {
+        if (!before.has(name) || name === MOVING_MARKER) await fs.promises.rm(path.join(target, name), { recursive: true, force: true }).catch(() => {});
+      }
+    } else await fs.promises.rm(target, { recursive: true, force: true }).catch(() => {});
     throw new Error(`copy failed: ${e.message}`);
-  }
-  try {
-    fs.renameSync(staging, target);
-  } catch (e) {
-    throw new Error(`finalize failed: ${e.message}`);
   }
   try {
     writePointer(dataPaths.pointerFile({ appName, sourceRoot: sourceRootOf({ packaged, repoRoot }) }), target);
   } catch (e) {
     throw new Error(`pointer write failed: ${e.message}`);
   }
+  // committed: what can't go now (a file a scanner holds) goes with the whole old root at the next start
   for (const name of fs.readdirSync(oldRoot)) {
-    if (name !== CHROME_DIR) fs.rmSync(path.join(oldRoot, name), { recursive: true, force: true });
+    if (name !== CHROME_DIR) await fs.promises.rm(path.join(oldRoot, name), { recursive: true, force: true, maxRetries: 5 }).catch(() => {});
   }
   fs.mkdirSync(path.join(target, CHROME_DIR), { recursive: true });
   fs.writeFileSync(path.join(target, CHROME_DIR, OLD_MARKER), path.resolve(oldRoot));
   return target;
+}
+
+/**
+ * The start's check of the data root (2026-10-20): why it can't be used, in plain words, or null — before
+ * anything lands in it (a missing drive made the shell's first mkdir throw Electron's "JavaScript error"
+ * dialog). A root the user named (the variable, the Change-folder pointer) is held to the path rule too.
+ */
+export function dataRootProblem(root) {
+  return dataPaths.dataDirProblem(root, { named: dataPaths.isNamedDataDir(root) });
+}
+
+/** "Use the default folder": the Change-folder pointer goes, so the default is used now and at every start
+ *  after (the variable, when the user set one, is theirs). Returns the default root. */
+export function useDefaultRoot({ appName, repoRoot, packaged }) {
+  const sourceRoot = sourceRootOf({ packaged, repoRoot });
+  fs.rmSync(dataPaths.pointerFile({ appName, sourceRoot }), { force: true });
+  return dataPaths.defaultDataDir({ appName, sourceRoot });
 }
 
 /** At start, before Chromium opens anything: delete the old root a move left behind. */

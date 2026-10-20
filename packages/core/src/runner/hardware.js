@@ -45,6 +45,7 @@
 // `processCmdline` reads it from the OS (see there).
 
 import { readdirSync, readFileSync, realpathSync, statSync, accessSync, constants as fsc } from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { Mutex } from "../platform/asyncutil.js";
@@ -1653,4 +1654,196 @@ export async function detect() {
     gpus,
     runtimes,
   });
+}
+
+// ─── What an engine's prebuilt binaries need from the system ─────────────────
+// Read without starting anything, so an app can tell a computer that can't run an engine BEFORE it
+// downloads gigabytes (just-house-paint's thirteenth review, 2026-10-20: its engines need the Visual
+// C++ runtime on Windows, macOS 26, glibc 2.38 — each found only after the download). Each reads the
+// system's own documented source; none throws.
+
+/** Microsoft's own download of the Visual C++ 2015–2022 runtime for this process's processor (x64, or ARM64)
+ *  — the permanent links Microsoft lists (learn.microsoft.com/cpp/windows/latest-supported-vc-redist). Named
+ *  to the user, never shipped: its licence is Visual Studio's. */
+export const VC_REDIST_URL = `https://aka.ms/vs/17/release/vc_redist.${process.arch === "arm64" ? "arm64" : "x64"}.exe`;
+
+const existsFile = (p) => {
+  try {
+    return statSync(p).isFile();
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The DLLs of `names` Windows' loader won't find for a program in `appDir`: the desktop app's standard
+ * search — its own folder, System32, the Windows folder, then PATH
+ * (learn.microsoft.com/windows/win32/dlls/dynamic-link-library-search-order). [] off Windows.
+ * `env` and `exists` are test seams.
+ */
+export function missingDlls(names, { appDir = null, env = process.env, exists = existsFile } = {}) {
+  if (self.platformKey() !== "windows") return [];
+  const root = env.SystemRoot || env.SYSTEMROOT || "C:\\Windows";
+  const dirs = [appDir, path.win32.join(root, "System32"), root, ...String(env.PATH ?? env.Path ?? "").split(";")].filter(Boolean);
+  return names.filter((n) => !dirs.some((d) => exists(path.win32.join(d, n))));
+}
+
+const MAC_SYSTEM_VERSION = "/System/Library/CoreServices/SystemVersion.plist";
+let glibcRead = null;
+
+/**
+ * The system versions a prebuilt binary can require: on macOS `darwin` (the kernel's major, os.release())
+ * and `macos` (SystemVersion.plist's ProductVersion, as CPython's platform.mac_ver reads it; else from
+ * Darwin's — 20–24 are macOS 11–15, 25 is macOS 26); on Linux `glibc` (process.report's
+ * header.glibcVersionRuntime, nodejs.org/api/report.html — null on musl). Others null. The arguments
+ * are test seams.
+ */
+export function systemVersions({ platform = process.platform, release = os.release(), readText = (f) => readFileSync(f, "utf8"), report = null } = {}) {
+  const out = { darwin: null, macos: null, glibc: null };
+  if (platform === "darwin") {
+    out.darwin = Number.parseInt(String(release), 10) || null;
+    try {
+      out.macos = /<key>ProductVersion<\/key>\s*<string>([\d.]+)<\/string>/.exec(readText(MAC_SYSTEM_VERSION))?.[1] ?? null;
+    } catch {
+      // not readable: from Darwin's number below
+    }
+    if (!out.macos && out.darwin >= 20) out.macos = String(out.darwin >= 25 ? out.darwin + 1 : out.darwin - 9);
+  } else if (platform === "linux") {
+    if (report) {
+      out.glibc = report()?.header?.glibcVersionRuntime ?? null;
+    } else {
+      // read once: the library doesn't change while the process runs, and a report walks every handle
+      glibcRead ??= readGlibc();
+      out.glibc = glibcRead.value;
+    }
+  }
+  return out;
+}
+
+function readGlibc() {
+  const r = process.report;
+  const had = r && "excludeNetwork" in r;
+  const was = had ? r.excludeNetwork : undefined;
+  try {
+    if (had) r.excludeNetwork = true; // no reverse DNS for a server's sockets
+    return { value: r?.getReport?.()?.header?.glibcVersionRuntime ?? null };
+  } catch {
+    return { value: null };
+  } finally {
+    if (had) r.excludeNetwork = was;
+  }
+}
+
+/** Is version `have` ("2.39", "26.0.1") at least `need`? Numeric, part by part; false when unknown. */
+export function versionAtLeast(have, need) {
+  if (have == null) return false;
+  const a = String(have).split(".").map(Number);
+  const b = String(need).split(".").map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] || 0;
+    const y = b[i] || 0;
+    if (x !== y) return x > y;
+  }
+  return true;
+}
+
+let winApi = null;
+/** kernel32's module functions and dxgi's factory through koffi, bound once (Windows only; throws elsewhere). */
+function _winApi() {
+  if (winApi) return winApi;
+  const koffi = createRequire(import.meta.url)("koffi");
+  const k32 = koffi.load("kernel32.dll");
+  const dxgi = koffi.load("dxgi.dll");
+  winApi = {
+    koffi,
+    GetModuleHandleW: k32.func("void * __stdcall GetModuleHandleW(const char16_t *name)"),
+    GetModuleFileNameW: k32.func("uint32_t __stdcall GetModuleFileNameW(void *module, _Out_ uint16_t *buf, uint32_t size)"),
+    CreateDXGIFactory1: dxgi.func("long __stdcall CreateDXGIFactory1(void *riid, _Out_ void **factory)"),
+    EnumAdapters1: koffi.proto("long __stdcall EnumAdapters1(void *self, uint32_t index, _Out_ void **adapter)"),
+    GetDesc1: koffi.proto("long __stdcall GetDesc1(void *self, void *desc)"),
+    Release: koffi.proto("uint32_t __stdcall Release(void *self)"),
+  };
+  return winApi;
+}
+
+/**
+ * Where the module `name` this process loaded lives ("onnxruntime.dll" → its full path), or null — not
+ * loaded, or off Windows. GetModuleHandleW + GetModuleFileNameW
+ * (learn.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamew): which copy of a
+ * DLL the loader took — an app's own, or one of the same name elsewhere (Windows 11 ships an older
+ * onnxruntime.dll in System32).
+ */
+export function loadedModulePath(name) {
+  if (self.platformKey() !== "windows") return null;
+  try {
+    const w = _winApi();
+    const h = w.GetModuleHandleW(name);
+    if (!h) return null;
+    const buf = new Uint16Array(32768); // the longest path Windows has
+    const n = w.GetModuleFileNameW(h, buf, buf.length);
+    return n ? String.fromCharCode(...buf.subarray(0, n)) : null;
+  } catch (e) {
+    log.debug(`loadedModulePath(${name}) failed: ${e?.message ?? e}`);
+    return null;
+  }
+}
+
+// IID_IDXGIFactory1 {770aae78-f26f-4dba-a829-253c83d1b387}, as a GUID's bytes
+const IID_IDXGI_FACTORY1 = Buffer.from("78ae0a776ff2ba4da829253c83d1b387", "hex");
+// vtable slots (dxgi.h): IDXGIFactory1::EnumAdapters1 12, IDXGIAdapter1::GetDesc1 10, IUnknown::Release 2
+const SLOT = { enumAdapters1: 12, getDesc1: 10, release: 2 };
+// DXGI_ADAPTER_DESC1 on 64-bit Windows: Description (128 WCHARs), VendorId, DeviceId, SubSysId, Revision,
+// DedicatedVideoMemory, DedicatedSystemMemory, SharedSystemMemory (SIZE_Ts), AdapterLuid, Flags — 312 bytes
+const DESC1_SIZE = 312;
+const DXGI_ADAPTER_FLAG_SOFTWARE = 2;
+
+/**
+ * The graphics adapters as DirectX lists them, in IDXGIFactory1::EnumAdapters1's order
+ * (learn.microsoft.com/windows/win32/api/dxgi/nf-dxgi-idxgifactory1-enumadapters1): [{ index, name,
+ * vendorId, deviceId, dedicatedMb, sharedMb, software }]. `index` is the device id DirectX's users take
+ * (ONNX Runtime's DirectML `deviceId` is this index — adapter 0 is the one driving the main display, often
+ * a laptop's integrated GPU); `software` the Basic Render Driver (WARP). [] off Windows or on any failure.
+ */
+export function dxgiAdapters() {
+  if (self.platformKey() !== "windows") return [];
+  const rows = [];
+  try {
+    const w = _winApi();
+    const slot = (obj, i) => w.koffi.decode(w.koffi.decode(obj, "void *"), i * 8, "void *");
+    const out = [null];
+    if (w.CreateDXGIFactory1(IID_IDXGI_FACTORY1, out) < 0 || !out[0]) return [];
+    const factory = out[0];
+    try {
+      for (let index = 0; index < 16; index++) {
+        const a = [null];
+        // DXGI_ERROR_NOT_FOUND (a negative HRESULT) past the last adapter
+        if (w.koffi.call(slot(factory, SLOT.enumAdapters1), w.EnumAdapters1, factory, index, a) < 0 || !a[0]) break;
+        const desc = Buffer.alloc(DESC1_SIZE);
+        let got;
+        try {
+          got = w.koffi.call(slot(a[0], SLOT.getDesc1), w.GetDesc1, a[0], desc) >= 0;
+        } finally {
+          w.koffi.call(slot(a[0], SLOT.release), w.Release, a[0]);
+        }
+        if (!got) continue;
+        const vendorId = desc.readUInt32LE(256);
+        const deviceId = desc.readUInt32LE(260);
+        rows.push({
+          index,
+          name: desc.toString("utf16le", 0, 256).replace(/\0[\s\S]*$/, ""),
+          vendorId,
+          deviceId,
+          dedicatedMb: Math.floor(Number(desc.readBigUInt64LE(272)) / MIB),
+          sharedMb: Math.floor(Number(desc.readBigUInt64LE(288)) / MIB),
+          // ONNX Runtime's own test (IsSoftwareAdapter): the software flag, or the Basic Render Driver's ids
+          software: Boolean(desc.readUInt32LE(304) & DXGI_ADAPTER_FLAG_SOFTWARE) || (vendorId === 0x1414 && deviceId === 0x8c),
+        });
+      }
+    } finally {
+      w.koffi.call(slot(factory, SLOT.release), w.Release, factory);
+    }
+  } catch (e) {
+    log.debug(`DXGI adapter scan failed: ${e?.message ?? e}`);
+  }
+  return rows;
 }

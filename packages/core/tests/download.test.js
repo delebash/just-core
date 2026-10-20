@@ -21,6 +21,37 @@ import { RuntimeError } from "../src/platform/py.js";
 import * as dl from "../src/runner/download.js";
 import { CONNECTIONS, DownloadCancelled, RETRIES, streamDownload } from "../src/runner/download.js";
 
+// A file another program holds a moment (an antivirus reading what was just written): the first rename of
+// a path armed in `held.ends` is refused with EBUSY, as Windows answers it; every other rename is the real one.
+const held = vi.hoisted(() => {
+  const state = { ends: new Set() };
+  state.check = (from) => {
+    for (const end of state.ends) {
+      if (String(from).endsWith(end)) {
+        state.ends.delete(end);
+        throw Object.assign(new Error(`EBUSY: resource busy or locked, rename '${from}'`), { code: "EBUSY" });
+      }
+    }
+  };
+  return state;
+});
+vi.mock("node:fs", async (importOriginal) => {
+  const real = await importOriginal();
+  const renameSync = (from, to) => {
+    held.check(from);
+    return real.renameSync(from, to);
+  };
+  return { ...real, default: { ...real, renameSync }, renameSync };
+});
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const real = await importOriginal();
+  const rename = async (from, to) => {
+    held.check(from);
+    return real.rename(from, to);
+  };
+  return { ...real, default: { ...real, rename }, rename };
+});
+
 // ~2 MB + an odd tail so segment splits don't land on round boundaries.
 const PAYLOAD = Buffer.alloc(2 * 1024 * 1024 + 137);
 for (let i = 0; i < PAYLOAD.length; i++) PAYLOAD[i] = (i * 31 + (i >> 8)) % 256;
@@ -133,6 +164,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  held.ends.clear();
   server.http.closeAllConnections?.();
   await new Promise((r) => server.http.close(r));
 });
@@ -150,6 +182,18 @@ test("chunked_matches_payload", async () => {
   expect(rangeGets(server).length).toBe(1 + nchunks); // the probe + one GET per chunk
   // the .part file + the progress json are cleaned up on success.
   expect(readdirSync(tmpPath).filter((n) => n.startsWith("seg.bin."))).toEqual([]);
+});
+
+test("a_file_held_a_moment_after_its_write_is_renamed_once_let_go", async () => {
+  // the resume file and the finished part, each held once as a scanner would (2026-10-20, just-house-paint's
+  // thirteenth review): the download lands — it used to fail on the first refused rename
+  held.ends.add("held.bin.json.tmp");
+  held.ends.add("held.bin.part");
+  const dest = join(tmpPath, "held.bin");
+  await streamDownload(url(server), dest, { segments: 4, chunkSize: CHUNK, pollInterval: 0.02 });
+  expect(held.ends.size).toBe(0); // both were refused once
+  expect(readFileSync(dest).equals(PAYLOAD)).toBe(true);
+  expect(readdirSync(tmpPath).filter((n) => n.startsWith("held.bin."))).toEqual([]);
 });
 
 test("chunked_progress_reaches_total", async () => {

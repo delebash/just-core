@@ -53,6 +53,7 @@ import { Hono } from "hono";
 import { ApiError, HttpError, RequestValidationError } from "./errors.js";
 import { getLogger } from "./log.js";
 import { MaintenanceGate } from "./maintenance.js";
+import { HELD_CODES, renameHeld, renameHeldSync } from "./rename_held.js";
 import { openDatabase } from "./sql.js";
 import { BadZipFile, ZipReader, ZipWriter } from "./zip.js";
 
@@ -152,32 +153,8 @@ export function checkUnpackedFits(zf, dir) {
 }
 
 const RETRIES = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
-const HELD = new Set(["EPERM", "EACCES", "EBUSY"]);
-
-/** A rename, retried while Windows holds a file in the folder (a scanner reading files just written, the
- *  indexer — Node's rename doesn't retry as its rm does): about ten seconds, then its error. */
-async function renameHeld(from, to) {
-  for (let i = 1; ; i++) {
-    try {
-      return await rename(from, to);
-    } catch (e) {
-      if (!HELD.has(e?.code) || i > 15) throw e;
-      await new Promise((r) => setTimeout(r, Math.min(100 * i, 1000)));
-    }
-  }
-}
-
-/** renameHeld for the start-up recovery, which runs before anything else (synchronous). */
-function renameHeldSync(from, to) {
-  for (let i = 1; ; i++) {
-    try {
-      return renameSync(from, to);
-    } catch (e) {
-      if (!HELD.has(e?.code) || i > 15) throw e;
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.min(100 * i, 1000));
-    }
-  }
-}
+// a held file (Windows: a scanner, the indexer): renames retried about ten seconds (rename_held.js, shared)
+const HELD = HELD_CODES;
 
 /** The table a restore marks its commit in, inside the same transaction as the restored rows (the commit record —
  *  a record outside the database could say "not done" for tables already in). Not one of an app's tables: a

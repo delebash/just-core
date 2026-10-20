@@ -198,3 +198,37 @@ test("pure_path_matches_pathlib_str", () => {
   }
   expect(dp.purePath("")).toBe(".");
 });
+
+// ── a data folder the user names (2026-10-20) ─────────────────────────────────
+
+test("the path rule: at most 180 characters, no dot or space ending the name", () => {
+  expect(dp.dataDirPathProblem(join(tmp, "data"))).toBe(null);
+  expect(dp.dataDirPathProblem(join(tmp, "data."))).toBe("its name ends in a dot or a space, which Windows drops");
+  expect(dp.dataDirPathProblem(join(tmp, "data "))).toBe("its name ends in a dot or a space, which Windows drops");
+  const at = path.resolve(tmp);
+  expect(dp.dataDirPathProblem(join(at, "z".repeat(180 - at.length - 1)))).toBe(null); // 180 exactly
+  expect(dp.dataDirPathProblem(join(at, "z".repeat(181 - at.length - 1)))).toBe("its path is longer than 180 characters");
+});
+
+test("a folder that can be used is made and written to, and left as it was", () => {
+  const dir = join(tmp, "new", "data");
+  expect(dp.dataDirProblem(dir)).toBe(null);
+  expect(readdirSync(dir)).toEqual([]);
+  // a named one is held to the path rule, the default isn't
+  expect(dp.dataDirProblem(join(tmp, "x".repeat(200)))).toBe("its path is longer than 180 characters");
+  expect(dp.dataDirProblem(join(tmp, "y".repeat(150)), { named: false })).toBe(null);
+  expect(dp.cantUseDataDir("E:\data.", "why")).toBe("The data folder E:\data. can't be used: why");
+});
+
+test("the folders the ladder took from the user's naming are known as named; the default isn't", () => {
+  const root = join(tmp, "checkout");
+  mkdirSync(root);
+  const chosen = join(tmp, "picked-by-variable");
+  expect(dp.isNamedDataDir(dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", sourceRoot: root, env: { JV_DATA: chosen } }))).toBe(true);
+  const pointed = join(tmp, "picked-by-change-folder");
+  writeFileSync(join(root, "dataroot.txt"), pointed);
+  expect(dp.isNamedDataDir(dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", sourceRoot: root, env: {} }))).toBe(true);
+  const other = join(tmp, "other");
+  mkdirSync(other);
+  expect(dp.isNamedDataDir(dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", sourceRoot: other, env: {} }))).toBe(false);
+});

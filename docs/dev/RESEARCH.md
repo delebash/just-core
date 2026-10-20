@@ -1516,6 +1516,48 @@ twelfth review — two agents, scratch servers, real Edge and Playwright):
 - The shell checks for updates every six hours and on `powerMonitor` `resume` (a copy left running for weeks never
   heard of a release). EmptyState is centred (`margin-inline: auto`) where its narrowing left it at the left.
 
+**On a computer that isn't the developer's** (*measured* and *tested*, 2026-10-20; just-house-paint's thirteenth
+review and its fixes — this machine has LongPathsEnabled, Defender off, the VC++ runtime installed and only NTFS,
+which hid several of these):
+
+- Windows refuses to rename a folder onto an existing one, even empty (EPERM): Change folder's staged
+  `<picked>.moving` → `<picked>` always failed, the picker only returning existing folders. `relocate` now copies
+  into the picked empty folder (`fs.promises.cp` — `cpSync` froze the window), marked by a `.moving` file until whole.
+- proper-lockfile's default `onCompromised` throws: a FAT32 folder (2-second mtimes) died uncaught at 10–15 s, a
+  network share waking from sleep (EIO) at 12 s. `lockDataDir` passes its documented `onCompromised`: logged, the
+  lock taken again (every 30 s until it is) — never a crash.
+- Node's TLS uses its own 121 certificates; with `NODE_USE_SYSTEM_CA=1` Electron 44.7's utilityProcess (and a run as
+  Node) sees 269, the OS store's too — behind TLS inspection every download failed "fetch failed". The shell sets it
+  for its server, and the system proxy from `session.resolveProxy` as HTTPS_PROXY/HTTP_PROXY when the user's env has
+  none; undici's EnvHttpProxyAgent (8.11.2) proxies loopback too, so NO_PROXY gets `localhost,127.0.0.1,::1`.
+- The health answer's `owner` (sha256 of the OS user name and home, 12 hex — platform/port.js `serverOwner`): the
+  shell stops a server on its port only when it is this user's (no owner — an older version — counts as this
+  user's); another user's is said (`serverStatus.portOtherUser`) and the window's requests to it are blocked until
+  its own server listens (it loaded the other user's data otherwise).
+- A data folder that can't be used is found before anything (a probe file): the shell's message box (Try again /
+  Use the default folder / Quit), the headless start one line and exit 3; the server's first error reaches the
+  connection page (`serverStatus.serverError`). A named folder over 180 characters or ending in "." or " " is refused
+  (native code isn't longPathAware — the AI photo broke past ~190, the finder ~220, SQLite ~245; Windows strips a
+  trailing dot: Node made "data.", SQLite opened "data"). A Hyper-V/WSL reserved port answers listen with EACCES
+  (`serverStatus.portReserved`). An Electron invoke's error carries "Error invoking remote method '…': Error: " —
+  the preload strips it.
+- The renderer: Konva 10.9 reads devicePixelRatio once (a move to another screen blurred the photo — a matchMedia
+  resolution listener sets each layer's pixel ratio); Konva's pointercancel also sends pointerup; a decimal comma
+  read "0,05" as 5 in UiNumber (now read where it can only be a decimal — numberBox.js `parseLocaleNumber`);
+  `isolate` (FSI/PDI) and `localDate` are the kit's; a backup is named by the local date.
+- The engines' needs (*measured*, PE import tables): onnxruntime.dll imports MSVCP140, MSVCP140_1,
+  MSVCP140_ATOMIC_WAIT (2019+ runtimes only), VCRUNTIME140, VCRUNTIME140_1; sd-cli and ggml import MSVCP140,
+  VCRUNTIME140, VCRUNTIME140_1, VCOMP140 — the Visual C++ 2015–2022 runtime, unshipped (its licence is Visual
+  Studio's): `hardware.js` `missingDlls` looks where Windows' loader looks and the app names Microsoft's download
+  (`VC_REDIST_URL`). Windows 11 ships its own System32\onnxruntime.dll (1.17.1) — loaded when the app's was
+  quarantined, then a crash mid-Find: `loadedModulePath` (GetModuleHandleW + GetModuleFileNameW) says which one
+  loaded. 0xC0000135 is a missing DLL, 0xC0000139 an entry point (a runtime too old), 0xC0000106 a name too long.
+  The pinned macOS sd-cli has minos 26.0 (LC_BUILD_VERSION), the Linux one needs GLIBC_2.38 / GLIBCXX_3.4.32
+  (Ubuntu 24.04); the AppImage's better-sqlite3 GLIBC_2.34 (Ubuntu 22.04). ONNX Runtime's DirectML `deviceId` is
+  DXGI's EnumAdapters1 index (`dxgiAdapters`, koffi) — the registry's adapter list isn't in that order. The
+  engine zips' unpacked sizes (central directories, ranged reads) are 1.1–4.9× their download. `rename_held.js`
+  (`renameHeld`, `renameHeldSync`) is the kit's one retrying rename — downloads, unpacks, saves, the restore.
+
 **The screens at real sizes, fixed** (*measured*, 2026-10-20; just-house-paint's tenth review, an agent on the
 built app at 960/1366/1920, light and dark):
 

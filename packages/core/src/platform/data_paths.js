@@ -226,7 +226,7 @@ export function userDataDir(appName) {
 export function resolveDataDir({ appName, envVar, sourceRoot = null, env = null } = {}) {
   const environ = env == null ? process.env : env;
   const chosen = String(environ[envVar] || "").trim();
-  if (chosen) return purePath(chosen);
+  if (chosen) return named(purePath(chosen));
 
   // The Change-folder pointer — read by the desktop shell AND the headless server since the
   // Electron move (only the Rust shells read it before: the kit FINDING "the data-dir
@@ -239,12 +239,103 @@ export function resolveDataDir({ appName, envVar, sourceRoot = null, env = null 
     const p = readFileSync(pointer, "utf8").trim();
     if (p) {
       if (samePath(p, def)) rmSync(pointer, { force: true });
-      else return purePath(p);
+      else return named(purePath(p));
     }
   } catch {
     /* no pointer */
   }
   return def;
+}
+
+// The folders this process's ladder took from the user's own naming — the variable or a Change-folder pointer
+// (2026-10-20): dataDirPathProblem is for those, never for the default the ladder works out, which the user
+// didn't name and couldn't fix. The start checks ask isNamedDataDir (the shell's, and runServer's for a folder
+// an app's own ladder found).
+const namedDirs = new Set();
+const dirKey = (dir) => norm(path.resolve(String(dir)));
+function named(dir) {
+  namedDirs.add(dirKey(dir));
+  return dir;
+}
+
+/** Did this process's ladder take `dir` from the user's naming (the variable, a pointer)? */
+export function isNamedDataDir(dir) {
+  return namedDirs.has(dirKey(dir));
+}
+
+/** The longest data-folder path taken from the user (2026-10-20): the AI and native libraries the apps run
+ *  aren't long-path aware — one failed past ~190 characters, another ~220, the server ~245 (measured). */
+export const MAX_DATA_DIR_CHARS = 180;
+
+/**
+ * Why a data folder the user names can't hold the data, in plain words — or null (2026-10-20, an unusual
+ * computer's review): a path past MAX_DATA_DIR_CHARS, or a last part ending in "." or " " — Windows drops them
+ * (Node made "data.", SQLite then opened "data"). Change folder, a pointer read at start and the headless
+ * `--data-dir` / `<APP>_DATA_DIR` all ask this one function.
+ */
+export function dataDirPathProblem(dir) {
+  const abs = path.resolve(String(dir));
+  if (abs.length > MAX_DATA_DIR_CHARS) return `its path is longer than ${MAX_DATA_DIR_CHARS} characters`;
+  if (/[. ]$/.test(path.basename(abs))) return "its name ends in a dot or a space, which Windows drops";
+  return null;
+}
+
+/** A failed mkdir or write, in plain words. */
+function fsProblem(e) {
+  switch (e?.code) {
+    case "ENOENT":
+    case "ENODEV":
+    case "ENXIO":
+      return "its drive isn't there (unplugged, or a network folder offline)";
+    case "EACCES":
+    case "EPERM":
+      return "the app isn't allowed to write there";
+    case "EROFS":
+      return "its drive is read-only";
+    case "ENOSPC":
+      return "its drive is full";
+    case "ENOTDIR":
+    case "EEXIST":
+      return "a file has that name";
+    default:
+      return String(e?.message || e).split("\n")[0];
+  }
+}
+
+/**
+ * Why `dir` can't be the data folder now, in plain words — or null (2026-10-20). It is made when missing and a
+ * small file is written and removed: a missing drive, an unplugged USB stick, an offline share, a read-only drive
+ * or Controlled Folder Access is said here, before a start fails deep inside with a stack. `named`: the user
+ * named it (dataDirPathProblem applies too).
+ */
+export function dataDirProblem(dir, { named = true } = {}) {
+  if (named) {
+    const why = dataDirPathProblem(dir);
+    if (why) return why;
+  }
+  try {
+    mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    return fsProblem(e);
+  }
+  // this process's own probe: the shell and its server may check the same folder at once
+  const probe = path.join(dir, `.write-probe-${process.pid}`);
+  try {
+    writeFileSync(probe, "x");
+  } catch (e) {
+    return fsProblem(e);
+  }
+  try {
+    unlinkSync(probe);
+  } catch {
+    /* left behind — still writable */
+  }
+  return null;
+}
+
+/** The one line a data folder that can't be used is said in (the shell's dialog, the headless server). */
+export function cantUseDataDir(dir, why) {
+  return `The data folder ${dir} can't be used: ${why}`;
 }
 
 /**

@@ -129,7 +129,8 @@ export { fmtBytes } from "./services/downloadRate.js";
 // shared "5m ago" (Intl.RelativeTimeFormat in the app's vue-i18n language) — the ONE time-ago label.
 export { relativeTime } from "./services/relativeTime.js";
 // a calendar date kept as ISO ("2027-03-01") — UiDate's value — in the app's language
-export { dateLabel, isIsoDate } from "./services/isoDate.js";
+export { dateLabel, isIsoDate, localDate } from "./services/isoDate.js";
+export { isolate } from "./services/isolate.js";
 
 // shared composables (host-agnostic; vue-only)
 export { useRovingTabindex } from "./composables/useRovingTabindex.js";

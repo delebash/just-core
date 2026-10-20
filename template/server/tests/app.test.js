@@ -86,6 +86,8 @@ test("health answers the family's base wire plus this app's extras", async () =>
     version: pkg("../package.json").version,
     apiVersion: "v1",
     dataDir,
+    // whose server this is (a hash of the OS user — the shell never stops another user's)
+    owner: expect.stringMatching(/^[0-9a-f]{12}$/),
     dbReady: true,
   });
 });

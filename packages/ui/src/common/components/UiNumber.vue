@@ -18,6 +18,7 @@ import { QInput } from "quasar";
 import { computed, ref, useAttrs, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useNativeEvents, withoutListeners } from "../composables/useNativeEvents.js";
+import { parseLocaleNumber } from "./numberBox.js";
 
 defineOptions({ inheritAttrs: false });
 
@@ -56,18 +57,12 @@ function formatNumber(n) {
   return fmt.value.format(Number(n));
 }
 
-// Parse a possibly-localized string back to a number: strip everything that
-// isn't a digit, minus, or the decimal separator (inferred from a 1.5 probe).
-// Handles "1,200" (en) → 1200 AND "1.200" (de) → 1200 without enumerating locales.
+// Parse a possibly-localized string back to a number (./numberBox.js): strip everything that
+// isn't a digit, minus, or the language's decimal separator — "1,200" (en) → 1200 AND "1.200"
+// (de) → 1200 without enumerating locales — and read a decimal comma where it can only be one
+// ("0,05" in an English field that takes fractions is 0.05; it was 5).
 function parseNumber(s) {
-  const probe = fmt.value.format(1.5);                              // "1.5" or "1,5"
-  const decimalSep = probe.replace(/\d/g, "")[0] || ".";
-  const cleaned = String(s ?? "")
-    .replace(new RegExp(`[^0-9${decimalSep === "." ? "\\." : decimalSep}\\-]`, "g"), "")
-    .replace(decimalSep, ".");
-  if (cleaned === "" || cleaned === "-") return null;
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : null;
+  return parseLocaleNumber(s, { locale: props.locale || appLocale.value || null, step: props.step, grouping: props.useGrouping });
 }
 
 function clamp(n) {

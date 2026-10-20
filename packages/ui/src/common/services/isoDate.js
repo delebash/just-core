@@ -6,6 +6,12 @@ import { kitLocale } from "./kitI18n.js";
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** Today (or `d`) as an ISO calendar date in the computer's own time zone — a file named by its date (a backup)
+ *  carries the user's date, not Greenwich's. */
+export function localDate(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /** Is `value` an ISO calendar date ("2027-03-01")? */
 export function isIsoDate(value) {
   return ISO_DATE.test(value || "");

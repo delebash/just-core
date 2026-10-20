@@ -23,6 +23,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import QRCode from "qrcode";
 import { llmUiUrl, request } from "../client.js";
+import { localDate } from "../common/services/isoDate.js";
 import UiButton from "../common/components/UiButton.vue";
 import UiCheckbox from "../common/components/UiCheckbox.vue";
 import UiInput from "../common/components/UiInput.vue";
@@ -232,7 +233,7 @@ async function exportFile() {
     if (!res.ok) throw new Error(t("kit.sync.err.export", { status: res.status }));
     const disposition = res.headers.get("content-disposition") || "";
     const named = /filename="([^"]+)"/.exec(disposition);
-    const filename = named ? decodeURIComponent(named[1]) : `${app.value} ${new Date().toISOString().slice(0, 10)}.${props.fileExtension}`;
+    const filename = named ? decodeURIComponent(named[1]) : `${app.value} ${localDate()}.${props.fileExtension}`;
     const saved = await saveBlob(await res.blob(), filename, {
       title: t("kit.sync.save.title", { units: noun.value.many }),
       filterName: t("kit.sync.save.filterName", { app: app.value }),

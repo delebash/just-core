@@ -110,10 +110,12 @@ const numberText = computed(() => (typing.value !== null ? typing.value : shown.
 // value clears `typing` (the watch above) — so leaving the box saw nothing typed, and `change`
 // never came from the box: a page that applies a value on `change` (the slider let go) missed it.
 let typedValue = false;
+// A decimal comma counts where the slider takes fractions ("0,5" — ./numberBox.js): the box shows the
+// app's language's ("0,3" in Spanish), and one typed in it was ignored.
 function onType(s) {
   typing.value = s;
-  const n = Number(s);
-  if (s !== "" && s !== "-" && Number.isFinite(n)) {
+  const n = committedNumber(s, { step: nStep.value });
+  if (n !== null) {
     typedValue = true;
     setValue(n);
   }
@@ -121,7 +123,7 @@ function onType(s) {
 // Left untouched, emptied or half-typed, the box goes back to the value (./numberBox.js); a number
 // typed in it is its `change`
 function onCommit() {
-  const n = committedNumber(typing.value);
+  const n = committedNumber(typing.value, { step: nStep.value });
   typing.value = null;
   if (n !== null) setValue(n, "change");
   else if (typedValue) emit("change", value.value);

@@ -4,12 +4,29 @@
 // any of the app's code opens its database (serve.js `resolvePort`). A listener on 127.0.0.1 and
 // one on every address (0.0.0.0) both accept it, where a trial bind would not tell: Windows binds
 // 127.0.0.1:<port> beside a listener on 0.0.0.0:<port>, and the other way round (measured
-// 2026-10-13, RESEARCH).
+// 2026-10-13, RESEARCH). And whose server answers there (`serverOwner`, 2026-10-20).
 
+import { createHash } from "node:crypto";
 import net from "node:net";
+import os from "node:os";
 
 /** The address the probe connects to. */
 export const PROBE_HOST = "127.0.0.1";
+
+/**
+ * Whose server this is: this computer's OS user as a short hash — sha256 of the user's name and home folder,
+ * the first 12 hex — never the name itself (2026-10-20). Every OS user's apps share one set of loopback
+ * ports, so a second Windows account's app found the first's server on its port and stopped it; the health
+ * answer carries this (`owner`, health_api.js) and the desktop shell stops only its own user's. Null where
+ * there's no OS user to ask (the phone's in-app server: its crypto stand-in has no hash).
+ */
+export function serverOwner() {
+  try {
+    return createHash("sha256").update(`${os.userInfo().username}\n${os.homedir()}`).digest("hex").slice(0, 12);
+  } catch {
+    return null;
+  }
+}
 
 /** True when something accepts a connection on 127.0.0.1:`port` within 300 ms. */
 export function portInUse(port) {

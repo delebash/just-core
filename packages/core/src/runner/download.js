@@ -29,9 +29,11 @@
 //
 // In JS a Python worker THREAD is an async task; writes are positioned (`FileHandle.write`
 // at the chunk's offset), so chunks never overlap. The resume file is written synchronously
-// (it is tiny) so two workers finishing together can't interleave its tmp + rename.
+// (it is tiny) so two workers finishing together can't interleave its tmp + rename. Every
+// rename after a write is retried while another program holds the file a moment (an antivirus
+// reading a part just written — `platform/rename_held.js`; it used to fail the whole download).
 
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import * as fsp from "node:fs/promises";
 import { dirname } from "node:path";
 import { AsyncEvent, sleep, TimeoutError } from "../platform/asyncutil.js";
@@ -40,6 +42,7 @@ import { HttpStatusError } from "../platform/http.js";
 import { getLogger } from "../platform/log.js";
 import { floorDiv, pyFloatParse, pyInt, pyRound, pySorted, RuntimeError, ValueError } from "../platform/py.js";
 import { pyJson } from "../platform/pyjson.js";
+import { renameHeld, renameHeldSync } from "../platform/rename_held.js";
 import * as self from "./download.js";
 
 const log = getLogger("llm_runner.runner.download");
@@ -301,7 +304,7 @@ async function singleStream(url, dest, onProgress, cancelCheck, retries, gate, h
       } finally {
         rt.done();
       }
-      renameSync(part, dest);
+      await renameHeld(part, dest);
       if (onProgress) onProgress(done, total || done);
       return;
     } catch (e) {
@@ -380,7 +383,7 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
     const tmp = `${pfile}.tmp`;
     const partialOut = Object.fromEntries(pySorted([...partial.keys()]).map((i) => [String(i), partial.get(i)]));
     writeFileSync(tmp, pyJson({ etag, chunkSize, total, done: pySorted(done), partial: partialOut }));
-    renameSync(tmp, pfile);
+    renameHeldSync(tmp, pfile);
   };
   persist(); // record the validator up front — a cancel before any chunk still resumes cleanly
 
@@ -488,7 +491,7 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
   if (failEvt.isSet() || done.size !== nchunks) {
     throw new RuntimeError(`download failed for ${url} after ${retries} retries: ${errStr(state.err)}`);
   }
-  renameSync(part, dest);
+  await renameHeld(part, dest);
   rmSync(pfile, { force: true });
   if (onProgress) onProgress(total, total);
 }

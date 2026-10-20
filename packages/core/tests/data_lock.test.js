@@ -4,7 +4,7 @@
 // taken over; a clean exit lets the lock go; a server start on a held folder says so and exits 3
 // before anything is built.
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, utimesSync } from "node:fs";
+import fs, { existsSync, mkdirSync, mkdtempSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -139,3 +139,48 @@ test("with no folder named, the app's default folder is locked and given to buil
   expect(seen).toEqual({ dataDir: path.resolve(dir), locked: true });
   await lockfile.unlock(dir, { lockfilePath: path.join(dir, LOCK_NAME) });
 });
+
+// ── a lock lost while the server runs (2026-10-20) ────────────────────────────
+// proper-lockfile calls a lock compromised when the time it reads back isn't the one it wrote, or when it can't
+// refresh it in time; its default onCompromised throws, uncaught — the server died ~15 s after starting on a
+// FAT32 drive. Short `stale`/`update` (proper-lockfile's own options) keep these tests to seconds.
+
+/** A log that keeps its lines. */
+const keep = () => {
+  const lines = [];
+  return { lines, warn: (s) => lines.push(`warn ${s}`), info: (s) => lines.push(`info ${s}`), error: (s) => lines.push(`error ${s}`) };
+};
+
+test("FAT32's 2-second times: the lost lock is said and taken again — never thrown", async () => {
+  const dir = newDir();
+  // FAT32 keeps a file's time to 2 s: what proper-lockfile reads back isn't the time it wrote
+  const fat = { ...fs, stat: (p, cb) => fs.stat(p, (e, s) => cb(e, s && { mtime: new Date(Math.floor(s.mtime.getTime() / 2000) * 2000) })) };
+  const log = keep();
+  releases.push(await lockDataDir(dir, { retries: 0, log, fs: fat, stale: 2000, update: 1000 }));
+  await vi.waitFor(() => expect(log.lines.some((l) => l.startsWith("warn the data folder's lock was lost"))).toBe(true), { timeout: 10_000, interval: 100 });
+  await vi.waitFor(() => expect(log.lines).toContain("info the data folder's lock is taken again"), { timeout: 10_000, interval: 100 });
+  expect(existsSync(path.join(dir, LOCK_NAME))).toBe(true);
+}, 20_000);
+
+test("a share that fails once (waking from sleep): the lock is taken again", async () => {
+  const dir = newDir();
+  let fail = false;
+  const share = {
+    ...fs,
+    stat: (p, cb) => {
+      if (fail) {
+        fail = false;
+        return cb(Object.assign(new Error("ENOENT: the share isn't there"), { code: "ENOENT" }));
+      }
+      return fs.stat(p, cb);
+    },
+  };
+  const log = keep();
+  const release = await lockDataDir(dir, { retries: 0, log, fs: share, stale: 2000, update: 1000 });
+  fail = true;
+  await vi.waitFor(() => expect(log.lines).toContain("info the data folder's lock is taken again"), { timeout: 10_000, interval: 100 });
+  expect(log.lines[0]).toMatch(/^warn the data folder's lock was lost \(ENOENT: the share isn't there\) — taking it again$/);
+  // the release frees the lock taken again
+  await release();
+  expect(existsSync(path.join(dir, LOCK_NAME))).toBe(false);
+}, 20_000);

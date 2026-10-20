@@ -18,7 +18,12 @@ const detail = ref("");
 onMounted(async () => {
   const status = await shellServerStatus();
   if (status?.dataFolderInUse) detail.value = status.dataFolderInUse;
+  // another OS user's copy of the app holds the port (the shell never stops it), or Windows reserved the port
+  else if (status?.portOtherUser) detail.value = t("connectionError.portOtherUser", { port: status.portOtherUser, retry: t("kit.common.retry") });
+  else if (status?.portReserved) detail.value = t("connectionError.portReserved", { port: status.portReserved });
   else if (status?.portTaken) detail.value = t("connectionError.portTaken", { port: status.portTaken, retry: t("kit.common.retry") });
+  // the server's own first error line (a database it couldn't open, a data folder it couldn't use)
+  else if (status?.serverError) detail.value = t("connectionError.serverError", { error: status.serverError });
 });
 </script>
 

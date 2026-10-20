@@ -6,6 +6,7 @@ import path from "node:path";
 import { afterEach, expect, test } from "vitest";
 import { makeHealthRouter } from "../src/platform/health_api.js";
 import { migrate, schemaVersion } from "../src/platform/migrate.js";
+import { serverOwner } from "../src/platform/port.js";
 import { openDatabase } from "../src/platform/sql.js";
 
 const tmp = [];
@@ -28,13 +29,13 @@ const scratch = () => {
 test("health answers the family's base wire", async () => {
   const r = await makeHealthRouter({ product: "Demo", version: "1.2.3" }).request("/v1/health");
   expect(r.status).toBe(200);
-  expect(await r.json()).toEqual({ status: "ok", product: "Demo", version: "1.2.3", apiVersion: "v1" });
+  expect(await r.json()).toEqual({ status: "ok", product: "Demo", version: "1.2.3", apiVersion: "v1", owner: serverOwner() });
 });
 
 test("health merges the app's extras after the base fields", async () => {
   const extras = async () => ({ dbReady: true, engines: [] });
   const r = await makeHealthRouter({ product: "Demo", version: "1", extras }).request("/v1/health");
-  expect(await r.json()).toEqual({ status: "ok", product: "Demo", version: "1", apiVersion: "v1", dbReady: true, engines: [] });
+  expect(await r.json()).toEqual({ status: "ok", product: "Demo", version: "1", apiVersion: "v1", owner: serverOwner(), dbReady: true, engines: [] });
 });
 
 const MIGRATIONS = [

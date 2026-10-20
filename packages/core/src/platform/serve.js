@@ -25,6 +25,7 @@ import path from "node:path";
 import { getSystemErrorMap, parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
 import { dataFolderInUse, lockDataDir } from "./data_lock.js";
+import { cantUseDataDir, dataDirProblem, isNamedDataDir } from "./data_paths.js";
 import { PROBE_HOST, portInUse } from "./port.js";
 import { closeApp } from "./server.js";
 import { registerServerStop } from "./shutdown_api.js";
@@ -130,6 +131,22 @@ function dataFolderLocked(productName, dataDir) {
 }
 
 /**
+ * The start failed with `error` (one line, plain words): said in one line and exit 3 — never a stack for a data
+ * folder that can't be used (2026-10-20). Under the desktop app the shell is told (`{type: "start-failed",
+ * error}` — its connection page shows it) and this one exits on its stop.
+ */
+function startFailed(error) {
+  process.stderr.write(`${error}\n`);
+  const parent = process.parentPort;
+  if (!parent) return process.exit(3);
+  parent.on("message", (m) => {
+    if (m?.data?.type === "stop") process.exit(3);
+  });
+  parent.postMessage({ type: "start-failed", error });
+  return new Promise(() => {}); // the shell's stop ends this process
+}
+
+/**
  * Run a Hono app as the family server. `build(args)` returns `{app, host, port,
  * banner?}` — host/port already resolved (CLI/env over the app's settings store);
  * `app` is the app's Hono instance. Returns `{app, server, stop, port}`.
@@ -149,23 +166,44 @@ function dataFolderLocked(productName, dataDir) {
  * `defaultDataDir`, when given, is the app's own default folder (its family ladder), used when
  * neither `--data-dir` nor `<APP>_DATA_DIR` names one — so a headless run with no folder named is
  * locked too, and `build` gets the same folder.
+ *
+ * The data folder is checked first (2026-10-20, data_paths.js `dataDirProblem`): one that can't be used — a
+ * missing drive, an offline share, a read-only folder, or, named by the user (`--data-dir`, `<APP>_DATA_DIR`, a
+ * Change-folder pointer), a path the apps' native code can't take — ends the start in one line ("The data folder
+ * <dir> can't be used: <why>"), exit 3. Under the desktop app the shell checked the folder before handing it
+ * down; a start that fails there anyway — or in `build` — tells the shell its first line (`start-failed`).
  */
 export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, productName, lockRetries, defaultDataDir, log = console }) {
   const args = parseServeArgs(argv, { envPrefix });
+  const namedHere = !!args.dataDir;
   if (!args.dataDir && defaultDataDir) args.dataDir = path.resolve(await defaultDataDir());
-  if (resolvePort) {
-    args.port = await resolvePort(args);
-    if (args.port != null && (await portInUse(args.port))) return cantListen(null, PROBE_HOST, args.port, addressInUse(), log);
+  if (args.dataDir) {
+    const named = !process.parentPort && (namedHere || isNamedDataDir(args.dataDir));
+    const why = dataDirProblem(args.dataDir, { named });
+    if (why) return startFailed(cantUseDataDir(args.dataDir, why));
   }
-  if (productName && args.dataDir) {
-    try {
-      await lockDataDir(args.dataDir, lockRetries != null ? { retries: lockRetries } : {});
-    } catch (e) {
-      if (e?.code !== "ELOCKED") throw e;
-      return dataFolderLocked(productName, args.dataDir);
+  let built;
+  try {
+    if (resolvePort) {
+      args.port = await resolvePort(args);
+      if (args.port != null && (await portInUse(args.port))) return cantListen(null, PROBE_HOST, args.port, addressInUse(), log);
     }
+    if (productName && args.dataDir) {
+      try {
+        await lockDataDir(args.dataDir, { log, ...(lockRetries != null ? { retries: lockRetries } : {}) });
+      } catch (e) {
+        if (e?.code !== "ELOCKED") throw e;
+        return dataFolderLocked(productName, args.dataDir);
+      }
+    }
+    built = await build(args);
+  } catch (e) {
+    // headless, the error goes on as it always did; under the desktop app its first line reaches the window
+    if (!process.parentPort) throw e;
+    log.error?.(`the server couldn't start: ${e?.stack || e}`);
+    return startFailed(String(e?.message || e).split("\n")[0]);
   }
-  const { app, host, port, banner } = await build(args);
+  const { app, host, port, banner } = built;
   let server;
   try {
     server = await listen(app, host, port);

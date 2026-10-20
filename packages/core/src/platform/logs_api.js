@@ -310,7 +310,9 @@ export function makeLogsRouter(appName = "app") {
   );
 
   app.get("/v1/logs/download", (c) => {
-    const stamp = new Date().toISOString().slice(0, 10); // the UTC date, as Python's
+    // the LOCAL date, the day files' own (they roll at local midnight): the UTC one named the evening's
+    // download in the Americas after tomorrow
+    const stamp = ymd(new Date());
     return c.body(_ring.lines.join("\n"), 200, {
       "Content-Type": "text/plain; charset=utf-8",
       "Content-Disposition": `attachment; filename="${slug}-logs-${stamp}.txt"`,

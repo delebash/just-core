@@ -5,7 +5,7 @@
 import { existsSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { getLogger } from "../src/platform/log.js";
 import * as logsApi from "../src/platform/logs_api.js";
 import { installFileLog, installLogRing, makeLogsRouter } from "../src/platform/logs_api.js";
@@ -34,6 +34,27 @@ test("tail_and_download_capture_log_lines", async () => {
   expect(dl.status).toBe(200);
   expect(await dl.text()).toContain("hello-from-the-ring-42");
   expect(dl.headers.get("content-disposition") || "").toContain("justwrite-logs-");
+});
+
+test("the download is named by the local date — the day files' own — never the UTC one", async () => {
+  // the day files roll at local midnight; the UTC date named an evening's download in the Americas after
+  // tomorrow, and a morning's in Asia after yesterday
+  const tz = process.env.TZ;
+  vi.useFakeTimers({ toFake: ["Date"] });
+  try {
+    const c = client();
+    const named = async () => (await c.get("/v1/logs/download")).headers.get("content-disposition");
+    process.env.TZ = "America/Chicago";
+    vi.setSystemTime(new Date("2026-07-04T03:00:00Z")); // 22:00 on 3 July there
+    expect(await named()).toBe('attachment; filename="justwrite-logs-2026-07-03.txt"');
+    process.env.TZ = "Asia/Tokyo";
+    vi.setSystemTime(new Date("2026-07-03T20:00:00Z")); // 05:00 on 4 July there
+    expect(await named()).toBe('attachment; filename="justwrite-logs-2026-07-04.txt"');
+  } finally {
+    vi.useRealTimers();
+    if (tz === undefined) delete process.env.TZ;
+    else process.env.TZ = tz;
+  }
 });
 
 const ISO_STAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})\.(\d{3}) \[WARNING\] /;
@@ -174,8 +195,10 @@ test("the_answers_match_the_python_router", async () => {
   expect(await r.json()).toMatchObject({ title: "Bad Request", detail: "date must be YYYY-MM-DD", instance: "/v1/logs/day" });
   r = await c.get("/v1/logs/download");
   expect(r.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+  const today = new Date();
+  const p2 = (n) => String(n).padStart(2, "0");
   expect(r.headers.get("content-disposition")).toBe(
-    `attachment; filename="justwrite-logs-${new Date().toISOString().slice(0, 10)}.txt"`,
+    `attachment; filename="justwrite-logs-${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}.txt"`,
   );
 
   // a log file last written two days ago rolls over on the next record

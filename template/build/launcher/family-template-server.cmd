@@ -5,4 +5,7 @@ rem The exe is familytemplate.exe: a launcher never shares its name (Windows wou
 rem bare name to the GUI exe first - JustVoice's CreateProcessW trap).
 setlocal
 set ELECTRON_RUN_AS_NODE=1
+rem The OS's certificates trusted too (Node's NODE_USE_SYSTEM_CA): a network that inspects TLS
+rem signs with a certificate only the OS knows. A value already set is kept.
+if not defined NODE_USE_SYSTEM_CA set NODE_USE_SYSTEM_CA=1
 "%~dp0familytemplate.exe" "%~dp0resources\app.asar\node_modules\family-template-server\src\serve.js" %*

@@ -9,8 +9,18 @@
 // own shutdown (the narrowings review, "found on the way"). Windows can't ask a process to stop
 // without a route, so there an app that names none is still killed at once.
 
-import { portInUse } from "../platform/port.js";
+import { portInUse, serverOwner } from "../platform/port.js";
 import { checkOutput, run } from "../platform/procs.js";
+
+/**
+ * Whose server answered GET /v1/health with `health` (2026-10-20): "mine" — this app's, run by this OS user, or
+ * by a version that names no `owner` (stopped as before); "other-user" — this app's, run by another OS user of
+ * this computer (their loopback ports are one): never stopped; null — not this app's.
+ */
+export function whoseServer(health, { product, owner = serverOwner() }) {
+  if (!health || health.product !== product) return null;
+  return health.owner && owner && health.owner !== owner ? "other-user" : "mine";
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // After a kill, how long the port gets to come free (as before 2026-10-15).

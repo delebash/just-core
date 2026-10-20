@@ -13,4 +13,8 @@ else
   exe="$here/$name"
   res="$here/resources"
 fi
+# the OS's certificates trusted too (Node's NODE_USE_SYSTEM_CA, nodejs.org/api/cli.html#node_use_system_ca1):
+# a network that inspects TLS signs with a certificate only the OS knows. A value already set is kept.
+NODE_USE_SYSTEM_CA="${NODE_USE_SYSTEM_CA:-1}"
+export NODE_USE_SYSTEM_CA
 ELECTRON_RUN_AS_NODE=1 exec "$exe" "$res/app.asar/node_modules/$name-server/src/serve.js" "$@"
