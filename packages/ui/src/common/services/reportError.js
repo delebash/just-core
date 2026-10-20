@@ -11,6 +11,20 @@ import { pushToast } from "./toastBridge.js";
 const isCancel = (err) => err?.name === "AbortError" || err?.cancelled === true || err?.cutOff === true;
 
 /** `{ title, detail, reference }` for a failure, in the app's language. */
+/** HTTP's own words for a 5xx (and the server's plain "Error"): never shown as a title — the kit's are. */
+const HTTP_TITLES = new Set([
+  "Error",
+  "Internal Server Error",
+  "Not Implemented",
+  "Bad Gateway",
+  "Service Unavailable",
+  "Gateway Timeout",
+  "HTTP Version Not Supported",
+  "Insufficient Storage",
+  "Loop Detected",
+  "Network Authentication Required",
+]);
+
 export function errorMessage(err, { t = kitT } = {}) {
   const status = Number(err?.status) || 0;
   const problem = err?.problem || null;
@@ -19,8 +33,8 @@ export function errorMessage(err, { t = kitT } = {}) {
   if (!status && err instanceof TypeError) return { title: t("kit.errors.offline"), detail: "", reference: "" };
   if (status >= 500) {
     const detail = typeof problem?.detail === "string" ? problem.detail : "";
-    // a title the server chose ("The AI photo didn't finish") says what failed; HTTP's own doesn't
-    const own = typeof problem?.title === "string" && problem.title && problem.title !== "Internal Server Error" ? problem.title : "";
+    // a title the server chose ("The AI photo didn't finish") says what failed; HTTP's own phrases don't
+    const own = typeof problem?.title === "string" && problem.title && !HTTP_TITLES.has(problem.title) ? problem.title : "";
     return { title: own || t("kit.errors.server"), detail, reference: reference || t("kit.errors.seeLogs") };
   }
   if (status >= 400) {

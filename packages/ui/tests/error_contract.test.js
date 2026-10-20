@@ -125,6 +125,11 @@ describe("reportError", () => {
     // a title the server chose says what failed
     const job = attachProblem(new Error("500"), 500, parseProblem(JSON.stringify({ title: "The AI photo didn't finish", detail: "sd-cli failed (exit 3)" })));
     expect(errorMessage(job, { t })).toMatchObject({ title: "The AI photo didn't finish", detail: "sd-cli failed (exit 3)" });
+    // HTTP's own phrases keep the kit's words
+    for (const [status, title] of [[502, "Error"], [503, "Service Unavailable"], [501, "Not Implemented"]]) {
+      const plain = attachProblem(new Error(String(status)), status, parseProblem(JSON.stringify({ title, detail: "x" })));
+      expect(errorMessage(plain, { t }).title).toBe("kit.errors.server");
+    }
   });
   test("a refusal shows the server's words; a lost connection says so; a cancel shows nothing", () => {
     const refused = attachProblem(new Error("409"), 409, parseProblem(JSON.stringify({ title: "Conflict", detail: "that name is taken" })));
