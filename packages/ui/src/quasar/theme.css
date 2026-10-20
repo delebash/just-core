@@ -97,8 +97,9 @@
    current colour) and a link in the words take the intent's ink — a link underlined, never the
    browser's blue (2.6:1 on the dark danger tint; the VC++ link, the visual review 2026-10-20). A
    word with no break in it (a folder's path) breaks anywhere rather than run out of the banner. */
-/* As wide as its words, which run at most 34em (~70 characters at its size — em, not ch: a "0" is
-   wider than the average letter; 38em measured 77–84 — the seventeenth review); it ran 767 px,
+/* As wide as its words, which run at most 33em (~70 characters at its size — em, not ch: a "0" is
+   wider than the average letter; 38em measured 77–84 — the seventeenth review — and 34em a 76-character
+   line, the eighteenth); it ran 767 px,
    110–136 characters a line, in the AI photo dialog (the sixteenth review, 2026-10-20). The words
    keep QBanner's own flex (.col, basis 0): a basis of auto put the icon alone on a line above them in
    a narrow panel, and an action under the icon. */
@@ -110,7 +111,7 @@
 }
 .ui-banner:last-child { margin-bottom: 0; }
 .ui-banner .q-banner__avatar { align-self: center; }
-.ui-banner .q-banner__content { font: inherit; letter-spacing: inherit; flex: 1 1 0%; min-width: 0; max-width: 34em; overflow-wrap: anywhere; }
+.ui-banner .q-banner__content { font: inherit; letter-spacing: inherit; flex: 1 1 0%; min-width: 0; max-width: 33em; overflow-wrap: anywhere; }
 .ui-banner .q-banner__content a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .ui-banner .q-banner__avatar:not(:empty) + .q-banner__content { padding-left: 8px; }
 .ui-banner .q-banner__actions.col-auto { padding-left: 10px; }
@@ -642,10 +643,25 @@
    until the pointer came over them. */
 .q-notifications__list--bottom { margin-bottom: 40px; }
 .ui-toast {
-  --ui-toast-normal-bg: #fff; --ui-toast-normal-border: hsl(0, 0%, 93%); --ui-toast-normal-text: hsl(0, 0%, 9%);
-  --ui-toast-success-bg: hsl(143, 85%, 96%); --ui-toast-success-border: hsl(145, 92%, 87%); --ui-toast-success-text: hsl(140, 100%, 27%);
-  --ui-toast-info-bg: hsl(208, 100%, 97%); --ui-toast-info-border: hsl(221, 91%, 93%); --ui-toast-info-text: hsl(210, 92%, 45%);
-  --ui-toast-warning-bg: hsl(49, 100%, 97%); --ui-toast-warning-border: hsl(49, 91%, 84%); --ui-toast-warning-text: hsl(31, 92%, 45%);
+  /* the plain toast on the host's ground and ink, dark in the dark theme: --ink on --surface 17.40:1 light /
+     13.17:1 dark, its edge --border-field 3.62 / 3.60 (the template's tokens); its action button the pair
+     turned round (the same ratios). It was white in the dark theme (the eighteenth review, 2026-10-20) */
+  --ui-toast-normal-bg: var(--surface, #fff);
+  --ui-toast-normal-border: var(--border-field, var(--border-strong, hsl(0, 0%, 93%)));
+  --ui-toast-normal-text: var(--ink, hsl(0, 0%, 9%));
+  /* success, info and warning on the host's ink/tint pairs too, as the error one below — dark in the dark
+     theme; at the worst hue (the template's tokens) success 6.29:1 light / 6.70:1 dark, info 6.94 / 7.71,
+     warning 8.76 / 8.38 (the engine's gold pair 7.75 / 9.17) — sonner's were 4.26 / 4.35 / 3.08 (the
+     eighteenth review, 2026-10-20); its values stay the fallbacks */
+  --ui-toast-success-bg: var(--success-bg, hsl(143, 85%, 96%));
+  --ui-toast-success-border: color-mix(in oklab, var(--success-ink, hsl(140, 100%, 27%)) 30%, var(--success-bg, hsl(143, 85%, 96%)));
+  --ui-toast-success-text: var(--success-ink, hsl(140, 100%, 27%));
+  --ui-toast-info-bg: var(--info-bg, hsl(208, 100%, 97%));
+  --ui-toast-info-border: color-mix(in oklab, var(--info-ink, hsl(210, 92%, 45%)) 30%, var(--info-bg, hsl(208, 100%, 97%)));
+  --ui-toast-info-text: var(--info-ink, hsl(210, 92%, 45%));
+  --ui-toast-warning-bg: var(--warn-bg, hsl(49, 100%, 97%));
+  --ui-toast-warning-border: color-mix(in oklab, var(--warn-ink, hsl(31, 92%, 45%)) 30%, var(--warn-bg, hsl(49, 100%, 97%)));
+  --ui-toast-warning-text: var(--warn-ink, hsl(31, 92%, 45%));
   /* the error toast in the host's danger pair, so it follows the theme (dark in the dark one): --danger-ink
      on --danger-bg is 6.99:1 light and 7.17:1 dark at the worst hue (the template's tokens); sonner's
      red was 4.35:1 and light in the dark theme (the sixteenth review, 2026-10-20) — its values stay the
@@ -690,7 +706,7 @@
   color: var(--ui-toast-text); background: var(--ui-toast-bg); border: 1px solid var(--ui-toast-border); border-radius: 50%;
   cursor: pointer;
 }
-.ui-toast .ui-toast__close:hover { background: hsl(0, 0%, 97.3%); border-color: hsl(0, 0%, 90.9%); }
+.ui-toast .ui-toast__close:hover { background: color-mix(in oklab, var(--ui-toast-text) 8%, var(--ui-toast-bg)); }
 :where(.ui-toast .ui-toast__close) .q-icon { font-size: 12px; }
 .ui-toast .ui-toast__action {
   flex-shrink: 0; margin-left: auto; height: 24px; min-height: 0; padding: 0 8px;

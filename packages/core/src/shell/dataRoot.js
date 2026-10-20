@@ -23,8 +23,10 @@
 // folder (the data-dir variable, "Use the default folder") deleting new work, and nothing half-removed by a kill.
 
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { Worker } from "node:worker_threads";
 import { dataFolderHeld, LOCK_NAME } from "../platform/data_lock.js";
 import * as dataPaths from "../platform/data_paths.js";
 import { dirSize } from "../platform/dir_size.js";
@@ -158,18 +160,16 @@ const sameFolder = (a, b) => dataPaths.samePath(realish(a), realish(b));
 /**
  * The words Change folder and Move back are refused with while a start runs on the default folder this time or on an
  * old copy (2026-10-20, the sixteenth review; the seventeenth's words for a folder that is connected): the data is in
- * `folder` — the data-dir variable `setBy` names this old copy: change it there; the folder is `connected`: a restart
- * takes the app to it; else connect it and restart, or (no variable) forget it.
+ * `folder` — the data-dir variable `setBy` names this old copy: change it there; the folder is `connected` (it passes
+ * the start's check): a restart takes the app to it; there but refused by that check: its `problem`; else connect it
+ * and restart, or (no variable) forget it.
  */
-export function dataIsElsewhere({ folder, connected = false, setBy = null, oldCopy = false }) {
+export function dataIsElsewhere({ folder, connected = false, problem = null, setBy = null, oldCopy = false }) {
   if (setBy && oldCopy) return `${setBy} names this old copy — change it to ${folder}.`;
   if (connected) return `Your data is in ${folder} — restart the app to use it.`;
+  // there, but the start's check refuses it (the eighteenth review: "restart" was said for a folder that can't be used)
+  if (problem) return `Your data is in ${folder}, which can't be used now: ${problem}.`;
   return `Your data is in ${folder}: connect it and restart${setBy ? "" : ", or Use the default folder from now on"}.`;
-}
-
-/** Is the folder `p` there now (asked asynchronously, in time — an offline share answers late)? */
-export async function folderThere(p) {
-  return !!(await whereIs(p))?.here;
 }
 
 /** The words Change folder is refused with while the data-dir variable names the folder (2026-10-20). */
@@ -334,7 +334,8 @@ async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot,
   const kinds = win && canLink && folderLinks.length ? await linkKinds(folderLinks.map((l) => l.src)) : null;
   const asJunctions = folderLinks.filter((l, i) => !canLink || (kinds?.[i] ?? (l.relative ? "SymbolicLink" : "Junction")) === "Junction");
   // a symbolic link fs.cp copies as it is, but whose absolute target is inside the data: pointed into the copy
-  const repoint = links.filter((l) => !asJunctions.includes(l) && !l.relative && l.target && within(l.target, old));
+  // and a relative one pointing OUTSIDE the data: to its absolute target (it would dangle in the copy otherwise)
+  const repoint = links.filter((l) => !asJunctions.includes(l) && l.target && (l.relative ? !within(l.target, old) : within(l.target, old)));
   // room first: the old root stays, so the drive needs all of it
   const size = (await Promise.all(entries.map((n) => entrySize(path.join(old, n))))).reduce((a, b) => a + b, 0);
   let free = Number.POSITIVE_INFINITY;
@@ -363,37 +364,44 @@ async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot,
     left.push(...(await removeEntries(target, [...entries, MOVING_MARKER, ...(chromeThere ? [] : [CHROME_DIR])])));
     if (made && !left.length) await fs.promises.rm(target, TREE).catch(() => {});
     fs.rmSync(record, { force: true });
+    fs.rmSync(movedTo, { force: true });
     return left.length ? ` (${left.join(", ")} couldn't be removed from ${target} — a program may be holding a file in it)` : "";
   };
   const movedAt = Date.now();
+  // this move's own id, in both of its records — the new root's record of the old copy and the old root's moved-to:
+  // the old copy is known by it alone (2026-10-20, the eighteenth review — a volume's number isn't stable off Windows,
+  // and two moves in a row stranded the first old copy)
+  const moveId = randomUUID();
+  const movedTo = path.join(old, CHROME_DIR, MOVED_TO);
   try {
     writeMarker(marker, { root: old, entries, made });
     // where the half copy is, should the app stop midway: the next start on the old root clears it (the app's
-    // single-instance lock keeps a second launch from looking while this one copies); its volume, so a target whose
-    // drive isn't there is told from one deleted
+    // single-instance lock keeps a second launch from looking while this one copies)
     fs.mkdirSync(path.dirname(record), { recursive: true });
-    fs.writeFileSync(record, JSON.stringify({ target, dev: volume.idOf(target) }));
+    fs.writeFileSync(record, JSON.stringify({ target }));
     const skip = new Set(asJunctions.map((l) => pathKey(l.src)));
     const options = { recursive: true, preserveTimestamps: true, verbatimSymlinks: true, ...(skip.size ? { filter: (src) => !skip.has(pathKey(src)) } : {}) };
     for (const name of entries) await copy(path.join(old, name), path.join(target, name), options);
     for (const l of asJunctions) makeJunction(l, old, target);
     for (const l of repoint) repointLink(l, old, target);
     for (const name of entries) await checkCopy(path.join(old, name), path.join(target, name), name);
-    // the new root's own records, before the commit (a stop after the commit finds them there; an undo removes
-    // them): the old copies it leaves — this one and those an earlier move left, each with its move's time — and the
-    // window's token for the relaunch
+    // the records, before the commit (a stop after the commit finds them there; an undo removes them): the new root's
+    // old copies — this one and those an earlier move left, each with its move's time and id —, the window's token
+    // for the relaunch, and the old root's record of where its data goes (written last before the commit: nothing
+    // after the commit may throw)
     fs.mkdirSync(path.join(target, CHROME_DIR), { recursive: true });
     const copies = [];
-    // each old copy known by its volume (on Windows the volume's serial number — statSync().dev): another drive put in
-    // under the same letter is never taken for it (the seventeenth review, measured with subst)
-    const oldDev = volume.idOf(old);
-    for (const c of [{ root: old, entries: [...entries, ...NOT_COPIED], movedAt, dev: oldDev }, ...oldCopies(old)]) {
-      if (within(target, c.root) || within(c.root, target) || copies.some((x) => sameFolder(x.root, c.root))) continue;
-      copies.push(c);
+    // (looked at in time: an earlier copy may be on an offline share — a synchronous look held the main process 21 s)
+    for (const c of [{ root: old, entries: [...entries, ...NOT_COPIED], movedAt, moveId }, ...oldCopies(old)]) {
+      if ((await withinAsync(target, c.root)) || (await withinAsync(c.root, target))) continue;
+      let dup = false;
+      for (const x of copies) if (!dup && (await sameFolderAsync(x.root, c.root))) dup = true;
+      if (!dup) copies.push(c);
     }
     writeOldCopies(target, copies);
     if (token) fs.writeFileSync(path.join(target, CHROME_DIR, CARRIED), JSON.stringify({ token: String(token) }));
     syncDir(target);
+    fs.writeFileSync(movedTo, JSON.stringify({ root: target, movedAt, moveId }));
   } catch (e) {
     const left = await undo();
     throw new Error(`The data couldn't be copied to ${target}: ${dataPaths.fsProblem(e)} — it stays in ${old}.${left}`);
@@ -409,16 +417,33 @@ async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot,
     throw new Error(`The move couldn't be finished — ${pointer} couldn't be written (${dataPaths.fsProblem(e)}). The data stays in ${old}.${left}`);
   }
   // committed: the new root is the data folder. The old root stays as it was — an old copy, removed when the user
-  // asks — and says where its data went (and that folder's volume), so a start on it says it runs on the old copy
-  // (`oldCopyOf`), and the old copy is known as this move's (`oldCopiesInfo`)
-  fs.rmSync(marker, { force: true });
-  fs.rmSync(record, { force: true });
-  try {
-    fs.writeFileSync(path.join(old, CHROME_DIR, MOVED_TO), JSON.stringify({ root: target, movedAt, dev: volume.idOf(target) }));
-  } catch (e) {
-    console.warn(`[shell] the old folder ${old} couldn't record where its data went (${e?.message || e})`);
+  // asks, its moved-to saying where its data went. Nothing from here may throw: what is left is tidying.
+  for (const f of [marker, record]) {
+    try {
+      fs.rmSync(f, { force: true });
+    } catch {
+      /* a stray marker goes at the next start on the new root */
+    }
   }
+  // the old copies an earlier move left say the data is in the new root now (a chain of moves is accepted anyway)
+  await Promise.resolve()
+    .then(() => repointCarried(carriedCopies(target, old), target))
+    .catch(() => {});
   return target;
+}
+
+/** The old copies carried into `target`'s record from `old`'s: their moved-to.json pointed at `target` (each looked at
+ *  in time; one that isn't there keeps its record, a chain read through). */
+function carriedCopies(target, old) {
+  return oldCopies(target).filter((c) => c.moveId && !dataPaths.samePath(c.root, old));
+}
+async function repointCarried(list, target) {
+  for (const c of list) {
+    const file = path.join(c.root, CHROME_DIR, MOVED_TO);
+    const m = await readJson(file);
+    if (!m || m.moveId !== c.moveId) continue;
+    await inTime(fs.promises.writeFile(file, JSON.stringify({ ...m, root: target }))).catch(() => {});
+  }
 }
 
 // fs.promises.rm's options for a folder and everything in it. Never fs.rmSync recursive: Node 24's follows an NTFS
@@ -572,11 +597,12 @@ async function removeEntries(dir, names) {
   return left;
 }
 
-/** A POSIX (or, with the right, a Windows) symbolic link copied as it is whose absolute target was inside the data
- *  folder: pointed at the same place in the copy (it would keep pointing into the old copy otherwise). */
+/** A symbolic link fs.cp copied as it is, pointed where it must point from the copy: one whose absolute target was
+ *  inside the data at the same place in the copy, a relative one pointing outside the data at its absolute target
+ *  (either would point into the old copy, or dangle, otherwise). */
 function repointLink(link, old, target) {
   const dest = path.join(target, path.relative(old, link.src));
-  const to = path.join(target, path.relative(realish(old), realish(link.target)));
+  const to = link.relative ? link.target : path.join(target, path.relative(realish(old), realish(link.target)));
   fs.rmSync(dest, { force: true });
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.symlinkSync(to, dest, process.platform === "win32" ? (link.dir ? "dir" : "file") : undefined);
@@ -625,28 +651,21 @@ function committedInto(target, { appName, sourceRoot }) {
   return named ? sameFolder(named, target) : sameFolder(target, dataPaths.defaultDataDir({ appName, sourceRoot }));
 }
 
-/**
- * A folder's volume, as a string kept in the move's records: the volume (`stat().dev` — on Windows its serial number)
- * and, on Windows, its drive root's own file id — two folders `subst` made drive letters of share one volume, and a
- * stick's root is the same NTFS file on every stick, so the two together tell a drive letter's drives apart (the
- * seventeenth review, measured with subst). A test's drives replace these (as data_paths.js's `runtime`).
- */
-export const volume = {
-  idOf(p) {
-    const dev = fs.statSync(p).dev;
-    return process.platform === "win32" ? `${dev}:${fs.statSync(path.parse(path.resolve(p)).root).ino}` : String(dev);
-  },
-  async idAt(p) {
-    const dev = (await fs.promises.stat(p)).dev;
-    return process.platform === "win32" ? `${dev}:${(await fs.promises.stat(path.parse(path.resolve(p)).root)).ino}` : String(dev);
-  },
-  stat: (p) => fs.promises.stat(p),
-};
+/** How a folder is looked at (a test's slow drives replace it — as data_paths.js's `runtime`). */
+export const volume = { stat: (p) => fs.promises.stat(p), realpath: (p) => fs.promises.realpath(p) };
 
 // How long a look at a folder that may be on a drive that isn't there may take: an offline share held the main
 // process 21 s in existsSync (the seventeenth review, measured) — asked asynchronously, given up after this.
 const LOOK_MS = 3000;
+// A drive or share found not answering isn't looked at again this long, and a drive has one look at a time (the same
+// look shared, the others after it): the look given up on still holds one of Node's four file threads until the
+// system lets go (~21 s for an offline share) — four of them filled the pool and a local read waited 14.5 s (the
+// eighteenth review, measured). So at most one thread per drive that doesn't answer, never the pool.
+const UNREACHABLE_MS = 60_000;
 const SLOW = Symbol("slow");
+const unreachable = new Map(); // a drive's key → until when it isn't looked at
+const inFlight = new Map(); // a look's kind and path → that look under way
+const lastOnDrive = new Map(); // a drive's key → the last look queued on it
 
 /** `promise`, or SLOW past LOOK_MS (the look itself goes on in the background and is dropped). */
 async function inTime(promise, ms = LOOK_MS) {
@@ -658,27 +677,52 @@ async function inTime(promise, ms = LOOK_MS) {
   }
 }
 
-/**
- * Where `p` stands now: `{here, dev}` — whether the folder is there, and the volume (`volume`'s id) of it or of the
- * nearest folder above it that is (null when not even its drive's root is) — or null when its drive doesn't answer in
- * time. A drive that isn't there is told from a deleted folder by its volume (the seventeenth review: the parent
- * folder's presence was read for the drive's, and an empty stick in the same letter, or a deleted parent folder,
- * misread).
- */
+/** The drive `p` is on, as far as a path tells: on Windows its root (a letter, or a share's \\server\share\); else
+ *  its first three names (/Volumes/NAS/…, /mnt/nas/…, /media/<user>/<stick>) — a POSIX path's root is "/" for every
+ *  disk, and an NFS mount that hangs must not stop the looks at the local disk. */
+function driveKey(p) {
+  const abs = path.resolve(String(p));
+  if (path.sep === "\\") return path.parse(abs).root.toLowerCase();
+  return `/${abs.split("/").filter(Boolean).slice(0, 3).join("/")}`;
+}
+
+/** `fn()` on `p`, in time — SLOW at once while `p`'s drive was found not answering in the last minute; the same look
+ *  shared while one is under way for `p`, and one look at a drive at a time (the next waits for it — a few ms on a
+ *  drive that answers). A look that runs out of time marks its drive. Never rejects. */
+function lookAt(p, kind, fn) {
+  const drive = driveKey(p);
+  const off = () => (unreachable.get(drive) ?? 0) > Date.now();
+  if (off()) return Promise.resolve(SLOW);
+  const key = `${kind}:${pathKey(p)}`;
+  if (inFlight.has(key)) return inFlight.get(key);
+  const run = (lastOnDrive.get(drive) ?? Promise.resolve())
+    .then(async () => {
+      if (off()) return SLOW;
+      const r = await inTime(fn());
+      if (r === SLOW) unreachable.set(drive, Date.now() + UNREACHABLE_MS);
+      return r;
+    })
+    .catch(() => null)
+    .finally(() => {
+      inFlight.delete(key);
+      if (lastOnDrive.get(drive) === run) lastOnDrive.delete(drive);
+    });
+  inFlight.set(key, run);
+  lastOnDrive.set(drive, run);
+  return run;
+}
+
+/** Forget the drives found not answering (a test, or a drive plugged in again is looked at next minute anyway). */
+export function _forgetUnreachable() {
+  unreachable.clear();
+}
+
+/** Is the folder `p` there now — `{here, taken}` (`taken`: something else has its name, a file) — or null when its
+ *  drive doesn't answer in time. */
 async function whereIs(p) {
-  const full = path.resolve(String(p));
-  for (let d = full; ; ) {
-    const st = await inTime(volume.stat(d).catch(() => null));
-    if (st === SLOW) return null;
-    if (st) {
-      const dev = await inTime(volume.idAt(d).catch(() => null));
-      if (dev === SLOW) return null;
-      return { here: d === full && st.isDirectory(), dev };
-    }
-    const up = path.dirname(d);
-    if (up === d) return { here: false, dev: null };
-    d = up;
-  }
+  const st = await lookAt(p, "stat", () => volume.stat(path.resolve(String(p))).catch(() => null));
+  if (st === SLOW) return null;
+  return { here: !!st?.isDirectory(), taken: !!st && !st.isDirectory() };
 }
 
 /** realish, asynchronously and in time — for a path that may be on a drive that isn't there (realpathSync on an
@@ -687,7 +731,7 @@ async function realishAsync(p) {
   let head = path.resolve(String(p));
   const tail = [];
   for (;;) {
-    const real = await inTime(fs.promises.realpath(head).catch(() => null));
+    const real = await lookAt(head, "realpath", () => volume.realpath(head).catch(() => null));
     if (real === SLOW) return path.resolve(String(p));
     if (real) return path.join(real, ...tail.reverse());
     const up = path.dirname(head);
@@ -704,12 +748,9 @@ async function withinAsync(child, parent) {
 }
 const sameFolderAsync = async (a, b) => dataPaths.samePath(await realishAsync(a), await realishAsync(b));
 
-/** A volume id as kept (a string; a number from a record of before). */
-const volId = (v) => (typeof v === "string" && v) || (Number.isFinite(v) ? String(v) : null);
-
 /** A JSON file read asynchronously in time, or null. */
 async function readJson(file) {
-  const text = await inTime(fs.promises.readFile(file, "utf8").catch(() => null));
+  const text = await lookAt(file, "read", () => fs.promises.readFile(file, "utf8").catch(() => null));
   if (text === SLOW || text == null) return null;
   try {
     return JSON.parse(text);
@@ -721,14 +762,63 @@ async function readJson(file) {
 // The shell's log lines.
 const shellLog = { warn: (s) => console.warn(`[shell] ${s}`) };
 
+// The start's look at a folder the user named, before anything is set up — synchronous, so a worker stats it while
+// this thread waits at most START_LOOK_MS (Atomics.wait — the documented way to wait on a worker; an offline share's
+// pointer blocked the start 21 s — the eighteenth review, measured).
+const START_LOOK_MS = 4000;
+const START_LOOK = `const { workerData } = require("node:worker_threads"); const fs = require("node:fs");
+try { fs.statSync(workerData.root); } catch {}
+const flag = new Int32Array(workerData.flag); Atomics.store(flag, 0, 1); Atomics.notify(flag, 0);`;
+
+/** Does `root`'s drive answer within START_LOOK_MS? (A worker that can't start: yes — the check goes on as before.) */
+export function answersInTime(root, ms = START_LOOK_MS) {
+  const flag = new Int32Array(new SharedArrayBuffer(4));
+  let worker;
+  try {
+    worker = new Worker(START_LOOK, { eval: true, workerData: { root: path.resolve(String(root)), flag: flag.buffer } });
+  } catch {
+    return true;
+  }
+  worker.unref();
+  const answered = Atomics.wait(flag, 0, 0, ms) !== "timed-out" || Atomics.load(flag, 0) === 1;
+  if (!answered) worker.terminate().catch(() => {});
+  return answered;
+}
+
 /**
  * The start's check of the data root (2026-10-20): why it can't be used, in plain words, or null — before
  * anything lands in it (a missing drive made the shell's first mkdir throw Electron's "JavaScript error"
  * dialog). A root the user named (the variable, the Change-folder pointer) must be there — never made; the
- * variable is held to the path rule too, a pointer only logged (data_paths.js `dataDirStartProblem`).
+ * variable is held to the path rule too, a pointer only logged (data_paths.js `dataDirStartProblem`). A named root
+ * whose drive doesn't answer in time (an offline share) is said so, never waited on (`answersInTime`).
  */
-export function dataRootProblem(root, { log = shellLog } = {}) {
-  return dataPaths.dataDirStartProblem(root, { source: dataPaths.dataDirSource(root), log });
+export function dataRootProblem(root, { log = shellLog, answers = answersInTime } = {}) {
+  const source = dataPaths.dataDirSource(root);
+  if ((source === "pointer" || source === "variable") && !answers(root)) return NO_ANSWER;
+  return dataPaths.dataDirStartProblem(root, { source, log });
+}
+
+// A folder's words when connecting it is the cure — its drive out, or not answering (an offline share): said as
+// "connect it and restart", never as a reason it can't be used.
+const NOT_THERE = "it isn't there";
+const NO_ANSWER = "its drive didn't answer (a network folder offline, or a drive asleep)";
+
+/** Can the folder `p` be the data folder now — null, or why not in words: there (looked at in time), then the start's
+ *  own check (the eighteenth review: "restart the app to use it" was said for a folder that is there but can't be
+ *  used). */
+export async function folderProblem(p) {
+  const w = await whereIs(p);
+  if (!w) return NO_ANSWER;
+  if (!w.here && !w.taken) return NOT_THERE;
+  return dataPaths.dataDirProblem(p, { named: true, chosen: false });
+}
+
+/** Where the data is, for Storage and the refused moves (a start on the default this time, or on an old copy):
+ *  `{folder, connected, problem}` — `connected` only when the folder passes the start's check; `problem` its words
+ *  when it is there and that check refuses it (null when it isn't there or doesn't answer: connect it). */
+export async function dataFolderState(folder) {
+  const problem = await folderProblem(folder);
+  return { folder, connected: !problem, problem: problem === NOT_THERE || problem === NO_ANSWER ? null : problem };
 }
 
 /** "Use the default folder" (the start's message box, 2026-10-20): the default folder for this start only — the
@@ -761,7 +851,8 @@ export function forgetMovedTo(root) {
  *     review: the app ran on the half copy, and Move back was refused for good). A committed one's marker goes alone.
  *   - this root's record of a move OUT of it that never committed: the half copy in its target goes (the names its
  *     marker lists, then the folder when the move made it and it is empty) — kept for a later start while the
- *     target's drive isn't there (its volume, recorded), dropped when the drive is there and the folder isn't.
+ *     target's drive isn't there or doesn't answer (the folder it was copying into missing too), dropped when that
+ *     folder is there and the target isn't.
  * Committed is judged by the pointer (`committedInto`). Removal by fs.promises.rm (a link goes, never what it points
  * to).
  */
@@ -784,8 +875,10 @@ export async function sweepUnfinishedMove(root, { appName, repoRoot, packaged })
     const w = await whereIs(target);
     if (!w) return; // its drive doesn't answer: a later start
     if (!w.here) {
-      // its drive there (the same volume), the folder not: nothing to clear; else the drive is out — a later start
-      if (w.dev != null && (volId(rec.dev) == null || w.dev === volId(rec.dev))) fs.rmSync(record, { force: true });
+      // the folder it was copying into there (its drive in), the target not: nothing to clear; else its drive is
+      // out — a later start
+      const parent = await whereIs(path.dirname(path.resolve(target)));
+      if (parent?.here) fs.rmSync(record, { force: true });
       return;
     }
     const m = readMoving(target);
@@ -817,9 +910,9 @@ export function takeCarried(root) {
   }
 }
 
-/** The old copies recorded in `root`'s Chromium folder: `[{root, entries, movedAt, dev}]` (`movedAt` ms and `dev` —
- *  the old root's volume — null in a record from before them; an earlier version's marker — `{root, entries}`, or the
- *  old root's path alone — read as one). */
+/** The old copies recorded in `root`'s Chromium folder: `[{root, entries, movedAt, moveId}]` (`movedAt` ms and
+ *  `moveId` — the move's id, in the old root's moved-to.json too — null in a record from before them; an earlier
+ *  version's marker — `{root, entries}`, or the old root's path alone — read as one). */
 export function oldCopies(root) {
   let text;
   try {
@@ -840,7 +933,7 @@ export function oldCopies(root) {
       root: path.resolve(c.root),
       entries: (Array.isArray(c.entries) ? c.entries : []).filter(plainName),
       movedAt: Number.isFinite(c.movedAt) ? c.movedAt : null,
-      dev: volId(c.dev),
+      moveId: typeof c.moveId === "string" && c.moveId ? c.moveId : null,
     }));
 }
 
@@ -883,34 +976,40 @@ export async function lastChanged(old, entries) {
 }
 
 /** Where the data of `root` went, when `root` holds the old copy a move left (a start on it — "Use the default
- *  folder", the variable — runs on stale data): `{root, movedAt, connected}` — `connected` when that folder is there
- *  now (a restart, or the variable changed, takes the app to it) — or null: no record, or the folder it names gone
- *  (its drive there, the folder not — deleted, or forgotten: no banner about a folder that no longer is). Asked
- *  asynchronously, in time (an offline share). */
+ *  folder", the variable — runs on stale data): `{root, movedAt, connected, problem}` — read through a chain of moves
+ *  (each folder's own moved-to, a few at most); `connected` when that folder can be the data folder now (it is there and
+ *  passes the start's check — `problem` that check's words when it is there and refused: `dataFolderState`) — or null: no record, or one naming this folder. Asked
+ *  asynchronously, in time (an offline share). Never dropped by the app: "Use the default folder from now on" does. */
 export async function oldCopyOf(root) {
   const m = await readJson(path.join(root, CHROME_DIR, MOVED_TO));
   if (typeof m?.root !== "string" || !m.root) return null;
-  const w = await whereIs(m.root); // first: a folder that isn't there is never this one, and is looked at once
-  if (w?.here && (await sameFolderAsync(m.root, root))) return null;
-  if (w && !w.here && w.dev != null && (volId(m.dev) == null || w.dev === volId(m.dev))) return null;
-  return { root: path.resolve(m.root), movedAt: Number.isFinite(m.movedAt) ? m.movedAt : null, connected: !!w?.here };
+  let folder = path.resolve(m.root);
+  for (let hop = 0; hop < 5; hop++) {
+    const next = await readJson(path.join(folder, CHROME_DIR, MOVED_TO));
+    if (typeof next?.root !== "string" || !next.root || dataPaths.samePath(next.root, folder)) break;
+    folder = path.resolve(next.root);
+  }
+  const { connected, problem } = await dataFolderState(folder);
+  if (connected && (await sameFolderAsync(folder, root))) return null;
+  return { root: folder, movedAt: Number.isFinite(m.movedAt) ? m.movedAt : null, connected, problem };
 }
 
 /**
- * Is the old copy `c` (recorded in `here`'s Chromium folder) the one there now? "here" — its folder there, on the
- * volume recorded at the move, and its own record (`moved-to.json`) naming `here` (a hand-made copy, another stick in
- * the same drive letter, is never taken for it — the seventeenth review: Remove the old copy removed another stick's
- * data, measured with subst); "gone" — its drive there, its folder not (deleted: forgotten); "absent" — anything else
- * (its drive out, another volume in that letter, an offline share): listed as not connected, never removed.
+ * Is the old copy `c` (recorded in `here`'s Chromium folder) the one there now? "here" — its folder there, and its own
+ * moved-to.json holding this move's id (written into both records at the move — the eighteenth review: a device's
+ * number isn't stable off Windows, and two moves in a row stranded the first copy; a chain of moves is accepted — its
+ * moved-to may name a folder the data has left since); "absent" — anything else (its drive out, another drive in its
+ * letter, a hand-made copy, an offline share): listed as not found, never removed, never forgotten by the app — the
+ * user may Forget it (`forgetOldCopy`).
  */
 async function copyState(c, here) {
   const w = await whereIs(c.root);
-  if (!w) return "absent";
-  if (!w.here) return w.dev != null && (c.dev == null || w.dev === c.dev) ? "gone" : "absent";
+  if (!w?.here) return "absent";
   // an earliest record (the old root's path alone — the old folder was emptied by the move then): its presence alone
-  if (c.dev == null && c.movedAt == null) return "here";
-  if (c.dev != null && w.dev !== c.dev) return "absent";
+  if (!c.moveId && c.movedAt == null) return "here";
   const m = await readJson(path.join(c.root, CHROME_DIR, MOVED_TO));
+  if (c.moveId) return m?.moveId === c.moveId ? "here" : "absent";
+  // a record of before the move's id: its own moved-to naming this folder
   return typeof m?.root === "string" && (await sameFolderAsync(m.root, here)) ? "here" : "absent";
 }
 
@@ -918,34 +1017,36 @@ async function copyState(c, here) {
  * The old copies a move left, for Settings → Storage: `[{root, bytes, movedAt, changedAt, connected}]` — the bytes of
  * what the move copied that is still there; `changedAt` (ms) when its database was written after the move — more than
  * the file time's tolerance (file_time.js) past it: the app ran on it since ("Use the default folder" while the new
- * folder's drive was out, the data-dir variable) and removing it removes that work — else null. One not there as this
- * move's (`copyState` "absent") is listed `connected: false` (bytes null) and kept; one whose drive is there and whose
- * folder — or everything the move copied into it — is gone is forgotten; never the folder in use. Asynchronous, each
- * look in time (an offline share never holds the main process).
+ * folder's drive was out, the data-dir variable) and removing it removes that work — else null. One not found as this
+ * move's (`copyState` "absent") is listed `connected: false` (bytes null). Nothing is dropped from the record here —
+ * only Remove the old copy and Forget do. Never the folder in use. Asynchronous, each look in time (an offline share
+ * never holds the main process, nor fills its file threads).
  */
 export async function oldCopiesInfo(root) {
   const here = path.resolve(root);
-  const copies = oldCopies(root);
-  const kept = [];
   const out = [];
-  for (const c of copies) {
+  for (const c of oldCopies(root)) {
     const state = await copyState(c, here); // first: one that isn't there is looked at once, never the folder in use
     if (state === "here" && ((await withinAsync(here, c.root)) || (await withinAsync(c.root, here)))) continue;
-    if (state === "gone") continue;
     if (state === "absent") {
-      kept.push(c);
       out.push({ root: c.root, bytes: null, movedAt: c.movedAt, changedAt: null, connected: false });
       continue;
     }
-    const present = await Promise.all(c.entries.map((n) => fs.promises.lstat(path.join(c.root, n)).then(() => true, () => false)));
-    if (!present.some(Boolean)) continue; // removed by hand
-    kept.push(c);
     const sizes = await Promise.all(c.entries.map((n) => entrySize(path.join(c.root, n))));
     const changed = c.movedAt == null ? 0 : await lastChanged(c.root, c.entries);
     out.push({ root: c.root, bytes: sizes.reduce((a, b) => a + b, 0), movedAt: c.movedAt, changedAt: changed > c.movedAt + MTIME_WINDOW_MS ? changed : null, connected: true });
   }
-  if (kept.length !== copies.length) writeOldCopies(root, kept);
   return out;
+}
+
+/** "Forget" (Settings → Storage, 2026-10-20 — the eighteenth review: "not connected" had no way out): the record of
+ *  the old copy in `old` is dropped — nothing on any drive is touched. */
+export function forgetOldCopy(root, old) {
+  writeOldCopies(
+    root,
+    oldCopies(root).filter((c) => !dataPaths.samePath(c.root, old)),
+  );
+  return null;
 }
 
 /**
@@ -963,7 +1064,7 @@ export async function removeOldCopy(root, old) {
   for (const x of copies) if (!c && (await sameFolderAsync(x.root, old))) c = x;
   if (!c) return null; // already gone
   if ((await withinAsync(here, c.root)) || (await withinAsync(c.root, here))) throw new Error(`${c.root} holds the data folder in use — it isn't removed.`);
-  if ((await copyState(c, here)) !== "here") throw new Error(`The old copy in ${c.root} isn't connected — connect its drive, then remove it.`);
+  if ((await copyState(c, here)) !== "here") throw new Error(`The old copy in ${c.root} can't be found — connect its drive, then remove it (or Forget it).`);
   if (await dataFolderHeld(c.root)) throw new Error(`A server of the app is using ${c.root} now — stop it first, then remove the old copy.`);
   const left = await removeEntries(c.root, c.entries);
   try {

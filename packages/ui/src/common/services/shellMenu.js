@@ -41,5 +41,11 @@ export function shellTrayLabels(t, app) {
     openLogs: t("kit.shellTray.openLogs"),
     about: t("kit.shellTray.about", { app }),
     quit: t("kit.shellTray.quit", { app }),
+    // the shell's "unsaved work" box (2026-10-20: a page's beforeunload kept → Electron's will-prevent-unload), sent
+    // with the tray's words — the shell's one channel for its own words
+    unloadTitle: t("kit.shellUnload.title"),
+    unloadDetail: t("kit.shellUnload.detail"),
+    unloadLeave: t("kit.shellUnload.leave"),
+    unloadStay: t("kit.shellUnload.stay"),
   };
 }

@@ -10,7 +10,8 @@
 //
 // Only a name that needs them gets the marks: one holding a strong letter of the OTHER direction than
 // the page's (<html dir>; left-to-right when it has none, or with no document) — judged after its bidi
-// control characters (U+200E/F, U+202A–202E, U+2066–2069) are taken out of it. A plain name in the
+// embedding, override and isolate controls (U+202A–202E, U+2066–2069) are taken out of it; its LRM and RLM
+// (U+200E/F) stay. A plain name in the
 // page's own direction — "Maple street" on an English page — comes back as typed: the marks were in
 // every name, and a braille display shows them (the screens-and-keyboard review, 2026-10-20). Which
 // letters are strong left-to-right or right-to-left is Google Closure Library's goog.i18n.bidi
@@ -34,10 +35,12 @@ const RTL_CHARS = "\u0591-\u06EF\u06FA-\u08FF\u200F\uD802-\uD803\uD83A-\uD83B" +
 
 const HAS_LTR = new RegExp(`[${LTR_CHARS}]`);
 const HAS_RTL = new RegExp(`[${RTL_CHARS}]`);
-// the bidi controls — LRM, RLM, the embeddings and overrides LRE…RLO, the isolates LRI…PDI — taken out of
-// a name: one in it reordered the sentence around it ("abc" + RLO + "def" turned the rest backwards —
-// the sixteenth review), and a stray PDI closed the name's own isolate early (the seventeenth)
-const BIDI_CONTROLS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+// the bidi controls that reach past their run — the embeddings and overrides LRE…RLO, the isolates LRI…PDI
+// — taken out of a name: one in it reordered the sentence around it ("abc" + RLO + "def" turned the rest
+// backwards — the sixteenth review), and a stray PDI closed the name's own isolate early (the
+// seventeenth). LRM and RLM stay: they are marks a person types to place a neutral (a "-" or a number)
+// on the right side of a word, and inside the isolate they reach nothing else (the eighteenth).
+const BIDI_CONTROLS = /[\u202A-\u202E\u2066-\u2069]/g;
 
 /** The page's direction: "rtl" when <html dir="rtl">, else "ltr" (no dir, or no document). */
 function pageDirection() {

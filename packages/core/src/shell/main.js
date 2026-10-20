@@ -30,7 +30,10 @@
 //     already under way is checked again before it forks, and Quit is held. The old folder is never
 //     removed by the app on its own — Storage shows the old copy and removes it when asked; a half copy
 //     a stopped move left goes at the next start; the window's token is carried to the new folder
-//     (dataRoot.js, 2026-10-20).
+//     (dataRoot.js, 2026-10-20). While that sweep runs the start is busy: the page's serverUrl waits, the tray's
+//     server items are off, Change folder and a server start refuse.
+//   - A page with unsaved work (its `beforeunload` keeps it) is asked about before a reload, the window's close or
+//     Quit — "Leave without saving?" Leave / Stay (Electron's `will-prevent-unload`, 2026-10-20); Stay keeps it.
 //   - The server runs with the OS's certificates trusted (NODE_USE_SYSTEM_CA) and the system's
 //     proxy handed down (server_start.js, 2026-10-20).
 //   - The window loads the built UI from `app://<id>/` (ruling 3) — it opens even when
@@ -79,7 +82,8 @@ import {
   dataDirSetBy,
   dataIsElsewhere,
   dataRootProblem,
-  folderThere,
+  dataFolderState,
+  forgetOldCopy,
   forgetMovedTo,
   forgetPointer,
   MOVE_UNDER_WAY,
@@ -110,6 +114,7 @@ export const COMMANDS = [
   "storageOldCopies",
   "storageRemoveOldCopy",
   "storageUseDefault",
+  "storageForgetOldCopy",
   "setKeepRunning",
   "setTrayLabels",
   "setContextMenuLabels",
@@ -128,8 +133,14 @@ export const COMMANDS = [
  *  a kit test holds the two equal). The shell reads it at Change folder and carries it to the new folder. */
 export const WINDOW_TOKEN_KEY = "just.serverToken";
 
+/** What Change folder says while the start clears what a stopped move left (2026-10-20). */
+export const SWEEP_UNDER_WAY = "The app is still clearing what a stopped move left — try again in a moment.";
+
 /** What Quit (the window, the tray, an update's restart) says while Change folder copies (2026-10-20): held. */
 export const QUIT_WHILE_MOVING = "The data is being moved — quit when it's done.";
+
+// The longest a Quit waits for the window's page to let it close (its beforeunload) before closing it without it.
+const CLOSE_WAIT_MS = 10_000;
 
 // The longest a Change folder waits for a server start already under way to end (its own steps are bounded: the
 // proxy 5 s, a stale server's stop 15 s; a server past that is stopped as any other).
@@ -155,6 +166,11 @@ const DEFAULT_TRAY_LABELS = {
   openLogs: "📜 Open log file",
   about: null, // "ℹ️ About <productName>"
   quit: null, // "🚪 Quit <productName>"
+  // the box a page's unsaved work gets (will-prevent-unload) — the app sends these in its language with the tray's
+  unloadTitle: "Leave without saving?",
+  unloadDetail: "Your changes on this page aren't saved yet — they're lost if you leave now.",
+  unloadLeave: "Leave",
+  unloadStay: "Stay",
 };
 
 // The right-click menu's words the app may send (`setContextMenuLabels`, in its language, like the
@@ -219,6 +235,12 @@ export function runDesktopApp(config) {
     // started (it would open the old folder mid-copy; a start already waiting checks again before it forks), the
     // tray's server items are off, and Quit is held.
     moving: false,
+    // the start's sweep of what a stopped move left runs: the start is busy (setSweeping)
+    sweeping: false,
+    // a Quit closing the window through its page's beforeunload (quitApp)
+    quitStarted: false,
+    closingForQuit: false,
+    onUnloadStayed: null,
     // This start uses the default folder because the folder Change folder's pointer names can't be used ("Use the
     // default folder", this start only): {folder} — Storage offers "Use the default folder from now on".
     defaultThisStart: null,
@@ -367,6 +389,7 @@ export function runDesktopApp(config) {
   }
 
   async function startServer({ evicted = false } = {}) {
+    if (state.sweeping) return console.warn("[shell] what a stopped move left is being cleared — the server starts when that is done");
     if (state.server || (state.serverPhase === "starting" && !evicted)) return;
     if (state.moving) return heldByMove();
     if (process.env[`${config.id.toUpperCase().replace(/-/g, "_")}_DEV_NO_SERVER`]) return; // run it yourself
@@ -632,7 +655,8 @@ export function runDesktopApp(config) {
     let holding = false;
     win.on("close", (e) => {
       saveWindowState(win);
-      if (state.quitting) return;
+      // (Quit closes the window itself first — through the page's beforeunload, below — and lets this close go)
+      if (state.quitting || state.closingForQuit) return;
       if (state.keepRunning) {
         e.preventDefault();
         win.hide();
@@ -673,7 +697,36 @@ export function runDesktopApp(config) {
         if (drawn) return console.log("[shell] window loaded");
         await new Promise((r) => setTimeout(r, 500));
       }
+      // a window closed by a quit (or by the user) before it drew didn't fail to draw
+      if (win.isDestroyed() || state.quitting || state.closingForQuit) return;
       console.log("[shell] window failed: the app never drew its layout and first page");
+    });
+    // Unsaved work (2026-10-20, the eighteenth review: closing, a reload or Quit dropped a house's unsaved colors
+    // silently): the page keeps its `beforeunload`, and Electron asks here — its documented pattern
+    // (electronjs.org/docs/latest/api/web-contents#event-will-prevent-unload: preventDefault lets the page unload).
+    // Leave lets it go; Stay keeps the page, and a Quit under way stops.
+    win.webContents.on("will-prevent-unload", (event) => {
+      const L = state.trayLabels;
+      // the box is the window's: a hidden window (the tray's Quit with keep-running on) shows first — else its box
+      // isn't seen and the app waits on it
+      if (win.isMinimized?.()) win.restore();
+      if (!win.isVisible?.()) win.show();
+      win.focus?.();
+      const choice = dialog.showMessageBoxSync(win, {
+        type: "question",
+        title: config.productName,
+        message: L.unloadTitle,
+        detail: L.unloadDetail,
+        buttons: [L.unloadLeave, L.unloadStay],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      });
+      if (choice === 0) event.preventDefault();
+      else {
+        holding = false;
+        state.onUnloadStayed?.();
+      }
     });
     // the first page after a Change folder signs in with the token the old folder's profile kept (once)
     win.loadURL(withCarriedToken(home, carriedToken));
@@ -694,7 +747,7 @@ export function runDesktopApp(config) {
     const L = state.trayLabels;
     // off while Change folder copies (Electron's MenuItem `enabled` — electronjs.org/docs/latest/api/menu-item):
     // the server must not open the old folder mid-copy
-    const serverItems = !state.moving;
+    const serverItems = !state.moving && !state.sweeping;
     const items = [
       { label: L.show, click: showWindow },
       { label: L.hide, click: () => state.win?.hide() },
@@ -767,6 +820,16 @@ export function runDesktopApp(config) {
     state.moving = on;
     state.tray?.setContextMenu(buildTrayMenu());
   }
+  /** The start's sweep of what a stopped move left runs (2026-10-20, the eighteenth review: a server the tray started
+   *  meanwhile ran on the half copy being removed, and the page gave up on the server while it waited): the start is
+   *  busy — the page's `serverUrl` / `serverStatus` wait (the phase reads "starting"), the tray's server items are off,
+   *  a server isn't started, Change folder refuses. */
+  function setSweeping(on) {
+    state.sweeping = on;
+    if (on) state.serverPhase = "starting";
+    else if (!state.server && state.serverPhase === "starting") state.serverPhase = "off";
+    state.tray?.setContextMenu(buildTrayMenu());
+  }
 
   // Quit while Change folder copies is held (2026-10-20): a stop midway left a half copy for good — said in a box
   // (one at a time), the app goes on; the move's own relaunch ends it.
@@ -785,11 +848,44 @@ export function runDesktopApp(config) {
   }
 
   async function quitApp() {
-    if (state.quitting) return;
+    if (state.quitting || state.quitStarted) return;
     if (state.moving) return holdQuit();
+    state.quitStarted = true;
+    // the window closes first, through its page's beforeunload (the box above): Stay keeps the page — and the app
+    const win = state.win && !state.win.isDestroyed() ? state.win : null;
+    if (win && !(await closeForQuit(win))) {
+      state.quitStarted = false;
+      return;
+    }
     state.quitting = true;
     await stopServer();
     app.quit();
+  }
+
+  /** Close `win` for a Quit: true once it has closed, false when its page kept it (Stay). A page that answers
+   *  neither way (its renderer hung) is closed without it after CLOSE_WAIT_MS (the box, while up, holds the
+   *  main process — that time isn't counted until it is answered). */
+  function closeForQuit(win) {
+    return new Promise((resolve) => {
+      let timer = null;
+      const done = (closed) => {
+        if (timer === false) return;
+        clearTimeout(timer);
+        timer = false;
+        state.closingForQuit = false;
+        state.onUnloadStayed = null;
+        win.off?.("closed", onClosed);
+        resolve(closed);
+      };
+      const onClosed = () => done(true);
+      state.closingForQuit = true;
+      state.onUnloadStayed = () => done(false);
+      win.once("closed", onClosed);
+      timer = setTimeout(() => {
+        if (timer !== false && !win.isDestroyed()) win.destroy();
+      }, CLOSE_WAIT_MS);
+      win.close();
+    });
   }
 
   // ── updates ────────────────────────────────────────────────────────────────
@@ -864,9 +960,9 @@ export function runDesktopApp(config) {
   /** Where the data is when this start runs elsewhere — on the default folder this time ("Use the default folder"),
    *  or on the old copy a move left — or null. */
   async function dataElsewhere() {
-    if (state.defaultThisStart) return { folder: state.defaultThisStart.folder, connected: await folderThere(state.defaultThisStart.folder), oldCopy: false };
+    if (state.defaultThisStart) return { ...(await dataFolderState(state.defaultThisStart.folder)), oldCopy: false };
     const o = await oldCopyOf(state.root);
-    return o ? { folder: o.root, connected: o.connected, oldCopy: true } : null;
+    return o ? { folder: o.root, connected: o.connected, problem: o.problem, oldCopy: true } : null;
   }
   /** No move from here (2026-10-20, the sixteenth review): while the data is elsewhere — a move would leave it known
    *  nowhere — or while the data-dir variable names the folder (the next start ignores a pointer). Throws the words. */
@@ -958,9 +1054,11 @@ export function runDesktopApp(config) {
     // default folder — no "Move back"), `folderName` — the folder Change folder makes inside the one picked —,
     // `defaultThisStart` ({folder} while this start uses the default folder because the pointer's folder can't be
     // used, else null), `setBy` (the data-dir variable's name while it names the folder: no Change folder — its
-    // pointer would be ignored) and `oldCopyOf` ({root, movedAt, connected} when this folder holds the old copy a
-    // move left: the app runs on stale data); `defaultThisStart` carries `connected` too (the data's folder is there
-    // now: a restart takes the app to it). Asked asynchronously, in time (an offline share never holds the window).
+    // pointer would be ignored) and `oldCopyOf` ({root, movedAt, connected, problem} when this folder holds the old
+    // copy a move left: the app runs on stale data); `defaultThisStart` carries `connected` and `problem` too
+    // (dataRoot.js `dataFolderState`: connected — the data's folder passes the start's check now, a restart takes the
+    // app to it; problem — there, and that check's words). Asked asynchronously, in time (an offline share never holds
+    // the window).
     async storageGetRoot() {
       const info = storageInfo({ root: state.root, ...ladder });
       const dts = state.defaultThisStart;
@@ -968,7 +1066,8 @@ export function runDesktopApp(config) {
         ...info,
         atDefault: samePath(info.root, info.default),
         folderName: appFolderName(config.productName, config.appName),
-        defaultThisStart: dts ? { folder: dts.folder, connected: await folderThere(dts.folder) } : null,
+        // "connected" only when the folder passes the start's check (else its words)
+        defaultThisStart: dts ? await dataFolderState(dts.folder) : null,
         setBy: dataDirSetBy({ dataDirEnv: config.dataDirEnv }),
         oldCopyOf: await oldCopyOf(state.root),
       };
@@ -981,6 +1080,7 @@ export function runDesktopApp(config) {
       // Not while the data-dir variable names the folder: the next start would ignore the pointer; nor while this
       // start runs on the default folder this time or on an old copy — the data is elsewhere, and a move from here
       // would leave it known nowhere (2026-10-20, the sixteenth review, measured).
+      if (state.sweeping) throw new Error(SWEEP_UNDER_WAY);
       await refuseMoveHere();
       if (state.moving) throw new Error(MOVE_UNDER_WAY);
       setMoving(true);
@@ -1024,6 +1124,12 @@ export function runDesktopApp(config) {
     async storageRemoveOldCopy({ root }) {
       if (state.moving) throw new Error(MOVE_UNDER_WAY);
       await removeOldCopy(state.root, String(root || ""));
+      return oldCopiesInfo(state.root);
+    },
+    // "Forget": the record of an old copy that can't be found is dropped — nothing on any drive is touched.
+    storageForgetOldCopy({ root }) {
+      if (state.moving) throw new Error(MOVE_UNDER_WAY); // the move carries this record to the new folder
+      forgetOldCopy(state.root, String(root || ""));
       return oldCopiesInfo(state.root);
     },
     // "Use the default folder from now on" (while this start uses it — `defaultThisStart`): the pointer forgotten.
@@ -1236,8 +1342,13 @@ export function runDesktopApp(config) {
     // launch meanwhile made another — the seventeenth review); the server once nothing is left of a stopped move (a
     // half copy in a folder this start doesn't run on, or — a "Use the default folder" start — in this one; never a
     // committed move's — dataRoot.js sweepUnfinishedMove)
+    setSweeping(true);
     await sweepUnfinishedMove(state.root, ladder).catch((e) => console.warn(`[shell] the last move's leftovers couldn't be checked: ${e?.message || e}`));
+    setSweeping(false);
     await startServer();
+    // a page that asked during the sweep hears once no start is under way (a start that didn't begin — the variable
+    // that runs no server — would leave it waiting)
+    if (state.serverPhase !== "starting") settleServerUrl();
     if (updatesOn) {
       checkForUpdates();
       // a copy left running for weeks hears of a release too: every six hours, and when the computer wakes (the

@@ -105,7 +105,22 @@ export function pushToast({ message, title, description, kind, action, duration,
   const text = message ?? title;
   if (!text) return;
   const k = kindOf(kind);
-  const t = { dismiss: null, remaining: duration ?? ms ?? 6000, startedAt: 0, timer: null };
+  const full = duration ?? ms ?? 6000;
+  // the same toast already showing isn't added again: its time starts over (a repeated failure stacked
+  // three equal toasts — the eighteenth review, 2026-10-20); it is said again, the event came again
+  const key = JSON.stringify([k, String(text), description || "", action?.label || ""]);
+  const same = live.find((x) => x.key === key);
+  if (same) {
+    same.remaining = full;
+    if (same.timer !== null) {
+      clearTimeout(same.timer);
+      same.timer = null;
+    }
+    sync();
+    if (say) announce(spoken(text, description), k === "error" ? "assertive" : "polite");
+    return;
+  }
+  const t = { key, dismiss: null, remaining: full, startedAt: 0, timer: null };
   t.dismiss = Notify.create({
     message: String(text),
     caption: description ? sentence(description) : undefined,

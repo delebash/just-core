@@ -113,7 +113,8 @@ export function sentence(s) {
   const text = String(s ?? "");
   // a first word that is a name or code keeps its case: a capital inside it ("macOS", "iPhone") or a
   // code character (- _ . / or a digit — "sd-cli", "llama.cpp", "x64") — the seventeenth review
-  const word = text.split(/\s/u, 1)[0];
+  // the word without its closing punctuation ("cancelled." is a word, not code — the eighteenth review)
+  const word = text.split(/\s/u, 1)[0].replace(/\p{P}+$/u, "");
   if (/[-_./\p{Nd}]/u.test(word) || /\p{Lu}/u.test([...word].slice(1).join(""))) return text;
   const [first = "", ...rest] = [...text];
   return first.toLocaleUpperCase() + rest.join("");
@@ -129,40 +130,74 @@ export function spoken(title, detail) {
   return `${stop(head)} ${stop(sentence(tail))}`;
 }
 
-// lines kept in a region at most: older ones go as a new one lands (a line already read is never read again —
-// aria-relevant="additions" — so keeping a few is harmless, and no timer is left behind for each)
+// lines kept in a region from earlier ticks at most: older ones go as new ones land (a line already read is
+// never read again — aria-relevant="additions" — so keeping a few is harmless). The lines of one tick are
+// never dropped — a burst said together is all heard (the eighteenth review, 2026-10-20).
 const KEEP_LINES = 4;
+
+// what waits for the next tick: [{ text, level, lingerMs }]
+let queue = [];
+let flushing = false;
+let tickNo = 0;
+// ONE expiry timer per region, reset by each line it takes: its lines go `lingerMs` after its last
+// (a timer per message outlived the work it spoke of — JustVoice's test of the task ticker counted them)
+const timers = new WeakMap();
+
+function flush() {
+  flushing = false;
+  const batch = queue;
+  queue = [];
+  if (!batch.length) return;
+  if (!root?.isConnected) installAnnouncer();
+  const box = regionsNow();
+  if (!box) return;
+  const tick = String(++tickNo);
+  for (const { text, level, lingerMs } of batch) {
+    const log = box.querySelector(`[aria-live="${level}"]`);
+    if (!log) continue;
+    // the cap: only lines of an earlier tick make room
+    let extra = log.children.length + 1 - KEEP_LINES;
+    for (const old of [...log.children]) {
+      if (extra <= 0) break;
+      if (old.dataset.tick !== tick) {
+        old.remove();
+        extra -= 1;
+      }
+    }
+    const line = log.ownerDocument.createElement("div");
+    line.dataset.tick = tick;
+    line.textContent = text;
+    log.appendChild(line);
+    clearTimeout(timers.get(log));
+    timers.set(log, setTimeout(() => log.replaceChildren(), lingerMs));
+  }
+}
 
 /** Tell a screen reader `message`: "polite" (the default) or "assertive" (an error). The words land once
  *  Vue has rendered what changed with them (its nextTick): said in the tick a dialog opens or closes, they
  *  went to the page under the opening one or into the closing one, gone with it (the seventeenth review,
- *  2026-10-20). No timer is set: a line older than `lingerMs`, or past the last few, goes when the next one
- *  lands — a timer per message outlived the work it spoke of (JustVoice's test of the task ticker counted
- *  them, 2026-10-20). */
+ *  2026-10-20). A region's lines go `lingerMs` (7 s) after its last one landed. */
 export function announce(message, level = "polite", { lingerMs = LINGER_MS } = {}) {
   const text = String(message ?? "").replace(/\s+/g, " ").trim();
   if (!text) return;
   if (!root?.isConnected) installAnnouncer();
-  void nextTick(() => {
-    if (!root?.isConnected) installAnnouncer();
-    const box = regionsNow();
-    const log = box?.querySelector(`[aria-live="${level === "assertive" ? "assertive" : "polite"}"]`);
-    if (!log) return;
-    const now = Date.now();
-    for (const old of [...log.children]) if (now - Number(old.dataset.at || 0) > lingerMs) old.remove();
-    while (log.children.length >= KEEP_LINES) log.firstElementChild.remove();
-    const line = log.ownerDocument.createElement("div");
-    line.dataset.at = String(now);
-    line.textContent = text;
-    log.appendChild(line);
-  });
+  queue.push({ text, level: level === "assertive" ? "assertive" : "polite", lingerMs });
+  if (!flushing) {
+    flushing = true;
+    void nextTick(flush);
+  }
 }
 
-/** Take back what hasn't been read yet — one level, or both — wherever it waits. */
+/** Take back what hasn't been read yet — one level, or both — wherever it waits, and what is waiting for
+ *  the next tick. */
 export function clearAnnouncer(level) {
+  queue = level ? queue.filter((m) => m.level !== level) : [];
   const doc = root?.ownerDocument;
   if (!doc) return;
   for (const log of doc.querySelectorAll(`[${ATTR}] [aria-live]`)) {
-    if (!level || log.getAttribute("aria-live") === level) log.replaceChildren();
+    if (!level || log.getAttribute("aria-live") === level) {
+      log.replaceChildren();
+      clearTimeout(timers.get(log));
+    }
   }
 }

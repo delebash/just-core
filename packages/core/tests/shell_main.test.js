@@ -35,7 +35,7 @@ const fake = vi.hoisted(() => {
     }
   }
   // what the shell asked of Electron
-  const rec = { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [] };
+  const rec = { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [], pageHolds: false, unloadAnswer: 1 };
   const app = Object.assign(new Emitter(), {
     isPackaged: false,
     setPath() {},
@@ -76,7 +76,21 @@ const fake = vi.hoisted(() => {
     focus() {}
     hide() {}
     isDestroyed() {
-      return false;
+      return !!this.destroyed;
+    }
+    // close(): the window's close, then — when the page keeps its beforeunload (rec.pageHolds) — Electron's
+    // will-prevent-unload; the window goes only when nothing kept it
+    close() {
+      const ev = { prevented: false, preventDefault() { this.prevented = true; } };
+      this.emit("close", ev);
+      if (ev.prevented) return;
+      if (rec.pageHolds) {
+        const u = { prevented: false, preventDefault() { this.prevented = true; } };
+        this.webContents.emit("will-prevent-unload", u);
+        if (!u.prevented) return;
+      }
+      this.destroyed = true;
+      this.emit("closed");
     }
     isVisible() {
       return true;
@@ -120,6 +134,10 @@ const fake = vi.hoisted(() => {
       showMessageBox: async (...args) => {
         rec.dialogs.push(args.at(-1));
         return { response: rec.answer };
+      },
+      showMessageBoxSync: (...args) => {
+        rec.dialogs.push(args.at(-1));
+        return rec.unloadAnswer;
       },
     },
     ipcMain: {
@@ -165,7 +183,7 @@ const { rec } = fake;
 const tmp = () => mkdtempSync(path.join(tmpdir(), "shell-"));
 
 beforeEach(() => {
-  Object.assign(rec, { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [] });
+  Object.assign(rec, { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [], pageHolds: false, unloadAnswer: 1 });
   sweep.mockClear();
   fake.electron.session.defaultSession.resolveProxy = async () => "DIRECT";
   relocate.mockReset(); // the real relocate again, no answer queued by another test
@@ -293,13 +311,13 @@ test("Use the default folder: this start only — the pointer kept, the box says
     portable: true,
     atDefault: true,
     folderName: "Demo",
-    defaultThisStart: { folder: blocked, connected: false },
+    defaultThisStart: { folder: blocked, connected: false, problem: "a file has that name" },
     setBy: null,
     oldCopyOf: null,
   });
   // no move from here: the data is in the folder that can't be used now (the sixteenth review: a move from the
   // default this time left the newest data known nowhere)
-  const elsewhere = `Your data is in ${blocked}: connect it and restart, or Use the default folder from now on.`;
+  const elsewhere = `Your data is in ${blocked}, which can't be used now: a file has that name.`;
   await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow(elsewhere);
   expect(relocate).not.toHaveBeenCalled();
   await invoke("storageUseDefault");
@@ -406,7 +424,7 @@ test("a start on the old copy a move left: Storage is told where the data is", a
   writeFileSync(path.join(root, "electron", "moved-to.json"), JSON.stringify({ root: moved, movedAt: 1_700_000_000_000 }));
   mkdirSync(moved, { recursive: true });
   await startShell(repo);
-  expect((await invoke("storageGetRoot")).oldCopyOf).toEqual({ root: moved, movedAt: 1_700_000_000_000, connected: true });
+  expect((await invoke("storageGetRoot")).oldCopyOf).toEqual({ root: moved, movedAt: 1_700_000_000_000, connected: true, problem: null });
   // no move from the old copy (it would leave the newer data known nowhere) — the newer folder is there: a restart
   // takes the app to it; "from now on" makes this one the data folder
   await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow(`Your data is in ${moved} — restart the app to use it.`);
@@ -422,7 +440,7 @@ test("the variable's folder missing, the start on the default: the data is elsew
     rec.answer = 1; // "Use the default folder"
     const repo = tmp();
     await startShell(repo);
-    expect(await invoke("storageGetRoot")).toMatchObject({ setBy: "DEMO_DATA_DIR", defaultThisStart: { folder: gone, connected: false } });
+    expect(await invoke("storageGetRoot")).toMatchObject({ setBy: "DEMO_DATA_DIR", defaultThisStart: { folder: gone, connected: false, problem: null } });
     await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow(`Your data is in ${gone}: connect it and restart.`);
     await expect(invoke("storageUseDefault")).rejects.toThrow("This data folder is set by DEMO_DATA_DIR — change it there.");
   } finally {
@@ -451,6 +469,74 @@ test("the window and the tray first, then the sweep, then the server; a second l
   release();
   await vi.waitFor(() => expect(rec.forks.length).toBe(1));
   expect(rec.order).toEqual(["window", "sweep", "fork"]);
+});
+
+// the eighteenth review's e3/e4 (real Electron): during a long sweep the page gave up on the server (6.7 s) and the
+// tray's Start server ran a server on the half copy being removed
+test("while the start's sweep runs the start is busy: the page waits, the tray's server items are off, nothing starts, no move", async () => {
+  let release;
+  sweep.mockImplementationOnce(async () => {
+    rec.order.push("sweep");
+    await new Promise((r) => (release = r));
+  });
+  const port = await freePort();
+  const repo = tmp();
+  const shell = runDesktopApp({ id: "demo", appName: "Demo", productName: "Demo", port, serverEntry: "server.js", dataDirEnv: "DEMO_DATA_DIR", repoRoot: repo, distDir: repo, window: {} });
+  await vi.waitFor(() => expect(rec.order).toContain("sweep"));
+  expect(shell.state.sweeping).toBe(true);
+  // the page asks for the server's address: it waits (its starting state), never told "no server"
+  let url = "pending";
+  invoke("serverUrl").then((u) => (url = u));
+  for (const label of SERVER_ITEMS) expect(trayItem(label).enabled).toBe(false);
+  await trayItem("▶️ Start server").click();
+  await shell.startServer();
+  await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow("The app is still clearing what a stopped move left — try again in a moment.");
+  await new Promise((r) => setTimeout(r, 30));
+  expect(rec.forks.length).toBe(0);
+  expect(url).toBe("pending");
+  release();
+  await vi.waitFor(() => expect(rec.forks.length).toBe(1));
+  rec.forks[0].child.emit("message", { type: "ready", host: "127.0.0.1", port });
+  await vi.waitFor(() => expect(url).toBe(`http://127.0.0.1:${port}`));
+  for (const label of SERVER_ITEMS) expect(trayItem(label).enabled).toBe(true);
+});
+
+// the eighteenth review's fresh angle: closing the window, a reload or Quit dropped a house's unsaved colors silently
+test("unsaved work: the page's beforeunload kept → the shell's box; Stay keeps the window and the app, Leave lets them go", async () => {
+  const { shell, port } = await startShell();
+  rec.forks[0].child.emit("message", { type: "ready", host: "127.0.0.1", port });
+  // the box's words in the app's language, as the kit's shellTrayLabels sends them
+  await invoke("setTrayLabels", { labels: { unloadTitle: "¿Salir sin guardar?", unloadLeave: "Salir", unloadStay: "Quedarse" } });
+  rec.pageHolds = true;
+  // a reload (or a navigation) the page keeps: the box, in the app's words; Stay
+  const reload = { prevented: false, preventDefault() { this.prevented = true; } };
+  rec.unloadAnswer = 1;
+  shell.state.win.webContents.emit("will-prevent-unload", reload);
+  expect(rec.dialogs.at(-1)).toMatchObject({ message: "¿Salir sin guardar?", buttons: ["Salir", "Quedarse"], defaultId: 1, cancelId: 1 });
+  expect(reload.prevented).toBe(false); // the page stays
+  // Quit (the tray's), Stay: the window, the server and the app stay
+  await trayItem("🚪 Quit Demo").click();
+  expect(rec.quits).toBe(0);
+  expect(shell.state.win.isDestroyed()).toBe(false);
+  expect(shell.state.server).toBe(rec.forks[0].child);
+  // Quit again, Leave: the window goes, then the server, then the app
+  rec.unloadAnswer = 0;
+  await shell.quitApp();
+  expect(shell.state.win.isDestroyed()).toBe(true);
+  expect(shell.state.server).toBe(null);
+  expect(rec.quits).toBe(1);
+});
+
+test("Storage's Forget drops an old copy's record — nothing on any drive is touched", async () => {
+  const repo = tmp();
+  const root = path.join(repo, "data");
+  const gone = path.join(tmp(), "Gone", "Demo");
+  mkdirSync(path.join(root, "electron"), { recursive: true });
+  writeFileSync(path.join(root, "electron", "old-root.txt"), JSON.stringify({ copies: [{ root: gone, entries: ["app.db"], movedAt: 1, moveId: "m1" }] }));
+  await startShell(repo);
+  expect(await invoke("storageOldCopies")).toEqual([{ root: gone, bytes: null, movedAt: 1, changedAt: null, connected: false }]);
+  expect(await invoke("storageForgetOldCopy", { root: gone })).toEqual([]);
+  expect(existsSync(path.join(root, "electron", "old-root.txt"))).toBe(false);
 });
 
 test("a second launch (the single-instance lock refused) never looks at what a move left, nor takes its token", async () => {

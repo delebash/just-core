@@ -23,6 +23,7 @@ const COMMANDS = new Set([
   "storageOldCopies",
   "storageRemoveOldCopy",
   "storageUseDefault",
+  "storageForgetOldCopy",
   "setKeepRunning",
   "setTrayLabels",
   "setContextMenuLabels",

@@ -265,6 +265,7 @@
     "serverPanel": {
       "headlessTitle": "Acceso sin escritorio",
       "headlessHint": "El servidor sirve la propia aplicación: ejecuta {command} y abre su dirección en un navegador. Desde otro equipo: inícialo con --host 0.0.0.0, con un token de acceso abajo, y usa la dirección de red de este equipo.",
+      "proxyHint": "Detrás de un proxy inverso (nginx, Caddy, tailscale serve), activa «{require}» abajo, o haz que el proxy envíe {header}: un proxy que no envía ninguna cabecera de proxy parece este equipo.",
       "copy": "Copiar",
       "copied": "Dirección del servidor copiada",
       "keepRunning": "Mantener el servidor en marcha al cerrar la aplicación",
@@ -308,9 +309,16 @@
       "setByVariable": "Esta carpeta de datos la fija {name}: cámbiala allí.",
       "dataIsElsewhere": "Tus datos están en {folder}: conéctala y reinicia, o usa la carpeta predeterminada a partir de ahora.",
       "dataIsElsewhereVariable": "Tus datos están en {folder}: conéctala y reinicia.",
+      "dataIsElsewhereProblem": "Tus datos están en {folder}, que no se puede usar ahora: {problem}. Cuando se pueda, reinicia, o usa la carpeta predeterminada a partir de ahora.",
+      "dataIsElsewhereProblemVariable": "Tus datos están en {folder}, que no se puede usar ahora: {problem}. Cuando se pueda, reinicia.",
       "restartToUse": "Tus datos están en {folder}: reinicia la aplicación para usarlos.",
       "variableNamesOldCopy": "{name} indica esta copia anterior: cámbiala a {folder}.",
-      "notConnected": "No conectada",
+      "notFound": "No encontrada",
+      "notFoundNote": "Conecta su unidad para quitarla, u olvídala: la aplicación deja de mostrarla y no se toca nada en ninguna unidad.",
+      "forgetOld": "Olvidar…",
+      "forgetOldTitle": "¿Olvidar la copia anterior?",
+      "forgetOldMessage": "La aplicación deja de mostrar la copia anterior de {folder}. No se toca nada en ninguna unidad: si la copia sigue en algún sitio, queda allí hasta que la borres tú.",
+      "forgetOldConfirm": "Olvidarla",
       "removeOldSharedWith": "{apps} usan los modelos de IA de esta aplicación: si aún usan los de la copia anterior, volverán a descargar sus modelos.",
       "moveBackAfterRemove": "Para volver a la carpeta predeterminada, quita antes la copia anterior que hay allí.",
       "defaultThisStart": "Este inicio usa la carpeta predeterminada: {folder} no se puede usar ahora. Tus datos allí se conservan, y la aplicación vuelve a buscarlos en su próximo inicio.",
@@ -1988,6 +1996,12 @@
       "openLogs": "📜 Abrir archivo de registro",
       "about": "ℹ️ Acerca de {app}",
       "quit": "🚪 Salir de {app}"
+    },
+    "shellUnload": {
+      "title": "¿Salir sin guardar?",
+      "detail": "Los cambios de esta página aún no están guardados: se pierden si sales ahora.",
+      "leave": "Salir",
+      "stay": "Quedarse"
     }
   }
 }

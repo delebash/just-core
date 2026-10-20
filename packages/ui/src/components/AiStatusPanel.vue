@@ -160,8 +160,10 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
           <div class="aip-eyebrow">{{ t('kit.aiTasks.status') }}</div>
           <h2>{{ t('kit.nav.aiTasks') }}</h2>
         </div>
+        <!-- the icon in UiButton's #icon slot, which keeps its gap from the words (the eighteenth review) -->
         <UiButton intent="ghost" size="small" @click="tasks.closePanel()">
-          <Icon name="Close" :size="12" /> {{ t('kit.common.close') }}
+          <template #icon><Icon name="Close" :size="12" /></template>
+          {{ t('kit.common.close') }}
         </UiButton>
       </header>
 
@@ -172,7 +174,8 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
           <span class="aip-section-count">{{ tasks.runningCount }}</span>
           <span class="aip-section-spacer" />
           <UiButton v-if="tasks.runningCount > 1" intent="ghost" size="small" @click="tasks.cancelAll()">
-            <Icon name="Close" :size="11" /> {{ t('kit.aiTasks.cancelAll') }}
+            <template #icon><Icon name="Close" :size="11" /></template>
+            {{ t('kit.aiTasks.cancelAll') }}
           </UiButton>
         </div>
 
@@ -362,7 +365,9 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
   display: flex; flex-direction: column;
   padding: 16px 18px 4px;
   gap: 12px;
-  overflow: hidden;
+  /* ONE scroller: the panel, never each section (Running and Recent scrolled apart — the eighteenth
+     review, 2026-10-20); x hidden, so a long unbreakable label never scrolls it sideways */
+  overflow-y: auto; overflow-x: hidden;
 }
 
 .aip-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-shrink: 0; }
@@ -373,12 +378,10 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
   color: var(--muted);
 }
 
-/* overflow-x is EXPLICITLY hidden: `overflow-y: auto` alone computes the
-   unset x-axis to auto too, so any un-shrinkable child turned the whole
-   section into a horizontal scroller (the 2026-08-08 finding — a JV Lab run's
-   long feature key pushed the card wider than the panel and the card's left
-   edge scrolled out of view). */
-.aip-section { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; overflow-x: hidden; }
+/* A section is as tall as its rows — the panel scrolls (above). min-width: 0 keeps an un-shrinkable child
+   from widening the panel (the 2026-08-08 finding — a JV Lab run's long feature key pushed the card wider
+   than the panel and its left edge scrolled out of view). */
+.aip-section { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; min-width: 0; }
 .aip-section + .aip-section {
   border-top: 1px solid var(--border-soft);
   padding-top: 12px;

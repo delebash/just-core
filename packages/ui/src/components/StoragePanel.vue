@@ -7,7 +7,7 @@
 // restarts the app), then where the folder's space goes (the kit's /v1/disk/usage) with the two
 // things that can be reclaimed — the downloaded models and the engine's logs.
 //   - `shell`: the desktop shell's folder calls, from the app's native.js — { getRoot, pickDirectory,
-//     relocate, oldCopies?, removeOldCopy?, useDefault? } — or null in a browser, where Change folder
+//     relocate, oldCopies?, removeOldCopy?, forgetOldCopy?, useDefault? } — or null in a browser, where Change folder
 //     isn't offered; a call the app doesn't pass leaves its part out;
 //   - `saves`: what the app keeps, in its own words ("your notes"), inside the kit's sentences;
 //   - the `extra` slot: the app's own rows in the disk grid (just-house-paint's houses, part finder
@@ -22,6 +22,10 @@
 // data-dir variable names the folder (`setBy`), the moves are off and the panel says where the folder
 // is set; an old copy used after its move says so before it is removed; a start running on an old copy
 // (`oldCopyOf`) says the data is elsewhere.
+// Since the eighteenth review an old copy is known by its move's id: one whose folder doesn't answer to it (a drive
+// out, another stick in its place, deleted by hand) reads **Not found** — never removed, never dropped by the app —
+// with **Forget…** to drop the record (nothing on any drive is touched); a folder the data is in that the start's
+// check refuses is said in the shell's words (`problem`), and "restart the app to use it" only when it passes.
 // Failures go through `reportError` (§15). The card frame is the host's (`card`, `hint`).
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -47,7 +51,7 @@ const saves = () => props.saves || t("kit.storagePanel.savesDefault");
 // { root, default, portable, atDefault?, folderName?, defaultThisStart?, setBy?, oldCopyOf? } — the desktop shell's
 // answer
 const storageRoot = ref(null);
-const oldCopies = ref([]); // [{ root, bytes, movedAt?, changedAt? }] — the copies earlier moves left
+const oldCopies = ref([]); // [{ root, bytes, movedAt?, changedAt?, connected? }] — the copies earlier moves left
 const relocating = ref(false);
 const removing = ref(""); // the old copy being removed
 const diskUsage = ref(null);
@@ -166,15 +170,38 @@ async function removeOldCopy(copy) {
   }
 }
 
+/** An old copy whose folder doesn't answer to its move (`connected: false`): Not found, and Forget offered. */
+async function forgetOldCopy(copy) {
+  const yes = await confirmDialog({
+    title: t("kit.storagePanel.forgetOldTitle"),
+    message: t("kit.storagePanel.forgetOldMessage", { folder: copy.root }),
+    confirmLabel: t("kit.storagePanel.forgetOldConfirm"),
+  });
+  if (!yes) return;
+  removing.value = copy.root;
+  try {
+    oldCopies.value = (await props.shell.forgetOldCopy(copy.root)) || [];
+  } catch (e) {
+    reportError(e);
+    await loadOldCopies();
+  } finally {
+    removing.value = "";
+  }
+}
+
 /** Where the data is when this start runs elsewhere — the default folder this time, or an old copy — or "". */
 const elsewhere = () => storageRoot.value?.defaultThisStart?.folder || storageRoot.value?.oldCopyOf?.root || "";
-/** What to do about it (the seventeenth review): the variable names this old copy — change it; the data's folder is
- *  there now — restart; else connect it and restart (or, with no variable, forget it). */
+/** What to do about it (the seventeenth review): the variable names this old copy — change it; the data's folder
+ *  passes the start's check now — restart; else why it can't be used (the shell's words, the eighteenth review) and
+ *  restart once it can (or, with no variable, forget it). */
 function elsewhereWords() {
   const info = storageRoot.value || {};
   const folder = elsewhere();
+  const where = info.defaultThisStart || info.oldCopyOf;
   if (info.setBy && info.oldCopyOf && !info.defaultThisStart) return t("kit.storagePanel.variableNamesOldCopy", { name: info.setBy, folder });
-  if ((info.defaultThisStart || info.oldCopyOf)?.connected) return t("kit.storagePanel.restartToUse", { folder });
+  if (where?.connected) return t("kit.storagePanel.restartToUse", { folder });
+  const problem = String(where?.problem || "").replace(/[.\s]+$/, "");
+  if (problem) return t(info.setBy ? "kit.storagePanel.dataIsElsewhereProblemVariable" : "kit.storagePanel.dataIsElsewhereProblem", { folder, problem });
   return info.setBy ? t("kit.storagePanel.dataIsElsewhereVariable", { folder }) : t("kit.storagePanel.dataIsElsewhere", { folder });
 }
 /** The default folder still holds an old copy: Move back is refused there until it is removed. */
@@ -257,8 +284,17 @@ function clearSpawnLogs() {
           <td>
             <div class="lu-storage__row">
               <span class="lu-storage__mono">{{ copy.root }}</span>
-              <span>{{ copy.connected === false ? t("kit.storagePanel.notConnected") : fmtBytes(copy.bytes) || "0 MB" }}</span>
+              <span>{{ copy.connected === false ? t("kit.storagePanel.notFound") : fmtBytes(copy.bytes) || "0 MB" }}</span>
               <UiButton
+                v-if="copy.connected === false && shell?.forgetOldCopy"
+                intent="secondary"
+                size="small"
+                :disabled="!!removing || relocating"
+                :label="t('kit.storagePanel.forgetOld')"
+                @click="forgetOldCopy(copy)"
+              />
+              <UiButton
+                v-else
                 intent="danger-outline"
                 size="small"
                 :disabled="!!removing || relocating || copy.connected === false"
@@ -266,7 +302,8 @@ function clearSpawnLogs() {
                 @click="removeOldCopy(copy)"
               />
             </div>
-            <p v-if="copy.changedAt" class="lu-storage__used">{{ usedNote(copy) }}</p>
+            <p v-if="copy.connected === false && shell?.forgetOldCopy" class="lu-storage__used">{{ t("kit.storagePanel.notFoundNote") }}</p>
+            <p v-else-if="copy.changedAt" class="lu-storage__used">{{ usedNote(copy) }}</p>
           </td>
         </tr>
       </tbody>

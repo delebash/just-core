@@ -37,10 +37,14 @@ onMounted(async () => {
   }
 });
 
+// the field Enter was pressed in, for the focus to go back to after the save
+let enterFrom = null;
+
 async function save() {
-  // where the keyboard was (a box Enter was pressed in, or Save): it stays there — Save turning off when nothing is
-  // left to save dropped the focus on <body> (WCAG 2.4.3 — the seventeenth review)
-  const back = document.activeElement;
+  // where the keyboard was: the box Enter was pressed in (QBtn takes the focus to the submit button before this
+  // runs — the box is remembered on its keydown), or Save (it stays focusable when off — aria-disabled)
+  const back = enterFrom?.isConnected ? enterFrom : document.activeElement;
+  enterFrom = null;
   saving.value = true;
   serverErrors.value = {};
   try {
@@ -53,7 +57,7 @@ async function save() {
   } finally {
     saving.value = false;
     await nextTick();
-    if ((!document.activeElement || document.activeElement === document.body) && back?.isConnected) back.focus();
+    if (back?.isConnected && back !== document.activeElement && !back.closest?.("[aria-disabled='true']")) back.focus();
   }
 }
 </script>
@@ -62,7 +66,7 @@ async function save() {
   <section class="card">
     <h2>{{ t("settings.general.notesTitle") }}</h2>
     <p class="hint">{{ t("settings.general.notesHint") }}</p>
-    <q-form class="form" greedy @submit="save">
+    <q-form class="form" greedy @submit="save" @keydown.enter.capture="(e) => (enterFrom = e.target)">
       <div class="form__row">
         <UiField v-for="f in FIELDS" :key="f.key" :label="t(f.label)" layout="block" :for="f.id">
           <UiNumber

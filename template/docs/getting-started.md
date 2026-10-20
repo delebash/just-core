@@ -12,12 +12,14 @@ moving the app's folder moves everything with it. **Settings → Storage** shows
 move it: **Change folder…** copies the data into a new **Family Template** folder inside the one you
 pick (never into the app's own folder, which an update replaces) and restarts the app on it. The old
 folder keeps its copy until **Remove the old copy…** deletes what the move copied there (Storage says
-when the app ran on the old copy after the move; one on a drive that isn't plugged in is **Not
-connected**); **Move back to the default folder…** brings the data back once any old copy there is
-removed. While the app runs on an old copy, or on the default folder this time, Storage says where your
-data is — connect it and restart, or **Use the default folder from now on…**; once that folder is there again,
-restart the app to use it; when the variable names the old copy, change it to the folder Storage names — and
-**Change folder…** isn't shown. A headless server takes `--data-dir` or
+when the app ran on the old copy after the move). An old copy the app can't find — its drive isn't plugged
+in, another drive is in its place, or it was deleted by hand — is **Not found**: it is never removed then,
+and stays listed until you connect its drive or press **Forget…**, which only stops the app listing it
+(nothing on any drive is touched). **Move back to the default folder…** brings the data back once any old
+copy there is removed. While the app runs on an old copy, or on the default folder this time, Storage says
+where your data is and, when that folder can't be used, why — fix that and restart, or **Use the default
+folder from now on…**; once that folder can be used again, restart the app to use it; when the variable names
+the old copy, change it to the folder Storage names — and **Change folder…** isn't shown. A headless server takes `--data-dir` or
 `FAMILY_TEMPLATE_DATA_DIR` (a folder that already exists); while the variable names the desktop app's
 folder, **Change folder…** isn't shown — change the variable instead. Only when the app's own folder can't be
 written to (Program Files, read-only media) does it fall back to the standard per-user folder.

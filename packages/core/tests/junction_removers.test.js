@@ -37,17 +37,34 @@ test("Clear models and the runner's removes (lifecycle rmTree, through _rmtreeWi
 
 // the seventeenth review's s8: through a link Clear models and a model's Delete removed the link, freed nothing, and
 // put an empty folder in its place — now the linked folder is emptied and the link kept
-test("Clear models and a model's Delete on a linked folder: its contents freed, the link kept", async () => {
+// the eighteenth review's s12 — a data loss: the seventeenth's "empty the linked folder" took everything in the folder
+// the link pointed to, a user's fine-tune and notes with it. Now only this app's catalog's models go.
+test("Clear models on a linked hf folder: only this app's catalog models and their locks go — the user's own files stay", async () => {
   const kind = process.platform === "win32" ? "junction" : "dir";
   const cache = tmp();
-  const far = path.join(tmp(), "hf");
+  const far = path.join(tmp(), "AI");
   mkdirSync(path.join(far, "models--a--b", "blobs"), { recursive: true });
   writeFileSync(path.join(far, "models--a--b", "blobs", "w.gguf"), Buffer.alloc(4000, 1));
+  mkdirSync(path.join(far, ".locks", "models--a--b"), { recursive: true });
+  writeFileSync(path.join(far, ".locks", "models--a--b", "w.lock"), "");
+  // the user's own: a fine-tune, notes, another tool's model in the shared HF cache
+  mkdirSync(path.join(far, "my-finetunes"));
+  writeFileSync(path.join(far, "my-finetunes", "lora-final.safetensors"), "MINE");
+  writeFileSync(path.join(far, "notes.txt"), "the user's own notes");
+  mkdirSync(path.join(far, "models--other--tool", "blobs"), { recursive: true });
+  writeFileSync(path.join(far, "models--other--tool", "blobs", "x"), "another tool's");
   symlinkSync(far, path.join(cache, "hf"), kind);
-  const svc = { _cacheRoot: cache, resident: async () => ({ models: [] }) };
+  const svc = { _cacheRoot: cache, _catalogFn: () => [{ id: "m", hfRepo: "a/b" }], catalog: () => [{ id: "m", hfRepo: "a/b" }], resident: async () => ({ models: [] }) };
   expect(await RunnerService.prototype.clearModelsCache.call(svc)).toEqual({ ok: true, bytes: 4000 });
   expect(lstatSync(path.join(cache, "hf")).isSymbolicLink()).toBe(true);
-  expect(readdirSync(far)).toEqual([]);
+  expect(readdirSync(far).sort()).toEqual([".locks", "models--other--tool", "my-finetunes", "notes.txt"]);
+  expect(readdirSync(path.join(far, ".locks"))).toEqual([]);
+  expect(readFileSync(path.join(far, "notes.txt"), "utf8")).toBe("the user's own notes");
+  expect(readFileSync(path.join(far, "my-finetunes", "lora-final.safetensors"), "utf8")).toBe("MINE");
+  // no catalog (a standalone runner): nothing of a linked folder is touched
+  const none = { _cacheRoot: cache, resident: async () => ({ models: [] }) };
+  expect(await RunnerService.prototype.clearModelsCache.call(none)).toEqual({ ok: true, bytes: 0 });
+  expect(readdirSync(far).sort()).toEqual([".locks", "models--other--tool", "my-finetunes", "notes.txt"]);
   // one model's repo folder as a link
   const repoFar = path.join(tmp(), "models--c--d");
   mkdirSync(path.join(repoFar, "blobs"), { recursive: true });

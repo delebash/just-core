@@ -40,6 +40,7 @@ import {
   pickDirectory,
   setKeepRunning,
   shellVersion,
+  storageForgetOldCopy,
   storageGetRoot,
   storageOldCopies,
   storageRelocate,
@@ -90,6 +91,7 @@ const storageShell = {
   relocate: storageRelocate,
   oldCopies: storageOldCopies,
   removeOldCopy: storageRemoveOldCopy,
+  forgetOldCopy: storageForgetOldCopy,
   useDefault: storageUseDefault,
 };
 

@@ -40,9 +40,11 @@ const slots = useSlots();
 const off = computed(() => props.disabled || props.loading);
 const inert = computed(() => off.value && props.focusableWhenDisabled && props.as !== "a");
 // the click an off-but-focusable button would make (a pointer's, Enter's or Space's — QBtn makes the
-// keys' into a click) stops here, before QBtn and the caller hear it, and submits no form
+// keys' into a click) stops here, before QBtn and the caller hear it, and submits no form; an off link
+// (as="a" — aria-disabled, never the native disabled, which a link hasn't) never follows its href (it
+// did — the eighteenth review, 2026-10-20)
 function swallow(e) {
-  if (!inert.value) return;
+  if (!inert.value && !(off.value && props.as === "a")) return;
   e.preventDefault();
   e.stopImmediatePropagation();
 }

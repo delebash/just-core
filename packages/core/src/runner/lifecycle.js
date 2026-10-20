@@ -387,6 +387,23 @@ async function rmTree(p) {
   });
 }
 
+/** The HF repos a runner's catalog downloads (each model's and its separate MTP draft's) — what Clear models may
+ *  remove from a linked cache. None without a catalog (a standalone runner). */
+function catalogRepos(svc) {
+  let rows = [];
+  try {
+    rows = typeof svc.catalog === "function" && svc._catalogFn ? svc.catalog() || [] : [];
+  } catch {
+    rows = [];
+  }
+  const repos = new Set();
+  for (const m of rows) for (const r of [m?.hfRepo, m?.mtpDraftRepo]) if (typeof r === "string" && r.includes("/")) repos.add(r);
+  return [...repos];
+}
+
+/** The HF hub's folder name for a repo ("org/name" → "models--org--name"). */
+const repoDirName = (repo) => `models--${String(repo).replaceAll("/", "--")}`;
+
 /** Empty `p` — a folder, or a link to one (a junction, a symbolic link: the models kept on another drive) — and keep
  *  it: what is inside goes (fs.promises.rm), the folder or the link stays (2026-10-20, the seventeenth review: Clear
  *  models and a model's Delete through a junction removed the link, freed nothing, and left an empty folder in its
@@ -1143,6 +1160,8 @@ export class RunnerService {
     return this._catalogFn();
   }
 
+
+
   /**
    * Did a host actually supply a catalog source, or is this the standalone default?
    *
@@ -1582,11 +1601,26 @@ export class RunnerService {
     // dedupLinks like the panel: rmtree removes BOTH names of a hardlinked blob, so the bytes
     // really do come back — but they come back once, and a `freed` that counted each name
     // would overstate the reclaim (2x on Windows).
+    const st = await fsp.lstat(hf).catch(() => null);
+    if (st?.isSymbolicLink()) {
+      // a link (a junction, a symbolic link) to a folder elsewhere — a drive's, the HF hub cache other tools share,
+      // a user's own: only this app's catalog's models go (their models--<org>--<name> folders and locks), counted
+      // alone — never the rest of the folder it points to (2026-10-20, the eighteenth review: the seventeenth's
+      // "empty the linked folder" took a user's fine-tune and notes with it)
+      let freed = 0;
+      for (const repo of catalogRepos(this)) {
+        const dir = path.join(hf, repoDirName(repo));
+        if (!(await fsp.lstat(dir).catch(() => null))) continue;
+        freed += await dirSize(dir, null, true);
+        if (!(await emptyKeep(dir))) await rmTree(dir);
+        await rmTree(path.join(hf, ".locks", repoDirName(repo)));
+      }
+      return { ok: true, bytes: freed };
+    }
     const freed = await dirSize(hf, null, true);
-    // emptied, kept: a link to the models on another drive stays a link (and frees what it held there)
-    await emptyKeep(hf);
+    await rmTree(hf);
     try {
-      mkdirSync(hf, { recursive: true }); // there empty, so the next download has a home
+      mkdirSync(hf, { recursive: true }); // recreate empty so the next download has a home
     } catch (e) {
       log.warning(`could not recreate empty hf cache dir at ${hf}`, e);
     }

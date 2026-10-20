@@ -53,7 +53,7 @@ body {
 /* ── pages ──────────────────────────────────────────────────────────────── */
 /* about 75 characters a line at the body size (an em is the font's size — ch, a "0", is wider than the
    average letter: 70ch held ~100) */
-.page__lede { margin: var(--sp-2) 0 var(--sp-4); color: var(--ink-2); max-width: 33em; }
+.page__lede { margin: var(--sp-2) 0 var(--sp-4); color: var(--ink-2); max-width: 32em; }
 .page__banner { margin: var(--sp-3) 0; max-width: var(--w-edit); }
 .cards { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-start; }
 .cards > .card { width: 280px; margin-bottom: 0; }

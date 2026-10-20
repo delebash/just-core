@@ -145,16 +145,34 @@ function headlessLauncher(appImage, scratch, copy) {
 
 async function run() {
   if (await health()) throw new Error(`something already answers on port ${port} — stop it first`);
+  // every temp folder made before the start's own try/finally is removed if a step before it fails (a missing
+  // launcher, a copy that fails) — it was left behind (the eighteenth review)
+  const made = [];
+  const temp = (prefix) => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), prefix));
+    made.push(dir);
+    return dir;
+  };
+  try {
+    return await started(temp);
+  } catch (e) {
+    for (const dir of made) rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+    throw e;
+  }
+}
+
+/** The start itself: `temp(prefix)` makes a temp folder the caller removes should this throw before its own cleanup. */
+async function started(temp) {
   const appImage = asUser ? readdirSync(out).find((f) => f.endsWith(".AppImage")) : null;
   if (asUser && !appImage) throw new Error(`no .AppImage in ${out}`);
-  const dataDir = defaultData ? null : mkdtempSync(path.join(os.tmpdir(), "start-packaged-"));
+  const dataDir = defaultData ? null : temp("start-packaged-");
   // the app's own default on macOS and Linux is under the home folder (Application Support, ~/.local/share): the
   // start gets a home of its own in the temp folder, so a check run on a developer's computer never touches their
   // real data folder (Windows' default is beside the executable — in the copy)
-  const home = defaultData && process.platform !== "win32" ? realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "start-packaged-home-"))) : null;
-  const scratch = headless && appImage ? mkdtempSync(path.join(os.tmpdir(), "start-packaged-appimage-")) : null;
+  const home = defaultData && process.platform !== "win32" ? realpathSync.native(temp("start-packaged-home-")) : null;
+  const scratch = headless && appImage ? temp("start-packaged-appimage-") : null;
   // the unpacked build runs from a copy outside the checkout (the AppImage mounts or extracts outside it already)
-  const copy = appImage ? null : copyUnpacked(mkdtempSync(path.join(os.tmpdir(), "start-packaged-app-")));
+  const copy = appImage ? null : copyUnpacked(temp("start-packaged-app-"));
   const exe = headless ? headlessLauncher(appImage, scratch, copy) : appImage ? path.join(out, appImage) : findExecutable(copy);
   // the unpacked folder on Linux: chrome-sandbox isn't setuid there, so Chromium's sandbox can't start;
   // the AppImage runs exactly as a user's double-click runs it; the launcher takes the server's own command

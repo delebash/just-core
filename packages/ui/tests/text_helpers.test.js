@@ -27,16 +27,22 @@ test("on a right-to-left page a left-to-right name is the one marked", () => {
 });
 
 // The sixteenth review (2026-10-20): a Latin name holding an override (RLO) turned the rest of the sentence
-// backwards; the seventeenth: a stray PDI in a name closed its isolate early. A name's bidi controls — LRM, RLM,
-// LRE…RLO, LRI…PDI — are taken out before it is judged and marked.
+// backwards; the seventeenth: a stray PDI in a name closed its isolate early. A name's embedding, override and
+// isolate controls — LRE…RLO, LRI…PDI — are taken out before it is judged and marked; LRM and RLM stay.
 test("a name's bidi controls are taken out before it is judged and marked", () => {
   const ch = (cp) => String.fromCharCode(cp);
   const FSI = ch(0x2068);
   const PDI = ch(0x2069);
-  for (const cp of [0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069]) {
+  for (const cp of [0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069]) {
     expect(isolate(`abc${ch(cp)}def`), cp.toString(16)).toBe("abcdef");
     expect(isolate(`abc${ch(cp)}def`, { dir: "rtl" }), cp.toString(16)).toBe(`${FSI}abcdef${PDI}`);
   }
+  // LRM and RLM stay — marks a person types to place a neutral (the eighteenth review); an RLM is a
+  // right-to-left mark, so on a left-to-right page its name is isolated
+  const LRM = ch(0x200e);
+  const RLM = ch(0x200f);
+  expect(isolate(`Unit 4${LRM}-B`)).toBe(`Unit 4${LRM}-B`);
+  expect(isolate(`abc${RLM}-1`)).toBe(`${FSI}abc${RLM}-1${PDI}`);
   // a stray PDI can't close the isolate early: the Hebrew name comes out whole, inside one isolate
   expect(isolate(`בית${PDI} הים`)).toBe(`${FSI}בית הים${PDI}`);
   expect(isolate("abc def")).toBe("abc def");
@@ -52,6 +58,8 @@ test("sentence() capitalizes a detail's first word, never a name's or code's; sp
   expect(sentence("llama.cpp stopped")).toBe("llama.cpp stopped");
   expect(sentence("x64 builds only")).toBe("x64 builds only");
   expect(sentence("épuisé")).toBe("Épuisé");
+  expect(sentence("cancelled.")).toBe("Cancelled."); // a word's closing stop is no code (the eighteenth review)
+  expect(sentence("done, then stopped")).toBe("Done, then stopped");
   expect(spoken("The AI photo didn't finish", "the GPU ran out of memory")).toBe("The AI photo didn't finish. The GPU ran out of memory.");
   expect(spoken("Saved.", "")).toBe("Saved.");
   expect(spoken("Can't install:", "sd-cli is missing.")).toBe("Can't install: sd-cli is missing.");

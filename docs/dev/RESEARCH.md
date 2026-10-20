@@ -1690,6 +1690,56 @@ review — scripts in the scratchpad's adv17/shell — and its fixes; proofs in 
 - Clear models and a model's Delete through a junction removed the link and freed nothing (`s8`): a linked folder is
   now emptied and its link kept (`tests/junction_removers.test.js`).
 
+**The seventeenth's Change folder, attacked** (*measured* and *tested*, 2026-10-20; just-house-paint's eighteenth
+review — scripts in the scratchpad's adv18/shell — and its fixes; reruns in fix18/out):
+
+- Emptying a linked `hf` folder took everything in the folder it pointed to — a user's fine-tune and notes, another
+  tool's models in a shared HF cache (`s12`). Clear models on a linked `hf` now removes only the folders of this app's
+  catalog's repos (`models--<org>--<name>`, `hfRepo` and `mtpDraftRepo`) and their `.locks/` folders, counting only
+  those; no catalog wired, nothing. Rerun: no catalog 0 bytes, nothing touched; with the catalog 1000 bytes, the user's
+  files and the other tool's model kept; a model's Delete on a linked repo folder empties that folder (2000 bytes), the
+  link kept.
+- An old copy was known by its volume (`stat().dev`): off Windows a device number changes (btrfs, NFS, the order disks
+  come up), and two moves in a row stranded the first copy — its `moved-to.json` still named the middle folder
+  (`s11`). Now a move writes one id (`randomUUID`) into both records — the new root's old-copy record and the old
+  root's `moved-to.json`, the latter before the pointer commits (the undo removes it) — and at each move re-points
+  every carried copy's `moved-to.json` at the new folder (a chain of moves is accepted too). No volume or device id
+  anywhere. Rerun: after A → X → Y, A is connected, removed, and Move back to A works.
+- A copy whose folder doesn't answer to its move's id (a drive out, another stick in its place, a hand-made copy,
+  deleted by hand) is "not found": never removed and never dropped by the app; Storage's **Forget** drops the record
+  only.
+- **A look given up on (the 3 s limit) still holds one of libuv's four threadpool threads** until the system gives up
+  (~21 s for an offline share): four looks filled the pool and a local read waited 14.5 s (`s10`). Now one look per
+  drive at a time (the same look shared, the next after it), and a drive that didn't answer isn't looked at for 60 s.
+  A drive is a Windows path's root (a letter, or `\\server\share\`); a POSIX path's root is `/` for every disk, so
+  there it is the path's first three names (`/Volumes/NAS/…`, `/mnt/nas/…`, `/media/<user>/<stick>`). Rerun: 8 looks
+  at once on an offline share (4 paths) all answered in 3.1 s; Storage's list of a local copy meanwhile 0.00 s; 8
+  local reads after 0.00 s. Windows then remembers the share as unreachable: looks right after fail at once (ENOENT).
+- A share that answers in 3.5 s reads "didn't answer" for that minute, then is looked at again (`s13`, kept).
+- A move looked at each earlier copy it carries with `realpathSync.native` (the fix's own attack): one on an offline
+  share would hold the main process ~21 s mid-move. Now in time; measured (fix18/out/m1.txt, a real
+  `\\192.0.2.43\share` copy carried): the move took 3.1 s, the event loop running, the copy kept on the record.
+- **The start's check of a pointer on an offline share blocked the main thread 21.1 s** (`s15`). A worker now stats
+  it while the main thread waits at most 4 s (`Atomics.wait` on a `SharedArrayBuffer` — the start must decide before
+  Chromium's folder is set, so it stays synchronous). Rerun: 4.0 s, "its drive didn't answer".
+- **A look at an offline share still under way holds the process's exit until the system gives up** — Node and
+  Electron 44 alike, the worker's or an `fs.promises` look (reasoned: the threads are joined at exit). Measured (fix18/out/
+  linger.txt): `app.quit()` at +1 s, the process gone at 21.6 s. The window goes and the single-instance lock is
+  released at quit: a second launch 3.4 s after the quit got the lock.
+- "Connected" for the folder the data is in now means the start's own check passes (`s16`: a folder the app can't
+  write read "restart the app to use it", and the restart met the same box); there and refused, its words ("a file
+  has that name", "the app isn't allowed to write there"); missing or not answering, "connect it and restart".
+- Real Electron (`e3`, `e4`, a 60 000-file half copy): during the sweep the start is busy — `serverUrl` and
+  `serverStatus` wait, the tray's server items are off, `startServer` and Change folder refuse. Rerun: the page
+  reached the app at 13.1 s (was the connection page at 6.7 s); the tray's Start during the sweep refused, the server
+  started after it on the swept folder (was: on the half copy). The app's boot still gives up after its own ~15 s
+  (`CHECK_SERVER_MS` and `checkServer`); past that the connection page probes and boots once the server answers.
+- **`will-prevent-unload`** (electronjs.org/docs/latest/api/web-contents#event-will-prevent-unload; real Electron 44,
+  fix18/out/e5.txt): a page whose `beforeunload` calls `preventDefault()` raises it on a reload, the window's close
+  and a Quit; the shell asks "Leave without saving?" (Leave / Stay), `preventDefault()` on Leave. It fires on a page
+  the user never clicked too. A reload sent in the same instant as the Stay is dropped by Chromium. A hidden window
+  (keep-running, the tray's Quit) is shown first — a box on a hidden window isn't seen.
+
 **The screens at real sizes, fixed** (*measured*, 2026-10-20; just-house-paint's tenth review, an agent on the
 built app at 960/1366/1920, light and dark):
 
@@ -1736,6 +1786,24 @@ review):
   an elevated prompt on some systems); without an answer, an absolute target is taken as a junction (junctions are
   always absolute). A Windows runner (administrator) ran the file-link test; a standard account here can't. —
   *measured, 2026-10-20 (dry run 39428267423)*.
+- **Looks at a drive that may not answer** (the eighteenth review, 2026-10-20): a stat on an offline SMB share holds one
+  of libuv's four file-system threads for ~21 s whatever timer gives up on it — four such looks starved every async
+  file call in the main process (a local read took 14.5 s). So a drive that timed out isn't looked at again for 60 s
+  and each drive gets one look at a time, shared (8 looks: 3.1 s, local reads 0.00 s). The drive's key is its root on
+  Windows and, on POSIX, the path's first three names — **NOT STANDARD** (the standard key, the mount point, needs the
+  stat that hangs). The start's own check of a pointer runs its stat in a worker while the main thread waits 4 s at
+  most (Atomics.wait on a SharedArrayBuffer) — **NOT STANDARD**; spawnSync with a timeout would cost a process on every
+  start from a moved folder. A look still under way at Quit keeps the process ~21 s after its window closed (the
+  single-instance lock is released at once). — *measured, real Electron and a \\192.0.2.x share*.
+- **An old copy's identity**: a disk's device number isn't stable off Windows (btrfs subvolumes, NFS/CIFS/FUSE handed
+  out at mount, the order disks come up) and two sticks with one label share one; on NTFS every volume's root has the
+  same file id (0x0005000000000005), so only the serial tells sticks apart. The move now writes one id into both
+  records (the new root's list of old copies, the old root's moved-to.json); a copy that doesn't answer to it is "Not
+  found", never removed, and only the user's Forget drops it. — *measured (Windows), reasoned (Linux, macOS)*.
+- **Electron's documented unsaved-work pattern**: the page's beforeunload calls preventDefault; webContents emits
+  will-prevent-unload; the main process shows its box and calls event.preventDefault() to let the page go
+  (electronjs.org/docs/latest/api/web-contents#event-will-prevent-unload). Without a handler the close is silently
+  cancelled. — *docs, and real Electron (reload, ×, Quit)*.
 
 ## 3 · AI tasks and the stream frames
 

@@ -96,6 +96,12 @@ const addressWith = (token) => `${headlessUrl.value.replace(/\/$/, "")}/?token=$
     <i18n-t keypath="kit.serverPanel.headlessHint" tag="p" class="hint" scope="global">
       <template #command><code class="lu-server__mono">{{ serverCommand }}</code></template>
     </i18n-t>
+    <!-- a reverse proxy that sends no proxy header reaches the server from this computer, so it would pass
+         as this computer — no token asked (the eighteenth review, 2026-10-20) -->
+    <i18n-t keypath="kit.serverPanel.proxyHint" tag="p" class="hint" scope="global">
+      <template #require>{{ t("kit.serverPanel.requireOnLocalhost") }}</template>
+      <template #header><code class="lu-server__mono">X-Forwarded-For</code></template>
+    </i18n-t>
     <div class="lu-server__row">
       <code class="lu-server__mono lu-server__box">{{ headlessUrl }}</code>
       <UiButton intent="secondary" size="small" :label="t('kit.serverPanel.copy')" @click="copy(headlessUrl, t('kit.serverPanel.copied'))" />

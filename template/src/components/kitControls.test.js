@@ -25,6 +25,8 @@ import {
   AppDialog,
   AppearancePanel,
   BootModelLoad,
+  clearAnnouncer,
+  clearToasts,
   DataManagement,
   SettingsShell,
   UiBanner,
@@ -718,6 +720,63 @@ test("an info banner wears the info icon; the AI tasks row has no title equal to
   expect(warning.startsWith("M12 4 2 20h20")).toBe(true); // the triangle
   setActivePinia(createPinia());
   expect("title" in useAiTasksNav().navAttrs).toBe(false);
+});
+
+// ── The eighteenth review (2026-10-20, the scratchpad's adv18) ─────────────────────────────────────────
+
+test("the announcer: one tick's lines all land; a region's lines go together after its last; clear takes the queued too", async () => {
+  installAnnouncer();
+  await mountHost(() => h("div"));
+  clearAnnouncer();
+  const polite = () => [...document.querySelector('[data-live-announcer] [aria-live="polite"]').children].map((d) => d.textContent);
+  for (let i = 1; i <= 6; i++) announce(`line ${i}`, "polite", { lingerMs: 120 }); // a burst, one tick
+  await settle();
+  expect(polite()).toEqual(["line 1", "line 2", "line 3", "line 4", "line 5", "line 6"]); // none dropped
+  announce("later", "polite", { lingerMs: 120 });
+  await settle();
+  expect(polite()).toEqual(["line 4", "line 5", "line 6", "later"]); // the cap takes earlier ticks' lines only
+  await new Promise((r) => setTimeout(r, 70));
+  announce("again", "polite", { lingerMs: 120 }); // resets the region's one timer
+  await new Promise((r) => setTimeout(r, 80)); // 150 ms after "later": still there, the timer was reset
+  expect(polite()).toContain("later");
+  await new Promise((r) => setTimeout(r, 120));
+  expect(polite()).toEqual([]); // all gone, 120 ms after the last
+  announce("never said");
+  clearAnnouncer(); // before its tick: taken back
+  await settle();
+  expect(polite()).toEqual([]);
+});
+
+test("a toast equal to one showing isn't added again; an off link never follows its href", async () => {
+  await mountHost(() => h(UiButton, { as: "a", href: "#/elsewhere", disabled: true, label: "Open" }));
+  const create = vi.spyOn(quasar.Notify, "create");
+  pushToast({ title: "Copied", kind: "success" });
+  pushToast({ title: "Copied", kind: "success" });
+  pushToast({ title: "Copied again", kind: "success" });
+  expect(create).toHaveBeenCalledTimes(2);
+  create.mockRestore();
+  clearToasts();
+  const link = document.querySelector("a.ui-btn");
+  const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+  link.dispatchEvent(click);
+  expect(click.defaultPrevented).toBe(true);
+  expect(link.getAttribute("aria-disabled")).toBe("true");
+});
+
+test("a failed task's row says the server's words, never the HTTP status line", async () => {
+  setActivePinia(createPinia());
+  await mountHost(() => h("div"));
+  const tasks = useAiTasksStore();
+  const err = Object.assign(new Error("409 Conflict: install it first, on a house's Parts tab"), {
+    status: 409,
+    problem: { title: "The part finder isn't installed", detail: "install it first, on a house's Parts tab" },
+  });
+  await withAiTask({ feature: "finder.find", label: "Find the parts", lingerMs: { failed: null } }, async () => {
+    throw err;
+  }).catch(() => {});
+  const failed = Object.values(tasks.tasks).find((x) => x.label === "Find the parts");
+  expect(failed.error).toBe("The part finder isn't installed. Install it first, on a house's Parts tab.");
+  expect(failed.error).not.toMatch(/409/);
 });
 
 test("a model that failed to load at start offers the app's Troubleshooting page — only when the app has one", async () => {
