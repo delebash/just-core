@@ -47,6 +47,9 @@ async function boot({ app, router, store: pinia }) {
     // the openers, through services/native.js — the same line in every app; the kit decides when
     // they can be used (desktop or browser)
     external: { open: openUrl, openPath },
+    // the window signs in at the kit's token page (its Server panel keeps a token) when the server requires one
+    // even on this computer
+    askTokenOnThisComputer: true,
     // no embedding features in this app
     capabilities: { embeddings: false },
   });

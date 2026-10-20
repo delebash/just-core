@@ -255,10 +255,13 @@ export function resolveDataDir({ appName, envVar, sourceRoot = null, env = null 
  * (`--appimage-extract`, its headless launcher's way in): AppImages keep data in the XDG data folder, so
  * the extracted launcher's server and the AppImage's window share one.
  */
-export function bundledInstall(base, { platform = process.platform, env = process.env, exists = existsSync } = {}) {
-  if (base == null) return false;
+export function bundledInstall(base, { platform = process.platform, exists = existsSync, frozen = runtime.frozen } = {}) {
+  // only a packaged app: a source checkout is never a bundle (one run from a terminal an AppImage started
+  // inherits its APPIMAGE variable — not a sign of anything here)
+  if (base == null || !frozen) return false;
   if (platform === "darwin") return /\.app\/Contents\/MacOS\/?$/.test(String(base).replace(/\\/g, "/"));
-  if (platform === "linux") return Boolean(env.APPIMAGE) || exists(path.join(base, "AppRun"));
+  // an AppImage's folder, mounted or extracted, has its AppRun beside the executable
+  if (platform === "linux") return exists(path.join(base, "AppRun"));
   return false;
 }
 

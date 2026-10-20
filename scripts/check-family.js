@@ -344,7 +344,8 @@ function checkClipboard(name, dir, files, required) {
   for (const file of files) {
     if (![".js", ".vue"].includes(extname(file)) || /\.test\.js$/.test(file)) continue;
     // a write (a paste's readText has no fallback to point at)
-    if (!/navigator\.clipboard\.write(Text)?\s*\(/.test(codeOf(file))) continue;
+    // `navigator.clipboard.writeText(`, its `?.` form, or the clipboard kept in a name to write through
+    if (!/navigator\.clipboard\s*(\?\.|\.)\s*write(Text)?\s*\(|=\s*navigator\.clipboard\s*[;,)\n]/.test(codeOf(file))) continue;
     const rel = relative(dir, file).replace(/\\/g, "/");
     (required ? fail : info)(name, `${rel} copies with navigator.clipboard — missing on a page served over plain http (a browser on another computer); use Quasar's copyToClipboard`);
   }
@@ -821,7 +822,9 @@ function checkLauncher(app) {
   } else {
     const r = spawnSync("git", ["-C", app.dir, "ls-files", "-s", "--", `build/launcher/${script}`], { encoding: "utf8" });
     const mode = r.status === 0 ? r.stdout.split(" ")[0] : "";
-    if (mode && mode !== "100755") required(name, `build/launcher/${script} is ${mode} in git, not executable — git update-index --chmod=+x build/launcher/${script} (§Q.3)`);
+    // a git checkout that doesn't track it (a new app before its first add) builds it without the bit too
+    if (r.status === 0 && !mode) required(name, `build/launcher/${script} isn't in git — add it executable: git add ${script}; git update-index --chmod=+x build/launcher/${script} (§Q.3)`);
+    else if (mode && mode !== "100755") required(name, `build/launcher/${script} is ${mode} in git, not executable — git update-index --chmod=+x build/launcher/${script} (§Q.3)`);
   }
   const cfg = existsSync(join(app.dir, "quasar.config.js")) ? readFileSync(join(app.dir, "quasar.config.js"), "utf8") : "";
   // path.join(root, 'build', 'launcher') or 'build/launcher'
@@ -1221,7 +1224,12 @@ const RELEASE_REQUIRED = new Set(["template", "just-house-paint"]);
 function checkCorsOrigins(app) {
   const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
   for (const f of walk(join(app.dir, "server", "src")).filter((p) => p.endsWith(".js"))) {
-    if (/starletteCors\(\s*\{[^}]*allowOrigins:\s*\[\s*["']\*["']\s*\]/.test(readFileSync(f, "utf8")))
+    const code = codeOf(f);
+    if (!/\bstarletteCors\s*\(/.test(code)) continue;
+    // "*" anywhere in the list, a list named elsewhere that holds "*", or a regex that matches anything
+    const named = [...code.matchAll(/allowOrigins:\s*([A-Za-z_$][\w$]*)/g)].map((m) => m[1]);
+    const namedStar = named.some((n) => new RegExp(`\\b(?:const|let|var)\\s+${n}\\s*=\\s*\\[[^\\]]*["'\`]\\*["'\`]`).test(code));
+    if (/allowOrigins:\s*\[[^\]]*["'`]\*["'`]/.test(code) || namedStar || /allowOriginRegex:\s*["'`]\^?\.[*+]/.test(code))
       report(`${relative(app.dir, f).replace(/\\/g, "/")} allows CORS from every origin — any web page could read this computer's server; answer the app's own origins (the template's APP_ORIGINS + CAPACITOR_ORIGINS)`);
   }
 }
@@ -1238,8 +1246,8 @@ function checkRestoreKeepsTokens(app) {
   if (!existsSync(auth) || !/(getSetting\([^)]*|["']settings["']\s*,\s*)["']auth["']/.test(readFileSync(auth, "utf8"))) return;
   const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
   for (const f of walk(src).filter((p) => p.endsWith(".js"))) {
-    const y = readFileSync(f, "utf8");
-    if (/\bmakeDataRouter\s*\(/.test(y) && !/\bafterCopy\b/.test(y))
+    const y = codeOf(f); // a comment naming afterCopy keeps nothing
+    if (/\bmakeDataRouter\s*\(/.test(y) && !/\bafterCopy\s*[:(]/.test(y))
       report(`${relative(app.dir, f).replace(/\\/g, "/")}: a restore replaces the access tokens with the backup's (or none) — keep this server's (the template's data_admin.js keepAuth: beforeCopy / afterCopy)`);
   }
 }
@@ -1256,12 +1264,21 @@ function checkRelease(app) {
     // the kit moves on with every app's work: a release builds the kit's commit the app was tested with
     if (!/repository:\s*delebash\/just-core[\s\S]*?ref:\s*\$\{\{\s*inputs\.core_ref\s*\}\}|ref:\s*\$\{\{\s*inputs\.core_ref\s*\}\}[\s\S]*?repository:\s*delebash\/just-core/.test(y))
       report(".github/workflows/release.yml checks the kit out at its main — check it out at `inputs.core_ref` (the commit the app was tested with; the template's release.js passes it)");
-    // the packaged app must start on each runner before anything is attached (macOS and Linux are never opened by hand)
-    if (!/node scripts\/start-packaged\.js/.test(y))
-      report(".github/workflows/release.yml doesn't start the packaged app before attaching it (the template's \"Start the packaged app\" step, scripts/start-packaged.js)");
+    // the start checks read without the YAML's comments (a commented-out step checks nothing), each line on its own
+    const steps = y
+      .split(/\r?\n/)
+      .map((line) => line.replace(/(^|\s)#.*$/, ""))
+      .filter((line) => /node scripts\/start-packaged\.js/.test(line));
+    // the packaged app must start on each runner before anything is attached (macOS and Linux are never opened by hand) —
+    // its window, not only its server
+    if (!steps.some((line) => !/--headless/.test(line)))
+      report(".github/workflows/release.yml doesn't start the packaged app's window before attaching it (the template's \"Start the packaged app\" step, scripts/start-packaged.js)");
     // and its server on its own, through the launcher the help names (macOS and Linux have one since 2026-10-19)
-    if (!/node scripts\/start-packaged\.js[^\n]*--headless/.test(y))
+    if (!steps.some((line) => /--headless/.test(line)))
       report(".github/workflows/release.yml doesn't start the server on its own through the app's launcher (the template's \"Start the server on its own\" step, start-packaged.js --headless)");
+    // a check that may fail and the release go on isn't one
+    if (/^\s*continue-on-error:\s*true/m.test(y.replace(/(^|\s)#.*$/gm, "")))
+      report(".github/workflows/release.yml lets a step fail and go on (continue-on-error: true) — every check must stop the release");
   }
   for (const rel of ["scripts/release.js", "scripts/bump.js", "scripts/start-packaged.js"]) if (!existsSync(join(app.dir, rel))) report(`no ${rel} (the template's)`);
   const pkgPath = join(app.dir, "package.json");

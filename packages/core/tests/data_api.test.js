@@ -4,7 +4,7 @@
 // Python's SQLAlchemy `MetaData` + `Table("notes", …)` is a one-table TABLES list here;
 // the zip is read back with the module's own reader (its Python interop was checked by
 // hand, 2026-10-07: Python's zipfile reads these backups and these read Python's).
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, statfsSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
@@ -124,10 +124,13 @@ test("restore_into_a_folder_windows_holds_lands_every_file_and_drops_the_rest", 
 test("restore_keeps_this_computers_engine_tables_and_a_backup_leaves_out_what_the_app_scrubs", async () => {
   const tmp = mkdtempSync(join(tmpdir(), "kit-data-"));
   const RB = { name: "runner_binary", ddl: "CREATE TABLE runner_binary (platform VARCHAR NOT NULL, asset_url VARCHAR, PRIMARY KEY (platform))" };
-  const make = (file, url, note) => {
+  const RS = { name: "runner_setting", ddl: "CREATE TABLE runner_setting (\"key\" VARCHAR NOT NULL, value VARCHAR NOT NULL, PRIMARY KEY (\"key\"))" };
+  const make = (file, url, note, build = "b100", preset = "mine") => {
     const h = openDatabase(file, { foreignKeys: false });
     h.exec(NOTES.ddl);
     h.exec(RB.ddl);
+    h.exec(RS.ddl);
+    h.run("INSERT INTO runner_setting VALUES ('pinned_build', ?), ('default_preset_id', ?)", [build, preset]);
     h.run("INSERT INTO runner_binary VALUES ('windows', ?)", [url]);
     h.run("INSERT INTO notes (id, body) VALUES (1, ?)", [note]);
     return h;
@@ -136,7 +139,7 @@ test("restore_keeps_this_computers_engine_tables_and_a_backup_leaves_out_what_th
   const engine = make(db, "https://github.com/ggml-org/llama.cpp/releases/x.zip", "a token");
   const app = createServer({ typeBase: "https://example.test/errors/" });
   const scrubBackup = (h) => h.run("UPDATE notes SET body = 'scrubbed'");
-  app.route("/", makeDataRouter({ getDbPath: () => db, metadata: [NOTES, RB], runReset: () => {}, scrubBackup }));
+  app.route("/", makeDataRouter({ getDbPath: () => db, metadata: [NOTES, RB, RS], runReset: () => {}, scrubBackup }));
   // the backup's own database copy is scrubbed; the live one isn't
   const backup = join(tmp, "backup.zip");
   writeFileSync(backup, await bytes(await app.request("/v1/data/backup", { method: "GET" })));
@@ -147,13 +150,29 @@ test("restore_keeps_this_computers_engine_tables_and_a_backup_leaves_out_what_th
   copy.close();
   expect(rows(engine)).toEqual({ 1: "a token" });
   // a malicious backup naming another executable: its notes come back, this computer's engine rows stay
-  const evil = make(join(tmp, "evil.db"), "https://evil.example/llama.zip", "from the backup");
+  const evil = make(join(tmp, "evil.db"), "https://evil.example/llama.zip", "from the backup", "b99999", "theirs");
   evil.close();
   const zip = new ZipWriter();
   await zip.addFile(join(tmp, "evil.db"), "db.sqlite");
   expect((await upload(app, Buffer.concat(zip.finish()))).status).toBe(200);
   expect(rows(engine)).toEqual({ 1: "from the backup" });
   expect(engine.all("SELECT asset_url FROM runner_binary")).toEqual([{ asset_url: "https://github.com/ggml-org/llama.cpp/releases/x.zip" }]);
+  // the runner settings: this computer's pinned build stays; the user's own choice (the default preset) comes back
+  const setting = (key) => engine.all("SELECT value FROM runner_setting WHERE \"key\" = ?", [key])[0]?.value;
+  expect(setting("pinned_build")).toBe("b100");
+  expect(setting("default_preset_id")).toBe("theirs");
+});
+
+test("backup_and_restore_work_beside_the_database_and_leave_nothing_there", async () => {
+  // the data's own drive, not the system's temp (2026-10-20); an hour-old leftover of a killed process goes
+  const { app, tmp } = makeApp();
+  mkdirSync(join(tmp, ".backup-old"));
+  const hourAgo = (Date.now() - 2 * 3600_000) / 1000;
+  utimesSync(join(tmp, ".backup-old"), hourAgo, hourAgo);
+  const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
+  expect((await upload(app, blob)).status).toBe(200);
+  await new Promise((r) => setTimeout(r, 50)); // the backup's folder goes once its answer is read
+  expect(readdirSync(tmp).filter((n) => n.startsWith("."))).toEqual([]);
 });
 
 test("restore_refuses_an_entry_that_unpacks_past_its_stated_size_and_a_backup_too_big_for_the_drive", async () => {

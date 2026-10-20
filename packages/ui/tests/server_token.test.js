@@ -30,12 +30,17 @@ describe("a server that requires a token even on this computer", () => {
   // it takes: the window asks for one (ConnectionError) instead of loading into 401s — 2026-10-20
   test("the boot check asks for a token when the health answer says one is required", async () => {
     const { checkServer, serverNeedsToken } = await import("../src/common/services/serverApi.js");
-    configureServerApi({ resolveBase: () => "http://127.0.0.1:1" });
+    configureServerApi({ resolveBase: () => "http://127.0.0.1:1", askTokenOnThisComputer: true });
     let tokenRequired = true;
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ status: "ok", ...(tokenRequired ? { tokenRequired } : {}) }))));
     expect(await checkServer({ tries: 1, delayMs: 0 })).toBe(false);
     expect(serverNeedsToken.value).toBe(true);
     tokenRequired = false; // a token it takes, kept
+    expect(await checkServer({ tries: 1, delayMs: 0 })).toBe(true);
+    expect(serverNeedsToken.value).toBe(false);
+    // an app that keeps its token elsewhere (not opted in): the window loads as before, its Settings the way out
+    configureServerApi({ askTokenOnThisComputer: false });
+    tokenRequired = true;
     expect(await checkServer({ tries: 1, delayMs: 0 })).toBe(true);
     expect(serverNeedsToken.value).toBe(false);
   });

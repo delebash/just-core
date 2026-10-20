@@ -59,6 +59,7 @@ import { dataFolderInUse } from "../platform/data_lock.js";
 import { portInUse } from "../platform/port.js";
 import { CHROME_DIR, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir } from "./dataRoot.js";
 import { pickSpellLanguages } from "./spellLanguages.js";
+import { placeSaved } from "./save_place.js";
 import { stopStaleServer } from "./stale_server.js";
 
 /** The renderer's commands — the preload exposes exactly these (`appShell.invoke`). */
@@ -455,7 +456,9 @@ export function runDesktopApp(config) {
     // the app drawn in the window — the release's start check waits for this line (scripts/start-packaged.js):
     // a server that answers behind a window that never draws isn't a working app. An error page or a
     // missing bundle "finishes loading" too (measured, Electron 44.7), so the app's own layout is asked for
-    // (Quasar's .q-layout in #q-app — a failed start's message has none); a failed load says so instead.
+    // (Quasar's .q-layout in #q-app — a failed start's message has none) and, inside it, its first page
+    // (the page container's content — a page that throws or a lazy chunk that's missing leaves it empty);
+    // a failed load says so instead.
     let failedLoad = null;
     win.webContents.on("did-fail-load", (_e, code, description, _url, isMainFrame) => {
       // the page itself (a frame inside it failing isn't the window failing); -3: a navigation the page replaced
@@ -465,11 +468,16 @@ export function runDesktopApp(config) {
     win.webContents.once("did-finish-load", async () => {
       if (failedLoad) return console.log(`[shell] window failed: ${failedLoad}`);
       for (let i = 0; i < 120 && !win.isDestroyed(); i++) {
-        const drawn = await win.webContents.executeJavaScript("!!document.querySelector('#q-app .q-layout')", true).catch(() => false);
+        const drawn = await win.webContents
+          .executeJavaScript(
+            "(() => { const l = document.querySelector('#q-app .q-layout'); const c = l && l.querySelector('.q-page-container'); return !!l && (!c || c.childElementCount > 0); })()",
+            true,
+          )
+          .catch(() => false);
         if (drawn) return console.log("[shell] window loaded");
         await new Promise((r) => setTimeout(r, 500));
       }
-      console.log("[shell] window failed: the app never drew its layout");
+      console.log("[shell] window failed: the app never drew its layout and first page");
     });
     win.loadURL(home);
     state.win = win;
@@ -652,7 +660,7 @@ export function runDesktopApp(config) {
       const part = `${r.filePath}.part`;
       try {
         fs.writeFileSync(part, Buffer.from(bytes));
-        fs.renameSync(part, r.filePath);
+        await placeSaved(part, r.filePath);
       } catch (e) {
         fs.rmSync(part, { force: true });
         throw e;
@@ -676,7 +684,7 @@ export function runDesktopApp(config) {
       const part = `${r.filePath}.part`;
       try {
         await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(part));
-        fs.renameSync(part, r.filePath);
+        await placeSaved(part, r.filePath);
       } catch (e) {
         fs.rmSync(part, { force: true });
         throw e;

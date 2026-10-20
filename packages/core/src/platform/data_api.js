@@ -26,9 +26,8 @@
 // The ZIP is platform/zip.js — what Python's zipfile writes and reads, so Python-made
 // backups restore. Uploads are streamed to a temp file rather than held in memory.
 
-import { closeSync, createReadStream, createWriteStream, existsSync, mkdtempSync, openSync, rmSync, statfsSync, statSync } from "node:fs";
+import { closeSync, createReadStream, createWriteStream, existsSync, mkdtempSync, openSync, readdirSync, rmSync, statfsSync, statSync } from "node:fs";
 import { cp, readdir, rename, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -47,9 +46,57 @@ const tablesOf = (metadata) => {
   return list.length && list.every(Array.isArray) ? list : [list];
 };
 
-/** The runner's own tables — this computer's engine builds and settings: a restore keeps them (makeDataRouter
- *  `keepTables`). */
-export const RUNNER_MACHINE_TABLES = Object.freeze(["runner_binary", "runner_setting"]);
+/** The runner's own table of this computer's engine builds (their download URLs): a restore keeps it
+ *  (makeDataRouter `keepTables`). */
+export const RUNNER_MACHINE_TABLES = Object.freeze(["runner_binary"]);
+
+/** The runner settings that are this computer's, not the user's choices: the pinned engine build, the
+ *  calibration model it downloads (URL, hash, size) and where the models are kept — a restore keeps these rows
+ *  (`keepRows`) and restores the rest of the table (the default preset, the model-list rules, the update
+ *  policy: a backup moved to a new computer brings them — 2026-10-20). */
+export const RUNNER_MACHINE_ROWS = Object.freeze({
+  runner_setting: Object.freeze({ column: "key", values: Object.freeze(["pinned_build", "calib_model_url", "calib_model_sha256", "calib_model_size_bytes", "cache_root"]) }),
+});
+
+/** A backup's or a restore's work folder, beside the database — on the data's own drive, not the system's
+ *  temp (a backup of gigabytes on a nearly full system drive failed while the data lived on another, and a
+ *  restore's unpacked copy then moves into place by a rename, not a copy); one an ended process left goes once
+ *  it is an hour old (2026-10-20). */
+function workFolder(dbPath, kind) {
+  const parent = path.dirname(dbPath);
+  for (const name of existsSync(parent) ? readdirSync(parent) : []) {
+    if (!name.startsWith(`.${kind}-`)) continue;
+    try {
+      const old = path.join(parent, name);
+      if (Date.now() - statSync(old).mtimeMs > 3600_000) rmSync(old, { recursive: true, force: true });
+    } catch {
+      // held or gone: the next one tries again
+    }
+  }
+  return mkdtempSync(path.join(parent, `.${kind}-`));
+}
+
+/** The rows `keep` names in tables a restore replaces, read before it (put back after: restoreRows). */
+function heldRows(h, keep, tables) {
+  const held = [];
+  for (const [table, { column, values }] of Object.entries(keep || {})) {
+    if (!tables.includes(table) || !values.length) continue;
+    const marks = values.map(() => "?").join(", ");
+    held.push({ table, column, values, marks, rows: h.all(`SELECT * FROM main."${table}" WHERE "${column}" IN (${marks})`, values) });
+  }
+  return held;
+}
+
+/** This computer's rows back, in place of the backup's. */
+function restoreRows(h, held) {
+  for (const { table, column, values, marks, rows } of held) {
+    h.run(`DELETE FROM main."${table}" WHERE "${column}" IN (${marks})`, values);
+    for (const row of rows) {
+      const cols = Object.keys(row);
+      h.run(`INSERT INTO main."${table}" (${cols.map((c) => `"${c}"`).join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`, cols.map((c) => row[c]));
+    }
+  }
+}
 
 /** Room the drive keeps beyond what a restore unpacks (the database's own copy, the logs). */
 const UNPACK_MARGIN = 256 * 1024 * 1024;
@@ -283,10 +330,12 @@ async function receiveUpload(c, dest) {
  *                      runs its sync engine's step here, so no sync and no failed asset copy comes
  *                      between the restored rows and that step.
  *   - `keepTables`   → tables a RESTORE leaves as they are: this computer's, not the data's. By
- *                      default the runner's engine builds and settings (`runner_binary`,
- *                      `runner_setting`): a backup's rows there name the executables the next engine
- *                      install downloads and runs — a malicious backup's run its code (the security
- *                      review, 2026-10-19).
+ *                      default the runner's engine builds (`runner_binary`): a backup's rows there name
+ *                      the executables the next engine install downloads and runs — a malicious
+ *                      backup's run its code (the security review, 2026-10-19).
+ *   - `keepRows`     → `{table: {column, values}}`: rows of a restored table that stay this computer's —
+ *                      by default the runner settings naming its build, its calibration download and its
+ *                      model cache (RUNNER_MACHINE_ROWS); the user's own settings in that table restore.
  *   - `scrubBackup(h)` → runs on the BACKUP's own copy of the database before it is zipped, to drop
  *                      what must not leave this computer (the template: the access tokens, which a
  *                      restore keeps from the server anyway).
@@ -302,6 +351,7 @@ export function makeDataRouter({
   afterCopy = null,
   afterTables = null,
   keepTables = RUNNER_MACHINE_TABLES,
+  keepRows = RUNNER_MACHINE_ROWS,
   scrubBackup = null,
 }) {
   const assets = async () => entriesOf(assetDirs ? await assetDirs() : {});
@@ -329,7 +379,7 @@ export function makeDataRouter({
     );
     const dbPath = String(await getDbPath());
     if (!existsSync(dbPath)) throw new HttpError(404, "no database to back up");
-    const tmp = mkdtempSync(path.join(tmpdir(), "llm-runner-backup-"));
+    const tmp = workFolder(dbPath, "backup");
     // the archive is written to a file as it is made and streamed from it — never held whole in memory
     // (gigabytes of photos); the folder goes once the answer has been read, or cut off
     const archive = path.join(tmp, "backup.zip");
@@ -379,8 +429,9 @@ export function makeDataRouter({
   });
 
   app.post(`${prefix}/restore`, async (c) => {
-    const upDir = mkdtempSync(path.join(tmpdir(), "llm-runner-upload-"));
-    const tmp = mkdtempSync(path.join(tmpdir(), "llm-runner-restore-"));
+    const liveDb = String(await getDbPath());
+    const upDir = workFolder(liveDb, "upload");
+    const tmp = workFolder(liveDb, "restore");
     try {
       const upload = path.join(upDir, "backup.zip");
       await receiveUpload(c, upload);
@@ -400,7 +451,7 @@ export function makeDataRouter({
         throw e;
       }
       const srcDb = path.join(tmp, DB_ARCNAME);
-      const h = openDatabase(String(await getDbPath()), { foreignKeys: false, timeoutMs: 5000 });
+      const h = openDatabase(liveDb, { foreignKeys: false, timeoutMs: 5000 });
       try {
         h.run("ATTACH ? AS src", [srcDb]);
         // this computer's own tables stay as they are (`keepTables`)
@@ -408,6 +459,7 @@ export function makeDataRouter({
         const srcTables = new Set(h.all("SELECT name FROM src.sqlite_master WHERE type='table'").map((r) => r.name));
         h.tx(() => {
           if (beforeCopy) beforeCopy(h);
+          const held = heldRows(h, keepRows, tables);
           // Clear children → parents, refill parents → children.
           for (const t of [...tables].reverse()) h.exec(`DELETE FROM main."${t}"`);
           for (const t of tables) {
@@ -419,6 +471,7 @@ export function makeDataRouter({
             const colSql = cols.map((col) => `"${col}"`).join(", ");
             h.exec(`INSERT INTO main."${t}" (${colSql}) SELECT ${colSql} FROM src."${t}"`);
           }
+          restoreRows(h, held);
           if (afterCopy) afterCopy(h);
         });
         h.exec("DETACH src");

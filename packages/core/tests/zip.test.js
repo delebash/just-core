@@ -16,7 +16,7 @@
 //       zf.writestr(info("empty.txt"), b"")
 //       zf.comment = b"made by CPython zipfile"                             # the end-record search
 // where info(name, method=ZIP_DEFLATED) is a ZipInfo(name, date_time=when) of that method.
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { closeSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -215,4 +215,26 @@ test("the refusals: not a zip, a bad CRC, an unknown name", async () => {
   const out = join(tmp(), "out");
   await expect(zf.extract("stored.bin", out)).rejects.toThrow(BadZipFile);
   expect(() => zf.info("missing.txt")).toThrow(KeyError);
+});
+
+test("a writer given a file writes the archive there as it goes, holding none of it (a backup of gigabytes)", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "kit-zip-fd-"));
+  writeFileSync(join(dir, "photo.bin"), Buffer.alloc(300_000, 7));
+  const out = join(dir, "out.zip");
+  const fd = openSync(out, "w");
+  let zip;
+  try {
+    zip = new ZipWriter({ fd });
+    await zip.addFile(join(dir, "photo.bin"), "houses/photo.bin");
+    zip.writestr("db.sqlite", "rows");
+    expect(zip.chunks).toEqual([]); // nothing kept in memory
+    expect(zip.finish()).toEqual([]);
+  } finally {
+    closeSync(fd);
+  }
+  const reader = await ZipReader.open(out);
+  expect(reader.names().sort()).toEqual(["db.sqlite", "houses/photo.bin"]);
+  await reader.extractAll(join(dir, "x"));
+  expect(readFileSync(join(dir, "x", "houses", "photo.bin")).equals(Buffer.alloc(300_000, 7))).toBe(true);
+  rmSync(dir, { recursive: true, force: true });
 });

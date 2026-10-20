@@ -29,8 +29,13 @@ const _cfg = {
   authToken: getServerToken,
 };
 
-export function configureServerApi({ resolveBase, authToken } = {}) {
+/** `askTokenOnThisComputer`: the boot check stops at the token page when the server requires a token even from
+ *  this computer and the window has none it takes (the health answer's `tokenRequired`) — for an app whose window
+ *  signs in there (the kit's token storage and Server panel: the template's). Off, the window loads as before and
+ *  its Settings → Server stays the way out (the other apps keep their tokens elsewhere — 2026-10-20). */
+export function configureServerApi({ resolveBase, authToken, askTokenOnThisComputer } = {}) {
   if (resolveBase) _cfg.resolveBase = resolveBase;
+  if (askTokenOnThisComputer !== undefined) _cfg.askTokenOnThisComputer = !!askTokenOnThisComputer;
   if (authToken) {
     _cfg.authToken = authToken;
     setAuthTokenSource(authToken);
@@ -227,7 +232,7 @@ export async function checkServer({ tries = CHECK.tries, delayMs = CHECK.delayMs
         // open from this computer, but the server requires a token even here and this window has
         // none it takes (bearerAuth marks the health answer): asked for, never a window of 401s
         const body = await res.json().catch(() => null);
-        serverNeedsToken.value = body?.tokenRequired === true;
+        serverNeedsToken.value = _cfg.askTokenOnThisComputer === true && body?.tokenRequired === true;
         return !serverNeedsToken.value;
       }
       // up, but it wants a token this browser doesn't have: asking again won't change that

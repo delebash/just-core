@@ -2,6 +2,10 @@
 // Settings → Backups' server half (data_admin.js over the kit's makeDataRouter): a backup is a ZIP
 // of the database, a restore puts its rows back, a reset returns the first-run state — keeping the
 // access tokens, so a reset never opens an exposed server.
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { openDatabase } from "@delebash/core/platform";
+import { ZipReader, ZipWriter } from "@delebash/core/platform/zip";
 import { beforeEach, expect, test } from "vitest";
 import { createApp } from "../src/app.js";
 import { getDb } from "../src/app_state.js";
@@ -64,12 +68,30 @@ test("a restore keeps this server's access tokens — never the backup's", async
   const auth = { authorization: "Bearer mine" };
   expect((await restore(noToken, auth)).status).toBe(200);
   expect(getSetting(getDb(), "auth").tokens).toEqual(["mine"]);
-  // a backup with a token, restored on a server without one: no token of the backup's comes with it
-  const withToken = (await client.get("/v1/data/backup", { headers: auth })).rawPayload;
+  // a backup that carries a token (an older version's did — ours are scrubbed, below), restored on a server
+  // without one: no token of the backup's comes with it
+  const withToken = await rawBackup();
   deleteSetting(getDb(), "auth");
   expect((await restore(withToken)).status).toBe(200);
   expect(getSetting(getDb(), "auth")).toBeUndefined();
+  // this version's backups carry no token at all
+  await client.put("/v1/server-auth", { json: { tokens: ["mine"] } });
+  const dir = tmpDir();
+  writeFileSync(join(dir, "ours.zip"), (await client.get("/v1/data/backup", { headers: auth })).rawPayload);
+  await (await ZipReader.open(join(dir, "ours.zip"))).extractAll(join(dir, "out"));
+  const copy = openDatabase(join(dir, "out", "db.sqlite"), { foreignKeys: false });
+  expect(getSetting(copy, "auth")).toBeUndefined();
+  copy.close();
 });
+
+/** A backup as an older version made it: the database as it is — its access tokens in it — zipped. */
+async function rawBackup() {
+  const dir = tmpDir();
+  getDb().run("VACUUM INTO ?", [join(dir, "db.sqlite")]);
+  const zip = new ZipWriter();
+  await zip.addFile(join(dir, "db.sqlite"), "db.sqlite");
+  return Buffer.concat(zip.finish());
+}
 
 test("a backup from an older version gets this one's settings seed when restored, not only at the next start", async () => {
   deleteSetting(getDb(), "notes.pageSize"); // a setting the older version didn't have

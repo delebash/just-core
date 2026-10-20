@@ -145,14 +145,16 @@ jobs:
         shell: bash
         run: node scripts/start-packaged.js --headless
 
-      # No data folder named: the window and the server on its own use the app's default — one folder, never
-      # inside the app's bundle (an update replaces it whole; just-house-paint RESEARCH §13, the ninth review)
+      # No data folder named: the window and the server on its own use the app's default — one folder (Windows'
+      # and the unpacked Linux build's beside the executable; never inside a Mac app's bundle, which an update
+      # replaces whole — just-house-paint RESEARCH §13, the ninth review)
       - name: The window and the server on its own share one data folder
-        if: matrix.target == 'darwin'
         working-directory: app
         shell: bash
         run: |
-          a=$(node scripts/start-packaged.js --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
+          window="node"
+          if [ "${{ matrix.target }}" = linux ]; then window="xvfb-run -a node"; fi
+          a=$($window scripts/start-packaged.js --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
           b=$(node scripts/start-packaged.js --headless --default-data | tee /dev/stderr | sed -n 's/^data folder used: //p')
           echo "the window: $a"; echo "on its own: $b"
           test -n "$a" && test "$a" = "$b"

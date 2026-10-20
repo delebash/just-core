@@ -83,14 +83,16 @@ test("frozen_default_lands_beside_the_executable", () => {
 
 // 2026-10-20: a Mac app's bundle and an AppImage (mounted or extracted) are no place for data, writable or not
 test("a_mac_bundle_and_an_appimage_are_never_the_data_folder", () => {
-  const mac = { platform: "darwin", env: {}, exists: () => false };
+  const mac = { platform: "darwin", exists: () => false, frozen: true };
   expect(dp.bundledInstall("/Applications/Just House Paint.app/Contents/MacOS", mac)).toBe(true);
   expect(dp.bundledInstall("/Users/me/apps/tool", mac)).toBe(false);
-  const linux = (env, appRun) => ({ platform: "linux", env, exists: () => appRun });
-  expect(dp.bundledInstall("/tmp/.mount_justhoXYZ", linux({ APPIMAGE: "/home/me/x.AppImage" }, true))).toBe(true);
-  expect(dp.bundledInstall("/home/me/squashfs-root", linux({}, true))).toBe(true); // extracted: AppRun beside it
-  expect(dp.bundledInstall("/opt/Just House Paint", linux({}, false))).toBe(false); // a .deb install
-  expect(dp.bundledInstall("C:/Program Files/App", { platform: "win32", env: {}, exists: () => true })).toBe(false);
+  const linux = (appRun, frozen = true) => ({ platform: "linux", exists: () => appRun, frozen });
+  expect(dp.bundledInstall("/tmp/.mount_justhoXYZ", linux(true))).toBe(true); // mounted: AppRun beside the executable
+  expect(dp.bundledInstall("/home/me/squashfs-root", linux(true))).toBe(true); // extracted: AppRun beside it
+  expect(dp.bundledInstall("/opt/Just House Paint", linux(false))).toBe(false); // a .deb install
+  expect(dp.bundledInstall("C:/Program Files/App", { platform: "win32", exists: () => true, frozen: true })).toBe(false);
+  // a source checkout is never a bundle — even run from a terminal an AppImage started (its APPIMAGE inherited)
+  expect(dp.bundledInstall("/home/me/dev/just-house-paint", linux(true, false))).toBe(false);
   // a bundled install's default is the OS folder, even when the bundle is writable
   const exe = join(tmp, "app", "justvoice");
   write(exe);

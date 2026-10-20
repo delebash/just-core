@@ -120,7 +120,9 @@ async function run() {
   const env = { ...process.env };
   if (dataDir) env[dataDirEnv] = dataDir;
   else delete env[dataDirEnv];
-  const options = { env, stdio: ["ignore", "pipe", "inherit"], detached: process.platform !== "win32" };
+  // started from the temp folder, not the checkout: the server's UI fallback (a dist/spa beside the working
+  // folder) must not stand in for the packaged UI
+  const options = { env, cwd: os.tmpdir(), stdio: ["ignore", "pipe", "inherit"], detached: process.platform !== "win32" };
   // a .cmd runs only through the shell on Windows (Node refuses to spawn it directly): one command line
   const child = headless && process.platform === "win32" ? spawn(`"${exe}" ${args.join(" ")}`, { ...options, shell: true }) : spawn(exe, args, options);
   // the shell says when its window drew the app, or why it didn't (the kit's runDesktopApp) — read as one
@@ -164,7 +166,12 @@ async function run() {
           // the whole app with no window: the server serves its UI too
           const page = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(10_000) });
           if (!page.ok || !/text\/html/.test(page.headers.get("content-type") || "")) throw new Error(`/ answered ${page.status} ${page.headers.get("content-type")}, not the app's page`);
-          console.log(`/: ${page.status} ${page.headers.get("content-type")}`);
+          // and the page's own script — a blank page answers 200 too
+          const src = (await page.text()).match(/<script[^>]+src="([^"]+)"/)?.[1];
+          if (!src) throw new Error("/ has no script: not the app's page");
+          const script = await fetch(new URL(src, `http://127.0.0.1:${port}/`), { signal: AbortSignal.timeout(10_000) });
+          if (!script.ok || !/javascript/.test(script.headers.get("content-type") || "")) throw new Error(`the page's script ${src} answered ${script.status} ${script.headers.get("content-type")}`);
+          console.log(`/: ${page.status} ${page.headers.get("content-type")}; its script ${script.status}`);
         }
         for (const p of extraPaths) {
           const r = await fetch(`http://127.0.0.1:${port}${p}`, { signal: AbortSignal.timeout(60_000) });
