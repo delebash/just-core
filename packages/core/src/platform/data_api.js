@@ -26,7 +26,7 @@
 // The ZIP is platform/zip.js — what Python's zipfile writes and reads, so Python-made
 // backups restore. Uploads are streamed to a temp file rather than held in memory.
 
-import { createWriteStream, existsSync, mkdtempSync, statfsSync, statSync } from "node:fs";
+import { closeSync, createReadStream, createWriteStream, existsSync, mkdtempSync, openSync, rmSync, statfsSync, statSync } from "node:fs";
 import { cp, readdir, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -330,7 +330,9 @@ export function makeDataRouter({
     const dbPath = String(await getDbPath());
     if (!existsSync(dbPath)) throw new HttpError(404, "no database to back up");
     const tmp = mkdtempSync(path.join(tmpdir(), "llm-runner-backup-"));
-    let chunks;
+    // the archive is written to a file as it is made and streamed from it — never held whole in memory
+    // (gigabytes of photos); the folder goes once the answer has been read, or cut off
+    const archive = path.join(tmp, "backup.zip");
     try {
       const clean = path.join(tmp, DB_ARCNAME);
       const h = openDatabase(dbPath, { foreignKeys: false, timeoutMs: 5000 });
@@ -349,18 +351,29 @@ export function makeDataRouter({
           copy.close();
         }
       }
-      const zip = new ZipWriter();
-      await zip.addFile(clean, DB_ARCNAME);
-      for (const [arcname, d] of await assets()) {
-        if (skip.has(arcname)) continue;
-        await addDir(zip, arcname, String(d));
+      const fd = openSync(archive, "w");
+      try {
+        const zip = new ZipWriter({ fd });
+        await zip.addFile(clean, DB_ARCNAME);
+        for (const [arcname, d] of await assets()) {
+          if (skip.has(arcname)) continue;
+          await addDir(zip, arcname, String(d));
+        }
+        zip.finish();
+      } finally {
+        closeSync(fd);
       }
-      chunks = zip.finish();
-    } finally {
+      rmSync(clean, { force: true });
+    } catch (e) {
       await rm(tmp, { recursive: true, force: true });
+      throw e;
     }
-    return c.body(Readable.toWeb(Readable.from(chunks)), 200, {
+    const size = statSync(archive).size;
+    const stream = createReadStream(archive);
+    stream.once("close", () => rm(tmp, { recursive: true, force: true }).catch(() => {}));
+    return c.body(Readable.toWeb(stream), 200, {
       "Content-Type": "application/zip",
+      "Content-Length": String(size),
       "Content-Disposition": 'attachment; filename="backup.zip"',
     });
   });

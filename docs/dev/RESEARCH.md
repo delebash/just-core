@@ -1419,7 +1419,9 @@ just-house-paint's ninth review, a reading of its help against the code):
   `~/Library/Application Support/<App>`, the XDG data folder), the Change-folder pointer goes beside it, and a data
   folder an earlier version left in a Mac bundle moves out once. The release checks it: `start-packaged.js
   --default-data` names no folder and fails when the one used is inside the app; macOS compares the window's with
-  its launcher's, Ubuntu 24.04 the AppImage's with its extracted launcher's.
+  its launcher's, Ubuntu 24.04 the AppImage's with its extracted launcher's. *Measured* (just-house-paint's dry run
+  39372563942, kit 54583fe): macOS both `~/Library/Application Support/JustHousePaint`; the AppImage and its
+  extracted launcher both `~/.local/share/JustHousePaint`.
 - "Require a token on this computer too" left the desktop window useless: `/v1/health` stays open from this
   computer (the lockout escape), so the boot check passed, and every other call answered 401. Now `bearerAuth` marks
   an open request from a client without a token it takes, `makeHealthRouter` answers `tokenRequired: true`, and

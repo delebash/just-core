@@ -36,6 +36,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 import {
   app,
@@ -64,6 +66,7 @@ export const COMMANDS = [
   "pickDirectory",
   "pickFile",
   "saveFile",
+  "saveFromUrl",
   "storageGetRoot",
   "storageRelocate",
   "setKeepRunning",
@@ -645,7 +648,39 @@ export function runDesktopApp(config) {
         filters: filterExt ? [{ name: filterName || filterExt, extensions: [String(filterExt).replace(/^\./, "")] }] : [],
       });
       if (r.canceled || !r.filePath) return null;
-      fs.writeFileSync(r.filePath, Buffer.from(bytes));
+      // beside it first, then in its place: a disk that fills leaves no cut-off file under the chosen name
+      const part = `${r.filePath}.part`;
+      try {
+        fs.writeFileSync(part, Buffer.from(bytes));
+        fs.renameSync(part, r.filePath);
+      } catch (e) {
+        fs.rmSync(part, { force: true });
+        throw e;
+      }
+      return { ok: true, path: r.filePath };
+    },
+    /** "Save as" for a file the app's own server makes (a backup — gigabytes of photos): streamed from the
+     *  server straight to the chosen file, never held whole by the window or here (2026-10-20). Only this
+     *  app's server: `url` must start at its address; `headers` carry the window's access token. */
+    async saveFromUrl({ url, headers, suggestedName, title, filterName, filterExt, defaultDir } = {}) {
+      const base = serverUrl();
+      if (!base || typeof url !== "string" || !url.startsWith(`${base}/`)) throw new Error("saveFromUrl: only this app's server's files");
+      const r = await dialog.showSaveDialog(state.win, {
+        title: title || "Save as",
+        defaultPath: path.join(defaultDir || app.getPath("downloads"), suggestedName || ""),
+        filters: filterExt ? [{ name: filterName || filterExt, extensions: [String(filterExt).replace(/^\./, "")] }] : [],
+      });
+      if (r.canceled || !r.filePath) return null;
+      const res = await fetch(url, { headers: headers || {} });
+      if (!res.ok || !res.body) throw new Error(`${res.status} ${res.statusText}`);
+      const part = `${r.filePath}.part`;
+      try {
+        await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(part));
+        fs.renameSync(part, r.filePath);
+      } catch (e) {
+        fs.rmSync(part, { force: true });
+        throw e;
+      }
       return { ok: true, path: r.filePath };
     },
     storageGetRoot() {

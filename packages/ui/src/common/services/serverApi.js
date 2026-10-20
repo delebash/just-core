@@ -63,7 +63,8 @@ export function makeOriginAwareResolver({ devPorts = [], fallback = "", override
   };
 }
 
-function authHeaders(extra) {
+/** The headers every request carries — the access token this window keeps (serverToken.js), as `Authorization`. */
+export function authHeaders(extra) {
   const headers = { ...(extra || {}) };
   const tok = _cfg.authToken();
   if (tok) headers.Authorization = `Bearer ${tok}`;

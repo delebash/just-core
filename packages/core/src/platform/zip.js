@@ -24,7 +24,7 @@
 // unpack, JustWrite's book transfer and JustVoice's voice bundle.
 
 import { once } from "node:events";
-import { closeSync, createReadStream, createWriteStream, existsSync, mkdirSync, openSync, readSync, statSync } from "node:fs";
+import { closeSync, createReadStream, createWriteStream, existsSync, mkdirSync, openSync, readSync, statSync, writeSync } from "node:fs";
 import { open, stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable, Transform } from "node:stream";
@@ -87,17 +87,21 @@ function zip64Extra(values) {
 
 /** A ZIP built in memory as a list of chunks — `zipfile.ZipFile(buf, "w", ZIP_DEFLATED)`. */
 export class ZipWriter {
-  /** `compression`: "deflated" (zipfile's ZIP_DEFLATED, the default) or "stored" (ZIP_STORED). */
-  constructor({ compression = "deflated" } = {}) {
+  /** `compression`: "deflated" (zipfile's ZIP_DEFLATED, the default) or "stored" (ZIP_STORED). `fd`: an
+   *  open file the archive is written to as it is made, instead of held whole in memory (a backup of a
+   *  few hundred houses' photos ran to gigabytes — 2026-10-20); `finish()` then returns no chunks. */
+  constructor({ compression = "deflated", fd = null } = {}) {
     if (compression !== "deflated" && compression !== "stored") throw new ValueError(`unknown compression: ${compression}`);
     this.method = compression === "stored" ? 0 : 8;
+    this.fd = fd;
     this.chunks = [];
     this.offset = 0;
     this.entries = [];
   }
 
   push(buf) {
-    this.chunks.push(buf);
+    if (this.fd === null) this.chunks.push(buf);
+    else writeSync(this.fd, buf);
     this.offset += buf.length;
   }
 

@@ -17,6 +17,7 @@ const COMMANDS = new Set([
   "pickDirectory",
   "pickFile",
   "saveFile",
+  "saveFromUrl",
   "storageGetRoot",
   "storageRelocate",
   "setKeepRunning",

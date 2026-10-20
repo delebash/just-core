@@ -28,13 +28,32 @@
 
 import { isDesktopShell } from "./external.js";
 import { kitT } from "./kitI18n.js";
+import { authHeaders, requestBlob, serverUrl } from "./serverApi.js";
 
-const config = { save: null, available: () => isDesktopShell() };
+const config = { save: null, saveUrl: null, available: () => isDesktopShell() };
 
-/** Wire the host's native "save as". Merge semantics, like configureExternal. */
-export function configureFileSave({ save, available } = {}) {
+/** Wire the host's native "save as" — `save(blob, opts)`, and `saveUrl(url, opts)` for a file its own
+ *  server makes, streamed to disk by the shell (a backup: gigabytes the window never holds). Merge
+ *  semantics, like configureExternal. */
+export function configureFileSave({ save, saveUrl, available } = {}) {
   if (save !== undefined) config.save = save || null;
+  if (saveUrl !== undefined) config.saveUrl = saveUrl || null;
   if (available !== undefined) config.available = available || (() => isDesktopShell());
+}
+
+/**
+ * Deliver the server's file at `path` (e.g. "/v1/data/backup") as `filename`: where the host wired a URL
+ * saver, the shell streams it to the chosen file — the window never holds it; otherwise it is fetched
+ * and downloaded as `saveBlob` would. Answers as `saveBlob`.
+ */
+export async function saveUrlAs(path, filename, opts = {}) {
+  if (canSaveNatively() && config.saveUrl) {
+    const res = await config.saveUrl(serverUrl(path), { filename, headers: authHeaders(), ...opts });
+    if (!res || res.cancelled) return { ok: false, cancelled: true };
+    if (res.ok === false) throw new Error(res.error || kitT("kit.fileSave.failed"));
+    return { ok: true, path: res.path };
+  }
+  return saveBlob(await requestBlob(path), filename, opts);
 }
 
 /** Will `saveBlob` open a real dialog, or drop the file into Downloads? Lets a

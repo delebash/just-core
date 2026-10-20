@@ -62,7 +62,9 @@ test("backup_restore_reset_roundtrip", async () => {
   // Backup: a zip with the DB + the asset dir.
   const r = await app.request("/v1/data/backup", { method: "GET" });
   expect(r.status).toBe(200);
+  const length = Number(r.headers.get("content-length")); // streamed from a file, its size known — never held whole
   const blob = await bytes(r);
+  expect(blob.length).toBe(length);
   const names = await zipNames(blob, tmp);
   expect(names).toContain("db.sqlite");
   expect(names).toContain("images/a.txt");

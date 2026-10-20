@@ -37,6 +37,14 @@ export async function saveFile({ blob, suggestedName, title, filterName, filterE
   return call("saveFile", { bytes, suggestedName, title, filterName, filterExt, defaultDir });
 }
 
+/** "Save as" for a file the app's own server makes (a backup): the shell streams it from the server to the
+ *  chosen file — the window never holds it (configureFileSave's `saveUrl`). Resolves `{ ok, path }`, or null
+ *  if the user cancelled. */
+export function saveFromUrl({ url, headers, suggestedName, title, filterName, filterExt, defaultDir }) {
+  if (!hasShell()) return Promise.resolve(null);
+  return call("saveFromUrl", { url, headers, suggestedName, title, filterName, filterExt, defaultDir });
+}
+
 // ─── The portable data root ──────────────────────────────────────────
 
 /** `{ root, default, portable }`, or null outside the shell. */

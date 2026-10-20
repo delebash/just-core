@@ -6,11 +6,11 @@
 // download filename + copy.
 import { computed, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { request, requestBlob, postForm } from "../client.js";
+import { request, postForm } from "../client.js";
 import UiButton from "../common/components/UiButton.vue";
 import UiCheckbox from "../common/components/UiCheckbox.vue";
 import { confirmDialog, promptDialog } from "../common/services/dialog.js";
-import { saveBlob } from "../common/services/fileSave.js";
+import { saveUrlAs } from "../common/services/fileSave.js";
 import { pushToast } from "../common/services/toastBridge.js";
 
 const { t } = useI18n();
@@ -56,7 +56,6 @@ function stamp() {
 async function exportBackup() {
   busy.value = "backup";
   try {
-    const blob = await requestBlob(`/v1/data/backup${backupQuery()}`);
     const filename = `${app.value.toLowerCase().replace(/\s+/g, "-")}-backup-${stamp()}.zip`;
     // THE one save door (2026-08-15) — native dialog where the host wired one,
     // Downloads otherwise. The `save-file` PROP is gone: a host wires its saver
@@ -64,7 +63,9 @@ async function exportBackup() {
     // than each surface remembering to pass a prop. JustWrite passed it here and
     // JustVoice + docgen did not, which is exactly how one act ended up with two
     // behaviours across the family.
-    const res = await saveBlob(blob, filename, {
+    // streamed by the shell straight to the chosen file where it can (gigabytes of photos the window
+    // never holds — 2026-10-20), fetched and downloaded otherwise
+    const res = await saveUrlAs(`/v1/data/backup${backupQuery()}`, filename, {
       title: t("kit.dataManagement.saveTitle", { app: app.value }),
       filterName: t("kit.dataManagement.filterName", { app: app.value }),
       filterExt: "zip",
