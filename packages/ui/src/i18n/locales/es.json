@@ -264,7 +264,7 @@
     },
     "serverPanel": {
       "headlessTitle": "Acceso sin escritorio",
-      "headlessHint": "El servidor sirve la propia aplicación: ejecuta {command} y abre su dirección en cualquier navegador, sin instalar la aplicación de escritorio.",
+      "headlessHint": "El servidor sirve la propia aplicación: ejecuta {command} y abre su dirección en un navegador. Desde otro equipo: inícialo con --host 0.0.0.0, con un token de acceso abajo, y usa la dirección de red de este equipo.",
       "copy": "Copiar",
       "copied": "Dirección del servidor copiada",
       "keepRunning": "Mantener el servidor en marcha al cerrar la aplicación",
@@ -278,7 +278,7 @@
       "addToken": "Añadir token",
       "removeToken": "Quitar token",
       "copyWithToken": "Copiar la dirección con este token",
-      "copiedWithToken": "Dirección con el token copiada: ábrela en un navegador de otro equipo"
+      "copiedWithToken": "Dirección con el token copiada: el navegador que la abra entra con él"
     },
     "storagePanel": {
       "savesDefault": "tu trabajo",

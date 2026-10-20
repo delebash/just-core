@@ -145,11 +145,14 @@ export default defineConfig(() => {
         ],
         // native modules can't load from inside the asar archive (the server itself runs from it)
         asarUnpack: [ '**/*.node' ],
-        // the headless launcher (family-template-server.cmd) beside the exe — the app's own exe
-        // run as Node on its server package (§Q.3)
-        extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '..' } ],
-        // the exe never shares the headless launcher's name (§Q.3)
-        win: { target: 'nsis', executableName: 'familytemplate' },
+        // the headless launcher — the app's own exe run as Node on its server package (§Q.3): the .cmd
+        // beside the Windows exe, the shell script beside the Linux one and in the Mac app's Resources (its
+        // bundle's root takes no file a signature doesn't seal); the exe never shares the launcher's name
+        win: {
+          target: 'nsis',
+          executableName: 'familytemplate',
+          extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '..', filter: [ '*.cmd' ] } ]
+        },
         nsis: {
           oneClick: false,
           perMachine: false,
@@ -168,10 +171,17 @@ export default defineConfig(() => {
           onlyLoadAppFromAsar: true,
           grantFileProtocolExtraPrivileges: false
         },
-        mac: { category: 'public.app-category.productivity' },
+        mac: {
+          category: 'public.app-category.productivity',
+          extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '.', filter: [ '!*.cmd' ] } ]
+        },
         // the AppImage; a .deb also needs `linux.maintainer` ("name <email>", published in the package)
         // — add it, and 'deb' to the targets, with the address the app's owner wants public
-        linux: { target: [ 'AppImage' ], category: 'Office' },
+        linux: {
+          target: [ 'AppImage' ],
+          category: 'Office',
+          extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '..', filter: [ '!*.cmd' ] } ]
+        },
         // the AppImage on the AppImage project's static runtime (type2-runtime 20251108): it needs no FUSE 2
         // library, which Ubuntu 24.04 doesn't install — the legacy toolset's AppImage stopped there with
         // "AppImages require FUSE to run" (just-house-paint RESEARCH §13; the release's linux-user check)

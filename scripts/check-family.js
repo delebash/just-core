@@ -336,6 +336,19 @@ function codeOf(file) {
     .replace(/^\s*\/\/.*$/gm, "");
 }
 
+// A copy to the clipboard is Quasar's copyToClipboard: `navigator.clipboard` is missing on a page served over
+// plain http — a browser on another computer — and every Copy failed there (2026-10-19). Required in the kit's
+// UI and where the release is required, advisory elsewhere.
+function checkClipboard(name, dir, files, required) {
+  for (const file of files) {
+    if (![".js", ".vue"].includes(extname(file)) || /\.test\.js$/.test(file)) continue;
+    // a write (a paste's readText has no fallback to point at)
+    if (!/navigator\.clipboard\.write(Text)?\s*\(/.test(codeOf(file))) continue;
+    const rel = relative(dir, file).replace(/\\/g, "/");
+    (required ? fail : info)(name, `${rel} copies with navigator.clipboard — missing on a page served over plain http (a browser on another computer); use Quasar's copyToClipboard`);
+  }
+}
+
 // check 11 · ONE save door. `a.download = …` is the shape of a hand-rolled
 // download; the kit's fileSave.js is the only place allowed to write it.
 function checkOneSaveDoor(app, files) {
@@ -798,6 +811,10 @@ function checkLauncher(app) {
   if (!launchers.some((f) => basename(f, extname(f)).endsWith("-server"))) {
     fail(name, "build/launcher/ has no <name>-server launcher — headless is the app's own exe run as Node (§Q.3)");
   }
+  // macOS and Linux: the shell script twin (the template's, 2026-10-19) — required where the release is
+  if (!launchers.some((f) => f.endsWith("-server") && !extname(f))) {
+    (RELEASE_REQUIRED.has(name) ? fail : info)(name, "build/launcher/ has no <name>-server shell script — the headless server on macOS and Linux (the template's; §Q.3)");
+  }
   const cfg = existsSync(join(app.dir, "quasar.config.js")) ? readFileSync(join(app.dir, "quasar.config.js"), "utf8") : "";
   // path.join(root, 'build', 'launcher') or 'build/launcher'
   if (!/extraResources:\s*\[[^\]]*['"/\\]launcher\/?['"]/.test(cfg)) {
@@ -1161,7 +1178,7 @@ function checkChrome(app, files) {
     for (const m of text.matchAll(/(?<![:\w-])help-key="([\w-]+)"/g))
       if (!existsSync(join(app.dir, "docs", `${m[1]}.md`))) report(`${rel(f)} opens help "${m[1]}" but docs/${m[1]}.md doesn't exist (§14)`);
   // the once-ever AI offer
-  if (!all.some(([f, text]) => /maybeOfferAiSetup\(/.test(text) && !/stores[\/]ui\.js$/.test(f)))
+  if (!all.some(([f, text]) => /maybeOfferAiSetup\(/.test(text) && !/stores[/]ui\.js$/.test(f)))
     report("nothing calls maybeOfferAiSetup() — the once-ever AI offer never shows (§11; the template calls it from its example page)");
   // the chrome
   const joined = all.map(([, t]) => t).join("\n");
@@ -1188,6 +1205,24 @@ function checkChrome(app, files) {
 // the repository the feed is published to. FAILS for the template and the apps made from it;
 // advisory for the older apps (JustWrite's workflow predates the feed; JustVoice's runs on a tag).
 const RELEASE_REQUIRED = new Set(["template", "just-house-paint"]);
+
+// ── a restore keeps the server's access tokens ────────────────────────────────
+// The tokens are the server's, not the data's: a restore that brings a backup's `auth` row — or none —
+// opens an exposed headless server, or locks every client out (the template's data_admin.js `keepAuth`,
+// 2026-10-19). Checked where the tokens live in the settings table (auth.js reads the "auth" row);
+// required where the release is, advisory elsewhere until each app takes it.
+function checkRestoreKeepsTokens(app) {
+  const src = join(app.dir, "server", "src");
+  const auth = join(src, "auth.js");
+  // getSetting(db, "auth") (the template's), getSetting("auth") (docgen's), h.get("settings", "auth") (JustWrite's)
+  if (!existsSync(auth) || !/(getSetting\([^)]*|["']settings["']\s*,\s*)["']auth["']/.test(readFileSync(auth, "utf8"))) return;
+  const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
+  for (const f of walk(src).filter((p) => p.endsWith(".js"))) {
+    const y = readFileSync(f, "utf8");
+    if (/\bmakeDataRouter\s*\(/.test(y) && !/\bafterCopy\b/.test(y))
+      report(`${relative(app.dir, f).replace(/\\/g, "/")}: a restore replaces the access tokens with the backup's (or none) — keep this server's (the template's data_admin.js keepAuth: beforeCopy / afterCopy)`);
+  }
+}
 function checkRelease(app) {
   const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
   const workflow = join(app.dir, ".github", "workflows", "release.yml");
@@ -1204,6 +1239,9 @@ function checkRelease(app) {
     // the packaged app must start on each runner before anything is attached (macOS and Linux are never opened by hand)
     if (!/node scripts\/start-packaged\.js/.test(y))
       report(".github/workflows/release.yml doesn't start the packaged app before attaching it (the template's \"Start the packaged app\" step, scripts/start-packaged.js)");
+    // and its server on its own, through the launcher the help names (macOS and Linux have one since 2026-10-19)
+    if (!/node scripts\/start-packaged\.js[^\n]*--headless/.test(y))
+      report(".github/workflows/release.yml doesn't start the server on its own through the app's launcher (the template's \"Start the server on its own\" step, start-packaged.js --headless)");
   }
   for (const rel of ["scripts/release.js", "scripts/bump.js", "scripts/start-packaged.js"]) if (!existsSync(join(app.dir, rel))) report(`no ${rel} (the template's)`);
   const pkgPath = join(app.dir, "package.json");
@@ -1253,6 +1291,8 @@ for (const app of [...APPS, TEMPLATE]) {
   checkSurfaceTasks(app, files);
   checkChrome(app, files);
   checkRelease(app);
+  checkRestoreKeepsTokens(app);
+  checkClipboard(app.name, app.dir, files, RELEASE_REQUIRED.has(app.name));
   checkOneSaveDoor(app, files);
   checkOneShellDoor(app, files);
   checkOneHono(app, [...walk(join(app.dir, "server", "src")), ...walk(join(app.dir, "server", "tests"))]);
@@ -1266,6 +1306,7 @@ checkTrackerFormat();
 checkSkeletonCrossApp();
 checkRetired("kit", KIT, KIT_RETIRED);
 checkSkeletonKit();
+checkClipboard("kit", KIT, walk(join(KIT, "packages", "ui", "src")), true);
 checkI18nKit();
 checkResearchRegister("kit", KIT);
 // The /new-just-app skill runs from ~/.claude/skills — advisory when that copy differs from the kit's.

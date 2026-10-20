@@ -16,6 +16,7 @@
 // TWO in-place editors, each serving add AND edit, NO popup (the QC-15 no-naming-popup
 // law): the CLASS editor (Name · Type · VRAM/RAM) and the CONFIG editor (Model +
 // switches). Copy/Import move a config between users as one small JSON blob.
+import { copyToClipboard } from "quasar";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -370,7 +371,7 @@ async function copyConfig(tune) {
   }, null, 2);
   const id = `${tune.modelId}|${tune.classKey}`;
   try {
-    await navigator.clipboard.writeText(blob);
+    await copyToClipboard(blob);
     copiedKey.value = id;
     setTimeout(() => { copiedKey.value = ""; }, 1500);
   } catch {

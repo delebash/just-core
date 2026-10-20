@@ -264,7 +264,7 @@
     },
     "serverPanel": {
       "headlessTitle": "Headless access",
-      "headlessHint": "The server hosts the app itself: run {command} and open its address in any browser — no desktop install needed.",
+      "headlessHint": "The server hosts the app itself: run {command} and open its address in a browser. From another computer: start it with --host 0.0.0.0, with an access token below, and use this computer's network address.",
       "copy": "Copy",
       "copied": "Server address copied",
       "keepRunning": "Keep server running after the app closes",
@@ -278,7 +278,7 @@
       "addToken": "Add token",
       "removeToken": "Remove token",
       "copyWithToken": "Copy the address with this token",
-      "copiedWithToken": "The address with the token copied — open it in a browser on another computer"
+      "copiedWithToken": "The address with the token copied — a browser that opens it is signed in"
     },
     "storagePanel": {
       "savesDefault": "your work",

@@ -8,6 +8,7 @@
 // Clear empties the on-screen tail (the ring); Delete day / Delete all logs
 // remove stored files (kit confirmDialog — never native). Same panel in every
 // same-stack app; the host mounts make_logs_router + installs ring + file log.
+import { copyToClipboard } from "quasar";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { request, llmUiUrl } from "../client.js";
@@ -89,7 +90,7 @@ async function copyLogs() {
     // it gets pasted into a bug report or a file, where ISO + milliseconds are
     // what's wanted. The rows are still the LEVEL-FILTERED ones, so "Errors only"
     // copies only errors (copying the unparsed blob would silently lose that).
-    await navigator.clipboard.writeText(rows.value.map((r) => r.raw).join("\n"));
+    await copyToClipboard(rows.value.map((r) => r.raw).join("\n"));
     copied.value = true;
     setTimeout(() => { copied.value = false; }, 1500);
   } catch { /* clipboard blocked — ignore */ }

@@ -192,10 +192,14 @@ origins (the kit's `CAPACITOR_ORIGINS`) and Quasar's dev server.
   through Hono's `app.request`.
 - **Headless is the app's own exe run as Node**: `build/launcher/<app>-server.cmd` sets
   `ELECTRON_RUN_AS_NODE=1` and runs the exe on
-  `resources/app.asar/node_modules/<app>-server/src/serve.js`; the builder config in
-  `quasar.config.js` copies `build/launcher/` beside the exe (`extraResources`). Same server, same
-  UI at `/`, no window. A domain CLI gets a launcher the same way (docgen's
-  `just-ai-i18n-docgen.cmd`). In a checkout: `npm run server`.
+  `resources/app.asar/node_modules/<app>-server/src/serve.js`; its shell-script twin
+  `build/launcher/<app>-server` does the same on macOS and Linux (no display needed). The builder
+  config in `quasar.config.js` copies each platform's (`extraResources` per platform, `filter`): the
+  .cmd beside the Windows exe, the script beside the Linux one (an AppImage: after
+  `--appimage-extract`, in `squashfs-root/`) and into the Mac app's `Contents/Resources` (a signed
+  bundle's root takes no unsealed file). Same server, same UI at `/`, no window; the release starts
+  it on every runner (`start-packaged.js --headless`). A domain CLI gets a launcher the same way
+  (docgen's `just-ai-i18n-docgen.cmd`). In a checkout: `npm run server`.
 - **A launcher never shares the app executable's name** — Windows resolves a bare name to the GUI
   exe first and spawns windows forever (JustVoice's CreateProcessW trap).
 

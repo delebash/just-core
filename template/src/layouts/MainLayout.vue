@@ -17,6 +17,7 @@
 //   - the shell's two menus in the app's language: the tray's words and the right-click menu's (the
 //     kit's shellTrayLabels / shellMenuLabels), sent at start and on every language switch.
 // Family rules: a height:100% chain (never 100vh), one scroller per area.
+import { copyToClipboard } from "quasar";
 import {
   AiSetupOffer, BootModelLoad, HelpDrawer, Icon, LlmUiHosts, pushToast, shellMenuLabels, shellTrayLabels, useAiTasksNav,
   warmModelId,
@@ -62,7 +63,7 @@ onMounted(() => {
     onShellEvent("tray:copy-url", async (url) => {
       // A focused window's clipboard write is reliable; the shell shows the window first (§11).
       try {
-        await navigator.clipboard.writeText(String(url));
+        await copyToClipboard(String(url));
         pushToast({ kind: "success", title: t("tray.urlCopied"), description: String(url) });
       } catch (err) {
         pushToast({ kind: "error", title: t("tray.copyFailed"), description: String(err?.message || err) });

@@ -10,9 +10,13 @@
 // finder's runtime loads, `node scripts/start-packaged.js v1/segment/runtime`; written without the
 // leading slash, which Git Bash on Windows turns into a file path). `--appimage` (Linux)
 // runs the .AppImage file itself with no flags, as a user opens it — the sandbox and FUSE as they are on
-// that machine — instead of the unpacked folder. Exit 0 = it answered; 1 = it didn't.
+// that machine — instead of the unpacked folder. `--headless` starts the server on its own through the
+// app's launcher instead (build/launcher: `<name>-server.cmd` beside the Windows exe, `<name>-server`
+// beside the Linux one and in the Mac app's Resources; with `--appimage`, the AppImage extracted as its
+// help says) — no window, no display: it must answer with its version and serve the UI at `/`.
+// Exit 0 = it answered; 1 = it didn't.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -25,6 +29,8 @@ if (!port || !dataDirEnv) throw new Error("src-electron/electron-main.js names n
 const out = path.join(root, "dist", "electron", "Packaged");
 const TIMEOUT_MS = 120_000;
 const asUser = process.argv.includes("--appimage");
+const headless = process.argv.includes("--headless");
+const launcherName = `${pkg.name}-server`;
 const extraPaths = process.argv
   .slice(2)
   .filter((a) => !a.startsWith("--"))
@@ -45,11 +51,23 @@ function findExecutable(dir = out, platform = process.platform) {
     if (!exe) throw new Error(`no .exe in ${at}`);
     return path.join(at, exe);
   }
-  // Linux: the one executable file that isn't Chromium's helpers or a library
+  // Linux: the one executable file that isn't Chromium's helpers, a library or a script (the headless launcher)
   const helpers = new Set(["chrome-sandbox", "chrome_crashpad_handler"]);
-  const exe = readdirSync(at).find((f) => !helpers.has(f) && !f.includes(".") && statSync(path.join(at, f)).isFile() && statSync(path.join(at, f)).mode & 0o111);
+  const isScript = (f) => readFileSync(path.join(at, f)).subarray(0, 2).toString() === "#!";
+  const exe = readdirSync(at).find((f) => !helpers.has(f) && !f.includes(".") && statSync(path.join(at, f)).isFile() && statSync(path.join(at, f)).mode & 0o111 && !isScript(f));
   if (!exe) throw new Error(`no executable in ${at}`);
   return path.join(at, exe);
+}
+
+/** The headless launcher of the unpacked build for this platform (`dir`: the build's folder, or an extracted
+ *  AppImage's squashfs-root). */
+function findLauncher(dir = out, platform = process.platform) {
+  let file;
+  if (platform === "darwin") file = path.join(path.dirname(findExecutable(dir, platform)), "..", "Resources", launcherName);
+  else if (path.basename(dir) === "squashfs-root") file = path.join(dir, launcherName);
+  else file = path.join(path.dirname(findExecutable(dir, platform)), platform === "win32" ? `${launcherName}.cmd` : launcherName);
+  if (!existsSync(file)) throw new Error(`no headless launcher at ${file}`);
+  return file;
 }
 
 async function health() {
@@ -73,18 +91,30 @@ function stop(child) {
   }
 }
 
+/** The headless launcher to start: the unpacked build's, or the AppImage's after `--appimage-extract` into
+ *  `scratch` (as the help tells a Linux user). */
+function headlessLauncher(appImage, scratch) {
+  if (!appImage) return findLauncher();
+  const r = spawnSync(path.join(out, appImage), ["--appimage-extract"], { cwd: scratch, stdio: "ignore" });
+  if (r.status !== 0) throw new Error(`the AppImage didn't extract (exit ${r.status ?? r.error?.code})`);
+  return findLauncher(path.join(scratch, "squashfs-root"));
+}
+
 async function run() {
   if (await health()) throw new Error(`something already answers on port ${port} — stop it first`);
   const appImage = asUser ? readdirSync(out).find((f) => f.endsWith(".AppImage")) : null;
   if (asUser && !appImage) throw new Error(`no .AppImage in ${out}`);
-  const exe = appImage ? path.join(out, appImage) : findExecutable();
   const dataDir = mkdtempSync(path.join(os.tmpdir(), "start-packaged-"));
+  const scratch = headless && appImage ? mkdtempSync(path.join(os.tmpdir(), "start-packaged-appimage-")) : null;
+  const exe = headless ? headlessLauncher(appImage, scratch) : appImage ? path.join(out, appImage) : findExecutable();
   // the unpacked folder on Linux: chrome-sandbox isn't setuid there, so Chromium's sandbox can't start;
-  // the AppImage runs exactly as a user's double-click runs it
-  const args = process.platform === "linux" && !appImage ? ["--no-sandbox"] : [];
-  console.log(`starting ${exe} (data folder ${dataDir}, port ${port})`);
+  // the AppImage runs exactly as a user's double-click runs it; the launcher takes the server's own command
+  const args = headless ? ["serve"] : process.platform === "linux" && !appImage ? ["--no-sandbox"] : [];
+  console.log(`starting ${exe}${headless ? " serve" : ""} (data folder ${dataDir}, port ${port})`);
   const t0 = Date.now();
-  const child = spawn(exe, args, { env: { ...process.env, [dataDirEnv]: dataDir }, stdio: ["ignore", "pipe", "inherit"], detached: process.platform !== "win32" });
+  const options = { env: { ...process.env, [dataDirEnv]: dataDir }, stdio: ["ignore", "pipe", "inherit"], detached: process.platform !== "win32" };
+  // a .cmd runs only through the shell on Windows (Node refuses to spawn it directly): one command line
+  const child = headless && process.platform === "win32" ? spawn(`"${exe}" ${args.join(" ")}`, { ...options, shell: true }) : spawn(exe, args, options);
   // the shell says when its window drew the app, or why it didn't (the kit's runDesktopApp) — read as one
   // running text, so a line split across two reads still counts
   let windowLoaded = false;
@@ -111,9 +141,15 @@ async function run() {
       if (windowFailed) throw new Error(`its window didn't draw: ${windowFailed}`);
       const h = await health();
       if (h) answered = true;
-      if (h && windowLoaded) {
+      if (h && (windowLoaded || headless)) {
         if (h.version !== pkg.version) throw new Error(`it answered as version ${h.version}, not ${pkg.version}`);
         console.log(`it answered in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${h.product} ${h.version}`);
+        if (headless) {
+          // the whole app with no window: the server serves its UI too
+          const page = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(10_000) });
+          if (!page.ok || !/text\/html/.test(page.headers.get("content-type") || "")) throw new Error(`/ answered ${page.status} ${page.headers.get("content-type")}, not the app's page`);
+          console.log(`/: ${page.status} ${page.headers.get("content-type")}`);
+        }
         for (const p of extraPaths) {
           const r = await fetch(`http://127.0.0.1:${port}${p}`, { signal: AbortSignal.timeout(60_000) });
           const body = await r.text();
@@ -128,10 +164,12 @@ async function run() {
   } finally {
     stop(child);
     await new Promise((r) => setTimeout(r, 1500)); // let the files go before the folder is removed
-    try {
-      rmSync(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
-    } catch (e) {
-      console.warn(`the data folder ${dataDir} stays (${e.code || e.message})`); // the check's answer stands
+    for (const dir of [dataDir, scratch].filter(Boolean)) {
+      try {
+        rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+      } catch (e) {
+        console.warn(`the folder ${dir} stays (${e.code || e.message})`); // the check's answer stands
+      }
     }
   }
 }

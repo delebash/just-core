@@ -18,6 +18,7 @@
 // apps with sync install — the barrel is loaded by every app, and a bare import its build can't
 // resolve breaks it. An app with sync imports it by path:
 //   import SyncPanel from "@delebash/ui/components/SyncPanel.vue";
+import { copyToClipboard } from "quasar";
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import QRCode from "qrcode";
@@ -175,7 +176,7 @@ async function showPairingCode() {
 
 async function copyPairingCode() {
   try {
-    await navigator.clipboard.writeText(pairing.value.text);
+    await copyToClipboard(pairing.value.text);
     pushToast({ message: t("kit.sync.toast.codeCopied"), kind: "success" });
   } catch {
     pushToast({ message: t("kit.sync.toast.copyFailed"), kind: "error" });

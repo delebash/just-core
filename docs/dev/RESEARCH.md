@@ -1364,6 +1364,33 @@ sixth review):
   `packages/core/src/platform/data_api.js:51-133`. An app's own start-up sweep can find the staged copy
   (`<dir>.restoring-<time>`) with no folder beside it if the process died between the two renames —
   just-house-paint puts it back (its database is restored first, so the staged copy is the matching one).
+- A backup carries files only: `addDir` (`packages/core/src/platform/data_api.js:178`) adds no entry for a
+  folder, so an empty folder inside an asset root doesn't come back after a restore — an app's code that
+  writes into a folder it made earlier must make it again (just-house-paint's masks and AI photos of a house
+  restored before its first ones: Find the parts and the AI photo failed with ENOENT, 2026-10-19). *code + test*.
+- The restore copies every app table, the settings table with it — and the template's apps keep their access
+  tokens there (the `auth` row): a backup from before a token was set restored onto an exposed headless server
+  turned its auth off; one with another token locked every client out. The template's `data_admin.js` `keepAuth`
+  (`beforeCopy` / `afterCopy`) keeps the server's own, and `afterTables` runs the seed and settings upgrade (an
+  older backup's settings were only upgraded at the next start). The guard checks it where tokens live in settings
+  (required for the template and just-house-paint; JustWrite's and docgen's restores are advisory findings until
+  they take it). *code + test* (`template/server/tests/data.test.js`), 2026-10-19.
+
+**The clipboard and the headless launcher off Windows** (*code + measured*, 2026-10-19; just-house-paint's seventh
+review):
+
+- `navigator.clipboard` exists only on a secure page (https or localhost — MDN, "Clipboard API": secure contexts
+  only), so every Copy failed in a browser at `http://<network address>:<port>`. Quasar's `copyToClipboard` uses it
+  where it exists and the textarea copy elsewhere; the kit's ServerPanel, LogsPanel, SyncPanel, LuClassTunes and
+  AiModelsArea and the template's layout use it, and the guard fails a clipboard write in the kit's UI (advisory in
+  the apps — JustWrite, JustVoice and docgen have some).
+- A family app's server answers on 127.0.0.1 unless started with `--host`; the desktop shell starts it without
+  one. So only a server started on its own reaches another computer — and the headless launcher was a Windows
+  `.cmd` alone. The template's `build/launcher/<app>-server` is its shell-script twin for macOS and Linux
+  (`ELECTRON_RUN_AS_NODE=1` on the app's own executable — no display needed, where Electron's main process would
+  stop without one), copied beside the Linux executable and into the Mac app's `Contents/Resources`;
+  `start-packaged.js --headless` runs it on every release runner. Windows measured on this machine: it answered in
+  1.1 s and served the page; the other runners in the release's dry run.
 
 ## 3 · AI tasks and the stream frames
 

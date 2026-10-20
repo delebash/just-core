@@ -32,6 +32,11 @@ export function setSetting(db, key, value) {
   ]);
 }
 
+/** Remove a setting's row (it reads as unset again). */
+export function deleteSetting(db, key) {
+  db.run("DELETE FROM settings WHERE key = ?", [key]);
+}
+
 /** Set a setting only when it has no row (a seed); true when it was added. */
 export function insertSettingIfMissing(db, key, value) {
   return db.run("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", [key, JSON.stringify(value)]).changes > 0;

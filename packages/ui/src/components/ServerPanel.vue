@@ -9,6 +9,7 @@
 // serverToken.js), and a field to paste or generate one. The door stays open from this machine, so
 // this section can always fix a lost token. Failures go through `reportError` (§15). The card
 // frame is the host's (`card`, `hint`), like its other sections.
+import { copyToClipboard } from "quasar";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import Icon from "../common/components/Icon.vue";
@@ -75,7 +76,7 @@ function generateToken() {
 }
 async function copy(text, title) {
   try {
-    await navigator.clipboard.writeText(text);
+    await copyToClipboard(text);
     pushToast({ kind: "success", title });
   } catch (e) {
     reportError(e);

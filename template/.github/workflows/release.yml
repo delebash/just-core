@@ -138,6 +138,13 @@ jobs:
             node scripts/start-packaged.js
           fi
 
+      # The server on its own through the app's launcher, as the help tells a user to start it: no window
+      # and no display (Linux without Xvfb) — it must answer with its version and serve the app's page.
+      - name: Start the server on its own
+        working-directory: app
+        shell: bash
+        run: node scripts/start-packaged.js --headless
+
       # every platform's files go to the jobs below: the Linux user's check, then the release —
       # nothing is attached before every check has passed (a dry run keeps them here 7 days)
       - name: Keep the files for the next jobs
@@ -190,6 +197,11 @@ jobs:
           chmod +x dist/electron/Packaged/*.AppImage
           command -v xvfb-run >/dev/null || (sudo apt-get update && sudo apt-get install -y xvfb)
           xvfb-run -a node scripts/start-packaged.js --appimage
+
+      - name: Start the AppImage's server on its own
+        working-directory: app
+        shell: bash
+        run: node scripts/start-packaged.js --appimage --headless
 
   # The release: every platform's files attached at once, only when every check above passed.
   publish:

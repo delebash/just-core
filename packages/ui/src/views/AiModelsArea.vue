@@ -8,6 +8,7 @@
 // JustWrite's polished Settings → AI engines (outer card, icon, name, URL on its
 // own line, model + key on the next, status + Test + Edit). The Features routing
 // table + the per-provider local-model/Fit section are the next chunks.
+import { copyToClipboard } from "quasar";
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -386,7 +387,7 @@ function debugInfoText() {
 /* eslint-enable i18next/no-literal-string */
 async function copyDebugInfo() {
   try {
-    await navigator.clipboard.writeText(debugInfoText());
+    await copyToClipboard(debugInfoText());
     debugCopied.value = true;
     setTimeout(() => { debugCopied.value = false; }, 1500);
   } catch {

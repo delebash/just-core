@@ -6,7 +6,7 @@ import { beforeEach, expect, test } from "vitest";
 import { createApp } from "../src/app.js";
 import { getDb } from "../src/app_state.js";
 import { seedWorkspace } from "../src/database/seed.js";
-import { getSetting } from "../src/database/settings.js";
+import { deleteSetting, getSetting } from "../src/database/settings.js";
 import { testClient, tmpDir, useHermeticKit } from "./helpers.js";
 
 useHermeticKit();
@@ -50,6 +50,35 @@ test("reset returns the first-run state but keeps the access tokens", async () =
   expect(getSetting(getDb(), "auth").tokens).toEqual(["still-here"]);
   // the AI stack was reseeded too
   expect((await client.get("/v1/llm-providers", auth)).json().providers.length).toBeGreaterThan(0);
+});
+
+test("a restore keeps this server's access tokens — never the backup's", async () => {
+  const restore = async (zip, headers = {}) => {
+    const form = new FormData();
+    form.append("file", new Blob([zip], { type: "application/zip" }), "backup.zip");
+    return client.app.request("http://testserver/v1/data/restore", { method: "POST", body: form, headers: { host: "testserver", ...headers } });
+  };
+  // a backup from before a token was set: restored, the server stays closed with its own token
+  const noToken = (await client.get("/v1/data/backup")).rawPayload;
+  await client.put("/v1/server-auth", { json: { tokens: ["mine"] } });
+  const auth = { authorization: "Bearer mine" };
+  expect((await restore(noToken, auth)).status).toBe(200);
+  expect(getSetting(getDb(), "auth").tokens).toEqual(["mine"]);
+  // a backup with a token, restored on a server without one: no token of the backup's comes with it
+  const withToken = (await client.get("/v1/data/backup", { headers: auth })).rawPayload;
+  deleteSetting(getDb(), "auth");
+  expect((await restore(withToken)).status).toBe(200);
+  expect(getSetting(getDb(), "auth")).toBeUndefined();
+});
+
+test("a backup from an older version gets this one's settings seed when restored, not only at the next start", async () => {
+  deleteSetting(getDb(), "notes.pageSize"); // a setting the older version didn't have
+  const old = (await client.get("/v1/data/backup")).rawPayload;
+  seedWorkspace(getDb());
+  const form = new FormData();
+  form.append("file", new Blob([old], { type: "application/zip" }), "backup.zip");
+  expect((await client.app.request("http://testserver/v1/data/restore", { method: "POST", body: form, headers: { host: "testserver" } })).status).toBe(200);
+  expect(getSetting(getDb(), "notes.pageSize")).toBe(25);
 });
 
 test("a restore of something that isn't a backup is refused", async () => {

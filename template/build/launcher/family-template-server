@@ -1,0 +1,16 @@
+#!/bin/sh
+# family-template-server: the headless server on macOS and Linux - the app's own executable run as Node, the
+# same server and UI the desktop app runs, no window and no display needed (app-structure.md Q.3; Windows has
+# the .cmd beside it). Linux: beside the executable (an AppImage: after --appimage-extract, in squashfs-root);
+# macOS: in the app's Contents/Resources.
+self=$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")
+here=$(cd "$(dirname "$self")" && pwd)
+name=$(basename "$self" -server)
+if [ -d "$here/../MacOS" ]; then
+  exe=$(find "$here/../MacOS" -maxdepth 1 -type f | head -n 1)
+  res="$here"
+else
+  exe="$here/$name"
+  res="$here/resources"
+fi
+ELECTRON_RUN_AS_NODE=1 exec "$exe" "$res/app.asar/node_modules/$name-server/src/serve.js" "$@"
