@@ -558,6 +558,20 @@ function rglobNames(dir, suffix) {
 /** Path ordering as pathlib sorts it (component-wise; case-folded on Windows). */
 const pathKey = (p) => (IS_WIN ? p.toLowerCase() : p).split(sep);
 
+/** A Hugging Face repo name as the hub has them: `<owner>/<name>`, each word characters, dots and dashes, never "."
+ *  or ".." (the nineteenth review: a catalog row's "x/..\\..\\victim" made Clear models remove a folder outside the
+ *  cache). The catalog's PUT and every removal hold a repo to it. */
+export function isHfRepo(repo) {
+  const m = /^([\w.-]+)\/([\w.-]+)$/.exec(String(repo ?? ""));
+  return !!m && ![m[1], m[2]].some((s) => s === "." || s === "..");
+}
+
+/** A path inside a repo (a draft's `mtpDraftFile`): relative, forward slashes, no "." or ".." part, no backslash. */
+export function isRepoPath(p) {
+  const s = String(p ?? "");
+  return s !== "" && !s.startsWith("/") && !s.includes("\\") && !/^[A-Za-z]:/.test(s) && s.split("/").every((x) => x !== "" && x !== "." && x !== "..");
+}
+
 /** The on-disk path of a cached GGUF for `quant`, or null if not cached — the
  * path-returning sibling of `isCached` (SAME match rule, no network call). Lets the router
  * `.ini` emitter reference a downloaded model's file WITHOUT re-downloading it. Returns the

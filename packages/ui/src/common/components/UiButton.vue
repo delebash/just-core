@@ -35,14 +35,18 @@ const props = defineProps({
   // Save after a save) dropped the focus on <body> (the seventeenth review, 2026-10-20). It keeps the
   // disabled look and swallows its click, Enter and Space, and a submit button doesn't submit.
   focusableWhenDisabled: { type: Boolean, default: false },
+  // a link's address (as="a"): left off while the button is off — an off link with its href still took a
+  // middle click and opened the browser in the desktop app (the nineteenth review, 2026-10-20); it stays
+  // a link to a screen reader (role="link", aria-disabled) and in the Tab order (QBtn's tabindex)
+  href: { type: String, default: undefined },
 });
 const slots = useSlots();
 const off = computed(() => props.disabled || props.loading);
 const inert = computed(() => off.value && props.focusableWhenDisabled && props.as !== "a");
 // the click an off-but-focusable button would make (a pointer's, Enter's or Space's — QBtn makes the
 // keys' into a click) stops here, before QBtn and the caller hear it, and submits no form; an off link
-// (as="a" — aria-disabled, never the native disabled, which a link hasn't) never follows its href (it
-// did — the eighteenth review, 2026-10-20)
+// (as="a" — aria-disabled, never the native disabled, which a link hasn't) takes no click, middle click
+// (auxclick) included (the eighteenth and nineteenth reviews, 2026-10-20)
 function swallow(e) {
   if (!inert.value && !(off.value && props.as === "a")) return;
   e.preventDefault();
@@ -73,9 +77,12 @@ function onPress(e) {
     no-wrap
     :ripple="false"
     :disabled="as !== 'a' && off && !inert ? true : undefined"
+    :href="as === 'a' && off ? undefined : href"
+    :role="as === 'a' && off ? 'link' : undefined"
     :aria-disabled="(as === 'a' && off) || inert ? 'true' : undefined"
     :aria-busy="loading ? 'true' : undefined"
     @click.capture="swallow"
+    @auxclick.capture="swallow"
     @click="onPress"
   >
     <span v-if="loading" class="ui-btn-spinner" aria-hidden="true" />

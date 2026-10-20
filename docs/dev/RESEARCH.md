@@ -1734,6 +1734,46 @@ review — scripts in the scratchpad's adv18/shell — and its fixes; reruns in 
   reached the app at 13.1 s (was the connection page at 6.7 s); the tray's Start during the sweep refused, the server
   started after it on the swept folder (was: on the half copy). The app's boot still gives up after its own ~15 s
   (`CHECK_SERVER_MS` and `checkServer`); past that the connection page probes and boots once the server answers.
+- **The nineteenth's attack and fixes** (*measured* and *tested*, 2026-10-20; scripts in the scratchpad's adv19/shell,
+  reruns in fix19/out):
+  - Clear models through a linked shared HF cache took whole catalog repos — another tool's quant inside one, repos the
+    app never fetched — and counted them (`s1` A). There is no record of a download but the layout models.js writes:
+    a row's own files are, in its repo's `snapshots/<sha>/`, the GGUFs its quant selects (every shard), its mmproj's
+    and its MTP draft's, plus the blob each of them is — a link's target, or (no symlink right: a copy with the blob's
+    times) the blob of the same size and time — and its `.locks` entry. Rerun (fix19/out/s1_hf_layout.txt, the real
+    layout through a junction): 9000 bytes freed — the row's Q4 and its draft, blob and copy each —; another tool's
+    Q8 in the same repo, a catalog repo holding only another quant, another tool's repo and the user's files kept. A
+    model's Delete through a link: the same rule.
+  - **Two files made one after the other on NTFS can read as one `dev:ino`**: the file ids run past 2^53 and a Number
+    rounds them (measured: half the bytes counted). `lstat(…, {bigint: true})` keeps them apart.
+  - **Node's `utimesSync` with a Date rounds to the millisecond** (a blob at …216.8794 ms, its copy …217): a copy is
+    matched to its blob within 1 ms.
+  - A row's `hfRepo` "x/..\\..\\victim" made Clear models remove a folder outside the cache (`s1` B). The catalog's PUT
+    refuses a repo that isn't `<owner>/<name>` of word characters, dots and dashes (never "." or "..") and a draft
+    file that isn't a plain path inside the repo; every removal stays inside hf. Rerun: the victim kept.
+  - Records of the fifteenth to seventeenth builds (no move id) were stranded by one move (`s2` a): re-pointed when
+    their moved-to names the old root. Rerun: found and removed after the move.
+  - The "didn't answer" memo per drive made every copy on C: "not found" when one was a share reached through a
+    junction (`s2` b): now per path, with one look of the system's per drive until it answers (a look that finds its
+    drive busy waits its own 3 s, unstarted). Rerun: the local copy found, the share's "not found" — now "Didn't answer
+    just now" with Try again.
+  - The sweep's own-marker comparisons (realpathSync) held the main thread 21 s on a share (`s4`): asynchronous, in
+    time. Rerun (a real `\\192.0.2.1` share): 3.0 s, 27 of ~30 timers ran.
+  - Restart now (updateInstall) skipped the page's unsaved-work check: now the same box first, Stay keeps the app.
+    Real Electron 44 with electron-updater 6.8.9's own `update-downloaded` (fix19/out/e7_restart_now.txt): Stay → the
+    window and the server stay; Leave → `quitAndInstall(true, true)`.
+  - Chromium closes a page whose beforeunload doesn't run within about a second — a page busy 12 s was closed 1.3 s
+    after Quit without its box (`e5_busy`): the shell's 10 s fallback is for a close that neither ends nor asks.
+  - **The desktop window's requests to its server are cross-site** (Electron 44, fix19/out/e6.txt): `fetch` from
+    `app://<id>` → `Sec-Fetch-Site: cross-site`, `mode=cors`, `Origin: app://<id>`; an `<img>` or `<audio>` with the
+    server's address → `cross-site`, `no-cors`, no Origin. So the kit's resourceIsolation (Fetch Metadata) lets a
+    cross-site read through by an allowed Origin; a no-cors load of the server's files from the window is refused — the
+    kit fetches its images (useServerImage). JustVoice's `<audio src>` / `new Audio(url)` would be refused if it wired
+    it (told, not wired there).
+  - A restore's upload is counted as it streams and stopped past the drive's free room less its spare 256 MB; through
+    the real server (@hono/node-server) the 413 came while the client was still sending (64 MB offered), the rest
+    never read. `Readable.fromWeb(body).destroy()` on a request still sending never settles (it waits on its reader):
+    the answer is given without it.
 - **`will-prevent-unload`** (electronjs.org/docs/latest/api/web-contents#event-will-prevent-unload; real Electron 44,
   fix18/out/e5.txt): a page whose `beforeunload` calls `preventDefault()` raises it on a reload, the window's close
   and a Quit; the shell asks "Leave without saving?" (Leave / Stay), `preventDefault()` on Leave. It fires on a page

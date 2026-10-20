@@ -107,9 +107,11 @@ export function pushToast({ message, title, description, kind, action, duration,
   const k = kindOf(kind);
   const full = duration ?? ms ?? 6000;
   // the same toast already showing isn't added again: its time starts over (a repeated failure stacked
-  // three equal toasts — the eighteenth review, 2026-10-20); it is said again, the event came again
-  const key = JSON.stringify([k, String(text), description || "", action?.label || ""]);
-  const same = live.find((x) => x.key === key);
+  // three equal toasts — the eighteenth review, 2026-10-20); it is said again, the event came again.
+  // Never a toast with an action: each one's button runs its own handler (two deletions' "Undo" merged
+  // into one undid only the first — the nineteenth review)
+  const key = action ? null : JSON.stringify([k, String(text), description || ""]);
+  const same = key && live.find((x) => x.key === key);
   if (same) {
     same.remaining = full;
     if (same.timer !== null) {

@@ -74,7 +74,7 @@ import {
 } from "electron";
 import contextMenu from "electron-context-menu";
 import { dataFolderInUse } from "../platform/data_lock.js";
-import { cantUseDataDir, samePath } from "../platform/data_paths.js";
+import { cantUseDataDir, dataDirSource, samePath } from "../platform/data_paths.js";
 import { portInUse } from "../platform/port.js";
 import {
   appFolderName,
@@ -862,9 +862,11 @@ export function runDesktopApp(config) {
     app.quit();
   }
 
-  /** Close `win` for a Quit: true once it has closed, false when its page kept it (Stay). A page that answers
-   *  neither way (its renderer hung) is closed without it after CLOSE_WAIT_MS (the box, while up, holds the
-   *  main process — that time isn't counted until it is answered). */
+  /** Close `win` for a Quit: true once it has closed, false when its page kept it (Stay). Chromium itself closes a
+   *  page whose beforeunload doesn't run within about a second — one busy with a long paint is closed without asking
+   *  (measured, Electron 44: a page busy 12 s, Quit, the app gone at 1.3 s; the nineteenth review's e5_busy). The
+   *  CLOSE_WAIT_MS fallback is for a close that neither ends nor asks (never seen); the box, while up, holds the main
+   *  process, and that time isn't counted until it is answered. */
   function closeForQuit(win) {
     return new Promise((resolve) => {
       let timer = null;
@@ -960,7 +962,7 @@ export function runDesktopApp(config) {
   /** Where the data is when this start runs elsewhere — on the default folder this time ("Use the default folder"),
    *  or on the old copy a move left — or null. */
   async function dataElsewhere() {
-    if (state.defaultThisStart) return { ...(await dataFolderState(state.defaultThisStart.folder)), oldCopy: false };
+    if (state.defaultThisStart) return { ...(await dataFolderState(state.defaultThisStart.folder, { source: state.defaultThisStart.source })), oldCopy: false };
     const o = await oldCopyOf(state.root);
     return o ? { folder: o.root, connected: o.connected, problem: o.problem, oldCopy: true } : null;
   }
@@ -1067,7 +1069,7 @@ export function runDesktopApp(config) {
         atDefault: samePath(info.root, info.default),
         folderName: appFolderName(config.productName, config.appName),
         // "connected" only when the folder passes the start's check (else its words)
-        defaultThisStart: dts ? await dataFolderState(dts.folder) : null,
+        defaultThisStart: dts ? await dataFolderState(dts.folder, { source: dts.source }) : null,
         setBy: dataDirSetBy({ dataDirEnv: config.dataDirEnv }),
         oldCopyOf: await oldCopyOf(state.root),
       };
@@ -1116,9 +1118,10 @@ export function runDesktopApp(config) {
       app.exit(0);
       return null;
     },
-    // The old copies a move left (dataRoot.js oldCopiesInfo): [{root, bytes}] — Storage shows each with Remove.
-    storageOldCopies() {
-      return oldCopiesInfo(state.root);
+    // The old copies a move left (dataRoot.js oldCopiesInfo): [{root, bytes, …, cause?}] — Storage shows each with
+    // Remove, one not found with why and Forget; `again` (its Try again): the ones that didn't answer looked at now.
+    storageOldCopies({ again = false } = {}) {
+      return oldCopiesInfo(state.root, { again: again === true });
     },
     // "Remove the old copy": only what the move copied from `root`, never the folder in use; the list after.
     async storageRemoveOldCopy({ root }) {
@@ -1235,6 +1238,15 @@ export function runDesktopApp(config) {
         void holdQuit();
         return updateNow();
       }
+      // the window's page first, as for any Quit: unsaved work asks, and Stay keeps the app as it is (the nineteenth
+      // review: Restart now stopped the server and quit past the page's check — Stay left a window with no server)
+      if (state.quitStarted) return updateNow();
+      state.quitStarted = true;
+      const win = state.win && !state.win.isDestroyed() ? state.win : null;
+      if (win && !(await closeForQuit(win))) {
+        state.quitStarted = false;
+        return updateNow();
+      }
       await stopServer();
       state.quitting = true;
       // silently (/S), then the app starts again (--force-run). Without /S the family's assisted
@@ -1316,7 +1328,8 @@ export function runDesktopApp(config) {
         console.log(`[shell] using the default data folder ${def} for this start — the data folder ${state.root} is kept`);
         // where the data is: Storage says so and offers no move from here; a pointer's folder may be forgotten ("Use
         // the default folder from now on"), the variable's is the user's to change where it is set
-        state.defaultThisStart = { folder: state.root };
+        // (and where it came from: the start's own check of it, by its source, says whether it can be used)
+        state.defaultThisStart = { folder: state.root, source: dataDirSource(state.root) };
         state.root = def;
         rootProblem = null;
         return true;

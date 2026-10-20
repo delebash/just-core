@@ -39,3 +39,27 @@ test("a cross-site read is not the CSRF vector", async () => {
   const c = await client();
   expect((await c.get("/v1/health", { headers: { origin: "http://evil.example" } })).statusCode).toBe(200);
 });
+
+// the nineteenth review: a cross-site <img src=".../v1/data/backup"> made full backups (a GET has no CSRF check) —
+// the kit's resourceIsolation (Fetch Metadata), wired beside the CSRF guard
+const META = (site, mode, dest, more = {}) => ({ "sec-fetch-site": site, "sec-fetch-mode": mode, "sec-fetch-dest": dest, ...more });
+
+test("a read the browser marks cross-site is refused: no backup is made for another site's <img>", async () => {
+  const c = await client();
+  const r = await c.get("/v1/data/backup", { headers: META("cross-site", "no-cors", "image") });
+  expect(r.statusCode).toBe(403);
+  expect(r.json().type.endsWith("/cross-site")).toBe(true);
+  expect((await c.get("/v1/settings", { headers: META("cross-site", "cors", "empty", { origin: "http://evil.example" }) })).statusCode).toBe(403);
+  // a link elsewhere straight to the API
+  expect((await c.get("/v1/data/backup", { headers: META("cross-site", "navigate", "document") })).statusCode).toBe(403);
+});
+
+test("the app's own windows, the UI's own pages, a navigation to them and a request with no Fetch Metadata pass", async () => {
+  const c = await client();
+  // the desktop window fetches its server cross-site, with its Origin (measured in Electron 44)
+  expect((await c.get("/v1/settings", { headers: META("cross-site", "cors", "empty", { origin: "app://familytemplate" }) })).statusCode).toBe(200);
+  for (const site of ["same-origin", "same-site", "none"]) expect((await c.get("/v1/settings", { headers: META(site, "cors", "empty") })).statusCode, site).toBe(200);
+  expect((await c.get("/v1/settings")).statusCode).toBe(200);
+  // a link from another site to the app's page: past the guard (the page itself may not be built here)
+  expect((await c.get("/", { headers: META("cross-site", "navigate", "document") })).statusCode).not.toBe(403);
+});

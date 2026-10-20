@@ -4,7 +4,7 @@
 
 export { bearerAuth } from "./auth.js";
 export { starletteCors } from "./cors.js";
-export { CAPACITOR_ORIGINS, csrfOrigin } from "./csrf.js";
+export { CAPACITOR_ORIGINS, csrfOrigin, resourceIsolation } from "./csrf.js";
 export { finishInterruptedRestore, makeDataRouter, restoreUnfinished, sweepWorkFolders } from "./data_api.js";
 export { fromDataRelative, installDir, resolveDataDir, toDataRelative } from "./data_paths.js";
 export { dirSize, makeDiskRouter } from "./disk_api.js";
@@ -15,7 +15,7 @@ export { MaintenanceGate } from "./maintenance.js";
 export { migrate, schemaVersion } from "./migrate.js";
 export { makePrefsRouter } from "./prefs_api.js";
 export * as procs from "./procs.js";
-export { attachment, closeApp, createServer, Hono, input, installPyFloatBodies, onClose, readJson, stream, uploadLimit } from "./server.js";
+export { attachment, closeApp, createServer, Hono, input, installPyFloatBodies, onClose, readJson, schemaProblem, stream, uploadLimit } from "./server.js";
 export { runServer, serveStatic } from "./serve.js";
 export { makeShutdownRouter, SHUTDOWN_PATH } from "./shutdown_api.js";
 export { openDatabase } from "./sql.js";

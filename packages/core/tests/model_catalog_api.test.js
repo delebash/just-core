@@ -201,3 +201,23 @@ test("the catalog response carries the refs and this box's class; reset calls th
   const row = after.rows.find((r) => r.id === "user-y");
   expect([row.builtIn, row.mmproj, row.minVramMb]).toEqual([false, null, null]);
 });
+
+// the nineteenth review's s1 part B: a row's hfRepo "x/..\\..\\victim" made Clear models remove a folder outside the cache
+test("a row's repo is <owner>/<name> of word characters, dots and dashes, its draft file a path inside it — else 422", async () => {
+  for (const hfRepo of ["x/..", "../x", "x/../../victim", "x/..\\..\\victim", "owner/name/extra", "no-slash", "x/ y"]) {
+    const [status, body] = await call("PUT", "/v1/ai/model-catalog", { id: "user-z", hfRepo });
+    expect(status, hfRepo).toBe(422);
+    expect(body.errors[0].loc).toEqual(["body", "hfRepo"]);
+  }
+  let [status, body] = await call("PUT", "/v1/ai/model-catalog", { id: "user-z", hfRepo: "x/ok", mtpDraftRepo: "../up" });
+  expect([status, body.errors[0].loc]).toEqual([422, ["body", "mtpDraftRepo"]]);
+  for (const mtpDraftFile of ["../../x.gguf", "/abs.gguf", "C:/x.gguf", "MTP\\x.gguf", "a//b.gguf"]) {
+    [status, body] = await call("PUT", "/v1/ai/model-catalog", { id: "user-z", hfRepo: "x/ok", mtpDraftFile });
+    expect([status, body.errors[0].loc], mtpDraftFile).toEqual([422, ["body", "mtpDraftFile"]]);
+  }
+  [status, body] = await call("PUT", "/v1/ai/model-catalog", { id: "user-z", hfRepo: "unsloth/Qwen3.5-27B-GGUF", mtpDraftFile: "MTP/m-Q4_0-MTP.gguf" });
+  expect(status).toBe(200);
+  expect(body.rows.find((r) => r.id === "user-z").hfRepo).toBe("unsloth/Qwen3.5-27B-GGUF");
+  // an empty repo (a row not yet linked) as before
+  expect((await call("PUT", "/v1/ai/model-catalog", { id: "user-w" }))[0]).toBe(200);
+});

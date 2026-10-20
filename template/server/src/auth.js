@@ -18,7 +18,8 @@ export function readAuth() {
   try {
     const cfg = getSetting(getDb(), "auth");
     if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) return [[], false];
-    const tokens = Array.isArray(cfg.tokens) ? cfg.tokens.filter((t) => typeof t === "string" && t) : [];
+    // trimmed as the guard trims what it is sent: one stored padded (before the nineteenth review) matches again
+    const tokens = Array.isArray(cfg.tokens) ? cfg.tokens.filter((t) => typeof t === "string").map((t) => t.trim()).filter(Boolean) : [];
     return [tokens, cfg.requireForLoopback === true];
   } catch (e) {
     log.warning(`the access tokens couldn't be read (treated as none): ${e?.message ?? e}`);

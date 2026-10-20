@@ -46,7 +46,7 @@ import {
 } from "node:fs";
 import { cp, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import Busboy from "@fastify/busboy";
 import { Hono } from "hono";
@@ -137,22 +137,47 @@ function restoreRows(h, held) {
 /** Room the drive keeps beyond what a restore unpacks (the database's own copy, the logs). */
 const UNPACK_MARGIN = 256 * 1024 * 1024;
 
+/** How a drive's free room is read (a test's small drive replaces it, as dataRoot.js's `volume`). */
+export const drive = {
+  freeBytes(dir) {
+    const d = statfsSync(dir);
+    return d.bavail * d.bsize;
+  },
+};
+
+/** The drive's free bytes at `dir`, or Infinity when it doesn't say (the other checks still stand). */
+function freeAt(dir) {
+  try {
+    return drive.freeBytes(dir);
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
+const gb = (n) => (n / 1e9).toFixed(1);
+
 /** A backup unpacks to what its entries say (ZipReader.extract stops an entry that inflates past its size):
  *  refused when that won't fit the drive with room to spare — never a full disk. */
 export function checkUnpackedFits(zf, dir) {
   const total = zf.names().reduce((n, name) => n + (zf.info(name).size || 0), 0);
-  let free = Number.POSITIVE_INFINITY;
-  try {
-    const drive = statfsSync(dir);
-    free = drive.bavail * drive.bsize;
-  } catch {
-    // no answer from the drive: the extract's own checks still stand
-  }
+  const free = freeAt(dir);
   if (total + UNPACK_MARGIN > free) {
-    const gb = (n) => (n / 1e9).toFixed(1);
     throw new HttpError(413, `the backup unpacks to ${gb(total)} GB; the drive has ${gb(free)} GB free`);
   }
 }
+
+/** The answer to a backup the app can't read (2026-10-20, the nineteenth review: an unsupported compression, an
+ *  encrypted entry, a name the drive can't take, a corrupt deflate stream, a file where the backup has a folder all
+ *  answered 500): 422, in words, with its errors. */
+function unreadable(why) {
+  const msg = `not a backup this app can read: ${String(why).split("\n")[0].slice(0, 300)}`;
+  return new ApiError(422, "unreadable-backup", "Not a backup this app can read", msg, {
+    errors: [{ loc: ["body", "file"], msg, type: "value_error" }],
+  });
+}
+// errors that are this computer's, not the backup's: said as they are (a full drive, no right to the work folder, a
+// file held, too many open files, a failing drive)
+const OURS = new Set(["ENOSPC", "EACCES", "EPERM", "EBUSY", "EMFILE", "ENFILE", "EIO"]);
+const zipProblem = (e) => (OURS.has(e?.code) ? e : unreadable(e?.message || e));
 
 const RETRIES = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
 // a held file (Windows: a scanner, the indexer): renames retried about ten seconds (rename_held.js, shared)
@@ -477,29 +502,77 @@ const FILE_NOT_UPLOAD = () =>
     { loc: ["body", "file"], msg: "Value error, Expected UploadFile, received: <class 'str'>", type: "value_error" },
   ]);
 
+/** A form upload that breaks off or isn't one (the nineteenth review: it answered 500, or "file: Field required"):
+ *  422, said as broken. */
+const BROKEN_UPLOAD = () =>
+  new ApiError(422, "upload-broken", "The upload is broken", "the upload ended before the file did, or isn't a form upload — choose the backup file again", {
+    errors: [{ loc: ["body", "file"], msg: "The upload is broken — choose the backup file again", type: "value_error" }],
+  });
+const UPLOAD_TOO_BIG = "UPLOAD_TOO_BIG";
+
 /** FastAPI's `file: UploadFile`: the form's last `file` part, streamed to `dest` (busboy over the
  * request's own body stream — never held in memory); a missing one, or a plain field in its
- * place, is pydantic's 422 (measured answers). */
-async function receiveUpload(c, dest) {
+ * place, is pydantic's 422 (measured answers). Counted as it streams: past `maxBytes` the upload stops at once, its
+ * `tooBig()` the answer (the drive's room — never filled before the room check, the nineteenth review); a form that
+ * breaks off is a 422 (BROKEN_UPLOAD). */
+async function receiveUpload(c, dest, { maxBytes = Number.POSITIVE_INFINITY, tooBig = () => new HttpError(413, "the upload is too big") } = {}) {
   let kind = null; // "file" | "field"
   const type = c.req.header("content-type") || "";
   if (/^multipart\//i.test(type) && c.req.raw.body) {
-    const bb = new Busboy({ headers: { "content-type": type } });
+    let bb;
+    try {
+      bb = new Busboy({ headers: { "content-type": type } });
+    } catch {
+      throw BROKEN_UPLOAD(); // no boundary, or one busboy can't read
+    }
+    const source = Readable.fromWeb(c.req.raw.body);
+    let failed = null; // the file part's own failure (past the room, a write)
+    // past the room, or the drive full: the answer at once — the rest of the body is never read (destroying the
+    // request's stream waits on its reader, which a client still sending never lets go)
+    let stop;
+    const stopped = new Promise((_, reject) => {
+      stop = reject;
+    });
+    stopped.catch(() => {});
     // Parts arrive in order; each `file` part is written after the one before, so the last wins.
     let writes = Promise.resolve();
     bb.on("file", (fieldname, file) => {
-      if (fieldname === "file") {
-        kind = "file";
-        writes = writes.then(() => pipeline(file, createWriteStream(dest)));
-      } else {
-        file.resume();
-      }
+      if (fieldname !== "file") return file.resume();
+      kind = "file";
+      writes = writes.then(async () => {
+        if (failed) return file.resume();
+        let written = 0;
+        const count = new Transform({
+          transform(chunk, _enc, cb) {
+            written += chunk.length;
+            if (written > maxBytes) cb(Object.assign(new Error("the upload is past the room"), { code: UPLOAD_TOO_BIG }));
+            else cb(null, chunk);
+          },
+        });
+        try {
+          await pipeline(file, count, createWriteStream(dest));
+        } catch (e) {
+          failed ??= e;
+          if (e?.code === UPLOAD_TOO_BIG || e?.code === "ENOSPC") stop(e);
+        }
+      });
     });
     bb.on("field", (fieldname) => {
       if (fieldname === "file") kind = "field";
     });
-    await pipeline(Readable.fromWeb(c.req.raw.body), bb);
-    await writes;
+    let broken = false;
+    try {
+      await Promise.race([pipeline(source, bb), stopped]);
+    } catch {
+      broken = !failed;
+    }
+    if (failed?.code === UPLOAD_TOO_BIG || failed?.code === "ENOSPC") source.unpipe(bb);
+    else await writes;
+    if (failed?.code === UPLOAD_TOO_BIG) throw tooBig();
+    if (failed?.code === "ENOSPC") throw new ApiError(507, "disk-full", "Not enough room to restore", "the upload doesn't fit the drive — nothing was changed");
+    // the form broke off (its file part fails with it): said as broken
+    if (broken) throw BROKEN_UPLOAD();
+    if (failed) throw failed;
   } else if (/^application\/x-www-form-urlencoded/i.test(type)) {
     if (new URLSearchParams(await c.req.text()).has("file")) kind = "field";
   }
@@ -533,7 +606,9 @@ async function receiveUpload(c, dest) {
  *   - `beforeCopy(h)` / `afterCopy(h)` → run inside the RESTORE's transaction, on its
  *                      connection with the backup attached as `src`, around the table copy — for
  *                      a synced app's own restore steps (its sync engine's state must follow the
- *                      restored rows; JustVoice's narrowings review P16). An error a hook throws
+ *                      restored rows; JustVoice's narrowings review P16). An object `afterCopy`
+ *                      returns joins the restore's answer (just-house-paint: `resetSettings`, the
+ *                      settings of an older backup set back to their defaults — the nineteenth review). An error a hook throws
  *                      with a `statusCode` is the answer (the sync app layer's refusal of a backup
  *                      from another sync library: 409, `error: "restore-other-library"`); the
  *                      sync package's `appSync.restoreHooks` is all three.
@@ -551,6 +626,11 @@ async function receiveUpload(c, dest) {
  *   - `scrubBackup(h)` → runs on the BACKUP's own copy of the database before it is zipped, to drop
  *                      what must not leave this computer (the template: the access tokens, which a
  *                      restore keeps from the server anyway).
+ *   - `checkBackup(h)` → runs on a RESTORE's unpacked backup database (its own connection) before anything
+ *                      is shut out or replaced: the app's own rules for what it restores (just-house-paint:
+ *                      its house ids are safe folder names, its settings rows pass their schemas — the
+ *                      nineteenth review: a restored id that wasn't made the next start fail). A throw is the
+ *                      answer: one with a `statusCode` as it is, any other a 422 in its words.
  */
 export function makeDataRouter({
   getDbPath,
@@ -565,6 +645,7 @@ export function makeDataRouter({
   keepTables = RUNNER_MACHINE_TABLES,
   keepRows = RUNNER_MACHINE_ROWS,
   scrubBackup = null,
+  checkBackup = null,
   beforeReplace = null,
   gate = null,
 }) {
@@ -680,8 +761,10 @@ export function makeDataRouter({
     });
   });
 
-  /** The backup's rows in place of the live ones, every table in one transaction (the hooks inside it). */
+  /** The backup's rows in place of the live ones, every table in one transaction (the hooks inside it); returns what
+   *  `afterCopy` said for the answer (an object), or null. */
   const copyTables = (liveDb, srcDb, stamp = null) => {
+    let said = null;
     const h = openDatabase(liveDb, { foreignKeys: false, timeoutMs: 5000 });
     try {
       h.run("ATTACH ? AS src", [srcDb]);
@@ -703,7 +786,7 @@ export function makeDataRouter({
           h.exec(`INSERT INTO main."${t}" (${colSql}) SELECT ${colSql} FROM src."${t}"`);
         }
         restoreRows(h, held);
-        if (afterCopy) afterCopy(h);
+        if (afterCopy) said = afterCopy(h) ?? null;
         // the commit record: these rows are this restore's (finishInterruptedRestore rolls forward on it)
         if (stamp !== null) {
           h.exec(`CREATE TABLE IF NOT EXISTS "${COMMIT_TABLE}" (stamp INTEGER NOT NULL)`);
@@ -721,11 +804,13 @@ export function makeDataRouter({
     } finally {
       h.close();
     }
+    return said && typeof said === "object" && !Array.isArray(said) ? said : null;
   };
 
-  /** The backup's database checked before anything is shut out or moved: readable whole, and accepted by the app's
-   *  own hook (a synced app refusing another library's backup) — a dry run, rolled back. */
-  const checkBackup = (liveDb, srcDb) => {
+  /** The backup's database checked before anything is shut out or moved: readable whole, by the app's own rules
+   *  (`checkBackup`), and accepted by its copy hook (a synced app refusing another library's backup) — a dry run,
+   *  rolled back. */
+  const vetBackup = async (liveDb, srcDb) => {
     let ok;
     try {
       const b = openDatabase(srcDb, { foreignKeys: false, timeoutMs: 5000 });
@@ -738,6 +823,18 @@ export function makeDataRouter({
       ok = false;
     }
     if (!ok) throw new HttpError(400, "restore failed: the backup's database is damaged");
+    if (checkBackup) {
+      const b = openDatabase(srcDb, { foreignKeys: false, timeoutMs: 5000 });
+      try {
+        await checkBackup(b);
+      } catch (e) {
+        if (Number.isInteger(e?.statusCode)) throw e;
+        const msg = String(e?.message ?? e).slice(0, 300);
+        throw new ApiError(422, "backup-refused", "This backup can't be restored", msg, { errors: [{ loc: ["body", "file"], msg, type: "value_error" }] });
+      } finally {
+        b.close();
+      }
+    }
     if (!beforeCopy) return;
     const h = openDatabase(liveDb, { foreignKeys: false, timeoutMs: 5000 });
     try {
@@ -767,15 +864,23 @@ export function makeDataRouter({
     if (restoreUnfinished(liveDb)) throw unfinished({ message: "an earlier restore didn't finish" });
     const upDir = workFolder(liveDb, "upload");
     const tmp = workFolder(liveDb, "restore");
+    let said = null; // what the app's afterCopy adds to the answer
     try {
       const upload = path.join(upDir, "backup.zip");
-      await receiveUpload(c, upload);
+      // the upload itself must leave the drive its spare room (counted as it streams; what it unpacks to is checked
+      // after, against the room left then)
+      const free = freeAt(upDir);
+      await receiveUpload(c, upload, {
+        maxBytes: Math.max(0, free - UNPACK_MARGIN),
+        tooBig: () => new HttpError(413, `the backup is bigger than the drive's free room (${gb(free)} GB free, ${gb(UNPACK_MARGIN)} GB of it kept spare) — nothing was changed`),
+      });
       let zf;
       try {
         zf = await ZipReader.open(upload);
       } catch (e) {
+        // (the Python router's answer, kept: the_answers_match_the_python_router)
         if (e instanceof BadZipFile || e.code === "ERR_OUT_OF_RANGE") throw new HttpError(400, "not a valid backup zip");
-        throw e;
+        throw zipProblem(e);
       }
       if (!zf.names().includes(DB_ARCNAME)) throw new HttpError(400, `backup is missing ${DB_ARCNAME}`);
       checkUnpackedFits(zf, tmp);
@@ -783,16 +888,16 @@ export function makeDataRouter({
         await zf.extractAll(tmp);
       } catch (e) {
         if (e instanceof BadZipFile) throw new HttpError(400, `not a valid backup zip: ${e.message}`);
-        throw e;
+        throw zipProblem(e);
       }
       const srcDb = path.join(tmp, DB_ARCNAME);
       // each declared asset folder the backup has (one it leaves out stays as it is)
       const pairs = (await assets()).map(([arcname, d]) => [path.join(tmp, arcname), String(d)]).filter(([b]) => existsSync(b) && statSync(b).isDirectory());
-      checkBackup(liveDb, srcDb);
+      await vetBackup(liveDb, srcDb);
       await gate.closeFor("restore", async () => {
         if (beforeReplace) await beforeReplace();
         if (!transactional) {
-          copyTables(liveDb, srcDb);
+          said = copyTables(liveDb, srcDb);
           if (afterTables) await afterTables();
           for (const [bdir, d] of pairs) await legacyReplaceAssetDir(bdir, d);
         } else {
@@ -806,7 +911,7 @@ export function makeDataRouter({
             throw e;
           }
           try {
-            copyTables(liveDb, srcDb, swap.stamp);
+            said = copyTables(liveDb, srcDb, swap.stamp);
           } catch (e) {
             try {
               await swap.undo();
@@ -827,7 +932,7 @@ export function makeDataRouter({
       await rm(upDir, { recursive: true, force: true });
       await rm(tmp, { recursive: true, force: true });
     }
-    return c.json({ ok: true });
+    return c.json({ ...(said ?? {}), ok: true });
   });
 
   app.post(`${prefix}/reset`, async (c) => {

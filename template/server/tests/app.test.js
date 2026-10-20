@@ -120,6 +120,27 @@ test("the lockout escape: health and the token door stay open from this machine"
   }
 });
 
+// the nineteenth review: a padded token was stored as typed and never matched; a non-ASCII one was taken
+test("a token is stored trimmed and matches; one with other characters is refused in words, at its place", async () => {
+  let r = await client.put("/v1/server-auth", { json: { tokens: ["  s3cret\t", " "] } });
+  expect(r.statusCode).toBe(200);
+  expect(r.json().tokens).toEqual(["s3cret"]);
+  try {
+    expect((await client.get("/v1/notes", { headers: { authorization: "Bearer s3cret" } })).statusCode).toBe(200);
+    r = await client.put("/v1/server-auth", { json: { tokens: ["ok", "café", "two words"] }, headers: { authorization: "Bearer s3cret" } });
+    expect(r.statusCode).toBe(422);
+    expect(r.json().errors.map((e) => e.loc)).toEqual([
+      ["body", "tokens", "1"],
+      ["body", "tokens", "2"],
+    ]);
+    expect(r.json().errors[0].msg).toMatch(/letters, digits and the signs on a keyboard only/);
+    // nothing changed
+    expect((await client.get("/v1/server-auth", { headers: { authorization: "Bearer s3cret" } })).json().tokens).toEqual(["s3cret"]);
+  } finally {
+    await client.put("/v1/server-auth", { json: { tokens: [] }, headers: { authorization: "Bearer s3cret" } });
+  }
+});
+
 test("the access tokens are checked by their schema and never logged", async () => {
   const r = await client.put("/v1/server-auth", { json: { tokens: "not-a-list" } });
   expect(r.statusCode).toBe(422);

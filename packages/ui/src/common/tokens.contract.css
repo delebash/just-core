@@ -55,6 +55,12 @@
  *                      the gold hue when it runs
  *   *-bg / *-ink pairs (--success-bg/-ink, --info-bg/-ink, --warn-bg/-ink) tint
  *     the soft tag variants; each falls back to a sensible mix.
+ *   --ui-toast-{normal,success,info,warning,error}-ink / -bg / -edge
+ *                      the toasts' pairs (quasar/theme.css, "Toast"). The kit's defaults are fixed
+ *                      pairs, light and dark, 4.5:1 or more; an app maps them to its own pairs —
+ *                      only when they pass 4.5:1 (the template: --ink on --surface with
+ *                      --border-field, --success-ink on --success-bg, --info-ink on --info-bg,
+ *                      --warn-ink on --warn-bg, --danger-ink on --danger-bg)
  *
  * ── Shape / type ───────────────────────────────────────────
  *   --r-sm             control corner radius (input, tag)

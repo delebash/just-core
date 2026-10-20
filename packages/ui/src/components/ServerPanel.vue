@@ -95,12 +95,16 @@ const addressWith = (token) => `${headlessUrl.value.replace(/\/$/, "")}/?token=$
     <h2>{{ t("kit.serverPanel.headlessTitle") }}</h2>
     <i18n-t keypath="kit.serverPanel.headlessHint" tag="p" class="hint" scope="global">
       <template #command><code class="lu-server__mono">{{ serverCommand }}</code></template>
+      <!-- eslint-disable-next-line i18next/no-literal-string -- a command-line flag, never a word -->
+      <template #host><code class="lu-server__mono">--host 0.0.0.0</code></template>
     </i18n-t>
     <!-- a reverse proxy that sends no proxy header reaches the server from this computer, so it would pass
          as this computer — no token asked (the eighteenth review, 2026-10-20) -->
     <i18n-t keypath="kit.serverPanel.proxyHint" tag="p" class="hint" scope="global">
       <template #require>{{ t("kit.serverPanel.requireOnLocalhost") }}</template>
       <template #header><code class="lu-server__mono">X-Forwarded-For</code></template>
+      <!-- eslint-disable-next-line i18next/no-literal-string -- a command, never a word -->
+      <template #tailscale><code class="lu-server__mono">tailscale serve</code></template>
     </i18n-t>
     <div class="lu-server__row">
       <code class="lu-server__mono lu-server__box">{{ headlessUrl }}</code>

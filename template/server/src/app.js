@@ -28,6 +28,7 @@ import {
   MaintenanceGate,
   makeLogsRouter,
   makeShutdownRouter,
+  resourceIsolation,
   SHUTDOWN_PATH,
   serveStatic,
   starletteCors,
@@ -136,6 +137,9 @@ export async function createApp(dataDir = null) {
   // though the server sees another scheme and host behind the proxy
   const proxyOrigins = allowedHosts.flatMap((h) => [`https://${h}`, `http://${h}`]);
   app.use("*", csrfOrigin({ appOrigins: APP_ORIGINS, extraOrigins: proxyOrigins, typeBase: TYPE_BASE }));
+  // and a read the browser marks cross-site (Fetch Metadata — a cross-site <img> of /v1/data/backup made backups),
+  // but the app's own windows by their Origin and a navigation to the UI's pages (the nineteenth review)
+  app.use("*", resourceIsolation({ appOrigins: APP_ORIGINS, extraOrigins: proxyOrigins, typeBase: TYPE_BASE }));
   app.use("*", starletteCors({ allowOrigins: [...APP_ORIGINS, ...CAPACITOR_ORIGINS], allowMethods: ["*"], allowHeaders: ["*"] }));
   app.use("*", bearerAuth({ readAuth, typeBase: TYPE_BASE, loopbackOpenPaths: [SHUTDOWN_PATH], allowedHosts }));
   // While a restore or a reset replaces the data, every other window's write is refused (503, Retry-After) and the

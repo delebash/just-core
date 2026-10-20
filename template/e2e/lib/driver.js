@@ -106,6 +106,9 @@ export class Driver {
 
   async close() {
     try {
+      // the page first, its beforeunload skipped (Playwright's page.close runs none by default): a page with unsaved
+      // work held the app's close on the shell's "Leave without saving?" box (the nineteenth review)
+      await this.page?.close().catch(() => {});
       if (this.app) await this.app.close();
     } catch {
       // already gone

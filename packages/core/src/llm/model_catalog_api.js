@@ -21,6 +21,7 @@ import { model, nullable, opt, T } from "../platform/models.js";
 import { FileNotFoundError, pyStr, truthy } from "../platform/py.js";
 import { pyStrScalar } from "../platform/pyjson.js";
 import { input } from "../platform/server.js";
+import { isHfRepo, isRepoPath } from "../runner/models.js";
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
 
@@ -286,6 +287,16 @@ export function makeCatalogRouter(
   app.put("/v1/ai/model-catalog", input({ body: CatalogRow }), async (c) => {
     const body = model(CatalogRow, c.req.valid("json"));
     if (!strip(body.id)) throw new HttpError(400, "id is required");
+    // where the row's files go and come from: a repo the hub has, a path inside it — never a folder outside the cache
+    // (the nineteenth review: "x/..\\..\\victim" made Clear models remove one)
+    const errors = [];
+    for (const k of ["hfRepo", "mtpDraftRepo"]) {
+      if (body[k] && !isHfRepo(body[k])) errors.push({ type: "value_error", loc: ["body", k], msg: "A Hugging Face repo is <owner>/<name> — letters, digits, '_', '.' and '-' only" });
+    }
+    if (body.mtpDraftFile && !isRepoPath(body.mtpDraftFile)) {
+      errors.push({ type: "value_error", loc: ["body", "mtpDraftFile"], msg: "A file in the repo is a path inside it — forward slashes, no '..'" });
+    }
+    if (errors.length) throw new RequestValidationError(errors);
     body.builtIn = false; // user edit, even if id matches a built-in
     getStore().upsert(body);
     return c.json(list());

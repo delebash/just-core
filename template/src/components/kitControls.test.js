@@ -779,6 +779,31 @@ test("a failed task's row says the server's words, never the HTTP status line", 
   expect(failed.error).not.toMatch(/409/);
 });
 
+// ── The nineteenth review (2026-10-20, the scratchpad's adv19) ─────────────────────────────────────────
+
+test("a toast with an action is never merged with another — each Undo its own; an off link has no href and takes no middle click", async () => {
+  await mountHost(() => h(UiButton, { as: "a", href: "https://example.com/file.wav", disabled: true, label: "Download" }));
+  const create = vi.spyOn(quasar.Notify, "create");
+  const undoA = vi.fn();
+  const undoB = vi.fn();
+  pushToast({ message: "Deleted", action: { label: "Undo", fn: undoA } });
+  pushToast({ message: "Deleted", action: { label: "Undo", fn: undoB } });
+  expect(create).toHaveBeenCalledTimes(2);
+  expect(create.mock.calls.map(([o]) => o.actions.find((a) => a.label === "Undo").handler)).toEqual([undoA, undoB]);
+  pushToast({ message: "Copied" });
+  pushToast({ message: "Copied" }); // no action: still one toast
+  expect(create).toHaveBeenCalledTimes(3);
+  create.mockRestore();
+  clearToasts();
+  const link = document.querySelector("a.ui-btn");
+  expect(link.hasAttribute("href")).toBe(false);
+  expect(link.getAttribute("role")).toBe("link");
+  expect(link.getAttribute("aria-disabled")).toBe("true");
+  const middle = new MouseEvent("auxclick", { button: 1, bubbles: true, cancelable: true });
+  link.dispatchEvent(middle);
+  expect(middle.defaultPrevented).toBe(true);
+});
+
 test("a model that failed to load at start offers the app's Troubleshooting page — only when the app has one", async () => {
   // the runner's catalog: the warm-start model ended in an error
   const models = { models: [{ id: "gemma", status: "error", error: "Not enough graphics memory" }] };

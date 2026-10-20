@@ -65,8 +65,10 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
+  readlinkSync,
   promises as fsp,
   readFileSync,
   statSync,
@@ -387,33 +389,166 @@ async function rmTree(p) {
   });
 }
 
-/** The HF repos a runner's catalog downloads (each model's and its separate MTP draft's) — what Clear models may
- *  remove from a linked cache. None without a catalog (a standalone runner). */
-function catalogRepos(svc) {
-  let rows = [];
+/** A runner's catalog rows — what Clear models through a linked cache judges by. None without a catalog (a
+ *  standalone runner). */
+function catalogRows(svc) {
   try {
-    rows = typeof svc.catalog === "function" && svc._catalogFn ? svc.catalog() || [] : [];
+    return typeof svc.catalog === "function" && svc._catalogFn ? svc.catalog() || [] : [];
   } catch {
-    rows = [];
+    return [];
   }
-  const repos = new Set();
-  for (const m of rows) for (const r of [m?.hfRepo, m?.mtpDraftRepo]) if (typeof r === "string" && r.includes("/")) repos.add(r);
-  return [...repos];
 }
 
 /** The HF hub's folder name for a repo ("org/name" → "models--org--name"). */
 const repoDirName = (repo) => `models--${String(repo).replaceAll("/", "--")}`;
 
-/** Empty `p` — a folder, or a link to one (a junction, a symbolic link: the models kept on another drive) — and keep
- *  it: what is inside goes (fs.promises.rm), the folder or the link stays (2026-10-20, the seventeenth review: Clear
- *  models and a model's Delete through a junction removed the link, freed nothing, and left an empty folder in its
- *  place). True when it is a link. */
-async function emptyKeep(p) {
-  const st = await fsp.lstat(p).catch(() => null);
-  if (!st) return false;
-  const names = await fsp.readdir(p).catch(() => []);
-  for (const name of names) await rmTree(path.join(p, name));
-  return st.isSymbolicLink();
+/** Is `p` inside `root` (never `root` itself)? Paths as given, resolved. */
+function insideDir(root, p) {
+  const rel = path.relative(path.resolve(root), path.resolve(p));
+  return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
+/** A repo's folder in `hf`, or null: its name isn't one the hub has (models.isHfRepo), or the folder would land
+ *  outside `hf` (the nineteenth review: "x/..\\..\\victim" removed a folder outside the cache). */
+function repoDirIn(hf, repo) {
+  if (!models.isHfRepo(repo)) return null;
+  const dir = path.join(hf, repoDirName(repo));
+  return insideDir(hf, dir) ? dir : null;
+}
+
+/** Every file and link under `dir` (links not followed), recursively. */
+function filesUnder(dir) {
+  const out = [];
+  const walk = (d) => {
+    let ents;
+    try {
+      ents = readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of ents) {
+      const p = path.join(d, ent.name);
+      if (ent.isDirectory()) walk(p);
+      else out.push(p);
+    }
+  };
+  walk(dir);
+  return out;
+}
+
+/** The blob a snapshot entry is (models.js acquireModel writes blobs/<oid>, then the snapshot's link to it — or, where
+ *  links can't be made, a copy with the blob's times): a link's target, a copy's blob of the same size and time (within
+ *  a millisecond) — or null. Only a file inside `blobs`. */
+function blobOf(entry, blobs) {
+  let st;
+  try {
+    st = lstatSync(entry);
+  } catch {
+    return null;
+  }
+  if (st.isSymbolicLink()) {
+    try {
+      const target = path.resolve(path.dirname(entry), readlinkSync(entry));
+      return insideDir(blobs, target) ? target : null;
+    } catch {
+      return null;
+    }
+  }
+  let names;
+  try {
+    names = readdirSync(blobs);
+  } catch {
+    return null;
+  }
+  for (const n of names) {
+    const b = path.join(blobs, n);
+    try {
+      const bs = lstatSync(b);
+      // (a copy's time is the blob's to the millisecond — Node rounds a Date's; Python's copy2 keeps it whole)
+      if (bs.isFile() && bs.size === st.size && Math.abs(bs.mtimeMs - st.mtimeMs) <= 1) return b;
+    } catch {
+      /* gone meanwhile */
+    }
+  }
+  return null;
+}
+
+/**
+ * The files in `hf` a catalog row's download made (models.js acquireModel / selectFiles): in its repo's snapshots the
+ * GGUFs its quant selects — every shard — and its mmproj's, its MTP draft's file (its own repo or the model's), the
+ * blob each of them is, and that blob's `.locks` entry. Never another quant's file in the same repo, never a file
+ * outside the repo's folder (2026-10-20, the nineteenth review: Clear models through a shared HF cache removed whole
+ * catalog repos — another tool's quant inside one, repos this app never fetched — and counted them).
+ */
+function rowFiles(hf, row) {
+  const out = new Set();
+  const take = (repo, pick) => {
+    const dir = repoDirIn(hf, repo);
+    if (!dir) return;
+    const snaps = path.join(dir, "snapshots");
+    const blobs = path.join(dir, "blobs");
+    let shas;
+    try {
+      shas = readdirSync(snaps);
+    } catch {
+      return;
+    }
+    for (const sha of shas) {
+      const snap = path.join(snaps, sha);
+      for (const f of filesUnder(snap)) {
+        if (!pick(path.relative(snap, f).split(path.sep).join("/"))) continue;
+        out.add(f);
+        const blob = blobOf(f, blobs);
+        if (blob) {
+          out.add(blob);
+          out.add(path.join(hf, ".locks", repoDirName(repo), `${path.basename(blob)}.lock`));
+        }
+      }
+    }
+  };
+  const quant = String(row?.quant || "");
+  const mmproj = String(row?.mmproj || "").toLowerCase();
+  if (row?.hfRepo && quant) {
+    take(row.hfRepo, (rel) => {
+      const low = rel.toLowerCase();
+      return low.endsWith(".gguf") && (models._quantMatches(quant, rel) || (mmproj !== "" && low.includes(mmproj)));
+    });
+  }
+  if (row?.mtpDraftFile && models.isRepoPath(row.mtpDraftFile)) take(row.mtpDraftRepo || row.hfRepo, (rel) => rel === row.mtpDraftFile);
+  return out;
+}
+
+/** Remove `files` of `hf` (files and links — a link goes, never what it points to), then the folders they leave empty
+ *  inside their repo's `snapshots` (a snapshot's own folder and its subfolders — nothing above it); resolves the bytes
+ *  freed, each file once (two names of one file — a hard link — counted once). */
+async function removeFiles(files, hf) {
+  let freed = 0;
+  const seen = new Set();
+  const left = new Set();
+  for (const f of files) {
+    if (!insideDir(hf, f)) continue;
+    // bigint: a file's id on NTFS runs past 2^53, and two files made one after the other (a blob and its copy) then
+    // read as one (measured: half the bytes counted)
+    const st = await fsp.lstat(f, { bigint: true }).catch(() => null);
+    if (!st) continue;
+    const key = `${st.dev}:${st.ino}`;
+    if (st.isFile() && !seen.has(key)) {
+      seen.add(key);
+      freed += Number(st.size);
+    }
+    await fsp.rm(f, { force: true }).catch(() => {});
+    left.add(path.dirname(f));
+  }
+  for (const d of [...left].sort((a, b) => b.length - a.length)) {
+    // the repo's snapshots folder above it, inside hf — else nothing is tidied there (blobs/, .locks/ stay)
+    let snaps = d;
+    while (path.basename(snaps) !== "snapshots" && insideDir(hf, snaps)) snaps = path.dirname(snaps);
+    if (path.basename(snaps) !== "snapshots" || !insideDir(hf, snaps)) continue;
+    for (let at = d; insideDir(snaps, at); at = path.dirname(at)) {
+      if (!(await fsp.rmdir(at).then(() => true, () => false))) break; // not empty: the rest is someone's
+    }
+  }
+  return freed;
 }
 
 /** shutil.copy2: the bytes + the times. */
@@ -1604,18 +1739,12 @@ export class RunnerService {
     const st = await fsp.lstat(hf).catch(() => null);
     if (st?.isSymbolicLink()) {
       // a link (a junction, a symbolic link) to a folder elsewhere — a drive's, the HF hub cache other tools share,
-      // a user's own: only this app's catalog's models go (their models--<org>--<name> folders and locks), counted
-      // alone — never the rest of the folder it points to (2026-10-20, the eighteenth review: the seventeenth's
-      // "empty the linked folder" took a user's fine-tune and notes with it)
-      let freed = 0;
-      for (const repo of catalogRepos(this)) {
-        const dir = path.join(hf, repoDirName(repo));
-        if (!(await fsp.lstat(dir).catch(() => null))) continue;
-        freed += await dirSize(dir, null, true);
-        if (!(await emptyKeep(dir))) await rmTree(dir);
-        await rmTree(path.join(hf, ".locks", repoDirName(repo)));
-      }
-      return { ok: true, bytes: freed };
+      // a user's own: only the files this app's catalog rows downloaded go (each row's own — rowFiles), counted alone
+      // — never a whole repo folder, never another tool's quant in it, never the rest of the folder it points to
+      // (2026-10-20: the eighteenth review's "the catalog's repos" still took other tools' files)
+      const files = new Set();
+      for (const row of catalogRows(this)) for (const f of rowFiles(hf, row)) files.add(f);
+      return { ok: true, bytes: await removeFiles(files, hf) };
     }
     const freed = await dirSize(hf, null, true);
     await rmTree(hf);
@@ -1676,20 +1805,27 @@ export class RunnerService {
     const hf = path.join(this._cacheRoot, "hf");
     let freed = 0;
     const kept = [];
+    // a cache shared through a link (hf itself, or this repo's folder: the HF hub cache other tools use): only this
+    // row's own files (rowFiles) — another tool's quant in the same repo stays (the nineteenth review)
+    const linked = !!(await fsp.lstat(hf).catch(() => null))?.isSymbolicLink();
     for (const repo of repos) {
-      const repoDir = path.join(hf, `models--${String(repo).replaceAll("/", "--")}`);
-      if (!isDir(repoDir)) continue;
+      const repoDir = repoDirIn(hf, repo);
+      if (!repoDir || !isDir(repoDir)) continue;
       // KEEP a repo another catalog row still needs — those weights aren't ours to delete.
       const shared = catalog.some((o) => o.id !== model.id && (o.hfRepo === repo || (o.mtpDraftRepo || "") === repo));
       if (shared) {
         kept.push(repo);
         continue;
       }
+      if (linked || (await fsp.lstat(repoDir).catch(() => null))?.isSymbolicLink()) {
+        const own = [...rowFiles(hf, model)].filter((f) => insideDir(repoDir, f) || insideDir(path.join(hf, ".locks", repoDirName(repo)), f));
+        freed += await removeFiles(own, hf);
+        continue;
+      }
       // dedupLinks: this repo dir holds blobs/ AND snapshots/, the same weights under two
       // names — one number, or the caller is told it freed twice the disk.
       freed += await dirSize(repoDir, null, true);
-      // a link to the weights kept elsewhere: emptied, the link kept; a folder: gone
-      if (!(await emptyKeep(repoDir))) await rmTree(repoDir);
+      await rmTree(repoDir);
     }
     return [freed, kept];
   }

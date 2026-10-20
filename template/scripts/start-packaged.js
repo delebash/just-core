@@ -156,7 +156,14 @@ async function run() {
   try {
     return await started(temp);
   } catch (e) {
-    for (const dir of made) rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+    // each folder alone, and the start's own failure kept: a folder still held (EPERM) replaced the real reason
+    for (const dir of made) {
+      try {
+        rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+      } catch (gone) {
+        console.warn(`the folder ${dir} stays (${gone.code || gone.message})`);
+      }
+    }
     throw e;
   }
 }

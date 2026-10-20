@@ -261,7 +261,8 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
           <span class="aip-section-count">{{ recentCount }}</span>
           <span class="aip-section-spacer" />
           <UiButton v-if="tasks.history.length" intent="ghost" size="small" @click="tasks.clearHistory()">
-            <Icon name="Trash" :size="11" /> {{ t('kit.aiTasks.clear') }}
+            <template #icon><Icon name="Trash" :size="11" /></template>
+            {{ t('kit.aiTasks.clear') }}
           </UiButton>
         </div>
 

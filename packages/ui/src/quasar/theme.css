@@ -638,38 +638,46 @@
    356px cards centred 40px above the bottom, 10px apart; each kind its own colours and icon;
    a round ✕ on the top-left corner; the action button in the toast's normal colours. Notify's
    wrappers pass through, so the icon, the message and the buttons sit in the card's row as
-   sonner's did. An app recolours through the --ui-toast-* properties (JustWrite does). Toasts
-   stack in a column, the newest at the bottom — sonner folded the older ones behind the newest
-   until the pointer came over them. */
+   sonner's did. Toasts stack in a column, the newest at the bottom — sonner folded the older ones
+   behind the newest until the pointer came over them.
+   The colours are the kit's tokens, one pair a kind: --ui-toast-{normal,success,info,warning,error}-ink
+   on -bg, and -edge for its outline (tokens.contract.css). Their defaults below are fixed pairs, light
+   and dark, 4.5:1 or more in both themes; an app maps them to its own inks in its tokens.css (the
+   template's: --success-ink on --success-bg and so on). Mapping to whatever the host had, unasked, put
+   docgen's toasts at 2.83–4.19:1 and JustVoice's info toast on its transparent --info-bg (the nineteenth
+   review, 2026-10-20). The defaults are zero-specificity (:where), so an app's :root wins. Measured: */
+/*   light  normal #1a1a1a on #fff 17.40 · success #1e6b3e on #ecf7f0 5.93 · info #1f5a96 on #eaf2fb 6.28 ·
+            warning #7a5300 on #fdf6e3 6.35 · error #a3201d on #fdeeee 6.70
+     dark   normal #f0eee8 on #26292b 12.62 · success #a6e0bd on #1d3326 9.02 · info #a9cdf2 on #1c2c3d 8.60 ·
+            warning #f0cf87 on #382f1a 8.79 · error #f3b4ad on #3d2222 8.23 */
+:where(:root) {
+  --ui-toast-normal-ink: #1a1a1a;  --ui-toast-normal-bg: #fff;
+  --ui-toast-success-ink: #1e6b3e; --ui-toast-success-bg: #ecf7f0;
+  --ui-toast-info-ink: #1f5a96;    --ui-toast-info-bg: #eaf2fb;
+  --ui-toast-warning-ink: #7a5300; --ui-toast-warning-bg: #fdf6e3;
+  --ui-toast-error-ink: #a3201d;   --ui-toast-error-bg: #fdeeee;
+}
+:where(:root[data-theme="dark"]) {
+  --ui-toast-normal-ink: #f0eee8;  --ui-toast-normal-bg: #26292b;
+  --ui-toast-success-ink: #a6e0bd; --ui-toast-success-bg: #1d3326;
+  --ui-toast-info-ink: #a9cdf2;    --ui-toast-info-bg: #1c2c3d;
+  --ui-toast-warning-ink: #f0cf87; --ui-toast-warning-bg: #382f1a;
+  --ui-toast-error-ink: #f3b4ad;   --ui-toast-error-bg: #3d2222;
+}
+@media (prefers-color-scheme: dark) {
+  :where(:root:not([data-theme="light"])) {
+    --ui-toast-normal-ink: #f0eee8;  --ui-toast-normal-bg: #26292b;
+    --ui-toast-success-ink: #a6e0bd; --ui-toast-success-bg: #1d3326;
+    --ui-toast-info-ink: #a9cdf2;    --ui-toast-info-bg: #1c2c3d;
+    --ui-toast-warning-ink: #f0cf87; --ui-toast-warning-bg: #382f1a;
+    --ui-toast-error-ink: #f3b4ad;   --ui-toast-error-bg: #3d2222;
+  }
+}
 .q-notifications__list--bottom { margin-bottom: 40px; }
 .ui-toast {
-  /* the plain toast on the host's ground and ink, dark in the dark theme: --ink on --surface 17.40:1 light /
-     13.17:1 dark, its edge --border-field 3.62 / 3.60 (the template's tokens); its action button the pair
-     turned round (the same ratios). It was white in the dark theme (the eighteenth review, 2026-10-20) */
-  --ui-toast-normal-bg: var(--surface, #fff);
-  --ui-toast-normal-border: var(--border-field, var(--border-strong, hsl(0, 0%, 93%)));
-  --ui-toast-normal-text: var(--ink, hsl(0, 0%, 9%));
-  /* success, info and warning on the host's ink/tint pairs too, as the error one below — dark in the dark
-     theme; at the worst hue (the template's tokens) success 6.29:1 light / 6.70:1 dark, info 6.94 / 7.71,
-     warning 8.76 / 8.38 (the engine's gold pair 7.75 / 9.17) — sonner's were 4.26 / 4.35 / 3.08 (the
-     eighteenth review, 2026-10-20); its values stay the fallbacks */
-  --ui-toast-success-bg: var(--success-bg, hsl(143, 85%, 96%));
-  --ui-toast-success-border: color-mix(in oklab, var(--success-ink, hsl(140, 100%, 27%)) 30%, var(--success-bg, hsl(143, 85%, 96%)));
-  --ui-toast-success-text: var(--success-ink, hsl(140, 100%, 27%));
-  --ui-toast-info-bg: var(--info-bg, hsl(208, 100%, 97%));
-  --ui-toast-info-border: color-mix(in oklab, var(--info-ink, hsl(210, 92%, 45%)) 30%, var(--info-bg, hsl(208, 100%, 97%)));
-  --ui-toast-info-text: var(--info-ink, hsl(210, 92%, 45%));
-  --ui-toast-warning-bg: var(--warn-bg, hsl(49, 100%, 97%));
-  --ui-toast-warning-border: color-mix(in oklab, var(--warn-ink, hsl(31, 92%, 45%)) 30%, var(--warn-bg, hsl(49, 100%, 97%)));
-  --ui-toast-warning-text: var(--warn-ink, hsl(31, 92%, 45%));
-  /* the error toast in the host's danger pair, so it follows the theme (dark in the dark one): --danger-ink
-     on --danger-bg is 6.99:1 light and 7.17:1 dark at the worst hue (the template's tokens); sonner's
-     red was 4.35:1 and light in the dark theme (the sixteenth review, 2026-10-20) — its values stay the
-     fallback for a host without the tokens */
-  --ui-toast-error-bg: var(--danger-bg, hsl(359, 100%, 97%));
-  --ui-toast-error-border: color-mix(in oklab, var(--danger-ink, hsl(360, 100%, 45%)) 30%, var(--danger-bg, hsl(359, 100%, 97%)));
-  --ui-toast-error-text: var(--danger-ink, hsl(360, 100%, 45%));
-  --ui-toast-bg: var(--ui-toast-normal-bg); --ui-toast-border: var(--ui-toast-normal-border); --ui-toast-text: var(--ui-toast-normal-text);
+  --ui-toast-bg: var(--ui-toast-normal-bg);
+  --ui-toast-text: var(--ui-toast-normal-ink);
+  --ui-toast-border: var(--ui-toast-normal-edge, color-mix(in oklab, var(--ui-toast-normal-ink) 18%, var(--ui-toast-normal-bg)));
   position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   width: 356px; max-width: calc(100vw - 32px); min-height: 0; margin: 10px 0 0; padding: 16px;
   background: var(--ui-toast-bg); color: var(--ui-toast-text); border: 1px solid var(--ui-toast-border);
@@ -679,10 +687,10 @@
   font-size: 13px; overflow-wrap: anywhere;
   transition: transform 400ms, opacity 400ms;
 }
-.ui-toast--success { --ui-toast-bg: var(--ui-toast-success-bg); --ui-toast-border: var(--ui-toast-success-border); --ui-toast-text: var(--ui-toast-success-text); }
-.ui-toast--info    { --ui-toast-bg: var(--ui-toast-info-bg);    --ui-toast-border: var(--ui-toast-info-border);    --ui-toast-text: var(--ui-toast-info-text); }
-.ui-toast--warning { --ui-toast-bg: var(--ui-toast-warning-bg); --ui-toast-border: var(--ui-toast-warning-border); --ui-toast-text: var(--ui-toast-warning-text); }
-.ui-toast--error   { --ui-toast-bg: var(--ui-toast-error-bg);   --ui-toast-border: var(--ui-toast-error-border);   --ui-toast-text: var(--ui-toast-error-text); }
+.ui-toast--success { --ui-toast-bg: var(--ui-toast-success-bg); --ui-toast-text: var(--ui-toast-success-ink); --ui-toast-border: var(--ui-toast-success-edge, color-mix(in oklab, var(--ui-toast-success-ink) 30%, var(--ui-toast-success-bg))); }
+.ui-toast--info    { --ui-toast-bg: var(--ui-toast-info-bg);    --ui-toast-text: var(--ui-toast-info-ink);    --ui-toast-border: var(--ui-toast-info-edge, color-mix(in oklab, var(--ui-toast-info-ink) 30%, var(--ui-toast-info-bg))); }
+.ui-toast--warning { --ui-toast-bg: var(--ui-toast-warning-bg); --ui-toast-text: var(--ui-toast-warning-ink); --ui-toast-border: var(--ui-toast-warning-edge, color-mix(in oklab, var(--ui-toast-warning-ink) 30%, var(--ui-toast-warning-bg))); }
+.ui-toast--error   { --ui-toast-bg: var(--ui-toast-error-bg);   --ui-toast-text: var(--ui-toast-error-ink);   --ui-toast-border: var(--ui-toast-error-edge, color-mix(in oklab, var(--ui-toast-error-ink) 30%, var(--ui-toast-error-bg))); }
 .q-notification--bottom-enter-from.ui-toast,
 .q-notification--bottom-leave-to.ui-toast { transform: translateY(100%); opacity: 0; }
 :where(.ui-toast) .q-notification__wrapper,
@@ -710,7 +718,7 @@
 :where(.ui-toast .ui-toast__close) .q-icon { font-size: 12px; }
 .ui-toast .ui-toast__action {
   flex-shrink: 0; margin-left: auto; height: 24px; min-height: 0; padding: 0 8px;
-  color: var(--ui-toast-normal-bg); background: var(--ui-toast-normal-text); border: none; border-radius: 4px;
+  color: var(--ui-toast-normal-bg); background: var(--ui-toast-normal-ink); border: none; border-radius: 4px;
   font-size: 12px; font-weight: 500; line-height: inherit; text-transform: none; letter-spacing: normal; cursor: pointer;
 }
 :where(.ui-toast .ui-toast__action)::before,

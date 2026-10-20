@@ -46,10 +46,11 @@ import {
   InvalidJsonBody,
   installErrorHandlers,
   installFastapiErrorHandlers,
+  RequestValidationError,
   SchemaValidationError,
 } from "./errors.js";
 import { clean, laxConvert, shapeRequest, unwrapTyped } from "./models.js";
-import { pyClone, pyJsonParse } from "./pyjson.js";
+import { PyFloat, pyClone, pyJsonParse } from "./pyjson.js";
 
 const BODY_LIMIT = 1024 * 1024 * 1024; // 1 GiB — "none" in practice, as FastAPI
 
@@ -174,6 +175,30 @@ export function installPyFloatBodies(app, { routes = [], bodyLimit = BODY_LIMIT 
 }
 
 const JSON_TYPE = /^application\/(.+\+)?json/;
+
+/**
+ * Where in `value` a number isn't finite — the path to it, or null (2026-10-20, the nineteenth review: JSON can't carry
+ * Infinity, but JSON.parse turns a literal past a double's range — `1e400` — into one; stored, JSON.stringify wrote it
+ * as null). Walked without recursion (a body may nest thousands deep).
+ */
+function nonFinitePath(value) {
+  const nodes = [{ v: value, up: -1, key: null }];
+  for (let i = 0; i < nodes.length; i++) {
+    const { v } = nodes[i];
+    const n = v instanceof PyFloat ? v.v : v;
+    if (typeof n === "number") {
+      if (Number.isFinite(n)) continue;
+      const path = [];
+      for (let j = i; nodes[j].up >= 0; j = nodes[j].up) path.unshift(nodes[j].key);
+      return path;
+    }
+    if (n && typeof n === "object") {
+      if (Array.isArray(n)) for (let k = 0; k < n.length; k++) nodes.push({ v: n[k], up: i, key: k });
+      else for (const k of Object.keys(n)) nodes.push({ v: n[k], up: i, key: k });
+    }
+  }
+  return null;
+}
 const NO_BODY = new Set(["GET", "HEAD"]);
 const BODY_KEY = Symbol("family.body");
 
@@ -202,6 +227,9 @@ async function readBody(c, { schema = null, pyFloats = false } = {}) {
     } catch (e) {
       throw new InvalidJsonBody(e);
     }
+    // pydantic's own words for it (allow_inf_nan=False): at the field's place, as a schema's error is
+    const at = nonFinitePath(v);
+    if (at) throw new RequestValidationError([{ type: "finite_number", loc: ["body", ...at], msg: "Input should be a finite number", input: null }]);
     const typed = floats && schema ? unwrapTyped(schema, v) : v;
     return { value: typed, sent: family.pyFloats ? pyClone(typed) : undefined };
   };
@@ -282,6 +310,17 @@ export function input({ params = null, body = null, querystring = null, headers 
     if (headers) c.req.addValidatedData("header", h);
     await next();
   };
+}
+
+/**
+ * Why `value` doesn't pass `schema`, in words — or null: the routes' own validator (ajv, every error) for a value that
+ * didn't come through a route — a restored backup's settings rows (just-house-paint's checkBackup, the nineteenth
+ * review). The value is checked as it is (no lax conversion), on a copy (ajv fills defaults in place).
+ */
+export function schemaProblem(schema, value) {
+  const validate = validatorFor(schema);
+  if (validate(structuredClone(value))) return null;
+  return ajv.errorsText(validate.errors, { dataVar: "value" });
 }
 
 // ── close hooks (Fastify's onClose: the app's engines stop when the server does) ──────────

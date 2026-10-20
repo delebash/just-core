@@ -171,7 +171,7 @@ server/src/serve.js serve` — the runtime it ships on, the one its native modul
 headless it is the app's exe run as Node on the installed copy (below). Its shape: `serve.js`
 (`serve [--host] [--port] [--data-dir] [--log-level]`) through the kit's `runServer`, a Hono app
 from the kit's `createServer`, the family guards added outermost first and before every route
-(`app.use("*", csrfOrigin(…))`, `starletteCors(…)`, `bearerAuth(…)` — Hono runs middleware in the
+(`app.use("*", csrfOrigin(…))`, `resourceIsolation(…)`, `starletteCors(…)`, `bearerAuth(…)` — Hono runs middleware in the
 order added, for the routes added after it), the routers mounted with `app.route()`, the AI stack
 (where the app has one) mounted with `installLlm` (§8), the built UI (`dist/spa`) served at `/` for
 the headless path (the kit's `serveStatic`, GET only). **One Hono:** an app takes `Hono`, `stream`
@@ -179,7 +179,11 @@ and `serveStatic` from the kit (`@delebash/core/platform`), never from `hono` it
 second copy's sub-apps answer errors with Hono's plain 500 (the kit's
 `docs/plans/2026-10-09-hono-standard.md` §10, which also has the route-by-route rules).
 The CSRF guard allows the window's `app://<id>` (the app's own origins), the phone's webview
-origins (the kit's `CAPACITOR_ORIGINS`) and Quasar's dev server.
+origins (the kit's `CAPACITOR_ORIGINS`) and Quasar's dev server. `resourceIsolation` (Fetch Metadata, web.dev's
+Resource Isolation Policy — 2026-10-20) refuses a GET or HEAD the browser marks `Sec-Fetch-Site: cross-site` (a
+cross-site `<img>` of `/v1/data/backup` made backups) unless it carries an Origin from the same allowlist or is a
+top-level navigation to the UI's pages: the window's own `fetch`es pass by their Origin; a no-cors load of the
+server's files from the window (`<img>`, `<audio>` with the server's address) is refused — fetch them instead.
 
 - **The server rules** — bearer auth for the headless path (OFF while the token list is empty;
   loopback exempt unless required; Settings → Server manages the tokens), the error envelope

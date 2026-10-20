@@ -82,3 +82,23 @@ test("a_body_that_is_not_a_dict_answers_pydantics_422", async () => {
   expect(await errorsOf(JSON.stringify("x"))).toEqual(notDict);
   expect(await errorsOf(undefined)).toEqual([{ loc: ["body"], msg: "Field required", type: "missing" }]);
 });
+
+test("a preference past the limits is refused, named, and nothing is written — the document stays readable", async () => {
+  // the nineteenth review's fuzz (just-house-paint, 2026-10-20): a value nested 5,000 deep was stored, and every GET
+  // answered 500 after it
+  const { client, store } = makeClient();
+  let deep = 1;
+  for (let i = 0; i < 5000; i++) deep = [deep];
+  const r = await client.patch("/v1/prefs", { ok: 1, deep });
+  expect(r.status).toBe(422);
+  expect((await r.json()).errors).toEqual([{ loc: ["body", "deep"], msg: "Nested deeper than 32", type: "value_error" }]);
+  expect(store).toEqual({});
+  expect((await client.get("/v1/prefs")).status).toBe(200);
+  // too long, too many, a built-in name
+  expect((await client.patch("/v1/prefs", { big: "x".repeat(70 * 1024) })).status).toBe(422);
+  expect((await client.patch("/v1/prefs", Object.fromEntries(Array.from({ length: 201 }, (_, i) => [`k${i}`, i])))).status).toBe(422);
+  expect((await client.patch("/v1/prefs", JSON.parse('{"__proto__": 1}'))).status).toBe(422);
+  // within them, as before
+  expect((await client.patch("/v1/prefs", { theme: "dark", nested: { a: [1, { b: 2 }] } })).status).toBe(200);
+  expect(store).toEqual({ theme: "dark", nested: { a: [1, { b: 2 }] } });
+});

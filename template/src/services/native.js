@@ -61,10 +61,11 @@ export function storageRelocate(newRoot, { token } = {}) {
   return call("storageRelocate", { newRoot, token });
 }
 
-/** The old copies earlier moves left: `[{ root, bytes }]` ([] outside the shell). */
-export function storageOldCopies() {
+/** The old copies earlier moves left: `[{ root, bytes, connected, cause? }]` ([] outside the shell). `{ again: true }`
+ *  (Storage's Try again): the ones that didn't answer are looked at now. */
+export function storageOldCopies(options = {}) {
   if (!hasShell()) return Promise.resolve([]);
-  return call("storageOldCopies");
+  return call("storageOldCopies", options);
 }
 
 /** Remove the old copy in `root` — only what the move copied. Throws on failure; resolves the list after. */

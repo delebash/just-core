@@ -168,6 +168,20 @@ const fake = vi.hoisted(() => {
 
 vi.mock("electron", () => fake.electron);
 vi.mock("electron-context-menu", () => ({ default: () => () => {} }));
+// electron-updater's autoUpdater: a check finds nothing; a test says when an update is downloaded
+const updater = vi.hoisted(() => ({ handlers: {}, installs: [] }));
+vi.mock("electron-updater", () => ({
+  default: {
+    autoUpdater: {
+      on(ev, fn) {
+        updater.handlers[ev] = fn;
+      },
+      checkForUpdates: async () => updater.handlers["update-not-available"]?.(),
+      downloadUpdate: async () => {},
+      quitAndInstall: (...a) => updater.installs.push(a),
+    },
+  },
+}));
 // Change folder's copy, held open by a test (the real one otherwise)
 vi.mock("../src/shell/dataRoot.js", async (importOriginal) => {
   const real = await importOriginal();
@@ -534,9 +548,41 @@ test("Storage's Forget drops an old copy's record — nothing on any drive is to
   mkdirSync(path.join(root, "electron"), { recursive: true });
   writeFileSync(path.join(root, "electron", "old-root.txt"), JSON.stringify({ copies: [{ root: gone, entries: ["app.db"], movedAt: 1, moveId: "m1" }] }));
   await startShell(repo);
-  expect(await invoke("storageOldCopies")).toEqual([{ root: gone, bytes: null, movedAt: 1, changedAt: null, connected: false }]);
+  expect(await invoke("storageOldCopies")).toEqual([{ root: gone, bytes: null, movedAt: 1, changedAt: null, connected: false, cause: "absent" }]);
+  // Try again looks now (the memo of a copy that didn't answer dropped): the same here
+  expect(await invoke("storageOldCopies", { again: true })).toMatchObject([{ root: gone, cause: "absent" }]);
   expect(await invoke("storageForgetOldCopy", { root: gone })).toEqual([]);
   expect(existsSync(path.join(root, "electron", "old-root.txt"))).toBe(false);
+});
+
+// the nineteenth review's e5_restart: Restart now stopped the server and quit past the page's check — Stay left a window
+// with no server and the app quitting
+test("Restart now runs the window's unsaved-work check first: Stay keeps the app and its server; Leave installs", async () => {
+  process.env.DEMO_UPDATE_FEED = "http://127.0.0.1:1/feed";
+  updater.installs.length = 0;
+  try {
+    const port = await freePort();
+    const repo = tmp();
+    const shell = runDesktopApp({ id: "demo", appName: "Demo", productName: "Demo", port, serverEntry: "server.js", dataDirEnv: "DEMO_DATA_DIR", repoRoot: repo, distDir: repo, window: {}, updates: { releasesUrl: "https://example.test/releases" } });
+    await vi.waitFor(() => expect(rec.forks.length).toBe(1));
+    rec.forks[0].child.emit("message", { type: "ready", host: "127.0.0.1", port });
+    await vi.waitFor(() => expect(updater.handlers["update-downloaded"]).toBeTypeOf("function"));
+    updater.handlers["update-downloaded"]({ version: "9.9.9" });
+    rec.pageHolds = true;
+    rec.unloadAnswer = 1; // Stay
+    await invoke("updateInstall");
+    expect(rec.dialogs.at(-1)).toMatchObject({ message: "Leave without saving?" });
+    expect(updater.installs).toEqual([]);
+    expect(shell.state.server).toBe(rec.forks[0].child);
+    expect(shell.state.quitting).toBeFalsy();
+    expect(shell.state.win.isDestroyed()).toBe(false);
+    rec.unloadAnswer = 0; // Leave
+    await invoke("updateInstall");
+    expect(updater.installs).toEqual([[true, true]]);
+    expect(shell.state.server).toBe(null);
+  } finally {
+    delete process.env.DEMO_UPDATE_FEED;
+  }
 });
 
 test("a second launch (the single-instance lock refused) never looks at what a move left, nor takes its token", async () => {

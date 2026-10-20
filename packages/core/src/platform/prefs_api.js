@@ -22,6 +22,43 @@ import { RequestValidationError } from "./errors.js";
 import { isJsonObject } from "./py.js";
 import { readJson } from "./server.js";
 
+// What a preference may be (the nineteenth review's fuzz, just-house-paint, 2026-10-20: a value nested 5,000 deep
+// was stored, and from then every GET /v1/prefs answered 500 "Maximum call stack size exceeded" until a DELETE): a
+// screen's remembered choice is small — at most this deep, this long as JSON, and this many keys in one patch.
+export const PREF_LIMITS = Object.freeze({ depth: 32, bytes: 64 * 1024, keys: 200 });
+
+/** How deep `v` nests (a scalar is 0), stopping once past `max` — never recursing on what it refuses. */
+function depthOver(v, max) {
+  const stack = [[v, 0]];
+  while (stack.length) {
+    const [x, d] = stack.pop();
+    if (x === null || typeof x !== "object") continue;
+    if (d + 1 > max) return true;
+    for (const child of Array.isArray(x) ? x : Object.values(x)) stack.push([child, d + 1]);
+  }
+  return false;
+}
+
+/** The patch's keys a preference can't be: a name an object has built in, a value past the limits. */
+function refusedPrefs(patch) {
+  const errors = [];
+  const keys = Object.keys(patch);
+  if (keys.length > PREF_LIMITS.keys) errors.push({ loc: ["body"], msg: `At most ${PREF_LIMITS.keys} preferences at once`, type: "too_long" });
+  for (const key of keys) {
+    const value = patch[key];
+    if (key === "__proto__" || key === "constructor" || key === "prototype") {
+      errors.push({ loc: ["body", key], msg: "Not a name a preference can have", type: "value_error" });
+    } else if (typeof value === "number" && !Number.isFinite(value)) {
+      errors.push({ loc: ["body", key], msg: "Input should be a finite number", type: "finite_number" });
+    } else if (depthOver(value, PREF_LIMITS.depth)) {
+      errors.push({ loc: ["body", key], msg: `Nested deeper than ${PREF_LIMITS.depth}`, type: "value_error" });
+    } else if (JSON.stringify(value).length > PREF_LIMITS.bytes) {
+      errors.push({ loc: ["body", key], msg: `Longer than ${PREF_LIMITS.bytes / 1024} KB`, type: "too_long" });
+    }
+  }
+  return errors;
+}
+
 /**
  * Build the shared renderer-prefs router over host storage hooks.
  *   - `readAll()`        → the whole document as decoded values.
@@ -42,6 +79,8 @@ export function makePrefsRouter({ readAll, writeMany, clear, prefix = "/v1/prefs
     if (!isJsonObject(patch)) {
       throw new RequestValidationError([{ loc: ["body"], msg: "Input should be a valid dictionary", type: "dict_type" }]);
     }
+    const refused = refusedPrefs(patch);
+    if (refused.length) throw new RequestValidationError(refused);
     await writeMany(patch);
     return c.json(await readAll());
   });

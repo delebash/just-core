@@ -15,14 +15,17 @@ import { h } from "vue";
 import { createMemoryHistory, createRouter, RouterView } from "vue-router";
 
 // the desktop shell as native.js reaches it (null fields: a browser, no shell)
-const shell = { version: "", root: null, picked: null, relocated: [], keepRunning: [], oldCopies: [], removed: [], forgotten: [], usedDefault: 0 };
+const shell = { version: "", root: null, picked: null, relocated: [], keepRunning: [], oldCopies: [], removed: [], forgotten: [], oldCopiesAsked: [], usedDefault: 0 };
 vi.mock("../../services/native.js", () => ({
   shellVersion: () => shell.version,
   setKeepRunning: async (v) => shell.keepRunning.push(v),
   storageGetRoot: async () => shell.root,
   pickDirectory: async () => shell.picked,
   storageRelocate: async (to, options) => shell.relocated.push(options?.token ? [to, options.token] : to),
-  storageOldCopies: async () => shell.oldCopies,
+  storageOldCopies: async (options) => {
+    shell.oldCopiesAsked.push(options ?? {});
+    return shell.oldCopies;
+  },
   storageRemoveOldCopy: async (root) => {
     shell.removed.push(root);
     shell.oldCopies = shell.oldCopies.filter((c) => c.root !== root);
@@ -93,7 +96,7 @@ const button = (words) => [...document.body.querySelectorAll("button")].find((b)
 
 beforeEach(() => {
   server = { calls: [], auth: { tokens: [], requireForLoopback: false }, disk: { modelsCache: 2e9, spawnLogs: 1e6, total: 3e9, diskFree: 5e10 } };
-  Object.assign(shell, { version: "", root: null, picked: null, relocated: [], keepRunning: [], oldCopies: [], removed: [], forgotten: [], usedDefault: 0 });
+  Object.assign(shell, { version: "", root: null, picked: null, relocated: [], keepRunning: [], oldCopies: [], removed: [], forgotten: [], oldCopiesAsked: [], usedDefault: 0 });
   setServerToken(""); // a token a test's window kept (the Server panel) isn't the next test's
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
@@ -225,7 +228,9 @@ describe("Storage", () => {
     shell.root = { root: "C:\\App\\data", default: "C:\\App\\data", portable: true, atDefault: true, folderName: "Family Template", defaultThisStart: { folder: "E:\\Family Template" } };
     await mountSettings("storage");
     expect(button("Move back to the default folder")).toBeUndefined();
-    expect(text()).toContain("This start uses the default folder: E:\\Family Template can't be used now.");
+    expect(text()).toContain("This start uses the default folder: your data is in E:\\Family Template, which isn't there now — connect it and restart, or use the default folder from now on.");
+    // one sentence, the folder named once (the nineteenth review's screens: three times, five lines at 960)
+    expect(document.body.querySelector(".lu-storage__banner").textContent.split("E:\\Family Template").length - 1).toBe(1);
     button("Use the default folder from now on").click();
     await flushPromises();
     _resolveDialog(true);
@@ -239,14 +244,14 @@ describe("Storage", () => {
   test("a start on the default folder this time: no Change folder or Move back — the data is elsewhere, said", async () => {
     shell.root = { root: "C:\\App\\data", default: "C:\\App\\data", portable: true, atDefault: true, folderName: "Family Template", defaultThisStart: { folder: "E:\\Family Template" } };
     await mountSettings("storage");
-    expect(text()).toContain("Your data is in E:\\Family Template: connect it and restart, or Use the default folder from now on.");
+    expect(text()).toContain("your data is in E:\\Family Template, which isn't there now — connect it and restart, or use the default folder from now on.");
     expect(button("Change folder")).toBeUndefined();
     expect(button("Move back to the default folder")).toBeUndefined();
     // the variable's folder missing: the variable's own words off too, and no "from now on"
     wrapper.unmount();
     shell.root = { ...shell.root, setBy: "VARNAME" };
     await mountSettings("storage");
-    expect(text()).toContain("Your data is in E:\\Family Template: connect it and restart.");
+    expect(text()).toContain("your data is in E:\\Family Template, which isn't there now — connect it and restart.");
     expect(text()).not.toContain("set by VARNAME");
     expect(button("Use the default folder from now on")).toBeUndefined();
   });
@@ -255,7 +260,7 @@ describe("Storage", () => {
   test("the data's folder connected: restart to use it; the variable naming the old copy: change it to the data's folder", async () => {
     shell.root = { root: "C:\\App\\data", default: "C:\\App\\data", portable: true, atDefault: true, folderName: "Family Template", defaultThisStart: { folder: "E:\\Family Template", connected: true } };
     await mountSettings("storage");
-    expect(text()).toContain("Your data is in E:\\Family Template — restart the app to use it.");
+    expect(text()).toContain("This start uses the default folder; your data is in E:\\Family Template, which can be used again — restart the app to use it.");
     wrapper.unmount();
     shell.root = {
       root: "C:\\App\\data",
@@ -268,7 +273,7 @@ describe("Storage", () => {
       oldCopyOf: { root: "E:\\Family Template", movedAt: 1, connected: true },
     };
     await mountSettings("storage");
-    expect(text()).toContain("FAMILY_TEMPLATE_DATA_DIR names this old copy — change it to E:\\Family Template.");
+    expect(text()).toContain("FAMILY_TEMPLATE_DATA_DIR names this old copy — what you change here isn't in your data, which moved to E:\\Family Template: change FAMILY_TEMPLATE_DATA_DIR to that folder.");
     expect(button("Change folder")).toBeUndefined();
   });
 
@@ -277,13 +282,13 @@ describe("Storage", () => {
   test("an old copy that isn't found: Not found, no Remove, Forget asks then drops it; Move back said while the default holds one", async () => {
     shell.root = { root: "D:\\New\\Family Template", default: "C:\\App\\data", portable: false, atDefault: false, folderName: "Family Template", defaultThisStart: null };
     shell.oldCopies = [
-      { root: "F:\\Stick\\Family Template", bytes: null, movedAt: 1, changedAt: null, connected: false },
+      { root: "F:\\Stick\\Family Template", bytes: null, movedAt: 1, changedAt: null, connected: false, cause: "absent" },
       { root: "C:\\App\\data", bytes: 1e9, movedAt: 1, changedAt: null, connected: true },
     ];
     server.disk = { ...server.disk, sharedWith: ["JustWrite"] };
     await mountSettings("storage");
     expect(text()).toContain("Not found");
-    expect(text()).toContain("Connect its drive to remove it — or Forget it: the app stops listing it, and nothing on any drive is touched.");
+    expect(text()).toContain("Its folder isn't there — its drive unplugged, or the folder renamed or deleted. Connect it to remove it, or Forget it: the app stops listing it, and nothing on any drive is touched.");
     const removes = () => [...document.body.querySelectorAll(".ui-formgrid button")].filter((b) => b.textContent.includes("Remove the old copy"));
     expect(removes().length).toBe(1); // only the found one's
     expect(button("Move back to the default folder")).toBeUndefined();
@@ -307,6 +312,36 @@ describe("Storage", () => {
     expect(shell.forgotten).toEqual(["F:\\Stick\\Family Template"]);
     expect(text()).not.toContain("Not found");
     expect(shell.removed).toEqual([]);
+    // the row and its button gone: the focus on the next copy's button, never dropped on the page; said as forgotten
+    expect(document.activeElement?.textContent).toContain("Remove the old copy");
+    const said = () => [...document.body.querySelectorAll('[aria-live="polite"]')].map((e) => e.textContent).join(" ");
+    await vi.waitFor(() => expect(said()).toContain("Forgotten"));
+  });
+
+  // the nineteenth review: "Not found" said "connect its drive" whatever the cause; a share that didn't answer had no
+  // way but Forget; after the last row's Forget the focus fell on the page
+  test("each cause in its words; one that didn't answer offers Try again; the last one forgotten, the focus on Change folder", async () => {
+    shell.root = { root: "D:\\New\\Family Template", default: "C:\\App\\data", portable: false, atDefault: false, folderName: "Family Template", defaultThisStart: null };
+    shell.oldCopies = [
+      { root: "\\\\nas\\share\\Family Template", bytes: null, movedAt: 1, changedAt: null, connected: false, cause: "slow" },
+      { root: "G:\\Family Template", bytes: null, movedAt: 1, changedAt: null, connected: false, cause: "other" },
+    ];
+    await mountSettings("storage");
+    expect(text()).toContain("Didn't answer just now");
+    expect(text()).toContain("Its drive didn't answer just now — a network folder offline, or a drive waking. Try again in a moment, or Forget it");
+    expect(text()).toContain("The folder there now isn't this copy — another drive in its place, or a folder copied by hand — so it isn't removed.");
+    // Try again: looked at now
+    shell.oldCopies = [shell.oldCopies[1]];
+    button("Try again").click();
+    await flushPromises();
+    expect(shell.oldCopiesAsked.at(-1)).toEqual({ again: true });
+    expect(text()).not.toContain("Didn't answer just now");
+    // the last one forgotten: the focus on Change folder
+    button("Forget").click();
+    await flushPromises();
+    _resolveDialog(true);
+    await flushPromises();
+    expect(document.activeElement?.textContent).toContain("Change folder");
   });
 
   // the eighteenth review's s16: "restart the app to use it" for a folder that is there but the start's check refuses
@@ -320,7 +355,7 @@ describe("Storage", () => {
       defaultThisStart: { folder: "E:\\Family Template", connected: false, problem: "the app isn't allowed to write there" },
     };
     await mountSettings("storage");
-    expect(text()).toContain("Your data is in E:\\Family Template, which can't be used now: the app isn't allowed to write there. Once it can, restart — or Use the default folder from now on.");
+    expect(text()).toContain("This start uses the default folder: your data is in E:\\Family Template, which can't be used now (the app isn't allowed to write there) — put that right and restart, or use the default folder from now on.");
     expect(text()).not.toContain("restart the app to use it");
   });
 
@@ -345,7 +380,7 @@ describe("Storage", () => {
     };
     shell.oldCopies = [{ root: "F:\\Older", bytes: 1e9, movedAt: changedAt - 3_600_000, changedAt }];
     await mountSettings("storage");
-    expect(text()).toContain("This folder holds the old copy of the data, left here when the data moved to E:\\Family Template");
+    expect(text()).toContain("This folder holds an old copy — what you change here isn't in your data, which moved to E:\\Family Template: that folder isn't there now — connect it and restart, or use the default folder from now on.");
     const said = "The old copy was used after the move — last changed";
     const times = () => text().split(said).length - 1;
     expect(times()).toBe(1);
