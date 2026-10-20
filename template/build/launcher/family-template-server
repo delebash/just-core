@@ -7,7 +7,9 @@ self=$(readlink -f "$0" 2>/dev/null || printf '%s' "$0")
 here=$(cd "$(dirname "$self")" && pwd)
 name=$(basename "$self" -server)
 if [ -d "$here/../MacOS" ]; then
-  exe=$(find "$here/../MacOS" -maxdepth 1 -type f | head -n 1)
+  # the bundle's own executable, named by its Info.plist (CFBundleExecutable; PlistBuddy ships with macOS): another
+  # program an app puts in Contents/MacOS never runs in its place (JustVoice's audiocpp_dsp, 2026-10-20)
+  exe="$here/../MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$here/../Info.plist")"
   res="$here"
 else
   exe="$here/$name"
