@@ -36,8 +36,11 @@ import { beforeAll, expect, it, vi } from "vitest";
  * @param {() => void} [ready]  extra per-app readiness probe, run inside the
  *   waitFor retry loop after mount is visible — throw to keep waiting (e.g.
  *   rethrow window.__bootErr, or assert a late boot marker).
+ * @param {number} [timeout]  how long the boot may take, ms (default 60 s). The smoke checks that the app
+ *   boots, not how fast: alone it takes ~2 s, but inside a full parallel run with another suite beside it
+ *   JustWrite's took past the old fixed 15 s (2026-10-20).
  */
-export function registerBootSmoke({ boot, routes = {}, ready } = {}) {
+export function registerBootSmoke({ boot, routes = {}, ready, timeout = 60_000 } = {}) {
   beforeAll(() => {
     vi.stubGlobal(
       "fetch",
@@ -95,6 +98,6 @@ export function registerBootSmoke({ boot, routes = {}, ready } = {}) {
     await vi.waitFor(() => {
       if (ready) ready();
       expect(el.childElementCount).toBeGreaterThan(0);
-    }, { timeout: 8000, interval: 100 });
-  }, 15000);
+    }, { timeout: Math.max(1000, timeout - 2000), interval: 100 });
+  }, timeout);
 }
