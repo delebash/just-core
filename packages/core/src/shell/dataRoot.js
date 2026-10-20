@@ -22,6 +22,7 @@
 // move copied, never the folder the app runs on. No cleanup at the next start, so no race with a start on the old
 // folder (the data-dir variable, "Use the default folder") deleting new work, and nothing half-removed by a kill.
 
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { dataFolderHeld, LOCK_NAME } from "../platform/data_lock.js";
@@ -225,11 +226,23 @@ export function appHome({ packaged = true, repoRoot } = {}) {
  * runs is refused (`MOVE_UNDER_WAY`). Resolves the new root, or null when it equals the old one. `copy` is
  * fs.promises.cp, `statfs` fs.promises.statfs (a test passes its own).
  */
-export async function relocate({ oldRoot, newRoot, appName, folderName = appName, packaged = true, repoRoot, token = null, copy = fs.promises.cp, statfs = fs.promises.statfs }) {
+export async function relocate({
+  oldRoot,
+  newRoot,
+  appName,
+  folderName = appName,
+  packaged = true,
+  repoRoot,
+  token = null,
+  copy = fs.promises.cp,
+  statfs = fs.promises.statfs,
+  canSymlink = canMakeSymlink,
+  linkKinds = windowsLinkKinds,
+}) {
   if (moving) throw new Error(MOVE_UNDER_WAY);
   moving = true;
   try {
-    return await move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot, token, copy, statfs });
+    return await move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot, token, copy, statfs, canSymlink, linkKinds });
   } finally {
     moving = false;
   }
@@ -242,7 +255,7 @@ export function moveTarget({ newRoot, appName, folderName = appName, packaged = 
   return sameFolder(picked, def) ? def : path.join(picked, appFolderName(folderName, appName));
 }
 
-async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot, token, copy, statfs }) {
+async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot, token, copy, statfs, canSymlink, linkKinds }) {
   const old = path.resolve(oldRoot);
   const picked = path.resolve(String(newRoot).trim());
   const sourceRoot = sourceRootOf({ packaged, repoRoot });
@@ -281,17 +294,26 @@ async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot,
   }
   const entries = fs.readdirSync(old).filter((n) => !notCopied(n));
   // a link in the data folder (a models folder kept on another drive, the model cache's snapshots): Windows makes a
-  // symbolic link again only with the right to (Developer Mode) — a folder's is made again as a junction, which needs
-  // none; any other is refused, named, before anything is copied (2026-10-20, the sixteenth review: a junction failed
-  // every move "the app isn't allowed to write there")
+  // symbolic link only with the right to (Developer Mode, an administrator) — a junction needs none (2026-10-20, the
+  // sixteenth review: a junction failed every move "the app isn't allowed to write there"). So, on Windows, with
+  // links there, this process is asked once whether it can make one (a probe link in the picked folder): it can —
+  // every link is made again as the kind it was (a relative one stays relative, as off Windows; a junction a
+  // junction); it can't — a folder's link is made again as a junction, and a file's link is refused, named, before
+  // anything is copied (the dry run 39428267423: an administrator's runner holds file links in a model cache).
   const links = process.platform === "win32" ? await findLinks(old, entries) : [];
+  const canLink = links.length ? await canSymlink(nearestExisting(target)) : false;
   const fileLinks = links.filter((l) => !l.dir);
-  if (fileLinks.length) {
+  if (fileLinks.length && !canLink) {
     const named = fileLinks.slice(0, 3).map((l) => l.rel).join(", ");
     throw new Error(
       `The data folder holds a link to a file (${named}${fileLinks.length > 3 ? ` and ${fileLinks.length - 3} more` : ""}), which Windows lets the app make again only with Developer Mode on — replace it with the file itself, or move it out of the data folder.`,
     );
   }
+  // the links this move makes itself, as junctions: every folder link without the right; with it, the junctions
+  // (fs.cp would make a junction again as a symbolic link) — the rest fs.cp copies as they are (verbatimSymlinks)
+  const folderLinks = links.filter((l) => l.dir);
+  const kinds = canLink && folderLinks.length ? await linkKinds(folderLinks.map((l) => l.src)) : null;
+  const asJunctions = folderLinks.filter((l, i) => !canLink || (kinds?.[i] ?? (l.relative ? "SymbolicLink" : "Junction")) === "Junction");
   // room first: the old root stays, so the drive needs all of it
   const size = (await Promise.all(entries.map((n) => entrySize(path.join(old, n))))).reduce((a, b) => a + b, 0);
   let free = Number.POSITIVE_INFINITY;
@@ -323,10 +345,10 @@ async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot,
     // process still runs (a second launch of the app while this one copies)
     fs.mkdirSync(path.dirname(record), { recursive: true });
     fs.writeFileSync(record, JSON.stringify({ target, pid: process.pid }));
-    const skip = new Set(links.map((l) => pathKey(l.src)));
+    const skip = new Set(asJunctions.map((l) => pathKey(l.src)));
     const options = { recursive: true, preserveTimestamps: true, verbatimSymlinks: true, ...(skip.size ? { filter: (src) => !skip.has(pathKey(src)) } : {}) };
     for (const name of entries) await copy(path.join(old, name), path.join(target, name), options);
-    for (const l of links) makeJunction(l, old, target);
+    for (const l of asJunctions) makeJunction(l, old, target);
     for (const name of entries) await checkCopy(path.join(old, name), path.join(target, name), name);
     // the new root's own records, before the commit (a stop after the commit finds them there; an undo removes
     // them): the old copies it leaves — this one and those an earlier move left, each with its move's time — and the
@@ -405,7 +427,7 @@ async function findLinks(old, entries) {
       } catch {
         // dangling: a junction (always a folder's) reads back absolute — made again as one
       }
-      out.push({ src: p, rel, target, dir: !!to && dir });
+      out.push({ src: p, rel, target, dir: !!to && dir, relative: !!to && !path.isAbsolute(to) });
       return;
     }
     if (!st.isDirectory()) return;
@@ -413,6 +435,56 @@ async function findLinks(old, entries) {
   };
   for (const name of entries) await walk(path.join(old, name), name);
   return out;
+}
+
+/** Can this process make a symbolic link on Windows (Developer Mode, an administrator)? Asked once, by making one in
+ *  `dir` (the picked folder) and removing it: EPERM is no; another error (a folder it can't write to) is the copy's
+ *  own to say, so yes. A test passes its own (`relocate`'s `canSymlink`). */
+export async function canMakeSymlink(dir) {
+  const probe = path.join(dir, `.symlink-probe-${process.pid}`);
+  try {
+    await fs.promises.symlink("symlink-probe-target", probe, "file");
+    return true;
+  } catch (e) {
+    return e?.code !== "EPERM";
+  } finally {
+    await fs.promises.rm(probe, { force: true }).catch(() => {});
+  }
+}
+
+/**
+ * Which kind each Windows folder link is — "Junction" or "SymbolicLink" (PowerShell's FileSystemInfo.LinkType; Node
+ * reads both as a symbolic link and can't tell them apart) — so a move with the right to make links makes each again
+ * as the kind it was. One PowerShell for all of them; null when it can't answer (each then decided by its target: a
+ * relative one is a symbolic link, an absolute one made a junction — which every folder link works as). A test passes
+ * its own (`relocate`'s `linkKinds`).
+ */
+export function windowsLinkKinds(paths) {
+  const script = "$p = [Console]::In.ReadToEnd() | ConvertFrom-Json; ConvertTo-Json -Compress -InputObject @(foreach ($x in @($p)) { [string](Get-Item -LiteralPath $x -Force).LinkType })";
+  return new Promise((resolve) => {
+    let out = "";
+    let child;
+    try {
+      child = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, stdio: ["pipe", "pipe", "ignore"] });
+    } catch {
+      return resolve(null);
+    }
+    const timer = setTimeout(() => child.kill(), 20_000);
+    child.on("error", () => resolve(null));
+    child.stdout.on("data", (d) => {
+      out += d;
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      try {
+        const kinds = JSON.parse(out);
+        resolve(code === 0 && Array.isArray(kinds) && kinds.length === paths.length ? kinds : null);
+      } catch {
+        resolve(null);
+      }
+    });
+    child.stdin.end(JSON.stringify(paths));
+  });
 }
 
 /** A folder link of the old root made again in the new one as a junction (Windows' own folder link — no symbolic

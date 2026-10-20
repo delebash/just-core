@@ -30,6 +30,7 @@ import { sameFileTime } from "../src/platform/file_time.js";
 import {
   appHome,
   CHROME_DIR,
+  canMakeSymlink,
   dataDirSetBy,
   dataRootProblem,
   forgetPointer,
@@ -47,6 +48,7 @@ import {
   sweepUnfinishedMove,
   takeCarried,
   useDefaultRoot,
+  windowsLinkKinds,
 } from "../src/shell/dataRoot.js";
 
 // its real path: the ladder resolves links (macOS's /var is /private/var — the release runs these on every runner)
@@ -846,15 +848,51 @@ test("a folder link in the data folder moves as a link to the same folder; remov
   expect(readFileSync(path.join(B, "models", "m.gguf"), "utf8")).toBe("weights");
 });
 
-test.runIf(process.platform === "win32")("a link to a file in the data folder is named in the refusal, before anything is copied", async () => {
+// The dry run 39428267423 (2026-10-20): its Windows runner — an administrator, with the symbolic-link right — holds a
+// file link in the model cache; every file link was refused. Now the process is asked once (`canSymlink`): with the
+// right the links are copied as they are, without it a file's link is refused, named, before anything is copied.
+// Both branches need a real file link, which only an account with the right can make — elsewhere these skip.
+test.runIf(process.platform === "win32")("a file link: copied as a link when this process may make one, refused in words when it may not", async () => {
   const { repo, old } = oldRootWithData();
   writeFileSync(path.join(old, "real.txt"), "x");
   try {
-    symlinkSync(path.join(old, "real.txt"), path.join(old, "linked.txt"), "file");
+    symlinkSync("real.txt", path.join(old, "linked.txt"), "file");
   } catch {
     return; // no right to make a file's symbolic link here — nor can a user's data folder hold one made by this account
   }
   const picked = tmp();
-  await expect(move(old, picked, repo)).rejects.toThrow("The data folder holds a link to a file (linked.txt), which Windows lets the app make again only with Developer Mode on");
+  await expect(move(old, picked, repo, { canSymlink: async () => false })).rejects.toThrow(
+    "The data folder holds a link to a file (linked.txt), which Windows lets the app make again only with Developer Mode on",
+  );
   expect(readdirSync(picked)).toEqual([]);
+  const target = await move(old, picked, repo, { canSymlink: async () => true });
+  expect(readlinkSync(path.join(target, "linked.txt"))).toBe("real.txt");
+  expect(readFileSync(path.join(target, "linked.txt"), "utf8")).toBe("x");
+});
+
+test.runIf(process.platform === "win32")("the symbolic-link probe answers and leaves nothing; PowerShell tells a junction from a symbolic link", async () => {
+  const dir = tmp();
+  expect(typeof (await canMakeSymlink(dir))).toBe("boolean");
+  expect(readdirSync(dir)).toEqual([]);
+  const target = tmp();
+  symlinkSync(target, path.join(dir, "j"), "junction");
+  expect(await windowsLinkKinds([path.join(dir, "j")])).toEqual(["Junction"]);
+});
+
+test.runIf(process.platform === "win32")("with the right, a junction is made again as a junction (never turned into a symbolic link)", async () => {
+  const { repo, old } = oldRootWithData();
+  const big = tmp();
+  writeFileSync(path.join(big, "m.gguf"), "weights");
+  symlinkSync(big, path.join(old, "models"), "junction");
+  const asked = [];
+  const target = await move(old, tmp(), repo, {
+    canSymlink: async () => true,
+    linkKinds: async (paths) => {
+      asked.push(...paths);
+      return paths.map(() => "Junction");
+    },
+  });
+  expect(asked).toEqual([path.join(old, "models")]);
+  expect(await windowsLinkKinds([path.join(target, "models")])).toEqual(["Junction"]);
+  expect(readFileSync(path.join(target, "models", "m.gguf"), "utf8")).toBe("weights");
 });

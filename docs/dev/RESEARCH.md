@@ -1696,6 +1696,18 @@ review):
   the Mac app's `Contents/Resources` script 1.0 s, the AppImage's after `--appimage-extract` on Ubuntu 24.04
   1.5 s — each answered with its version and served the page at `/`.
 
+- **Links in a data folder moved on Windows** (Change folder, 2026-10-20): Node's lstat reports a junction and a
+  folder symlink alike (isSymbolicLink), and fs.cp with verbatimSymlinks makes every folder link a symlink — which
+  needs the symlink right (Developer Mode or an administrator; a standard account gets EPERM). So the move probes
+  once whether it can make a symlink (one test link in the target, removed); with the right it copies every link as
+  the kind it was, junctions made again as junctions; without it, folder links become junctions (no right needed)
+  and a file link is refused by name before anything is copied. Which folder link is a junction is asked of
+  PowerShell's documented `LinkType` (Get-Item … | LinkType: Junction / SymbolicLink) in one call per move —
+  **NOT STANDARD** plumbing (no Node API or maintained package tells them apart; `fsutil reparsepoint query` needs
+  an elevated prompt on some systems); without an answer, an absolute target is taken as a junction (junctions are
+  always absolute). A Windows runner (administrator) ran the file-link test; a standard account here can't. —
+  *measured, 2026-10-20 (dry run 39428267423)*.
+
 ## 3 · AI tasks and the stream frames
 
 - `GET /v1/ai/resolved-route` rows carry `context` (since `1476549` + `b9ea75d`, 2026-10-11): the
