@@ -1545,6 +1545,20 @@ which hid several of these):
   resolution listener sets each layer's pixel ratio); Konva's pointercancel also sends pointerup; a decimal comma
   read "0,05" as 5 in UiNumber (now read where it can only be a decimal — numberBox.js `parseLocaleNumber`);
   `isolate` (FSI/PDI) and `localDate` are the kit's; a backup is named by the local date.
+- The fourteenth review's attack on that (*measured* with the kit's own code): two Change folder moves at once lost
+  the data (the panel's lock was the panel's; a picked folder's `.moving` wiped while its move ran) and the tray
+  restarted the server on the old folder mid-copy — now one move at a time in the shell (`state.moving`; the
+  server not started, the tray's items off), the marker `{root, entries}` ours only when it names this folder; the
+  data moves into `<picked>/<productName>` (a known folder like Documents, only desktop.ini in it, counted as empty
+  and was deleted whole by the next start's cleanup), room checked first (`statfs` vs `dirSize` + 256 MB), times
+  kept (`preserveTimestamps` — no re-hash), and the next start removes only the entries it copied (plus the old
+  folder's own Chromium folder and lock), then the folder only if empty. A lost lock is taken back only after
+  retrying past `stale` (so only a free or our own stale one) — another server holding it fresh ends this one by
+  the folder-in-use path (proper-lockfile keeps ONE lock table per process: two lockers in one process can't test
+  it — a second process can). "Use the default folder" is this start's only (the pointer kept); the path rule holds
+  a folder being chosen, an existing pointer is used and logged; a folder the user named that isn't there is said
+  missing, never made (the default may be). The owner is the OS account (the Windows domain and user name; uid and
+  user name on POSIX) — HOME moved it. NO_PROXY gets loopback whenever any proxy is set (the user's own too).
 - The engines' needs (*measured*, PE import tables): onnxruntime.dll imports MSVCP140, MSVCP140_1,
   MSVCP140_ATOMIC_WAIT (2019+ runtimes only), VCRUNTIME140, VCRUNTIME140_1; sd-cli and ggml import MSVCP140,
   VCRUNTIME140, VCRUNTIME140_1, VCOMP140 — the Visual C++ 2015–2022 runtime, unshipped (its licence is Visual

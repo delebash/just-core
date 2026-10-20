@@ -14,15 +14,21 @@ import os from "node:os";
 export const PROBE_HOST = "127.0.0.1";
 
 /**
- * Whose server this is: this computer's OS user as a short hash — sha256 of the user's name and home folder,
- * the first 12 hex — never the name itself (2026-10-20). Every OS user's apps share one set of loopback
- * ports, so a second Windows account's app found the first's server on its port and stopped it; the health
- * answer carries this (`owner`, health_api.js) and the desktop shell stops only its own user's. Null where
- * there's no OS user to ask (the phone's in-app server: its crypto stand-in has no hash).
+ * Whose server this is: this computer's OS user as a short hash — sha256 of the user's account, the first 12
+ * hex — never the name itself (2026-10-20). Every OS user's apps share one set of loopback ports, so a second
+ * Windows account's app found the first's server on its port and stopped it; the health answer carries this
+ * (`owner`, health_api.js) and the desktop shell stops only its own user's. The account is the one the OS runs
+ * the process as — Node's os.userInfo() (nodejs.org/api/os.html#osuserinfooptions: the OS's answer, where
+ * os.homedir() follows the HOME / USERPROFILE variables, so a server started from a shell with another HOME read
+ * as another user's) — with its Windows domain, as Windows writes an account ("DOMAIN\UserName",
+ * learn.microsoft.com/windows/win32/secauthn/user-name-formats), or its POSIX uid. Null where there's no OS user
+ * to ask (the phone's in-app server: its crypto stand-in has no hash).
  */
 export function serverOwner() {
   try {
-    return createHash("sha256").update(`${os.userInfo().username}\n${os.homedir()}`).digest("hex").slice(0, 12);
+    const user = os.userInfo();
+    const account = process.platform === "win32" ? `${process.env.USERDOMAIN || ""}\\${user.username}` : `${user.uid}:${user.username}`;
+    return createHash("sha256").update(account).digest("hex").slice(0, 12);
   } catch {
     return null;
   }

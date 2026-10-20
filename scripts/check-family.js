@@ -831,6 +831,12 @@ function checkLauncher(app) {
   if (!/extraResources:\s*\[[^\]]*['"/\\]launcher\/?['"]/.test(cfg)) {
     fail(name, "quasar.config.js's builder doesn't copy build/launcher/ beside the exe (extraResources) — §Q.3");
   }
+  // every launcher trusts the system's certificates (a company network's TLS inspection — Node's own list made every
+  // download fail; the thirteenth review): NODE_USE_SYSTEM_CA, as the shell sets it for the desktop's server
+  for (const f of launchers.filter((x) => basename(x, extname(x)).endsWith("-server"))) {
+    const text = codeOf(join(launchDir, f));
+    if (!/NODE_USE_SYSTEM_CA/.test(text)) required(name, `build/launcher/${f} doesn't set NODE_USE_SYSTEM_CA — the server on its own trusts only Node's certificates (the template's launchers)`);
+  }
   const exe = (cfg.match(/executableName:\s*['"]([^'"]+)['"]/) || [])[1];
   if (!exe) fail(name, "quasar.config.js's builder.win has no executableName — the exe's name must be known to keep it apart from the launcher's (§Q.3)");
   for (const f of launchers) {
@@ -1273,6 +1279,17 @@ function checkMaintenanceGate(app) {
     if (!/\bbeforeReplace\s*:/.test(y)) report(`${where}: makeDataRouter without beforeReplace — the app's jobs run on while the data is replaced (the template's data_admin.js)`);
   }
 }
+// ── the connection page says why ──────────────────────────────────────────────
+// The shell's serverStatus names why the server didn't start (2026-10-20, the thirteenth review): another OS user's
+// copy on the port, a port Windows reserved, the server's own first error — the app's connection page says each.
+function checkConnectionReasons(app) {
+  const page = join(app.dir, "src", "pages", "ConnectionErrorPage.vue");
+  if (!existsSync(page)) return;
+  const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
+  const y = codeOf(page);
+  const missing = ["portOtherUser", "portReserved", "serverError"].filter((k) => !new RegExp(`\\b${k}\\b`).test(y));
+  if (missing.length) report(`src/pages/ConnectionErrorPage.vue doesn't say the shell's ${missing.join(", ")} — the template's page shows how`);
+}
 function checkRelease(app) {
   const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
   const workflow = join(app.dir, ".github", "workflows", "release.yml");
@@ -1352,6 +1369,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkRelease(app);
   checkRestoreKeepsTokens(app);
   checkMaintenanceGate(app);
+  checkConnectionReasons(app);
   checkCorsOrigins(app);
   checkClipboard(app.name, app.dir, files, RELEASE_REQUIRED.has(app.name));
   checkOneSaveDoor(app, files);

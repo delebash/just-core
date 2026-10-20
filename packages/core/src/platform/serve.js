@@ -19,13 +19,15 @@
 // another server of the app holds is reported before the app opens its database. An app that
 // names itself (`productName`) has its data folder locked before it is built (data_lock.js): a
 // second server of the app on the same folder says so and exits 3 — under the desktop app, once
-// it has told main (`{type: "data-folder-locked", dataDir}`) and main has asked it to stop.
+// it has told main (`{type: "data-folder-locked", dataDir}`) and main has asked it to stop. A
+// server whose lock another server takes over while it runs says the same and stops serving the
+// folder (2026-10-20).
 
 import path from "node:path";
 import { getSystemErrorMap, parseArgs } from "node:util";
 import { serve } from "@hono/node-server";
 import { dataFolderInUse, lockDataDir } from "./data_lock.js";
-import { cantUseDataDir, dataDirProblem, isNamedDataDir } from "./data_paths.js";
+import { cantUseDataDir, dataDirSource, dataDirStartProblem } from "./data_paths.js";
 import { PROBE_HOST, portInUse } from "./port.js";
 import { closeApp } from "./server.js";
 import { registerServerStop } from "./shutdown_api.js";
@@ -115,6 +117,12 @@ function cantListen(app, host, port, e, log) {
   return new Promise(() => {}); // the shell's stop ends this process
 }
 
+/** Another server of the app holds the data folder: the words on stderr, and the shell told (it shows them). */
+function sayDataFolderLocked(productName, dataDir) {
+  process.stderr.write(`${dataFolderInUse(productName, dataDir)}\n`);
+  process.parentPort?.postMessage({ type: "data-folder-locked", dataDir });
+}
+
 /**
  * Another server of the app holds the data folder: say so and exit 3, before anything is built —
  * under the desktop app, once the shell knows (it shows the words) and has asked this one to stop.
@@ -161,27 +169,38 @@ function startFailed(error) {
  * e.g. "JustVoice"): the data folder (`--data-dir` / `<APP>_DATA_DIR` — the desktop shell always
  * names it) is then locked before `build`, after the port probe so this app's own old server on
  * the port is still reported to the shell, which stops it. Held by another server of the app, the
- * start ends with `dataFolderInUse`'s words. The lock goes when the process exits.
- * `lockRetries` overrides proper-lockfile's retries (tests).
+ * start ends with `dataFolderInUse`'s words. The lock goes when the process exits. Taken over by
+ * another server while this one runs (data_lock.js `onLost`), the same words are said (under the
+ * desktop app the shell is told, `data-folder-locked`), this server stops serving and exits 3.
+ * `lockRetries` overrides proper-lockfile's retries, `lockOptions` its `stale` / `update` (tests).
  * `defaultDataDir`, when given, is the app's own default folder (its family ladder), used when
  * neither `--data-dir` nor `<APP>_DATA_DIR` names one — so a headless run with no folder named is
  * locked too, and `build` gets the same folder.
  *
- * The data folder is checked first (2026-10-20, data_paths.js `dataDirProblem`): one that can't be used — a
- * missing drive, an offline share, a read-only folder, or, named by the user (`--data-dir`, `<APP>_DATA_DIR`, a
- * Change-folder pointer), a path the apps' native code can't take — ends the start in one line ("The data folder
- * <dir> can't be used: <why>"), exit 3. Under the desktop app the shell checked the folder before handing it
- * down; a start that fails there anyway — or in `build` — tells the shell its first line (`start-failed`).
+ * The data folder is checked first (2026-10-20, data_paths.js `dataDirStartProblem`): one that can't be used — a
+ * missing drive, an offline share, a read-only folder; a folder the user named (`--data-dir`, `<APP>_DATA_DIR`,
+ * a Change-folder pointer the app's ladder read) that isn't there; or, given at this start (`--data-dir`,
+ * `<APP>_DATA_DIR`), a path the apps' native code can't take — ends the start in one line ("The data folder <dir>
+ * can't be used: <why>"), exit 3. The ladder's default is made when missing. Under the desktop app the shell
+ * checked the folder before handing it down; a start that fails there anyway — or in `build` — tells the shell
+ * its first line (`start-failed`).
  */
-export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, productName, lockRetries, defaultDataDir, log = console }) {
+export async function runServer({ argv = process.argv.slice(2), envPrefix, build, resolvePort, productName, lockRetries, lockOptions, defaultDataDir, log = console }) {
   const args = parseServeArgs(argv, { envPrefix });
   const namedHere = !!args.dataDir;
   if (!args.dataDir && defaultDataDir) args.dataDir = path.resolve(await defaultDataDir());
   if (args.dataDir) {
-    const named = !process.parentPort && (namedHere || isNamedDataDir(args.dataDir));
-    const why = dataDirProblem(args.dataDir, { named });
+    // where the folder came from: the app's ladder knows its own (an app that passes its ladder's folder as
+    // --data-dir — JustVoice — keeps its default made when missing); else --data-dir / <APP>_DATA_DIR given now
+    const source = process.parentPort ? null : (dataDirSource(args.dataDir) ?? (namedHere ? "variable" : null));
+    const why = dataDirStartProblem(args.dataDir, { source, log });
     if (why) return startFailed(cantUseDataDir(args.dataDir, why));
   }
+  // another server took the data folder's lock over: before this one serves, its start ends; after, it stops
+  let lockLost = false;
+  let onLockLost = () => {
+    lockLost = true;
+  };
   let built;
   try {
     if (resolvePort) {
@@ -190,13 +209,22 @@ export async function runServer({ argv = process.argv.slice(2), envPrefix, build
     }
     if (productName && args.dataDir) {
       try {
-        await lockDataDir(args.dataDir, { log, ...(lockRetries != null ? { retries: lockRetries } : {}) });
+        await lockDataDir(args.dataDir, {
+          log,
+          onLost: () => onLockLost(),
+          ...(lockOptions || {}),
+          ...(lockRetries != null ? { retries: lockRetries } : {}),
+        });
       } catch (e) {
         if (e?.code !== "ELOCKED") throw e;
         return dataFolderLocked(productName, args.dataDir);
       }
     }
     built = await build(args);
+    if (lockLost) {
+      await closeApp(built.app).catch((err) => log.error?.(`close failed: ${err?.stack || err}`));
+      return dataFolderLocked(productName, args.dataDir);
+    }
   } catch (e) {
     // headless, the error goes on as it always did; under the desktop app its first line reaches the window
     if (!process.parentPort) throw e;
@@ -215,7 +243,8 @@ export async function runServer({ argv = process.argv.slice(2), envPrefix, build
   if (banner) process.stdout.write(`${banner}\n`);
 
   let stopping = null;
-  const stop = (why = "stop") => {
+  // the stop, ending the process with `code` once the server has closed
+  const halt = (why, code) => {
     if (stopping) return stopping;
     stopping = (async () => {
       log.info?.(`server stopping (${why})`);
@@ -234,10 +263,11 @@ export async function runServer({ argv = process.argv.slice(2), envPrefix, build
       } finally {
         clearTimeout(t);
       }
-      process.exit(0);
+      process.exit(code);
     })();
     return stopping;
   };
+  const stop = (why = "stop") => halt(why, 0);
   // POST /v1/shutdown (shutdown_api.js, when the app mounts it) stops through this same stop.
   registerServerStop(stop);
 
@@ -246,9 +276,17 @@ export async function runServer({ argv = process.argv.slice(2), envPrefix, build
     port0.on("message", (e) => {
       if (e?.data?.type === "stop") stop("asked by the app");
     });
-    port0.postMessage({ type: "ready", host, port: boundPort });
+    // a lock lost while it began listening: the shell hears that instead (below)
+    if (!lockLost) port0.postMessage({ type: "ready", host, port: boundPort });
   }
   process.on("SIGINT", () => stop("SIGINT"));
   process.on("SIGTERM", () => stop("SIGTERM"));
+  // Another server holds the data folder now (data_lock.js `onLost`): the words said, the shell told, and this
+  // one stops serving it — exit 3, as a start on a held folder ends.
+  onLockLost = () => {
+    sayDataFolderLocked(productName, args.dataDir);
+    halt("another server holds the data folder", 3);
+  };
+  if (lockLost) onLockLost();
   return { app, server, stop, port: boundPort };
 }

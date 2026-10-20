@@ -210,25 +210,65 @@ test("the path rule: at most 180 characters, no dot or space ending the name", (
   expect(dp.dataDirPathProblem(join(at, "z".repeat(181 - at.length - 1)))).toBe("its path is longer than 180 characters");
 });
 
-test("a folder that can be used is made and written to, and left as it was", () => {
+test("a folder that can be used is written to and left as it was; the default is made when missing", () => {
   const dir = join(tmp, "new", "data");
-  expect(dp.dataDirProblem(dir)).toBe(null);
+  expect(dp.dataDirProblem(dir, { named: false })).toBe(null);
   expect(readdirSync(dir)).toEqual([]);
+  expect(dp.dataDirProblem(dir)).toBe(null); // named, and there
   // a named one is held to the path rule, the default isn't
   expect(dp.dataDirProblem(join(tmp, "x".repeat(200)))).toBe("its path is longer than 180 characters");
   expect(dp.dataDirProblem(join(tmp, "y".repeat(150)), { named: false })).toBe(null);
   expect(dp.cantUseDataDir("E:\data.", "why")).toBe("The data folder E:\data. can't be used: why");
 });
 
-test("the folders the ladder took from the user's naming are known as named; the default isn't", () => {
+// 2026-10-20 (the fourteenth review): a folder the user named that was moved, renamed or deleted was made empty
+// in its place, and the app started on no data
+test("a folder the user named that isn't there is said missing — never made", () => {
+  const gone = join(tmp, "renamed", "data");
+  expect(dp.dataDirProblem(gone)).toBe("it isn't there");
+  expect(dp.dataDirProblem(gone, { named: true, chosen: false })).toBe("it isn't there");
+  expect(existsSync(join(tmp, "renamed"))).toBe(false);
+  expect(dp.missingDirProblem(gone)).toBe("it isn't there");
+  expect(dp.missingDirProblem(tmp)).toBe(null);
+  // a file where the folder goes is said as such
+  write(join(tmp, "blocked"));
+  expect(dp.dataDirProblem(join(tmp, "blocked"))).toBe("a file has that name");
+});
+
+test("the folders the ladder took from the user's naming are known as named, and from where; the default isn't", () => {
   const root = join(tmp, "checkout");
   mkdirSync(root);
   const chosen = join(tmp, "picked-by-variable");
-  expect(dp.isNamedDataDir(dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", sourceRoot: root, env: { JV_DATA: chosen } }))).toBe(true);
+  const fromVariable = dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", sourceRoot: root, env: { JV_DATA: chosen } });
+  expect(dp.isNamedDataDir(fromVariable)).toBe(true);
+  expect(dp.dataDirSource(fromVariable)).toBe("variable");
   const pointed = join(tmp, "picked-by-change-folder");
   writeFileSync(join(root, "dataroot.txt"), pointed);
-  expect(dp.isNamedDataDir(dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", sourceRoot: root, env: {} }))).toBe(true);
+  const fromPointer = dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", sourceRoot: root, env: {} });
+  expect(dp.isNamedDataDir(fromPointer)).toBe(true);
+  expect(dp.dataDirSource(fromPointer)).toBe("pointer");
   const other = join(tmp, "other");
   mkdirSync(other);
-  expect(dp.isNamedDataDir(dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", sourceRoot: other, env: {} }))).toBe(false);
+  const def = dp.resolveDataDir({ appName: "JustVoice", envVar: "JV_DATA", sourceRoot: other, env: {} });
+  expect(dp.isNamedDataDir(def)).toBe(false);
+  expect(dp.dataDirSource(def)).toBe("default");
+  expect(dp.dataDirSource(join(tmp, "never-resolved"))).toBe(null);
+});
+
+test("the start's check, by where the folder came from", () => {
+  const lines = [];
+  const log = { warn: (s) => lines.push(s) };
+  const long = join(tmp, "z".repeat(200));
+  const dotted = join(tmp, "data.");
+  // the variable (or --data-dir) is chosen at every start: the path rule, and it must be there
+  expect(dp.dataDirStartProblem(long, { source: "variable", log })).toBe("its path is longer than 180 characters");
+  expect(dp.dataDirStartProblem(join(tmp, "gone"), { source: "variable", log })).toBe("it isn't there");
+  // a pointer was chosen once, before the rule: used as it is, the problem logged — and it must be there
+  expect(dp.dataDirStartProblem(dotted, { source: "pointer", log })).toBe("it isn't there");
+  expect(lines).toEqual([`the data folder ${dotted} is used as Change folder left it, though its name ends in a dot or a space, which Windows drops`]);
+  // the default (or a folder the caller checked) is made
+  const def = join(tmp, "made", "data");
+  expect(dp.dataDirStartProblem(def, { source: "default" })).toBe(null);
+  expect(existsSync(def)).toBe(true);
+  expect(dp.dataDirStartProblem(join(tmp, "checked"), { source: null })).toBe(null);
 });

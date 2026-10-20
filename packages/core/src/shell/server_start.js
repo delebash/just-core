@@ -26,7 +26,8 @@ export function proxyFromPac(pac) {
  * that inspects TLS, signing with a certificate the OS trusts, doesn't fail every download (measured on this
  * machine, Electron 44.7's utilityProcess: 121 certificates without, 269 with); and the system's `proxy` as
  * HTTPS_PROXY / HTTP_PROXY, which the kit's fetch honours (http.js) — only when the user's own environment names
- * none, with this computer's own addresses kept off it (NO_PROXY: the server's calls to its local engines).
+ * none. Whenever any proxy is set — the system's or the user's own — this computer's own addresses are kept off
+ * it (NO_PROXY: the server's calls to its local engines; undici's EnvHttpProxyAgent proxies loopback too).
  */
 export function serverEnv({ env = process.env, dataDirEnv, root, proxy = null }) {
   const out = { ...env, [dataDirEnv]: root };
@@ -35,6 +36,8 @@ export function serverEnv({ env = process.env, dataDirEnv, root, proxy = null })
   if (proxy && !named) {
     out.HTTPS_PROXY = proxy;
     out.HTTP_PROXY = proxy;
+  }
+  if (proxy || named) {
     const keys = ["no_proxy", "NO_PROXY"].filter((k) => out[k]);
     for (const k of keys.length ? keys : ["NO_PROXY"]) {
       const have = String(out[k] || "")

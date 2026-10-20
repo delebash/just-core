@@ -109,6 +109,7 @@ test("under the desktop app it tells the shell, and exits 3 on the shell's stop"
 
 test("the lock is taken before build, and only when the app names itself", async () => {
   const dir = newDir();
+  mkdirSync(dir); // a folder named with --data-dir must be there (2026-10-20)
   let lockedAtBuild = null;
   const build = async () => {
     lockedAtBuild = existsSync(path.join(dir, LOCK_NAME));
@@ -118,6 +119,7 @@ test("the lock is taken before build, and only when the app names itself", async
   expect(lockedAtBuild).toBe(true);
   await lockfile.unlock(dir, { lockfilePath: path.join(dir, LOCK_NAME) });
   const other = newDir();
+  mkdirSync(other);
   const build2 = async () => {
     lockedAtBuild = existsSync(path.join(other, LOCK_NAME));
     throw new Error("stop here");
@@ -184,3 +186,105 @@ test("a share that fails once (waking from sleep): the lock is taken again", asy
   await release();
   expect(existsSync(path.join(dir, LOCK_NAME))).toBe(false);
 }, 20_000);
+
+// ── a lock another server took over (2026-10-20, the fourteenth review) ───────
+// The reviewer's lock_race.mjs: server A's event loop held up past `stale` (a long synchronous step), its lock
+// looked stale and server B — another process — took it over; A then took it "again" every 30 s and kept
+// serving: two servers on one folder. A lost lock is taken back only when it is free or still A's own gone
+// stale (proper-lockfile's "compromised"); one another server keeps fresh ends A. B is a second process: one
+// process's lockers share proper-lockfile's own table of locks, so two of them in one process never tell.
+const SHORT = { stale: 2000, update: 1000 };
+const others = [];
+afterEach(() => {
+  for (const child of others.splice(0)) child.kill();
+});
+
+/** Server B in its own process, trying for the folder's lock until it is stale; then A's (this process's) event
+ *  loop is held up past `stale`, so B takes the lock over and keeps it fresh until killed. */
+async function takeOver(dir) {
+  const mod = pathToFileURL(path.resolve(import.meta.dirname, "../src/platform/data_lock.js")).href;
+  const retries = { retries: 40, factor: 1, minTimeout: 250, maxTimeout: 250 };
+  const code = `const m = await import(${JSON.stringify(mod)}); console.log("trying"); await m.lockDataDir(${JSON.stringify(dir)}, { retries: ${JSON.stringify(retries)}, stale: ${SHORT.stale}, update: ${SHORT.update}, log: { warn() {}, info() {} } }); console.log("locked"); setInterval(() => {}, 1000);`;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", code], { stdio: ["ignore", "pipe", "inherit"] });
+  others.push(child);
+  let out = "";
+  const said = (word) =>
+    new Promise((resolve, reject) => {
+      const check = () => out.includes(word) && resolve();
+      child.stdout.on("data", (d) => {
+        out += d;
+        check();
+      });
+      child.once("exit", (c) => reject(new Error(`server B exited (${c}) before "${word}"`)));
+      check();
+    });
+  await said("trying");
+  const end = Date.now() + SHORT.stale + 2000;
+  while (Date.now() < end) {
+    // A's long synchronous step: its lock isn't refreshed
+  }
+  await said("locked");
+  return child;
+}
+
+test("a lock another server took over and keeps fresh: this one is told once (onLost) and never takes it back", async () => {
+  const dir = newDir();
+  const log = keep();
+  const lost = [];
+  const a = await lockDataDir(dir, { retries: 0, log, ...SHORT, onLost: (e) => lost.push(e.code) });
+  releases.push(a);
+  await takeOver(dir);
+  await vi.waitFor(() => expect(lost).toEqual(["ELOCKED"]), { timeout: 15_000, interval: 100 });
+  expect(log.lines[0]).toMatch(/^warn the data folder's lock was lost \(.+\) — taking it again$/);
+  expect(log.lines).toContain("warn another server holds the data folder's lock now — this one stops using the folder");
+  expect(log.lines).not.toContain("info the data folder's lock is taken again");
+  // A's release leaves B's lock alone, and B keeps the folder
+  await a();
+  expect(existsSync(path.join(dir, LOCK_NAME))).toBe(true);
+  await expect(lockfile.check(dir, { lockfilePath: path.join(dir, LOCK_NAME), ...SHORT })).resolves.toBe(true);
+  await new Promise((r) => setTimeout(r, 3000));
+  expect(lost).toEqual(["ELOCKED"]); // once
+}, 30_000);
+
+test("a lost lock that is free again is taken back, never reported lost", async () => {
+  const dir = newDir();
+  const log = keep();
+  const lost = [];
+  releases.push(await lockDataDir(dir, { retries: 0, log, ...SHORT, onLost: () => lost.push(1) }));
+  // the lock's folder gone (a share that lost it): free, so ours again
+  fs.rmSync(path.join(dir, LOCK_NAME), { recursive: true, force: true });
+  await vi.waitFor(() => expect(log.lines).toContain("info the data folder's lock is taken again"), { timeout: 10_000, interval: 100 });
+  expect(lost).toEqual([]);
+  expect(existsSync(path.join(dir, LOCK_NAME))).toBe(true);
+}, 20_000);
+
+test("a headless server whose data folder another server takes over: the words, it stops serving, exit 3", async () => {
+  const dir = newDir();
+  mkdirSync(dir);
+  const written = [];
+  vi.spyOn(process.stderr, "write").mockImplementation((s) => written.push(String(s)) || true);
+  const exited = new Promise((resolve) => vi.spyOn(process, "exit").mockImplementation((code) => resolve(code)));
+  const build = async () => ({ app: new Hono(), host: "127.0.0.1", port: 0 });
+  const { server } = await runServer({ argv: ["serve", "--data-dir", dir], envPrefix: null, productName: "JustVoice", lockOptions: SHORT, build, log: keep() });
+  expect(server.listening).toBe(true);
+  await takeOver(dir);
+  expect(await exited).toBe(3);
+  expect(written).toContain(`Another JustVoice server is using this data folder (${dir}) — stop it first.\n`);
+  expect(server.listening).toBe(false);
+}, 30_000);
+
+test("under the desktop app the shell is told (data-folder-locked) after ready, and the server stops: exit 3", async () => {
+  const dir = newDir();
+  mkdirSync(dir);
+  vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+  const posted = [];
+  process.parentPort = { on: () => {}, postMessage: (m) => posted.push(m) };
+  const exited = new Promise((resolve) => vi.spyOn(process, "exit").mockImplementation((code) => resolve(code)));
+  const build = async () => ({ app: new Hono(), host: "127.0.0.1", port: 0 });
+  const { server, port } = await runServer({ argv: ["serve", "--data-dir", dir], envPrefix: null, productName: "JustVoice", lockOptions: SHORT, build, log: keep() });
+  expect(posted).toEqual([{ type: "ready", host: "127.0.0.1", port }]);
+  await takeOver(dir);
+  expect(await exited).toBe(3);
+  expect(posted[1]).toEqual({ type: "data-folder-locked", dataDir: dir });
+  expect(server.listening).toBe(false);
+}, 30_000);

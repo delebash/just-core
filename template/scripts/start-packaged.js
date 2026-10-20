@@ -174,6 +174,15 @@ async function run() {
           const script = await fetch(new URL(src, `http://127.0.0.1:${port}/`), { signal: AbortSignal.timeout(10_000) });
           if (!script.ok || !/javascript/.test(script.headers.get("content-type") || "")) throw new Error(`the page's script ${src} answered ${script.status} ${script.headers.get("content-type")}`);
           console.log(`/: ${page.status} ${page.headers.get("content-type")}; its script ${script.status}`);
+          // what the app's own engines say of this runner (an app with none answers 404 — nothing to say): read inside
+          // the packaged server, the system versions they go by (the AppImage's glibc — the thirteenth review)
+          for (const engine of ["aiphoto", "segment"]) {
+            const st = await fetch(`http://127.0.0.1:${port}/v1/${engine}/status`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
+            if (st?.ok) {
+              const j = await st.json();
+              console.log(`${engine} status: ${JSON.stringify({ available: j.available, backend: j.backend, need: j.need, runtime: j.runtime })}`);
+            }
+          }
         }
         for (const p of extraPaths) {
           const r = await fetch(`http://127.0.0.1:${port}${p}`, { signal: AbortSignal.timeout(60_000) });

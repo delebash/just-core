@@ -33,19 +33,38 @@ export function separators(locale) {
   return { decimal: parts.find((p) => p.type === "decimal")?.value || ".", group: parts.find((p) => p.type === "group")?.value || "" };
 }
 
+const esc = (c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
- * UiNumber's reading of its text: everything but the digits, a minus and the language's decimal
- * separator goes ("1,200" in English and "1.200" in German are both 1200, without listing languages);
- * a decimal comma is read where it can only be one (`decimalComma` — `step` the field's, `grouping`
- * whether it writes thousands separators). Null for an empty box, a lone "-" or no number.
+ * UiNumber's reading of its text — strict, so nothing typed is silently read as another number (the fourteenth
+ * review: "1,5" in a whole-number English field read 15). A number as the language writes it: digits, the
+ * language's group separator only between groups of three (and only while the field groups — `grouping`), its
+ * decimal separator once; else, in a field that takes fractions (its `step` isn't whole), the other separator
+ * once where it can only be a decimal point ("0,05", "12,5" in English; "0.05" in German). Anything else is no
+ * number (null — the field says so), as are an empty box and a lone "-".
  */
 export function parseLocaleNumber(text, { locale = null, step = 1, grouping = true } = {}) {
   const { decimal, group } = separators(locale);
-  const s = decimal === "." ? decimalComma(text, { step, groupSeparator: grouping ? group : null }) : String(text ?? "");
-  const cleaned = s.replace(new RegExp(`[^0-9${decimal === "." ? "\\." : decimal}\\-]`, "g"), "").replace(decimal, ".");
-  if (cleaned === "" || cleaned === "-") return null;
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : null;
+  let s = String(text ?? "").trim();
+  if (s === "" || s === "-") return null;
+  // a space-like group separator (French, Swedish …) is typed as a plain space too
+  const spaced = /^\s$/u.test(group) || group === "\u202f";
+  if (spaced) s = s.replace(/[\s\u202f\u00a0]/gu, grouping ? group : "");
+  const g = grouping && group ? esc(group) : null;
+  const d = esc(decimal);
+  // a grouped number never starts with 0 ("0,500" is a decimal, never five hundred)
+  const strict = new RegExp(`^-?(\\d+${g ? `|[1-9]\\d{0,2}(?:${g}\\d{3})+` : ""})(?:${d}\\d+)?$`, "u");
+  if (strict.test(s)) {
+    const n = Number(s.split(group).join("").replace(decimal, "."));
+    return Number.isFinite(n) ? n : null;
+  }
+  // the other separator once, where only a decimal point can stand (a field that takes fractions)
+  const other = decimal === "." ? "," : ".";
+  if (!Number.isInteger(Number(step)) && new RegExp(`^-?\\d*${esc(other)}\\d+$`).test(s)) {
+    const n = Number(s.replace(other, "."));
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
 }
 
 /**

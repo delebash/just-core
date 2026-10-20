@@ -293,7 +293,7 @@
       "desktopOnly": "Changing the folder is available in the desktop app.",
       "chooseFolder": "Choose a data folder",
       "moveTitle": "Move all app data?",
-      "moveMessage": "Everything the app saves — {saves}, the AI engine and models, and logs — moves to {folder}. The app restarts when the move finishes.",
+      "moveMessage": "Everything the app saves — {saves}, the AI engine and models, and logs — moves into a new folder for the app inside {folder}. The app restarts when the move finishes.",
       "moveConfirm": "Move & restart",
       "diskTitle": "Disk usage",
       "diskHint": "Where the data folder's space goes. Downloaded models and engine logs can be cleared to make room — {saves} and your settings are never touched.",

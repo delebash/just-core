@@ -19,7 +19,7 @@
 // which is why the unfused UnPackaged build is the target.
 
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import net from "node:net";
 import os from "node:os";
@@ -77,6 +77,8 @@ export class Driver {
     this.tmp = mkdtempSync(path.join(os.tmpdir(), "family-template-e2e-"));
     const env = { ...process.env, JUST_AI_HOME: path.join(this.tmp, "family") };
     delete env.ELECTRON_RUN_AS_NODE;
+    // a data folder the server is told of must be there (a named folder that isn't is refused, never made)
+    mkdirSync(this.dataDir, { recursive: true });
     this.server = spawn(process.execPath, ["scripts/node24.js", "server/src/serve.js", "serve", "--port", String(PORT), "--data-dir", this.dataDir], {
       cwd: REPO_ROOT,
       env,

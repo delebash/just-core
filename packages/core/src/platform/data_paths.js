@@ -28,7 +28,7 @@
 // Paths are strings here (Python handed out `Path`s): each one comes out in the form
 // `str(Path(…))` gives — native separators, no "." parts, no trailing separator.
 
-import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import * as self from "./data_paths.js";
@@ -226,7 +226,7 @@ export function userDataDir(appName) {
 export function resolveDataDir({ appName, envVar, sourceRoot = null, env = null } = {}) {
   const environ = env == null ? process.env : env;
   const chosen = String(environ[envVar] || "").trim();
-  if (chosen) return named(purePath(chosen));
+  if (chosen) return found(purePath(chosen), "variable");
 
   // The Change-folder pointer — read by the desktop shell AND the headless server since the
   // Electron move (only the Rust shells read it before: the kit FINDING "the data-dir
@@ -239,28 +239,35 @@ export function resolveDataDir({ appName, envVar, sourceRoot = null, env = null 
     const p = readFileSync(pointer, "utf8").trim();
     if (p) {
       if (samePath(p, def)) rmSync(pointer, { force: true });
-      else return named(purePath(p));
+      else return found(purePath(p), "pointer");
     }
   } catch {
     /* no pointer */
   }
-  return def;
+  return found(def, "default");
 }
 
-// The folders this process's ladder took from the user's own naming — the variable or a Change-folder pointer
-// (2026-10-20): dataDirPathProblem is for those, never for the default the ladder works out, which the user
-// didn't name and couldn't fix. The start checks ask isNamedDataDir (the shell's, and runServer's for a folder
-// an app's own ladder found).
-const namedDirs = new Set();
+// Where this process's ladder took each folder from (2026-10-20): "variable" (the app's data-dir variable — a
+// choice made at every start), "pointer" (Change folder's pointer — a choice made once, earlier) or "default"
+// (the folder the ladder works out, which the user didn't name). The start checks ask (dataDirStartProblem):
+// a folder the user named must be there, the default may be made, and only a folder being chosen is held to
+// the path rule — a pointer that worked before this rule is used as it is.
+const dirSources = new Map();
 const dirKey = (dir) => norm(path.resolve(String(dir)));
-function named(dir) {
-  namedDirs.add(dirKey(dir));
+function found(dir, source) {
+  dirSources.set(dirKey(dir), source);
   return dir;
+}
+
+/** Where this process's ladder took `dir` from: "variable", "pointer", "default" — or null (not the ladder's). */
+export function dataDirSource(dir) {
+  return dirSources.get(dirKey(dir)) ?? null;
 }
 
 /** Did this process's ladder take `dir` from the user's naming (the variable, a pointer)? */
 export function isNamedDataDir(dir) {
-  return namedDirs.has(dirKey(dir));
+  const source = dataDirSource(dir);
+  return source === "variable" || source === "pointer";
 }
 
 /** The longest data-folder path taken from the user (2026-10-20): the AI and native libraries the apps run
@@ -268,10 +275,10 @@ export function isNamedDataDir(dir) {
 export const MAX_DATA_DIR_CHARS = 180;
 
 /**
- * Why a data folder the user names can't hold the data, in plain words — or null (2026-10-20, an unusual
+ * Why a data folder being chosen can't hold the data, in plain words — or null (2026-10-20, an unusual
  * computer's review): a path past MAX_DATA_DIR_CHARS, or a last part ending in "." or " " — Windows drops them
- * (Node made "data.", SQLite then opened "data"). Change folder, a pointer read at start and the headless
- * `--data-dir` / `<APP>_DATA_DIR` all ask this one function.
+ * (Node made "data.", SQLite then opened "data"). Change folder and the `<APP>_DATA_DIR` / `--data-dir` given at
+ * a start ask this one function; a Change-folder pointer made before the rule is only logged (dataDirStartProblem).
  */
 export function dataDirPathProblem(dir) {
   const abs = path.resolve(String(dir));
@@ -302,15 +309,33 @@ function fsProblem(e) {
   }
 }
 
+/** A folder the user named that isn't there, in plain words — or null when it is. Nothing is made. */
+export function missingDirProblem(dir) {
+  try {
+    statSync(dir);
+    return null;
+  } catch (e) {
+    if (e?.code !== "ENOENT") return fsProblem(e);
+  }
+  // its drive there, the folder not: moved, renamed or deleted — never made empty in its place
+  return existsSync(path.parse(path.resolve(String(dir))).root) ? "it isn't there" : fsProblem({ code: "ENOENT" });
+}
+
 /**
- * Why `dir` can't be the data folder now, in plain words — or null (2026-10-20). It is made when missing and a
- * small file is written and removed: a missing drive, an unplugged USB stick, an offline share, a read-only drive
- * or Controlled Folder Access is said here, before a start fails deep inside with a stack. `named`: the user
- * named it (dataDirPathProblem applies too).
+ * Why `dir` can't be the data folder now, in plain words — or null (2026-10-20). A small file is written and
+ * removed: a missing drive, an unplugged USB stick, an offline share, a read-only drive or Controlled Folder
+ * Access is said here, before a start fails deep inside with a stack. `named`: the user named it — one that isn't
+ * there is said so ("it isn't there"), never made (an empty folder made in its place started the app on no
+ * data); otherwise it is made when missing. `chosen` (default `named`): it is being chosen now —
+ * dataDirPathProblem applies too.
  */
-export function dataDirProblem(dir, { named = true } = {}) {
-  if (named) {
+export function dataDirProblem(dir, { named = true, chosen = named } = {}) {
+  if (chosen) {
     const why = dataDirPathProblem(dir);
+    if (why) return why;
+  }
+  if (named) {
+    const why = missingDirProblem(dir);
     if (why) return why;
   }
   try {
@@ -336,6 +361,21 @@ export function dataDirProblem(dir, { named = true } = {}) {
 /** The one line a data folder that can't be used is said in (the shell's dialog, the headless server). */
 export function cantUseDataDir(dir, why) {
   return `The data folder ${dir} can't be used: ${why}`;
+}
+
+/**
+ * The start's check of a data folder, by where it came from (`source`, dataDirSource) — dataDirProblem's answer
+ * (2026-10-20). One the user named — the variable (or `--data-dir`) and Change folder's pointer — must be there;
+ * the default, or a folder the start's caller already checked (null), may be made. The variable is chosen at
+ * every start, so it is held to the path rule; a pointer was chosen once, before that rule, and is used as it is
+ * — its problem only logged (`log.warn`), so the apps' pointers that work keep working.
+ */
+export function dataDirStartProblem(dir, { source = null, log = null } = {}) {
+  if (source === "pointer") {
+    const why = dataDirPathProblem(dir);
+    if (why) log?.warn?.(`the data folder ${dir} is used as Change folder left it, though ${why}`);
+  }
+  return dataDirProblem(dir, { named: source === "variable" || source === "pointer", chosen: source === "variable" });
 }
 
 /**

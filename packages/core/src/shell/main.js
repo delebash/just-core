@@ -24,7 +24,9 @@
 //     a port Windows has reserved, and the first error line of a server that couldn't start).
 //   - A data root that can't be used (a missing drive, an offline share, read-only, a path the
 //     native code can't take) is said before anything lands in it, in a message box: Try again,
-//     Use the default folder, Quit (2026-10-20).
+//     Use the default folder (this start only), Quit (2026-10-20).
+//   - Change folder moves the data into a new folder named for the app inside the one picked, one
+//     move at a time: while it copies the server stays stopped (dataRoot.js, 2026-10-20).
 //   - The server runs with the OS's certificates trusted (NODE_USE_SYSTEM_CA) and the system's
 //     proxy handed down (server_start.js, 2026-10-20).
 //   - The window loads the built UI from `app://<id>/` (ruling 3) — it opens even when
@@ -67,7 +69,7 @@ import contextMenu from "electron-context-menu";
 import { dataFolderInUse } from "../platform/data_lock.js";
 import { cantUseDataDir, samePath } from "../platform/data_paths.js";
 import { portInUse } from "../platform/port.js";
-import { CHROME_DIR, dataRootProblem, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir, useDefaultRoot } from "./dataRoot.js";
+import { CHROME_DIR, dataRootProblem, MOVE_UNDER_WAY, relocate, resolveDataRoot, storageInfo, sweepOldChromeDir, useDefaultRoot } from "./dataRoot.js";
 import { pickSpellLanguages } from "./spellLanguages.js";
 import { placeSaved } from "./save_place.js";
 import { firstErrorLine, listenFailure, PROXY_PROBE_URL, proxyFromPac, serverEnv } from "./server_start.js";
@@ -166,6 +168,9 @@ export function runDesktopApp(config) {
     portOtherUser: null,
     portReserved: null,
     serverError: null,
+    // Change folder is copying the data (2026-10-20): one move at a time — a second is refused, the server isn't
+    // started (it would open the old folder mid-copy), and the tray's server items are off.
+    moving: false,
     keepRunning: false,
     quitting: false,
     win: null,
@@ -189,8 +194,9 @@ export function runDesktopApp(config) {
     packaged: app.isPackaged,
   });
   // A root that can't be used — a missing drive, an unplugged USB stick, an offline share, read-only, Controlled
-  // Folder Access, or a path named by the user that the native code can't take — is said before anything lands
-  // in it (2026-10-20: the mkdir below threw Electron's "JavaScript error in the main process" dialog). Until the
+  // Folder Access, a folder the user named that isn't there (never made empty in its place), or a path given in
+  // the variable that the native code can't take — is said before anything lands in it (2026-10-20: the mkdir
+  // below threw Electron's "JavaScript error in the main process" dialog). Until the
   // user answers (`settleDataRoot`, once the app is ready), Chromium's folder goes under the default folder — the
   // one "Use the default folder" goes on in — or, when that can't be used either, the system's temp folder.
   let rootProblem = dataRootProblem(state.root);
@@ -272,6 +278,7 @@ export function runDesktopApp(config) {
 
   async function startServer({ evicted = false } = {}) {
     if (state.server || (state.serverPhase === "starting" && !evicted)) return;
+    if (state.moving) return console.warn("[shell] the data folder is being moved — the server starts when the move ends");
     if (process.env[`${config.id.toUpperCase().replace(/-/g, "_")}_DEV_NO_SERVER`]) return; // run it yourself
     state.serverPhase = "starting";
     Object.assign(state, { portTaken: null, dataFolderInUse: null, portOtherUser: null, portReserved: null, serverError: null });
@@ -305,14 +312,15 @@ export function runDesktopApp(config) {
       if (m?.type === "ready") {
         state.port = m.port;
         state.serverPhase = "ready";
-        guardOtherUsersPort(null);
+        guardPort(null);
         console.log(`[shell] server listening on ${m.port}`);
         settleServerUrl();
       } else if (m?.type === "listen-failed") {
         listenFailed(m, evicted);
       } else if (m?.type === "data-folder-locked") {
-        // Another server of this app has the data folder open: the start ends, and the renderer's
-        // connection-error screen says so.
+        // Another server of this app has the data folder open — found at the start, or taking the
+        // folder's lock over while ours ran: ours stops, and the renderer's connection-error screen
+        // says so.
         state.dataFolderInUse = dataFolderInUse(config.productName, m.dataDir);
         console.warn(`[shell] ${state.dataFolderInUse}`);
         stopServer();
@@ -336,12 +344,13 @@ export function runDesktopApp(config) {
     });
   }
 
-  // Another OS user's copy of the app holds the port: its data is theirs, so this window must not use it — it
-  // answers as this app, and the window would boot on it. The window's requests to that port are refused
-  // (Electron's webRequest.onBeforeRequest — electronjs.org/docs/latest/api/web-request) until our own server
-  // listens (`port` null); the connection-error screen says why (`serverStatus` portOtherUser).
+  // Our own server couldn't listen on its port: whatever answers there isn't ours — another OS user's copy of the
+  // app (its data is theirs; it answers as this app, and the window would boot on it), or one the 500 ms health
+  // probe couldn't name (a busy server reads as "port taken"). The window's requests to that port are refused
+  // (Electron's webRequest.onBeforeRequest — electronjs.org/docs/latest/api/web-request) from the failed listen
+  // until our own server listens (`port` null); the connection-error screen says why (`serverStatus`).
   let guardedPort = null;
-  function guardOtherUsersPort(port) {
+  function guardPort(port) {
     if (port === guardedPort) return;
     guardedPort = port;
     const ses = session.defaultSession;
@@ -363,11 +372,12 @@ export function runDesktopApp(config) {
   // the app — keeps the port, and the connection-error screen says which (`serverStatus`).
   async function listenFailed({ port, code }, evicted) {
     state.port = port; // the server's port, taken or not
+    // whatever holds it isn't our server: the window stays off it until ours listens (before the probe — it waits)
+    guardPort(port);
     const who = code === "EADDRINUSE" ? await whoAnswers(port) : null;
     const ours = who === "mine" && !evicted;
     if (!ours) {
       Object.assign(state, listenFailure(code, port, who));
-      if (state.portOtherUser) guardOtherUsersPort(port);
       if (state.portOtherUser) console.warn(`[shell] another user of this computer has ${config.productName} running on port ${port} — left running`);
       else if (state.portReserved) console.warn(`[shell] the server may not use port ${port} (${code}) — on Windows, a port Hyper-V or WSL reserved`);
       else console.warn(`[shell] the server could not listen on port ${port} (${code}) — whatever holds it is left running`);
@@ -581,14 +591,18 @@ export function runDesktopApp(config) {
   // ── the tray ───────────────────────────────────────────────────────────────
   function buildTrayMenu() {
     const L = state.trayLabels;
+    // off while Change folder copies (Electron's MenuItem `enabled` — electronjs.org/docs/latest/api/menu-item):
+    // the server must not open the old folder mid-copy
+    const serverItems = !state.moving;
     const items = [
       { label: L.show, click: showWindow },
       { label: L.hide, click: () => state.win?.hide() },
       { type: "separator" },
-      { label: L.serverStart, click: () => startServer() },
-      { label: L.serverStop, click: () => stopServer() },
+      { label: L.serverStart, enabled: serverItems, click: () => startServer() },
+      { label: L.serverStop, enabled: serverItems, click: () => stopServer() },
       {
         label: L.serverRestart,
+        enabled: serverItems,
         click: async () => {
           await stopServer();
           await startServer();
@@ -644,6 +658,13 @@ export function runDesktopApp(config) {
       else showWindow();
     });
     state.tray = tray;
+  }
+
+  /** Change folder copying, or done: the tray's server items follow (its menu built again — Linux shows a
+   *  changed menu only when it is set again). */
+  function setMoving(on) {
+    state.moving = on;
+    state.tray?.setContextMenu(buildTrayMenu());
   }
 
   async function quitApp() {
@@ -791,21 +812,28 @@ export function runDesktopApp(config) {
       // Stop the server so nothing holds the database open, move, then ALWAYS bring a
       // server back — under the new root on success, the old one on failure.
       // Chromium's folder can only move with a restart, so a successful move relaunches.
-      await stopServer();
+      // One move at a time: while one copies, a second is refused and the server stays stopped (`moving`).
+      if (state.moving) throw new Error(MOVE_UNDER_WAY);
+      setMoving(true);
       let moved = null;
       try {
+        await stopServer();
+        // into a new folder named for the app inside the one picked (dataRoot.js relocate)
         moved = await relocate({
           oldRoot: state.root,
           newRoot,
           appName: config.appName,
+          folderName: config.productName,
           packaged: app.isPackaged,
           repoRoot: config.repoRoot,
         });
       } catch (e) {
+        setMoving(false);
         await startServer();
         throw e;
       }
       if (!moved) {
+        setMoving(false);
         await startServer();
         return null;
       }
@@ -946,15 +974,22 @@ export function runDesktopApp(config) {
   // The data root can't be used (above): the user says what now, in Electron's message box
   // (electronjs.org/docs/latest/api/dialog#dialogshowmessageboxwindow-options), asked once the app is ready —
   // "Try again" (a drive plugged back in: the app starts again, its Chromium folder under the root), "Use the
-  // default folder" (the Change-folder pointer goes — dataRoot.js useDefaultRoot — and the app goes on in it) or
-  // "Quit". True when the app goes on.
+  // default folder" (for this start only — the Change-folder pointer is kept, so the data stays where it is and
+  // the next start asks again: dataRoot.js useDefaultRoot; the box's `detail` says so) or "Quit". True when the
+  // app goes on.
   async function settleDataRoot() {
     const buttons = canUseDefault ? ["Try again", "Use the default folder", "Quit"] : ["Try again", "Quit"];
+    const def = useDefaultRoot({ appName: config.appName, repoRoot: config.repoRoot, packaged: app.isPackaged });
     for (;;) {
       const { response } = await dialog.showMessageBox({
         type: "warning",
         title: config.productName,
         message: cantUseDataDir(state.root, rootProblem),
+        ...(canUseDefault
+          ? {
+              detail: `"Use the default folder" opens the app on ${def} for this time only. Your data stays in ${state.root}, and the app asks again at its next start.`,
+            }
+          : {}),
         buttons,
         defaultId: 0,
         cancelId: buttons.length - 1,
@@ -962,9 +997,9 @@ export function runDesktopApp(config) {
       });
       const choice = buttons[response];
       if (choice === "Use the default folder") {
-        state.root = useDefaultRoot({ appName: config.appName, repoRoot: config.repoRoot, packaged: app.isPackaged });
+        console.log(`[shell] using the default data folder ${def} for this start — the data folder ${state.root} is kept`);
+        state.root = def;
         rootProblem = null;
-        console.log(`[shell] using the default data folder ${state.root}`);
         return true;
       }
       if (choice === "Try again") {

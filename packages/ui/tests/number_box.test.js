@@ -44,7 +44,16 @@ test("UiNumber reads a decimal comma where it can only be one; its own thousands
   expect(parseLocaleNumber("1,200", { locale: "en", step: 0.5, grouping: false })).toBe(1.2);
   // a whole-number field: the comma is a thousands separator, as before
   expect(parseLocaleNumber("1,200", { locale: "en" })).toBe(1200);
-  expect(parseLocaleNumber("0,05", { locale: "en", step: 1 })).toBe(5);
+  // a whole-number field: a comma where no group can stand is no number — never silently another one
+  expect(parseLocaleNumber("0,05", { locale: "en", step: 1 })).toBeNull();
+  expect(parseLocaleNumber("1,5", { locale: "en", step: 1 })).toBeNull();
+  expect(parseLocaleNumber("1.5", { locale: "de", step: 1 })).toBeNull();
+  expect(parseLocaleNumber("1,2,3", { locale: "en", step: 0.1 })).toBeNull();
+  expect(parseLocaleNumber("12a", { locale: "en" })).toBeNull();
+  expect(parseLocaleNumber("1,23", { locale: "en", step: 0.01 })).toBe(1.23); // can only be a decimal
+  expect(parseLocaleNumber("0.05", { locale: "de", step: 0.01 })).toBe(0.05);
+  expect(parseLocaleNumber("-1,234", { locale: "en" })).toBe(-1234);
+  expect(parseLocaleNumber("1 234,5", { locale: "fr", step: 0.1 })).toBe(1234.5);
   // a language whose decimal separator is the comma, as before
   expect(parseLocaleNumber("0,05", { locale: "de", step: 0.01 })).toBe(0.05);
   expect(parseLocaleNumber("1.200", { locale: "de" })).toBe(1200);
