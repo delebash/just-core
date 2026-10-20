@@ -62,6 +62,10 @@ function rulesFor(raw, required, t) {
   }
   if (Array.isArray(s.enum)) rules.push((v) => isEmpty(v) || s.enum.includes(v) || t("kit.validation.oneOf"));
   if (Object.hasOwn(s, "const")) rules.push((v) => isEmpty(v) || v === s.const || t("kit.validation.oneOf"));
+  // Whether the schema takes null, for a control whose empty value IS null and can't be left out
+  // (UiNumber: an emptied box in a settings patch was sent as null and refused, 422 — the sixteenth
+  // review, 2026-10-20). Not enumerable: the array stays Quasar's plain list of rules.
+  Object.defineProperty(rules, "nullable", { value: nullable || (Array.isArray(raw?.type) && raw.type.includes("null")) });
   return rules;
 }
 

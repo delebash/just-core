@@ -4,8 +4,9 @@
 // of 2026-10-08: the OS fallback is %LOCALAPPDATA%\<App>\<App>, its pointer
 // %LOCALAPPDATA%\<App>\dataroot.txt, Chromium's folder `electron`. JS-only (the Python ladder
 // never read the pointer — the kit FINDING this closes).
-import {
+import fs, {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   promises as fsp,
@@ -13,6 +14,7 @@ import {
   readFileSync,
   readlinkSync,
   realpathSync,
+  renameSync,
   rmSync,
   statSync,
   symlinkSync,
@@ -132,9 +134,9 @@ test("a move copies and commits the pointer; the old folder stays whole, recorde
   expect(oldCopyOf(old)).toEqual({ root: target, movedAt: record.movedAt });
   expect(oldCopyOf(target)).toBe(null);
   const chromeBytes = "open while running".length + statSync(path.join(old, CHROME_DIR, "moved-to.json")).size;
-  expect(await oldCopiesInfo(target)).toEqual([{ root: old, bytes: 2 + 3 + chromeBytes, movedAt: record.movedAt, changedAt: null }]);
+  expect(await oldCopiesInfo(target)).toEqual([{ root: old, bytes: 2 + 3 + chromeBytes, movedAt: record.movedAt, changedAt: null, connected: true }]);
   // the next start on the new folder removes nothing either (the old cleanup ran here — and deleted new work)
-  sweepUnfinishedMove(target, ladder(repo));
+  await sweepUnfinishedMove(target, ladder(repo));
   expect(readdirSync(old).sort()).toEqual(["app.db", CHROME_DIR, "logs"]);
   expect(storageInfo({ root: target, appName: "TestApp", repoRoot: repo, packaged: false })).toEqual({ root: target, default: path.join(repo, "data"), portable: false });
 });
@@ -165,11 +167,11 @@ test("the reviewer's sweep_late.mjs: a start on the old folder between the move 
   const { repo, old } = oldRootWithData();
   const target = await move(old, tmp(), repo);
   const first = resolveDataRoot(opts(repo, { TESTAPP_DATA_DIR: old }));
-  sweepUnfinishedMove(first, ladder(repo));
+  await sweepUnfinishedMove(first, ladder(repo));
   writeFileSync(path.join(old, "app.db"), "a week of new work");
   const later = resolveDataRoot(opts(repo));
   expect(later).toBe(target);
-  sweepUnfinishedMove(later, ladder(repo));
+  await sweepUnfinishedMove(later, ladder(repo));
   expect(readFileSync(path.join(old, "app.db"), "utf8")).toBe("a week of new work");
 });
 
@@ -232,9 +234,18 @@ test("an old copy used after its move says when; a start on an old copy is told 
   const later = new Date(movedAt + 60_000);
   utimesSync(path.join(D, CHROME_DIR, "Cookies"), later, later);
   expect((await oldCopiesInfo(E))[0].changedAt).toBe(null);
-  // the user's work: a house added (the houses folder's own time), the database written (its -wal beside it)
+  // nor a folder's time, nor what Finder or Explorer make where the user only looked (the sixteenth review's s2:
+  // .DS_Store, Thumbs.db — no database — desktop.ini said "used")
   mkdirSync(path.join(D, "houses", "2"));
   utimesSync(path.join(D, "houses", "2"), later, later);
+  for (const f of [path.join(D, "houses", "1", ".DS_Store"), path.join(D, "Thumbs.db"), path.join(D, "houses", "Thumbs.db"), path.join(D, "desktop.ini")]) {
+    writeFileSync(f, "the system's");
+    utimesSync(f, later, later);
+  }
+  expect(lastChanged(D, ["app.db", "houses"])).toBeLessThan(movedAt + 2000);
+  expect((await oldCopiesInfo(E))[0].changedAt).toBe(null);
+  // the user's work: the database written — every run writes its files (the database, its -wal beside it)
+  utimesSync(path.join(D, "app.db"), later, later);
   expect(lastChanged(D, ["app.db", "houses"])).toBe(later.getTime());
   expect((await oldCopiesInfo(E))[0].changedAt).toBe(later.getTime());
   const evenLater = new Date(movedAt + 120_000);
@@ -502,18 +513,22 @@ test("a half copy a stopped move left is removed at the next start; a committed 
   // the process ends at the second entry (in this test: held there until the checks are done)
   const halfCopy = (src, dst, o) => (n++ >= 1 ? new Promise((_r, reject) => (end = reject)) : fsp.cp(src, dst, o));
   const stopped = move(old, picked, repo, { copy: halfCopy }).catch(() => {});
-  await vi.waitFor(() => expect(n).toBe(2));
-  // a file of the user's put beside the half copy meanwhile
-  writeFileSync(path.join(target, "mine.txt"), "kept");
-  // the next start: the old folder (no pointer)
-  const root = resolveDataRoot(opts(repo));
-  expect(root).toBe(old);
-  sweepUnfinishedMove(root, ladder(repo));
-  expect(readdirSync(target)).toEqual(["mine.txt"]);
-  expect(readFileSync(path.join(old, "app.db"), "utf8")).toBe("db");
-  expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(false);
-  end(new Error("the process ended"));
-  await stopped;
+  try {
+    await vi.waitFor(() => expect(n).toBe(2), { timeout: 15_000 });
+    // a file of the user's put beside the half copy meanwhile
+    writeFileSync(path.join(target, "mine.txt"), "kept");
+    // the next start: the old folder (no pointer)
+    const root = resolveDataRoot(opts(repo));
+    expect(root).toBe(old);
+    await sweepUnfinishedMove(root, ladder(repo));
+    expect(readdirSync(target)).toEqual(["mine.txt"]);
+    expect(readFileSync(path.join(old, "app.db"), "utf8")).toBe("db");
+    expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(false);
+  } finally {
+    // the held move always ends: left waiting, it keeps the module's one-move flag and every later move is refused
+    end?.(new Error("the process ended"));
+    await stopped;
+  }
   // a copy whose pointer was committed is never undone, even with its marker left (killed just after the commit)
   const again = path.join(tmp(), "TestApp");
   mkdirSync(again);
@@ -521,9 +536,9 @@ test("a half copy a stopped move left is removed at the next start; a committed 
   writeFileSync(path.join(again, ".moving"), JSON.stringify({ root: old, entries: ["app.db"], made: true }));
   writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target: again }));
   writeFileSync(path.join(repo, "dataroot.txt"), again);
-  sweepUnfinishedMove(old, ladder(repo)); // a start on the old folder (the variable)
+  await sweepUnfinishedMove(old, ladder(repo)); // a start on the old folder (the variable)
   expect(readFileSync(path.join(again, "app.db"), "utf8")).toBe("the moved db");
-  sweepUnfinishedMove(again, ladder(repo)); // the start on the new folder: its stray marker goes
+  await sweepUnfinishedMove(again, ladder(repo)); // the start on the new folder: its stray marker goes
   expect(existsSync(path.join(again, ".moving"))).toBe(false);
 });
 
@@ -569,10 +584,16 @@ test("two moves at once: the second is refused in words, the first finishes whol
     return fsp.cp(...args);
   };
   const first = move(old, picked, repo, { copy: slow });
-  await vi.waitFor(() => expect(existsSync(path.join(target, ".moving"))).toBe(true));
-  await expect(move(old, picked, repo, { copy: slow })).rejects.toThrow(MOVE_UNDER_WAY);
-  expect(MOVE_UNDER_WAY).toBe("The data folder is already being moved — wait for that move to finish.");
-  open();
+  try {
+    // the room check measures the 40 houses first: on a busy machine that took past waitFor's 1 s default
+    await vi.waitFor(() => expect(existsSync(path.join(target, ".moving"))).toBe(true), { timeout: 15_000 });
+    await expect(move(old, picked, repo, { copy: slow })).rejects.toThrow(MOVE_UNDER_WAY);
+    expect(MOVE_UNDER_WAY).toBe("The data folder is already being moved — wait for that move to finish.");
+  } finally {
+    // always let the first move end: one left waiting holds the module's one-move flag, and every later test's
+    // move is refused as "already being moved"
+    open();
+  }
   expect(await first).toBe(target);
   expect(readdirSync(path.join(target, "houses")).length).toBe(40);
   expect(readFileSync(path.join(repo, "dataroot.txt"), "utf8")).toBe(target);
@@ -670,4 +691,170 @@ test("Use the default folder: this start only — the pointer is kept; from now 
   forgetPointer({ appName: "TestApp", repoRoot: repo, packaged: false });
   expect(existsSync(path.join(repo, "dataroot.txt"))).toBe(false);
   expect(resolveDataRoot(opts(repo))).toBe(path.join(repo, "data"));
+});
+
+// ── the sixteenth review's attack on the fifteenth's code (2026-10-20; its scripts: the scratchpad's adv16/shell) ──
+
+// s1, case A: a second launch of the app while Change folder copies swept the copy under way (its sweep ran before
+// the single-instance lock — main.js now takes the lock first; and the record names the copying process)
+test("a start while another process copies leaves the copy alone (its pid), and the move finishes whole", async () => {
+  const { repo, old } = oldRootWithData();
+  const picked = tmp();
+  const target = path.join(picked, "TestApp");
+  let swept = false;
+  const copy = async (src, dst, o) => {
+    await fsp.cp(src, dst, o);
+    if (!swept) {
+      swept = true;
+      // the second launch: the same root (no pointer yet), the record's process alive
+      expect(JSON.parse(readFileSync(path.join(old, CHROME_DIR, "moving-to.json"), "utf8"))).toEqual({ target, pid: process.pid });
+      await sweepUnfinishedMove(resolveDataRoot(opts(repo)), { ...ladder(repo), alive: (pid) => pid === process.pid });
+      expect(existsSync(path.join(target, ".moving"))).toBe(true);
+    }
+  };
+  expect(await move(old, picked, repo, { copy })).toBe(target);
+  expect(readFileSync(path.join(target, "app.db"), "utf8")).toBe("db");
+  expect(readFileSync(path.join(target, "logs", "a.log"), "utf8")).toBe("log");
+});
+
+// s1, case B: a sweep between the copy's check and the pointer's commit emptied the folder the pointer then named
+test("once the copy is whole its marker says committed: a sweep at the pointer's step never empties it", async () => {
+  const { repo, old } = oldRootWithData();
+  const picked = tmp();
+  const target = path.join(picked, "TestApp");
+  const realOpen = fs.openSync;
+  let seen = null;
+  fs.openSync = (p, ...rest) => {
+    if (String(p).endsWith("dataroot.txt.tmp") && !seen) {
+      seen = JSON.parse(readFileSync(path.join(target, ".moving"), "utf8"));
+      // the worst case: a process that can't be told alive (its pid gone or reused)
+      void sweepUnfinishedMove(old, { ...ladder(repo), alive: () => false });
+    }
+    return realOpen(p, ...rest);
+  };
+  try {
+    expect(await move(old, picked, repo)).toBe(target);
+  } finally {
+    fs.openSync = realOpen;
+  }
+  expect(seen).toMatchObject({ root: old, committed: true });
+  // the new root's own records were written before the commit
+  expect(oldCopies(target).map((c) => c.root)).toEqual([old]);
+  await new Promise((r) => setTimeout(r, 50));
+  expect(readFileSync(path.join(target, "app.db"), "utf8")).toBe("db");
+  expect(readFileSync(path.join(repo, "dataroot.txt"), "utf8")).toBe(target);
+});
+
+test("a move to the default folder stopped after its pointer's step is never swept (its marker committed)", async () => {
+  // the finding: the default as the target, the pointer removed, the marker still there — a start on the old folder
+  // (the variable) swept the default's data as an unfinished copy
+  const repo = tmp();
+  const def = path.join(repo, "data");
+  mkdirSync(path.join(def, CHROME_DIR), { recursive: true });
+  writeFileSync(path.join(def, "app.db"), "the moved db");
+  const old = tmp();
+  mkdirSync(path.join(old, CHROME_DIR));
+  writeFileSync(path.join(def, ".moving"), JSON.stringify({ root: old, entries: ["app.db"], made: false, pid: 99999999, committed: true }));
+  writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target: def, pid: 99999999 }));
+  await sweepUnfinishedMove(old, { ...ladder(repo), alive: () => false });
+  expect(readFileSync(path.join(def, "app.db"), "utf8")).toBe("the moved db");
+  expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(false);
+});
+
+// s5: the stick pulled (often why the copy stopped): the record went at the next start, and the half copy stayed
+// for good once the stick was back
+test("a half copy whose drive isn't there at the next start keeps its record — swept once the drive is back", async () => {
+  const { repo, old } = oldRootWithData();
+  const stick = tmp();
+  const target = path.join(stick, "TestApp");
+  mkdirSync(target);
+  writeFileSync(path.join(target, "app.db"), "half");
+  writeFileSync(path.join(target, ".moving"), JSON.stringify({ root: old, entries: ["app.db", "logs"], made: true, pid: 99999999, committed: false }));
+  writeFileSync(path.join(old, CHROME_DIR, "moving-to.json"), JSON.stringify({ target, pid: 99999999 }));
+  renameSync(stick, `${stick}-out`); // unplugged
+  await sweepUnfinishedMove(old, { ...ladder(repo), alive: () => false });
+  expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(true);
+  renameSync(`${stick}-out`, stick); // back
+  await sweepUnfinishedMove(old, { ...ladder(repo), alive: () => false });
+  expect(existsSync(target)).toBe(false);
+  expect(existsSync(path.join(old, CHROME_DIR, "moving-to.json"))).toBe(false);
+  expect(readFileSync(path.join(old, "app.db"), "utf8")).toBe("db");
+});
+
+// s6: the data moved from a USB stick to the computer; Storage opened with the stick out forgot the old copy for good
+test("an old copy whose drive isn't there is listed as not connected and kept — never forgotten for that", async () => {
+  const repo = tmp();
+  const stick = tmp();
+  const A = path.join(stick, "TestApp");
+  mkdirSync(A);
+  writeFileSync(path.join(A, "app.db"), "db");
+  writeFileSync(path.join(repo, "dataroot.txt"), A);
+  const B = await move(A, tmp(), repo);
+  renameSync(stick, `${stick}-out`);
+  expect(await oldCopiesInfo(B)).toEqual([{ root: A, bytes: null, movedAt: expect.any(Number), changedAt: null, connected: false }]);
+  await expect(removeOldCopy(B, A)).rejects.toThrow(`The old copy in ${A} isn't connected — connect its drive, then remove it.`);
+  renameSync(`${stick}-out`, stick);
+  expect(await oldCopiesInfo(B)).toMatchObject([{ root: A, connected: true }]);
+  // its drive there and nothing of it left (removed by hand): forgotten
+  rmSync(A, { recursive: true, force: true });
+  expect(await oldCopiesInfo(B)).toEqual([]);
+});
+
+// s2: Use the default folder from now on — the default's record of where its data went goes with it; a deleted
+// folder named by that record is no banner either
+test("from now on, the default's moved-to record goes; a record naming a folder that's gone says nothing", async () => {
+  const { repo, old: A } = oldRootWithData();
+  const pick = tmp();
+  const B = await move(A, pick, repo);
+  expect(oldCopyOf(A)?.root).toBe(B);
+  // B's drive out: still said (the data may be there)
+  renameSync(pick, `${pick}-out`);
+  expect(oldCopyOf(A)?.root).toBe(B);
+  renameSync(`${pick}-out`, pick);
+  // B deleted, its drive there: nothing to say
+  rmSync(B, { recursive: true, force: true });
+  expect(oldCopyOf(A)).toBe(null);
+  // "Use the default folder from now on": the pointer and the default's record go
+  writeFileSync(path.join(A, CHROME_DIR, "moved-to.json"), JSON.stringify({ root: path.join(tmp(), "Elsewhere"), movedAt: 1 }));
+  forgetPointer(ladder(repo));
+  expect(existsSync(path.join(repo, "dataroot.txt"))).toBe(false);
+  expect(existsSync(path.join(A, CHROME_DIR, "moved-to.json"))).toBe(false);
+  expect(oldCopyOf(A)).toBe(null);
+});
+
+// s3: a junction in the data folder (a models folder kept on another drive) failed every move ("the app isn't allowed
+// to write there" — a symbolic link needs a right Windows gives only in Developer Mode; a junction needs none). Off
+// Windows a folder's symbolic link, copied as it is.
+test("a folder link in the data folder moves as a link to the same folder; removing the old copy leaves its files", async () => {
+  const { repo, old } = oldRootWithData();
+  const big = tmp();
+  writeFileSync(path.join(big, "m.gguf"), "weights");
+  symlinkSync(big, path.join(old, "models"), process.platform === "win32" ? "junction" : "dir");
+  // a link that points inside the data folder: to the same place in the copy
+  mkdirSync(path.join(old, "cache", "real"), { recursive: true });
+  writeFileSync(path.join(old, "cache", "real", "x.bin"), "inside");
+  if (process.platform === "win32") symlinkSync(path.join(old, "cache", "real"), path.join(old, "cache", "alias"), "junction");
+  const B = await move(old, tmp(), repo);
+  expect(lstatSync(path.join(B, "models")).isSymbolicLink()).toBe(true);
+  expect(readFileSync(path.join(B, "models", "m.gguf"), "utf8")).toBe("weights");
+  if (process.platform === "win32") {
+    expect(realpathSync.native(path.join(B, "cache", "alias"))).toBe(path.join(B, "cache", "real"));
+  }
+  await removeOldCopy(B, old);
+  expect(existsSync(old)).toBe(false);
+  expect(readFileSync(path.join(big, "m.gguf"), "utf8")).toBe("weights"); // the junction went, never its folder
+  expect(readFileSync(path.join(B, "models", "m.gguf"), "utf8")).toBe("weights");
+});
+
+test.runIf(process.platform === "win32")("a link to a file in the data folder is named in the refusal, before anything is copied", async () => {
+  const { repo, old } = oldRootWithData();
+  writeFileSync(path.join(old, "real.txt"), "x");
+  try {
+    symlinkSync(path.join(old, "real.txt"), path.join(old, "linked.txt"), "file");
+  } catch {
+    return; // no right to make a file's symbolic link here — nor can a user's data folder hold one made by this account
+  }
+  const picked = tmp();
+  await expect(move(old, picked, repo)).rejects.toThrow("The data folder holds a link to a file (linked.txt), which Windows lets the app make again only with Developer Mode on");
+  expect(readdirSync(picked)).toEqual([]);
 });

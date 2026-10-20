@@ -71,13 +71,15 @@ import {
 } from "electron";
 import contextMenu from "electron-context-menu";
 import { dataFolderInUse } from "../platform/data_lock.js";
-import { cantUseDataDir, dataDirSource, samePath } from "../platform/data_paths.js";
+import { cantUseDataDir, samePath } from "../platform/data_paths.js";
 import { portInUse } from "../platform/port.js";
 import {
   appFolderName,
   CHROME_DIR,
   dataDirSetBy,
+  dataIsElsewhere,
   dataRootProblem,
+  forgetMovedTo,
   forgetPointer,
   MOVE_UNDER_WAY,
   oldCopiesInfo,
@@ -120,6 +122,10 @@ export const COMMANDS = [
   "serverUrl",
   "serverStatus",
 ];
+
+/** The localStorage key the kit's sign-in keeps the window's access token under (packages/ui serverToken.js `KEY` —
+ *  a kit test holds the two equal). The shell reads it at Change folder and carries it to the new folder. */
+export const WINDOW_TOKEN_KEY = "just.serverToken";
 
 /** What Quit (the window, the tray, an update's restart) says while Change folder copies (2026-10-20): held. */
 export const QUIT_WHILE_MOVING = "The data is being moved — quit when it's done.";
@@ -257,14 +263,6 @@ export function runDesktopApp(config) {
     const def = storageInfo({ root: state.root, ...ladder }).default;
     canUseDefault = !samePath(def, state.root) && !dataRootProblem(def);
     chromeHome = canUseDefault ? def : path.join(os.tmpdir(), `${config.id}-start`);
-  } else {
-    // a half copy a stopped Change folder left goes (never anything of the folder in use, nor a committed move's)
-    try {
-      sweepUnfinishedMove(state.root, ladder);
-      carriedToken = takeCarried(state.root);
-    } catch (e) {
-      console.warn(`[shell] the last move's leftovers couldn't be checked: ${e?.message || e}`);
-    }
   }
   const chromeDir = path.join(chromeHome, CHROME_DIR);
   fs.mkdirSync(chromeDir, { recursive: true });
@@ -273,10 +271,21 @@ export function runDesktopApp(config) {
 
   // One copy per data folder (the lock lives in userData, set just above): a second launch
   // would evict the first copy's server from the port. It hands over and quits; the first
-  // shows its window (the "second-instance" handler at boot).
+  // shows its window (the "second-instance" handler at boot). Taken BEFORE anything looks at what a move left (the
+  // sixteenth review, measured: a second launch during Change folder swept the copy under way, and once the pointer
+  // committed to an emptied folder).
   if (!app.requestSingleInstanceLock()) {
     app.quit();
     return null;
+  }
+  // the token a move carried here: only the copy that holds the lock takes it (once ready — `whenReady` — a half copy
+  // a stopped move left is swept, before the server starts)
+  if (!rootProblem) {
+    try {
+      carriedToken = takeCarried(state.root);
+    } catch (e) {
+      console.warn(`[shell] the carried token couldn't be read: ${e?.message || e}`);
+    }
   }
 
   // The page the window loads, and so the one origin trusted with permissions and IPC.
@@ -850,6 +859,33 @@ export function runDesktopApp(config) {
     return updateNow();
   }
 
+  // ── the data folder's moves ────────────────────────────────────────────────
+  /** Where the data is when this start runs elsewhere — on the default folder this time ("Use the default folder"),
+   *  or on the old copy a move left — or null. */
+  const dataElsewhere = () => state.defaultThisStart?.folder || oldCopyOf(state.root)?.root || null;
+  /** No move from here (2026-10-20, the sixteenth review): while the data is elsewhere — a move would leave it known
+   *  nowhere — or while the data-dir variable names the folder (the next start ignores a pointer). Throws the words. */
+  function refuseMoveHere() {
+    const setBy = dataDirSetBy({ dataDirEnv: config.dataDirEnv });
+    const elsewhere = dataElsewhere();
+    if (elsewhere) throw new Error(dataIsElsewhere(elsewhere, !setBy));
+    if (setBy) throw new Error(setByVariable(setBy));
+  }
+  /** The window's access token, read from its page (the kit's sign-in keeps it in localStorage under
+   *  WINDOW_TOKEN_KEY — serverToken.js): it lives in the old folder's Chromium profile, and a move carries it to the
+   *  new one, so no app has to pass it (docgen passes none). Null when there is none or the page doesn't answer. */
+  async function windowToken() {
+    const wc = state.win && !state.win.isDestroyed() ? state.win.webContents : null;
+    if (!wc) return null;
+    try {
+      const read = wc.executeJavaScript(`(() => { try { return localStorage.getItem(${JSON.stringify(WINDOW_TOKEN_KEY)}); } catch { return null; } })()`, true);
+      const v = await Promise.race([read, new Promise((r) => setTimeout(() => r(null), 2000))]);
+      return typeof v === "string" && v ? v : null;
+    } catch {
+      return null;
+    }
+  }
+
   // ── the renderer's commands ────────────────────────────────────────────────
   const handlers = {
     async pickDirectory({ title, defaultPath } = {}) {
@@ -935,9 +971,10 @@ export function runDesktopApp(config) {
       // server back — under the new root on success, the old one on failure.
       // Chromium's folder can only move with a restart, so a successful move relaunches.
       // One move at a time: while one copies, a second is refused and the server stays stopped (`moving`).
-      // Not while the data-dir variable names the folder: the next start would ignore the pointer (2026-10-20).
-      const setBy = dataDirSetBy({ dataDirEnv: config.dataDirEnv });
-      if (setBy) throw new Error(setByVariable(setBy));
+      // Not while the data-dir variable names the folder: the next start would ignore the pointer; nor while this
+      // start runs on the default folder this time or on an old copy — the data is elsewhere, and a move from here
+      // would leave it known nowhere (2026-10-20, the sixteenth review, measured).
+      refuseMoveHere();
       if (state.moving) throw new Error(MOVE_UNDER_WAY);
       setMoving(true);
       let moved = null;
@@ -955,7 +992,7 @@ export function runDesktopApp(config) {
           folderName: config.productName,
           packaged: app.isPackaged,
           repoRoot: config.repoRoot,
-          token: typeof token === "string" ? token : null,
+          token: typeof token === "string" && token ? token : await windowToken(),
         });
       } catch (e) {
         setMoving(false);
@@ -986,9 +1023,12 @@ export function runDesktopApp(config) {
     storageUseDefault() {
       const setBy = dataDirSetBy({ dataDirEnv: config.dataDirEnv });
       if (setBy) throw new Error(setByVariable(setBy));
-      if (!state.defaultThisStart) return null;
+      const elsewhere = dataElsewhere();
+      if (!elsewhere) return null;
+      // the pointer forgotten, and this folder's record of where its data went: it is the data folder now
       forgetPointer(ladder);
-      console.log(`[shell] the data folder ${state.defaultThisStart.folder} is forgotten — the default folder ${state.root} from now on`);
+      forgetMovedTo(state.root);
+      console.log(`[shell] the data folder ${elsewhere} is forgotten — ${state.root} from now on`);
       state.defaultThisStart = null;
       return null;
     },
@@ -1155,9 +1195,9 @@ export function runDesktopApp(config) {
       const choice = buttons[response];
       if (choice === "Use the default folder") {
         console.log(`[shell] using the default data folder ${def} for this start — the data folder ${state.root} is kept`);
-        // the pointer's folder: Storage offers to forget it ("Use the default folder from now on"); the variable's
-        // is the user's to change where it is set
-        state.defaultThisStart = dataDirSource(state.root) === "pointer" ? { folder: state.root } : null;
+        // where the data is: Storage says so and offers no move from here; a pointer's folder may be forgotten ("Use
+        // the default folder from now on"), the variable's is the user's to change where it is set
+        state.defaultThisStart = { folder: state.root };
         state.root = def;
         rootProblem = null;
         return true;
@@ -1175,6 +1215,9 @@ export function runDesktopApp(config) {
 
   app.whenReady().then(async () => {
     if (rootProblem && !(await settleDataRoot())) return;
+    // a half copy a stopped Change folder left goes — never a move whose process still runs, never a committed one's,
+    // never anything of the folder in use (dataRoot.js sweepUnfinishedMove)
+    await sweepUnfinishedMove(state.root, ladder).catch((e) => console.warn(`[shell] the last move's leftovers couldn't be checked: ${e?.message || e}`));
     protocol.handle("app", serveApp);
     guardPermissions();
     createWindow();

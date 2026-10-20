@@ -23,11 +23,15 @@ const props = defineProps({
   inlineActions: { type: Boolean, default: true },
 });
 const ICONS = { danger: "Alert", warning: "Alert" };
+// What a screen reader hears when it appears: a danger banner interrupts (role="alert"), an info or
+// warning one waits its turn (role="status") — every banner was an alert (QBanner's own role; the
+// sixteenth review, 2026-10-20).
+const role = computed(() => (props.intent === "danger" ? "alert" : "status"));
 const classes = computed(() => ["ui-banner", `ui-banner--${props.intent}`]);
 </script>
 
 <template>
-  <QBanner :class="classes" dense :inline-actions="inlineActions">
+  <QBanner :class="classes" :role="role" dense :inline-actions="inlineActions">
     <template #avatar><Icon :name="ICONS[intent] || 'Alert'" :size="13" /></template>
     <slot />
     <template v-if="$slots.action" #action><slot name="action" /></template>

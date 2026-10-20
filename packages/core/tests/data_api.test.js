@@ -182,7 +182,7 @@ test("a_restore_whose_tables_fail_puts_the_folders_back", async () => {
   expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("now");
 });
 
-test("a_restore_stopped_between_its_folders_and_its_tables_is_undone_at_the_next_start", () => {
+test("a_restore_stopped_between_its_folders_and_its_tables_is_undone_at_the_next_start", async () => {
   // the record a restore leaves beside the database while its folders are swapped: the next start puts the old
   // folders back (the tables were never replaced) and moves the backup's copy out of the way
   const tmp = mkdtempSync(join(tmpdir(), "kit-data-journal-"));
@@ -194,16 +194,16 @@ test("a_restore_stopped_between_its_folders_and_its_tables_is_undone_at_the_next
   mkdirSync(old);
   writeFileSync(join(old, "mine.txt"), "m");
   writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 5, dirs: [{ dir, old }] }));
-  expect(finishInterruptedRestore(db)).toBe("back");
+  expect(await finishInterruptedRestore(db)).toBe("back");
   expect(readdirSync(dir)).toEqual(["mine.txt"]);
   expect(existsSync(old)).toBe(false);
   expect(readdirSync(join(tmp, "images.restoring-5"))).toEqual(["from-backup.txt"]);
   expect(existsSync(`${db}.restoring`)).toBe(false);
   // nothing recorded: nothing done
-  expect(finishInterruptedRestore(db)).toBe(null);
+  expect(await finishInterruptedRestore(db)).toBe(null);
   // stopped after recording, before moving anything: the folder stays
   writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 6, dirs: [{ dir, old: `${dir}.replaced-6` }] }));
-  expect(finishInterruptedRestore(db)).toBe("back");
+  expect(await finishInterruptedRestore(db)).toBe("back");
   expect(readdirSync(dir)).toEqual(["mine.txt"]);
   // stopped after its tables committed (their commit record holds its stamp): finished — the old folder goes
   mkdirSync(`${dir}.replaced-7`);
@@ -212,7 +212,7 @@ test("a_restore_stopped_between_its_folders_and_its_tables_is_undone_at_the_next
   h.run("INSERT INTO _kit_restore (stamp) VALUES (7)");
   h.close();
   writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 7, dirs: [{ dir, old: `${dir}.replaced-7` }] }));
-  expect(finishInterruptedRestore(db)).toBe("forward");
+  expect(await finishInterruptedRestore(db)).toBe("forward");
   expect(readdirSync(dir)).toEqual(["mine.txt"]);
   expect(existsSync(`${dir}.replaced-7`)).toBe(false);
   expect(existsSync(`${db}.restoring`)).toBe(false);
@@ -221,7 +221,7 @@ test("a_restore_stopped_between_its_folders_and_its_tables_is_undone_at_the_next
   mkdirSync(fresh);
   writeFileSync(join(fresh, "from-backup.wav"), "b");
   writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 8, dirs: [{ dir: fresh, old: null }] }));
-  expect(finishInterruptedRestore(db)).toBe("back");
+  expect(await finishInterruptedRestore(db)).toBe("back");
   expect(existsSync(fresh)).toBe(false);
   expect(readdirSync(tmp).filter((n) => n.startsWith("audio"))).toEqual([]);
 });

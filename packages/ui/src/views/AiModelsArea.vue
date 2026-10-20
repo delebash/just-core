@@ -168,6 +168,9 @@ const tabDefs = computed(() => {
   return defs;
 });
 const appTabDefs = computed(() => tabDefs.value.filter((t) => !t.kit));
+// the tabs whose panels are in the page (each is v-show, Models once visited) — the only ones whose
+// tab names its panel (aria-controls)
+const panelsInPage = computed(() => tabDefs.value.filter((d) => d.id !== "models" || visitedTabs.value.has("models")).map((d) => d.id));
 
 // Lazy mount: a host tab's content mounts on FIRST activation and stays mounted
 // after (v-show), so switching away keeps its state — same reason the provider
@@ -706,7 +709,7 @@ onMounted(() => {
     <!-- ONE strip from tabDefs: kit tab words are the kit's keys (kit.aiTabs.*, one word every
          app — an app rewords one by setting the key in its own catalog); host tabs carry the
          app's own words. The kit's tab strip: one row, QTabs' own arrows when it's too narrow. -->
-    <UiTabStrip v-model="tab" :tabs="tabDefs" class="lu-subnav" :aria-label="t('kit.aiArea.tabsLabel')" :id-prefix="tabPrefix" />
+    <UiTabStrip v-model="tab" :tabs="tabDefs" class="lu-subnav" :aria-label="t('kit.aiArea.tabsLabel')" :id-prefix="tabPrefix" :panels="panelsInPage" />
 
     <div v-if="error" class="lu-error" style="margin-top:14px">{{ error }}</div>
 

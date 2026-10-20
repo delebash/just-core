@@ -36,7 +36,8 @@ export const CHROME_DIR = "electron";
 // In the new root's Chromium folder after a move: the old copies it left — `{copies: [{root, entries}]}`, the
 // old folders and the names the moves copied from them (what "Remove the old copy" may remove).
 const OLD_MARKER = "old-root.txt";
-// In the old root's Chromium folder while a move copies: `{target}` — where a half copy may be, for the next start.
+// In the old root's Chromium folder while a move copies: `{target, pid}` — where a half copy may be, and the process
+// copying it, for the next start.
 const MOVING_RECORD = "moving-to.json";
 // In the new root's Chromium folder after a move: the window's access token, read and removed at the relaunch.
 const CARRIED = "carried.json";
@@ -153,6 +154,11 @@ function within(child, parent) {
 /** The same folder, links resolved (data_paths.js samePath on the real paths). */
 const sameFolder = (a, b) => dataPaths.samePath(realish(a), realish(b));
 
+/** The words Change folder and Move back are refused with while a start runs on the default folder this time or on
+ *  an old copy (2026-10-20, the sixteenth review): the data is in `folder` — connect it and restart, or (a pointer's
+ *  folder — `canForget`) forget it. */
+export const dataIsElsewhere = (folder, canForget = true) => `Your data is in ${folder}: connect it and restart${canForget ? ", or Use the default folder from now on" : ""}.`;
+
 /** The words Change folder is refused with while the data-dir variable names the folder (2026-10-20). */
 export const setByVariable = (name) => `This data folder is set by ${name} — change it there.`;
 
@@ -208,8 +214,10 @@ export function appHome({ packaged = true, repoRoot } = {}) {
  * `fs.promises.cp` (nodejs.org/api/fs.html#fspromisescpsrc-dest-options — the window stays live; cpSync froze it),
  * `preserveTimestamps` (to the millisecond — the engines compare with a tolerance, file_time.js) and
  * `verbatimSymlinks` (a relative link — the model cache's snapshots, an engine's libraries — stays relative, never
- * pointed back into the old folder), marked unfinished by a `.moving` file. Then the copy is checked — every file
- * its source's size, flushed to the drive (fsync) — and the pointer committed (writePointer). A failure anywhere
+ * pointed back into the old folder; on Windows a folder's link is made again as a junction, any other refused in
+ * words), marked unfinished by a `.moving` file (with this process's id — a second launch never sweeps it). Then the copy is checked — every file
+ * its source's size, flushed to the drive (fsync) —, the new root's records written (the old copies, the token), the
+ * marker marked committed, and the pointer committed (writePointer). A failure anywhere
  * before the commit removes what was copied and is said in words (fsProblem — "EFBIG": a FAT32 drive's 4 GB limit);
  * the old root is left as it was. Nothing is ever removed from the old root: the new root's Chromium folder
  * records it as an old copy (`oldCopies`, `removeOldCopy`). `token` (the window's access token, which lives in the
@@ -260,7 +268,7 @@ async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot,
   if (existed) {
     if (!fs.statSync(target).isDirectory()) throw new Error(dataPaths.cantUseDataDir(target, "a file has that name"));
     const unfinished = readMoving(target);
-    if (unfinished && sameFolder(unfinished.root, old)) {
+    if (unfinished && sameFolder(unfinished.root, old) && !unfinished.committed) {
       // an earlier move of this old root that never finished: its copy is ours
       await clearUnfinished(target, unfinished);
       made = unfinished.made === true;
@@ -272,6 +280,18 @@ async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot,
     }
   }
   const entries = fs.readdirSync(old).filter((n) => !notCopied(n));
+  // a link in the data folder (a models folder kept on another drive, the model cache's snapshots): Windows makes a
+  // symbolic link again only with the right to (Developer Mode) — a folder's is made again as a junction, which needs
+  // none; any other is refused, named, before anything is copied (2026-10-20, the sixteenth review: a junction failed
+  // every move "the app isn't allowed to write there")
+  const links = process.platform === "win32" ? await findLinks(old, entries) : [];
+  const fileLinks = links.filter((l) => !l.dir);
+  if (fileLinks.length) {
+    const named = fileLinks.slice(0, 3).map((l) => l.rel).join(", ");
+    throw new Error(
+      `The data folder holds a link to a file (${named}${fileLinks.length > 3 ? ` and ${fileLinks.length - 3} more` : ""}), which Windows lets the app make again only with Developer Mode on — replace it with the file itself, or move it out of the data folder.`,
+    );
+  }
   // room first: the old root stays, so the drive needs all of it
   const size = (await Promise.all(entries.map((n) => entrySize(path.join(old, n))))).reduce((a, b) => a + b, 0);
   let free = Number.POSITIVE_INFINITY;
@@ -284,24 +304,44 @@ async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot,
   if (size + MOVE_MARGIN > free) throw cantHold(`the data needs ${gb(size + MOVE_MARGIN)} GB of room and its drive has ${gb(free)} GB free`);
   const problem = dataPaths.dataDirProblem(target, { named: false }); // the app's own folder: made, then written to
   if (problem) {
-    if (made) fs.rmSync(target, { recursive: true, force: true });
+    if (made) await fs.promises.rm(target, TREE).catch(() => {});
     throw new Error(dataPaths.cantUseDataDir(target, problem));
   }
   const marker = path.join(target, MOVING_MARKER);
   const record = path.join(old, CHROME_DIR, MOVING_RECORD);
+  // what this move made in the target: the copied entries, its marker, and the Chromium folder it records the old
+  // copy and the token in before the commit
   const undo = async () => {
-    await removeEntries(target, [...entries, MOVING_MARKER]);
-    if (made) await fs.promises.rm(target, { recursive: true, force: true }).catch(() => {});
+    await removeEntries(target, [...entries, MOVING_MARKER, CHROME_DIR]);
+    if (made) await fs.promises.rm(target, TREE).catch(() => {});
     fs.rmSync(record, { force: true });
   };
+  const movedAt = Date.now();
   try {
-    fs.writeFileSync(marker, JSON.stringify({ root: old, entries, made }));
-    // where the half copy is, should the app stop midway: the next start on the old root clears it
+    writeMarker(marker, { root: old, entries, made, pid: process.pid, committed: false });
+    // where the half copy is, should the app stop midway: the next start on the old root clears it — unless this
+    // process still runs (a second launch of the app while this one copies)
     fs.mkdirSync(path.dirname(record), { recursive: true });
-    fs.writeFileSync(record, JSON.stringify({ target }));
-    for (const name of entries) await copy(path.join(old, name), path.join(target, name), { recursive: true, preserveTimestamps: true, verbatimSymlinks: true });
+    fs.writeFileSync(record, JSON.stringify({ target, pid: process.pid }));
+    const skip = new Set(links.map((l) => pathKey(l.src)));
+    const options = { recursive: true, preserveTimestamps: true, verbatimSymlinks: true, ...(skip.size ? { filter: (src) => !skip.has(pathKey(src)) } : {}) };
+    for (const name of entries) await copy(path.join(old, name), path.join(target, name), options);
+    for (const l of links) makeJunction(l, old, target);
     for (const name of entries) await checkCopy(path.join(old, name), path.join(target, name), name);
+    // the new root's own records, before the commit (a stop after the commit finds them there; an undo removes
+    // them): the old copies it leaves — this one and those an earlier move left, each with its move's time — and the
+    // window's token for the relaunch
+    fs.mkdirSync(path.join(target, CHROME_DIR), { recursive: true });
+    const copies = [];
+    for (const c of [{ root: old, entries: [...entries, ...NOT_COPIED], movedAt }, ...oldCopies(old)]) {
+      if (within(target, c.root) || within(c.root, target) || copies.some((x) => sameFolder(x.root, c.root))) continue;
+      copies.push(c);
+    }
+    writeOldCopies(target, copies);
+    if (token) fs.writeFileSync(path.join(target, CHROME_DIR, CARRIED), JSON.stringify({ token: String(token) }));
     syncDir(target);
+    // from here the copy is whole: a stop during or after the pointer's step never has it swept as unfinished
+    writeMarker(marker, { root: old, entries, made, pid: process.pid, committed: true });
   } catch (e) {
     await undo();
     throw new Error(`The data couldn't be copied to ${target}: ${dataPaths.fsProblem(e)} — it stays in ${old}.`);
@@ -315,27 +355,73 @@ async function move({ oldRoot, newRoot, appName, folderName, packaged, repoRoot,
     throw new Error(`The move couldn't be finished — ${pointer} couldn't be written (${dataPaths.fsProblem(e)}). The data stays in ${old}.`);
   }
   // committed: the new root is the data folder. The old root stays as it was — an old copy, removed when the user
-  // asks (the copies an earlier move left are carried along, so none is forgotten). Each record keeps the move's
-  // time, so work done in the old copy after it is told before a removal (`oldCopiesInfo`), and the old root says
-  // where its data went, so a start on it says it runs on the old copy (`oldCopyOf`).
-  const movedAt = Date.now();
+  // asks — and says where its data went, so a start on it says it runs on the old copy (`oldCopyOf`)
   fs.rmSync(marker, { force: true });
   fs.rmSync(record, { force: true });
   try {
-    fs.mkdirSync(path.join(target, CHROME_DIR), { recursive: true });
-    const copies = [];
-    for (const c of [{ root: old, entries: [...entries, ...NOT_COPIED], movedAt }, ...oldCopies(old)]) {
-      if (within(target, c.root) || within(c.root, target) || copies.some((x) => sameFolder(x.root, c.root))) continue;
-      copies.push(c);
-    }
-    writeOldCopies(target, copies);
-    fs.mkdirSync(path.join(old, CHROME_DIR), { recursive: true });
     fs.writeFileSync(path.join(old, CHROME_DIR, MOVED_TO), JSON.stringify({ root: target, movedAt }));
-    if (token) fs.writeFileSync(path.join(target, CHROME_DIR, CARRIED), JSON.stringify({ token: String(token) }));
   } catch (e) {
-    console.warn(`[shell] the old copy in ${old} couldn't be recorded (${e?.message || e}) — it stays there`);
+    console.warn(`[shell] the old folder ${old} couldn't record where its data went (${e?.message || e})`);
   }
   return target;
+}
+
+// fs.promises.rm's options for a folder and everything in it. Never fs.rmSync recursive: Node 24's follows an NTFS
+// junction and empties the folder it points to (measured 2026-10-20, Node 24.21 — the sixteenth review); the async
+// one removes the link alone.
+const TREE = { recursive: true, force: true, maxRetries: 5 };
+
+/** A path as a key: resolved, case-insensitive on Windows. */
+const pathKey = (p) => (process.platform === "win32" ? path.resolve(p).toLowerCase() : path.resolve(p));
+
+/** The `.moving` marker written whole (written beside, renamed into place). */
+function writeMarker(marker, m) {
+  fs.writeFileSync(`${marker}.tmp`, JSON.stringify(m));
+  renameHeldSync(`${marker}.tmp`, marker);
+}
+
+/** Every link under the old root's `entries` (Windows: symbolic links and junctions alike): `{src, rel, target, dir}`
+ *  — `target` absolute (a relative one resolved beside the link), `dir` when it is (or was) a folder's. */
+async function findLinks(old, entries) {
+  const out = [];
+  const walk = async (p, rel) => {
+    let st;
+    try {
+      st = await fs.promises.lstat(p);
+    } catch {
+      return;
+    }
+    if (st.isSymbolicLink()) {
+      let to = "";
+      try {
+        to = await fs.promises.readlink(p);
+      } catch {
+        /* unreadable: said as a file's */
+      }
+      const target = to ? path.resolve(path.dirname(p), to) : "";
+      let dir = !!to;
+      try {
+        dir = (await fs.promises.stat(p)).isDirectory();
+      } catch {
+        // dangling: a junction (always a folder's) reads back absolute — made again as one
+      }
+      out.push({ src: p, rel, target, dir: !!to && dir });
+      return;
+    }
+    if (!st.isDirectory()) return;
+    for (const name of await fs.promises.readdir(p)) await walk(path.join(p, name), `${rel}/${name}`);
+  };
+  for (const name of entries) await walk(path.join(old, name), name);
+  return out;
+}
+
+/** A folder link of the old root made again in the new one as a junction (Windows' own folder link — no symbolic
+ *  link right needed): to the same folder, or — when it pointed inside the data — to the same place in the copy. */
+function makeJunction(link, old, target) {
+  const dest = path.join(target, path.relative(old, link.src));
+  const to = within(link.target, old) ? path.join(target, path.relative(realish(old), realish(link.target))) : link.target;
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.symlinkSync(to, dest, "junction");
 }
 
 /** The copy of `src` at `dst` is whole: every file its source's size, flushed to the drive (fsync); a folder's
@@ -367,12 +453,13 @@ async function checkCopy(src, dst, name) {
   }
 }
 
-/** Remove the plain `names` from `dir` (Node's own retries); what can't go is returned. */
+/** Remove the plain `names` from `dir` (fs.promises.rm with Node's own retries — a link goes, never what it points
+ *  to); what can't go is returned. */
 async function removeEntries(dir, names) {
   const left = [];
   for (const name of names.filter(plainName)) {
     try {
-      await fs.promises.rm(path.join(dir, name), { recursive: true, force: true, maxRetries: 5 });
+      await fs.promises.rm(path.join(dir, name), TREE);
     } catch {
       left.push(name);
     }
@@ -380,8 +467,8 @@ async function removeEntries(dir, names) {
   return left;
 }
 
-/** The `.moving` marker in `target`: `{root, entries, made}`, an earlier version's (the old root's path alone:
- *  `entries` null), or null. */
+/** The `.moving` marker in `target`: `{root, entries, made, pid, committed}`, an earlier version's (the old root's
+ *  path alone: `entries` null), or null. */
 function readMoving(target) {
   let text;
   try {
@@ -391,22 +478,38 @@ function readMoving(target) {
   }
   try {
     const m = JSON.parse(text);
-    if (typeof m?.root === "string") return { root: m.root, entries: Array.isArray(m.entries) ? m.entries : null, made: m.made === true };
+    if (typeof m?.root === "string") {
+      return { root: m.root, entries: Array.isArray(m.entries) ? m.entries : null, made: m.made === true, pid: Number.isInteger(m.pid) ? m.pid : null, committed: m.committed === true };
+    }
   } catch {
     /* an earlier version's marker */
   }
-  return text ? { root: text, entries: null, made: false } : null;
+  return text ? { root: text, entries: null, made: false, pid: null, committed: false } : null;
 }
 
 /** An unfinished copy in `target` goes: the names its marker lists (an earlier version's marker: all but the
- *  system's files), then the marker. */
+ *  system's files) and the records the move wrote in its Chromium folder, then the marker. */
 async function clearUnfinished(target, m) {
-  const names = m.entries ?? fs.readdirSync(target).filter((n) => !SYSTEM_FILES.has(n));
+  const names = m.entries ? [...m.entries, CHROME_DIR] : fs.readdirSync(target).filter((n) => !SYSTEM_FILES.has(n));
   await removeEntries(target, [...names, MOVING_MARKER]);
 }
 
 /** A plain name of an entry of a folder (never a path or "..") — what a marker may name for removal. */
 const plainName = (n) => typeof n === "string" && n !== "" && n !== "." && n !== ".." && n === path.basename(n) && !/[\\/]/.test(n);
+
+/** Does the process `pid` run (and isn't this one)? A signal 0 tests it (kill(2), Node's process.kill). */
+function pidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e?.code === "EPERM"; // there, another user's
+  }
+}
+
+/** Can `p`'s place be looked at now — its parent folder there (a drive plugged in, a share online)? */
+const reachable = (p) => fs.existsSync(path.dirname(path.resolve(p)));
 
 // The shell's log lines.
 const shellLog = { warn: (s) => console.warn(`[shell] ${s}`) };
@@ -427,10 +530,19 @@ export function useDefaultRoot({ appName, repoRoot, packaged }) {
   return dataPaths.defaultDataDir({ appName, sourceRoot: sourceRootOf({ packaged, repoRoot }) });
 }
 
-/** "Use the default folder from now on" (Storage, while a start uses the default because the folder the pointer
- *  names can't be used — 2026-10-20): the pointer is forgotten; the data in the folder it named isn't touched. */
+/** "Use the default folder from now on" (Storage, while a start runs on the default because the folder the pointer
+ *  names can't be used, or on an old copy — 2026-10-20): the pointer is forgotten, and the default folder's record
+ *  of where its data went with it (it is the data folder now — no "old copy" banner at every start); the data in the
+ *  folder the pointer named isn't touched. */
 export function forgetPointer({ appName, repoRoot, packaged }) {
-  fs.rmSync(dataPaths.pointerFile({ appName, sourceRoot: sourceRootOf({ packaged, repoRoot }) }), { force: true, maxRetries: 5 });
+  const sourceRoot = sourceRootOf({ packaged, repoRoot });
+  fs.rmSync(dataPaths.pointerFile({ appName, sourceRoot }), { force: true, maxRetries: 5 });
+  forgetMovedTo(dataPaths.defaultDataDir({ appName, sourceRoot }));
+}
+
+/** `root` is the data folder now: its record of where its data once went goes. */
+export function forgetMovedTo(root) {
+  fs.rmSync(path.join(root, CHROME_DIR, MOVED_TO), { force: true });
 }
 
 /** The pointer's folder, or null (none). */
@@ -443,33 +555,33 @@ function pointerTarget({ appName, repoRoot, packaged }) {
 }
 
 /**
- * At start, before Chromium opens anything (2026-10-20): a half copy an earlier stop left (the app quit, killed or
- * the computer off while a move copied) is removed — the old root's record names it, its `.moving` marker names this
- * root, and the pointer doesn't name it (a move whose pointer was committed is never undone). Only the names the
- * marker lists go, then the folder when the move made it and it is empty. A `.moving` in the root in use is a
- * committed move's (it went just after the pointer) and goes too.
+ * At start — after the app's single-instance lock, before the server — a half copy an earlier stop left (the app
+ * quit, killed or the computer off while a move copied) is removed: the old root's record names it, its `.moving`
+ * marker names this root and isn't marked committed, and the pointer doesn't name it (a move whose pointer was
+ * committed is never undone). Only the names the marker lists go (with the records the move wrote in its Chromium
+ * folder), then the folder when the move made it and it is empty — by fs.promises.rm (a link goes, never what it
+ * points to). Left for a later start, the record kept: a move whose process still runs (its pid — a second launch of
+ * the app while one copies), and a target whose drive isn't there (a stick pulled — often why the copy stopped). A
+ * `.moving` in the root in use is a committed move's (it went just after the pointer) and goes too.
  */
-export function sweepUnfinishedMove(root, { appName, repoRoot, packaged }) {
-  fs.rmSync(path.join(root, MOVING_MARKER), { force: true });
+export async function sweepUnfinishedMove(root, { appName, repoRoot, packaged, alive = pidAlive }) {
+  const own = readMoving(root);
+  if (own && (own.committed || !alive(own.pid))) fs.rmSync(path.join(root, MOVING_MARKER), { force: true });
   const record = path.join(root, CHROME_DIR, MOVING_RECORD);
-  let target;
+  let rec;
   try {
-    target = JSON.parse(fs.readFileSync(record, "utf8")).target;
+    rec = JSON.parse(fs.readFileSync(record, "utf8"));
   } catch {
     return;
   }
+  const target = typeof rec?.target === "string" ? rec.target : null;
+  if (target && (alive(rec.pid) || !reachable(target))) return; // the move goes on, or its drive isn't here: later
   try {
-    const m = typeof target === "string" ? readMoving(target) : null;
+    const m = target ? readMoving(target) : null;
     const pointed = pointerTarget({ appName, repoRoot, packaged });
-    const committed = !!pointed && sameFolder(pointed, target);
-    if (m?.entries && sameFolder(m.root, root) && !committed && !within(root, target) && !within(target, root)) {
-      for (const name of [...m.entries, MOVING_MARKER].filter(plainName)) {
-        try {
-          fs.rmSync(path.join(target, name), { recursive: true, force: true, maxRetries: 5 });
-        } catch {
-          /* held: the next try into that folder clears it */
-        }
-      }
+    const committed = !!m?.committed || (!!pointed && sameFolder(pointed, target));
+    if (m?.entries && sameFolder(m.root, root) && !committed && !alive(m.pid) && !within(root, target) && !within(target, root)) {
+      await removeEntries(target, [...m.entries, CHROME_DIR, MOVING_MARKER]);
       if (m.made) {
         try {
           fs.rmdirSync(target); // only when empty
@@ -523,15 +635,23 @@ export function oldCopies(root) {
     }));
 }
 
-// What tells that an old copy was used after its move (the database's own files and the top of each copied entry —
-// no walk of the whole tree): SQLite's database and its write-ahead log and shared memory beside it.
+function writeOldCopies(root, copies) {
+  const file = path.join(root, CHROME_DIR, OLD_MARKER);
+  if (!copies.length) return fs.rmSync(file, { force: true });
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ copies }));
+}
+
+// What tells that an old copy was used after its move: the database's own files — SQLite's database and its
+// write-ahead log, shared memory and rollback journal, which every run of the app writes. Never a folder's time, nor
+// a file the system makes where the user only looked (Explorer's Thumbs.db is no database; Finder's .DS_Store) —
+// both said "used" for a copy nobody used (the sixteenth review, measured).
 const DATABASE_FILE = /\.(db|sqlite3?)(-wal|-shm|-journal)?$/i;
+const isDatabaseFile = (name) => DATABASE_FILE.test(name) && !SYSTEM_FILES.has(name) && name.toLowerCase() !== "thumbs.db";
 
 /**
- * When the old copy in `old` was last changed — the newest time of what a start on it changes: each copied entry
- * and, for a folder, the entries right inside it (a house added or changed), and the database's files beside them
- * (its -wal/-shm, which a running app keeps). Chromium's folder and the lock are left out: the app wrote them until
- * the move's relaunch. ms, or 0.
+ * When the old copy in `old` was last changed — the newest time of its database's files: at its top, and right inside
+ * each copied folder. ms, or 0.
  */
 export function lastChanged(old, entries) {
   let newest = 0;
@@ -542,69 +662,72 @@ export function lastChanged(old, entries) {
       /* gone */
     }
   };
-  for (const name of entries) {
-    if (NOT_COPIED.has(name)) continue;
-    const p = path.join(old, name);
-    seen(p);
+  const look = (dir) => {
     try {
-      if (fs.lstatSync(p).isDirectory()) for (const child of fs.readdirSync(p)) if (!SYSTEM_FILES.has(child)) seen(path.join(p, child));
+      for (const name of fs.readdirSync(dir)) if (isDatabaseFile(name)) seen(path.join(dir, name));
     } catch {
       /* not a folder, or gone */
     }
-  }
-  try {
-    for (const name of fs.readdirSync(old)) if (DATABASE_FILE.test(name)) seen(path.join(old, name));
-  } catch {
-    /* the folder is gone */
+  };
+  look(old);
+  for (const name of entries) {
+    if (NOT_COPIED.has(name)) continue;
+    const p = path.join(old, name);
+    try {
+      if (fs.lstatSync(p).isDirectory()) look(p);
+    } catch {
+      /* gone */
+    }
   }
   return newest;
 }
 
 /** Where the data of `root` went, when `root` holds the old copy a move left (a start on it — "Use the default
- *  folder", the variable — runs on stale data): `{root, movedAt}`, or null. */
+ *  folder", the variable — runs on stale data): `{root, movedAt}`, or null — also when the folder it names is gone
+ *  (its drive there, the folder not: deleted, or forgotten — no banner about a folder that no longer is). */
 export function oldCopyOf(root) {
   try {
     const m = JSON.parse(fs.readFileSync(path.join(root, CHROME_DIR, MOVED_TO), "utf8"));
     if (typeof m?.root !== "string" || !m.root || sameFolder(m.root, root)) return null;
+    if (!fs.existsSync(m.root) && reachable(m.root)) return null;
     return { root: path.resolve(m.root), movedAt: Number.isFinite(m.movedAt) ? m.movedAt : null };
   } catch {
     return null;
   }
 }
 
-function writeOldCopies(root, copies) {
-  const file = path.join(root, CHROME_DIR, OLD_MARKER);
-  if (!copies.length) return fs.rmSync(file, { force: true });
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify({ copies }));
-}
-
 /**
- * The old copies a move left, for Settings → Storage: `[{root, bytes, movedAt, changedAt}]` — the bytes of what the
- * move copied that is still there; `changedAt` (ms) when the copy was changed after the move — more than the file
- * time's tolerance (file_time.js) past it: the app ran on it since ("Use the default folder" while the new folder's
- * drive was out, the data-dir variable) and removing it removes that work — else null. A copy with nothing of it left
- * (removed by hand) is forgotten; never the folder in use.
+ * The old copies a move left, for Settings → Storage: `[{root, bytes, movedAt, changedAt, connected}]` — the bytes of
+ * what the move copied that is still there; `changedAt` (ms) when its database was written after the move — more than
+ * the file time's tolerance (file_time.js) past it: the app ran on it since ("Use the default folder" while the new
+ * folder's drive was out, the data-dir variable) and removing it removes that work — else null. A copy whose drive
+ * isn't there (its parent folder missing) is listed `connected: false` (bytes null) and kept; one whose drive is there
+ * and nothing of it left (removed by hand) is forgotten; never the folder in use.
  */
 export async function oldCopiesInfo(root) {
   const here = path.resolve(root);
   const copies = oldCopies(root);
-  const kept = copies.filter((c) => !within(here, c.root) && !within(c.root, here) && c.entries.some((n) => fs.existsSync(path.join(c.root, n))));
+  const kept = copies.filter((c) => !within(here, c.root) && !within(c.root, here) && (!reachable(c.root) || c.entries.some((n) => fs.existsSync(path.join(c.root, n)))));
   if (kept.length !== copies.length) writeOldCopies(root, kept);
   const out = [];
   for (const c of kept) {
+    if (!reachable(c.root)) {
+      out.push({ root: c.root, bytes: null, movedAt: c.movedAt, changedAt: null, connected: false });
+      continue;
+    }
     const sizes = await Promise.all(c.entries.map((n) => entrySize(path.join(c.root, n))));
     const changed = c.movedAt == null ? 0 : lastChanged(c.root, c.entries);
-    out.push({ root: c.root, bytes: sizes.reduce((a, b) => a + b, 0), movedAt: c.movedAt, changedAt: changed > c.movedAt + MTIME_WINDOW_MS ? changed : null });
+    out.push({ root: c.root, bytes: sizes.reduce((a, b) => a + b, 0), movedAt: c.movedAt, changedAt: changed > c.movedAt + MTIME_WINDOW_MS ? changed : null, connected: true });
   }
   return out;
 }
 
 /**
  * "Remove the old copy" (Settings → Storage, 2026-10-20): what a move copied from `old` — the names its record lists,
- * with the old folder's Chromium folder and lock — goes, then the folder itself when nothing else is in it. Never the
- * folder the app runs on (or one holding it), never a folder another server of the app is using now. A name a
- * program still holds is kept on the record and said; the rest is gone.
+ * with the old folder's Chromium folder and lock — goes (fs.promises.rm: a link goes, never what it points to), then
+ * the folder itself when nothing else is in it. Never the folder the app runs on (or one holding it), never a folder
+ * another server of the app is using now, never one whose drive isn't there. A name a program still holds is kept on
+ * the record and said; the rest is gone.
  */
 export async function removeOldCopy(root, old) {
   const here = path.resolve(root);
@@ -612,6 +735,7 @@ export async function removeOldCopy(root, old) {
   const c = copies.find((x) => sameFolder(x.root, old));
   if (!c) return null; // already gone
   if (within(here, c.root) || within(c.root, here)) throw new Error(`${c.root} holds the data folder in use — it isn't removed.`);
+  if (!reachable(c.root)) throw new Error(`The old copy in ${c.root} isn't connected — connect its drive, then remove it.`);
   if (await dataFolderHeld(c.root)) throw new Error(`A server of the app is using ${c.root} now — stop it first, then remove the old copy.`);
   const left = await removeEntries(c.root, c.entries);
   try {

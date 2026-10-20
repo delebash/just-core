@@ -113,10 +113,15 @@ async function onImport(e) {
   }
 }
 
+// What Reset wipes is the prompt's message; its field is labelled with the word to type, and Reset
+// stays off until the word is typed (requireMatch) — the 35-word sentence was the field's label (the
+// sixteenth review, 2026-10-20).
 async function reset() {
   const typed = await promptDialog({
     title: t("kit.dataManagement.reset.title", { app: app.value }),
-    label: t("kit.dataManagement.reset.label", { word: RESET_WORD }),
+    message: t("kit.dataManagement.reset.message"),
+    label: t("kit.dataManagement.reset.typeToConfirm", { word: RESET_WORD }),
+    requireMatch: RESET_WORD,
     confirmLabel: t("kit.common.reset"),
     danger: true,
   });

@@ -35,12 +35,12 @@ const fake = vi.hoisted(() => {
     }
   }
   // what the shell asked of Electron
-  const rec = { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0 };
+  const rec = { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null };
   const app = Object.assign(new Emitter(), {
     isPackaged: false,
     setPath() {},
     setAppUserModelId() {},
-    requestSingleInstanceLock: () => true,
+    requestSingleInstanceLock: () => rec.lock,
     quit() {
       rec.quits++;
     },
@@ -60,7 +60,8 @@ const fake = vi.hoisted(() => {
       this.webContents = Object.assign(new Emitter(), {
         setWindowOpenHandler() {},
         send() {},
-        executeJavaScript: async () => true,
+        // the page's answers: the token the kit's sign-in keeps (localStorage), else the drawn-layout probe's true
+        executeJavaScript: async (code) => (String(code).includes("localStorage") ? rec.pageToken : true),
         reload() {
           rec.reloads++;
         },
@@ -153,7 +154,7 @@ vi.mock("../src/shell/dataRoot.js", async (importOriginal) => {
   return { ...real, relocate: vi.fn(real.relocate) };
 });
 
-const { runDesktopApp, QUIT_WHILE_MOVING } = await import("../src/shell/main.js");
+const { runDesktopApp, QUIT_WHILE_MOVING, WINDOW_TOKEN_KEY } = await import("../src/shell/main.js");
 const dataRoot = await import("../src/shell/dataRoot.js");
 const relocate = vi.mocked(dataRoot.relocate);
 const { rec } = fake;
@@ -161,7 +162,7 @@ const { rec } = fake;
 const tmp = () => mkdtempSync(path.join(tmpdir(), "shell-"));
 
 beforeEach(() => {
-  Object.assign(rec, { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0 });
+  Object.assign(rec, { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null });
   fake.electron.session.defaultSession.resolveProxy = async () => "DIRECT";
   relocate.mockReset(); // the real relocate again, no answer queued by another test
 });
@@ -292,6 +293,11 @@ test("Use the default folder: this start only — the pointer kept, the box says
     setBy: null,
     oldCopyOf: null,
   });
+  // no move from here: the data is in the folder that can't be used now (the sixteenth review: a move from the
+  // default this time left the newest data known nowhere)
+  const elsewhere = `Your data is in ${blocked}: connect it and restart, or Use the default folder from now on.`;
+  await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow(elsewhere);
+  expect(relocate).not.toHaveBeenCalled();
   await invoke("storageUseDefault");
   expect(existsSync(path.join(repo, "dataroot.txt"))).toBe(false);
   expect((await invoke("storageGetRoot")).defaultThisStart).toBe(null);
@@ -394,8 +400,67 @@ test("a start on the old copy a move left: Storage is told where the data is", a
   mkdirSync(path.join(root, "electron"), { recursive: true });
   const moved = path.join(tmp(), "Demo");
   writeFileSync(path.join(root, "electron", "moved-to.json"), JSON.stringify({ root: moved, movedAt: 1_700_000_000_000 }));
+  mkdirSync(moved, { recursive: true });
   await startShell(repo);
   expect((await invoke("storageGetRoot")).oldCopyOf).toEqual({ root: moved, movedAt: 1_700_000_000_000 });
+  // no move from the old copy (it would leave the newer data known nowhere); "from now on" makes it the data folder
+  await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow(`Your data is in ${moved}: connect it and restart, or Use the default folder from now on.`);
+  await invoke("storageUseDefault");
+  expect(existsSync(path.join(root, "electron", "moved-to.json"))).toBe(false);
+  expect((await invoke("storageGetRoot")).oldCopyOf).toBe(null);
+});
+
+test("the variable's folder missing, the start on the default: the data is elsewhere — no move, no 'from now on'", async () => {
+  const gone = path.join(tmp(), "gone");
+  vi.stubEnv("DEMO_DATA_DIR", gone);
+  try {
+    rec.answer = 1; // "Use the default folder"
+    const repo = tmp();
+    await startShell(repo);
+    expect(await invoke("storageGetRoot")).toMatchObject({ setBy: "DEMO_DATA_DIR", defaultThisStart: { folder: gone } });
+    await expect(invoke("storageRelocate", { newRoot: tmp() })).rejects.toThrow(`Your data is in ${gone}: connect it and restart.`);
+    expect(() => invoke("storageUseDefault")).toThrow("This data folder is set by DEMO_DATA_DIR — change it there.");
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
+
+// s1: the sweep and the token's pickup ran before the single-instance lock — a second launch during Change folder
+// swept the copy under way
+test("a second launch (the single-instance lock refused) never looks at what a move left, nor takes its token", async () => {
+  const repo = tmp();
+  const root = path.join(repo, "data");
+  mkdirSync(path.join(root, "electron"), { recursive: true });
+  writeFileSync(path.join(root, "electron", "carried.json"), JSON.stringify({ token: "s3cr3t" }));
+  const half = path.join(tmp(), "Demo");
+  mkdirSync(half);
+  writeFileSync(path.join(half, "app.db"), "copying");
+  writeFileSync(path.join(half, ".moving"), JSON.stringify({ root, entries: ["app.db"], made: true, pid: 99999999, committed: false }));
+  writeFileSync(path.join(root, "electron", "moving-to.json"), JSON.stringify({ target: half, pid: 99999999 }));
+  rec.lock = false;
+  const port = await freePort();
+  const shell = runDesktopApp({ id: "demo", appName: "Demo", productName: "Demo", port, serverEntry: "server.js", dataDirEnv: "DEMO_DATA_DIR", repoRoot: repo, distDir: repo, window: {} });
+  expect(shell).toBe(null);
+  await new Promise((r) => setTimeout(r, 50));
+  expect(existsSync(path.join(root, "electron", "carried.json"))).toBe(true);
+  expect(readFileSync(path.join(half, "app.db"), "utf8")).toBe("copying");
+});
+
+test("Change folder carries the window's token itself — read from the page, under the kit's sign-in key", async () => {
+  // the kit's UI keeps it under this key (serverToken.js) — the two must stay one
+  const ui = readFileSync(path.resolve(import.meta.dirname, "../../ui/src/common/services/serverToken.js"), "utf8");
+  expect(ui).toContain(`const KEY = ${JSON.stringify(WINDOW_TOKEN_KEY)};`);
+  const { port } = await startShell();
+  rec.forks[0].child.emit("message", { type: "ready", host: "127.0.0.1", port });
+  rec.pageToken = "from-the-page";
+  relocate.mockResolvedValueOnce(null);
+  await invoke("storageRelocate", { newRoot: tmp() });
+  expect(relocate.mock.calls[0][0]).toMatchObject({ token: "from-the-page" });
+  // an app that passes one: that one
+  rec.forks.at(-1).child.emit("message", { type: "ready", host: "127.0.0.1", port });
+  relocate.mockResolvedValueOnce(null);
+  await invoke("storageRelocate", { newRoot: tmp(), token: "passed" });
+  expect(relocate.mock.calls[1][0]).toMatchObject({ token: "passed" });
 });
 
 test("the token a move carried signs the window's first page in, once", async () => {
@@ -417,7 +482,7 @@ test("Storage: the old copy with its size, removed when asked — only what the 
   mkdirSync(path.join(root, "electron"), { recursive: true });
   writeFileSync(path.join(root, "electron", "old-root.txt"), JSON.stringify({ copies: [{ root: old, entries: ["app.db", "electron", "server.lock"] }] }));
   await startShell(repo);
-  expect(await invoke("storageOldCopies")).toEqual([{ root: old, bytes: 5, movedAt: null, changedAt: null }]);
+  expect(await invoke("storageOldCopies")).toEqual([{ root: old, bytes: 5, movedAt: null, changedAt: null, connected: true }]);
   expect(await invoke("storageRemoveOldCopy", { root: old })).toEqual([]);
   expect(existsSync(path.join(old, "app.db"))).toBe(false);
   expect(readFileSync(path.join(old, "mine.txt"), "utf8")).toBe("the user's");

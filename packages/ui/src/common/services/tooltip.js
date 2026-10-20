@@ -11,14 +11,16 @@
 //
 // What a screen reader hears (the screens-and-keyboard review, 2026-10-20 — icon buttons with no
 // name, and names read twice): an element that can carry a name (a control, a link, an image, an
-// element with a role or a tab stop) with no accessible name of its own — no aria-label or
-// aria-labelledby, no <label>, no text, no alt or title — takes the tooltip's words as its name
+// element with a role or a tab stop) with no accessible name of its own (dom-accessibility-api's
+// computeAccessibleName — aria-hidden text and a select's options are no name, a child's alt is) —
+// takes the tooltip's words as its name
 // (aria-label; ARIA's tooltip pattern: an icon button's tooltip text IS its label,
 // w3.org/WAI/ARIA/apg/patterns/tooltip/). While the tooltip shows, it describes the element
 // (aria-describedby) only when its words differ from the element's name — never the name read a
 // second time. So no `title` beside an equal aria-label anywhere: v-tooltip instead.
 
 import { computePosition, autoUpdate, offset, flip, shift } from "@floating-ui/dom";
+import { computeAccessibleName } from "dom-accessibility-api";
 
 const SHOW_DELAY = 350;
 const HIDE_DELAY = 80;
@@ -26,24 +28,22 @@ let idCounter = 0;
 
 const squash = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
 
-/** The element's accessible name from its own markup, as far as it can be read without a full
- *  accessible-name computation (w3.org/TR/accname-1.2): aria-labelledby's elements, aria-label
- *  (unless it is the one this directive set — `ours`), a form control's <label>s, its text, its alt
- *  or title. "" when it has none. */
+/** The element's accessible name as a screen reader computes it (w3.org/TR/accname-1.2, by
+ *  dom-accessibility-api — Testing Library's), leaving out the aria-label this directive set
+ *  (`ours`): aria-labelledby, aria-label, a <label>, its text but not what is aria-hidden, a child
+ *  image's alt or a child's aria-label, never a <select>'s options. "" when it has none. Until
+ *  2026-10-20 a hand-made reading counted aria-hidden text and a select's options as a name (the
+ *  sixteenth review). */
 function ownName(el, ours = null) {
-  const by = el.getAttribute?.("aria-labelledby");
-  if (by) {
-    const doc = el.ownerDocument || (typeof document !== "undefined" ? document : null);
-    const text = squash(by.split(/\s+/).map((id) => doc?.getElementById?.(id)?.textContent || "").join(" "));
-    if (text) return text;
+  const mine = ours !== null && el.getAttribute?.("aria-label") === ours;
+  if (mine) el.removeAttribute("aria-label");
+  try {
+    return squash(computeAccessibleName(el));
+  } catch {
+    return squash(el.getAttribute?.("aria-label") || el.textContent);
+  } finally {
+    if (mine) el.setAttribute("aria-label", ours);
   }
-  const label = el.getAttribute?.("aria-label");
-  if (label && label !== ours && squash(label)) return squash(label);
-  const labels = el.labels ? [...el.labels].map((l) => l.textContent || "").join(" ") : "";
-  if (squash(labels)) return squash(labels);
-  const text = squash(el.textContent);
-  if (text) return text;
-  return squash(el.getAttribute?.("alt") || el.getAttribute?.("title") || "");
 }
 
 /** Whether a name may stand on the element: a control, a link, an image, or anything with a role of

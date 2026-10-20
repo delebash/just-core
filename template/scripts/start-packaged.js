@@ -21,7 +21,7 @@
 // build left out — JustWrite's server lacked a package on every installed computer, and only the AppImage (mounted
 // under /tmp) failed the check (2026-10-20). Exit 0 = it answered; 1 = it didn't.
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -52,11 +52,20 @@ function unpackedName(dir = out, platform = process.platform) {
 }
 
 /** The unpacked build copied into `into` (a temp folder), as it is — a Mac app's framework links kept links
- *  (Node's verbatimSymlinks) — so it runs with nothing of the checkout above it. Returns `into`. */
+ *  (Node's verbatimSymlinks) — so it runs with nothing of the checkout above it. Returns `into`, its real path (a
+ *  Windows runner's temp folder is an 8.3 short name, RUNNER~1, that the app reports long). */
 function copyUnpacked(into) {
   const sub = unpackedName();
   cpSync(path.join(out, sub), path.join(into, sub), { recursive: true, verbatimSymlinks: true });
-  return into;
+  return realpathSync.native(into);
+}
+
+/** A data folder inside the copy, said where it is in the build itself (each start runs its own copy, and Windows'
+ *  and the unpacked Linux build's default is beside the executable): the window's and the launcher's compare. */
+function inBuild(dir, copy) {
+  if (!copy) return dir;
+  const rel = path.relative(copy, realpathSync.native(dir));
+  return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? path.join(out, rel) : dir;
 }
 
 /** The packaged app's own executable in electron-builder's unpacked folder for this platform. */
@@ -180,7 +189,7 @@ async function run() {
           const app = exe.includes(".app/Contents/") ? exe.slice(0, exe.indexOf(".app/Contents/") + 4) : path.dirname(exe);
           const rel = path.relative(app, h.dataDir);
           if (bundle && (!rel.startsWith("..") || /\/\.mount_/.test(h.dataDir))) throw new Error(`its data folder ${h.dataDir} is inside the app (${app})`);
-          console.log(`data folder used: ${h.dataDir}`);
+          console.log(`data folder used: ${inBuild(h.dataDir, copy)}`);
         }
         if (headless) {
           // the whole app with no window: the server serves its UI too

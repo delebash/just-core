@@ -100,7 +100,9 @@ export function sweepWorkFolders(dbPath, kinds = ["backup", "restore", "upload"]
     try {
       const old = path.join(parent, name);
       if (Date.now() - statSync(old).mtimeMs > 3600_000) {
-        rmSync(old, { recursive: true, force: true });
+        // fs.promises.rm, never rmSync: Node 24's rmSync recursive follows an NTFS junction and empties its target
+        // (measured 2026-10-20, the sixteenth review); this one removes the link alone. Started here, finished soon.
+        void rm(old, RETRIES).catch(() => {});
         gone++;
       }
     } catch {
@@ -188,10 +190,11 @@ export const restoreUnfinished = (dbPath) => existsSync(journalOf(String(dbPath)
  * committed): the old folders it moved aside go. Not in: each folder it moved aside is put back and the backup's
  * copy moved out of the way (`<dir>.restoring-<time>`, removed by the next restore or the app's start-up sweep).
  * A rename Windows holds is retried; one that still fails throws with the record kept, so the next start tries
- * again — and nothing may touch those folders meanwhile (restoreUnfinished). Synchronous; "forward", "back" or
- * null (nothing to do). makeDataRouter runs it as it is made.
+ * again — and nothing may touch those folders meanwhile (restoreUnfinished). Resolves "forward", "back" or null
+ * (nothing to do); async since 2026-10-20 — its removals are fs.promises.rm (Node 24's rmSync recursive follows an
+ * NTFS junction and empties its target). makeDataRouter runs it as it is made.
  */
-export function finishInterruptedRestore(dbPath) {
+export async function finishInterruptedRestore(dbPath) {
   const journal = journalOf(String(dbPath));
   if (!existsSync(journal)) return null;
   let record;
@@ -205,13 +208,8 @@ export function finishInterruptedRestore(dbPath) {
   if (committedStamp(String(dbPath)) === record.stamp) {
     rmSync(journal, { force: true });
     // the old copies: best effort — one held stays beside, for the app's start-up sweep or the next restore
-    for (const { old } of dirs) {
-      try {
-        if (old) rmSync(old, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-      } catch {
-        // left beside
-      }
-    }
+    // (fs.promises.rm: it removes a junction, never what it points to — Node 24's rmSync follows one)
+    for (const { old } of dirs) if (old) await rm(old, RETRIES).catch(() => {});
     return "forward";
   }
   for (const { dir, old } of dirs.reverse()) {
@@ -219,7 +217,7 @@ export function finishInterruptedRestore(dbPath) {
     if (existsSync(dir)) {
       if (old) renameHeldSync(dir, `${dir}.restoring-${record.stamp}`);
       // there was no folder before: this one is the backup's copy, gone (the backup file itself is the user's)
-      else rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      else await rm(dir, RETRIES);
     }
     if (old) renameHeldSync(old, dir);
   }
@@ -637,8 +635,8 @@ export function makeDataRouter({
           linkTree(d, snap);
           return [arcname, snap];
         } catch {
-          // no links on this drive: the live folder, a file removed meanwhile skipped
-          rmSync(snap, { recursive: true, force: true });
+          // no links on this drive: the live folder, a file removed meanwhile skipped (the half-made links go with
+          // the work folder, by fs.promises.rm)
           return [arcname, d];
         }
       });

@@ -23,7 +23,8 @@
 // Home or End moves the focus AND picks the option it lands on; an option marked off takes the
 // focus but is never picked there, and an arrow emits no `blocked` (only a click or Enter/Space
 // on it does). One tab stop — the chosen option, or the first one that isn't off when none is.
-// Until 2026-10-20 the arrows only moved the focus (the screens-and-keyboard review).
+// Until 2026-10-20 the arrows only moved the focus (the screens-and-keyboard review). An arrow with
+// Ctrl, Alt or Meta does nothing here, and right-to-left the left and right arrows are mirrored.
 //
 // Quasar's QBtnToggle underneath (the kit's controls on Quasar —
 // docs/plans/2026-10-09-kit-controls-on-quasar.md): its group is the row (.ui-seg) and its QBtns
@@ -69,11 +70,28 @@ const { activeIndex, onKeydown: rovingKeydown, registerItem, focusAt } = useRovi
 });
 
 const MOVES = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"]);
+// Right-to-left, the row runs from the right: → goes to the option before, ← to the one after (the
+// APG's keyboard conventions mirror the horizontal arrows for RTL). The row's own direction decides —
+// its computed `direction`, else the nearest dir attribute (a DOM without layout).
+function rtl(el) {
+  const dir = el && typeof getComputedStyle === "function" ? getComputedStyle(el).direction : "";
+  if (dir === "rtl" || dir === "ltr") return dir === "rtl";
+  return el?.closest?.("[dir]")?.getAttribute("dir")?.toLowerCase() === "rtl";
+}
+const MIRRORED = { ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" };
 let typeBuffer = "";
 let typeTimer = null;
 function onKeydown(e, idx) {
   if (props.disabled) return;
-  rovingKeydown(e, idx);
+  // a modified arrow (Ctrl, Alt, Meta) is the browser's or the app's shortcut, never a pick (the sixteenth
+  // review: Alt+→ and Ctrl+→ picked)
+  if (MOVES.has(e.key) && (e.ctrlKey || e.altKey || e.metaKey)) return;
+  if (MIRRORED[e.key] && rtl(e.currentTarget || e.target)) {
+    // the roving composable reads the key; it gets the mirrored one, its preventDefault reaches the real event
+    rovingKeydown({ key: MIRRORED[e.key], preventDefault: () => e.preventDefault() }, idx);
+  } else {
+    rovingKeydown(e, idx);
+  }
   // an arrow, Home or End moved the focus: the option it landed on is picked, unless it is off
   if (MOVES.has(e.key) && e.defaultPrevented) {
     const landed = props.options[activeIndex.value];

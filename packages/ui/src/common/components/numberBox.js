@@ -83,7 +83,8 @@ export function parseLocaleNumber(text, { locale = null, step = 1, grouping = tr
   const d = esc(decimal);
   const read = (s) => {
     const n = parserFor(loc).parse(`${minus ? "-" : ""}${s}`);
-    return Number.isFinite(n) ? n : null;
+    if (!Number.isFinite(n)) return null;
+    return n === 0 ? 0 : n; // "-0" is 0 (it stayed "-0" in the box and -0 in the value — the sixteenth review)
   };
   // the whole part: digits, or groups of three after the first (a grouped number never starts with 0 —
   // "0,500" is a decimal, never five hundred); then the decimal and digits, either side or both

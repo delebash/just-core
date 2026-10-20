@@ -12,10 +12,12 @@ moving the app's folder moves everything with it. **Settings → Storage** shows
 move it: **Change folder…** copies the data into a new **Family Template** folder inside the one you
 pick (never into the app's own folder, which an update replaces) and restarts the app on it. The old
 folder keeps its copy until **Remove the old copy…** deletes what the move copied there (Storage says
-when the app ran on the old copy after the move, and when it runs on one now); **Move back to the
-default folder…** brings the data back. A headless server takes `--data-dir` or
+when the app ran on the old copy after the move; one on a drive that isn't plugged in is **Not
+connected**); **Move back to the default folder…** brings the data back once any old copy there is
+removed. While the app runs on an old copy, or on the default folder this time, Storage says where your
+data is — connect it and restart, or **Use the default folder from now on…** — and **Change folder…** isn't shown. A headless server takes `--data-dir` or
 `FAMILY_TEMPLATE_DATA_DIR` (a folder that already exists); while the variable names the desktop app's
-folder, Change folder is off — change the variable instead. Only when the app's own folder can't be
+folder, **Change folder…** isn't shown — change the variable instead. Only when the app's own folder can't be
 written to (Program Files, read-only media) does it fall back to the standard per-user folder.
 
 ## Two ways to run it

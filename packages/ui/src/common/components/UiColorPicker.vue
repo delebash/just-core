@@ -115,8 +115,10 @@ function onCustomChange(e) {
 <style scoped>
 .ui-color-picker { display: inline-block; line-height: 0; }
 
+/* edged as a field is (--border-field, 3:1 or more on its grounds — --border was 1.26:1; the sixteenth
+   review, 2026-10-20) */
 .ui-color-swatch {
-  appearance: none; border: 1px solid var(--border);
+  appearance: none; border: 1px solid var(--border-field, var(--border));
   border-radius: var(--r-sm, 6px); cursor: pointer; padding: 0;
   box-shadow: inset 0 0 0 1px var(--shadow-soft, rgba(0,0,0,.06));
   transition: transform .08s ease, box-shadow .12s ease;

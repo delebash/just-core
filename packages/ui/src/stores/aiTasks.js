@@ -30,8 +30,12 @@ import { defineStore } from "pinia";
 import { markRaw } from "vue";
 
 import { FAMILY_TASK_LINGER } from "../common/familyContract.js";
-import { announce } from "../common/services/announce.js";
+import { announce, spoken } from "../common/services/announce.js";
 import { kitT } from "../common/services/kitI18n.js";
+
+// The AI tasks panel's id (AiStatusPanel's dialog) — what its triggers' aria-controls name: the title
+// bar's AI status button and the sidebar's AI tasks row (useAiTasksNav).
+export const AI_TASKS_PANEL_ID = "ai-tasks-panel";
 
 // 50, not the old 30 — aligned 2026-08-07 with what JustVoice's fork kept, so its
 // conversion doesn't silently shorten the user's history (and costs the siblings
@@ -375,7 +379,7 @@ export const useAiTasksStore = defineStore("aiTasks", {
       t.finishedAt = Date.now();
       t.durationMs = Math.max(0, t.finishedAt - t.startedAt);
       // its outcome, said (a failure at once — assertive — with its reason)
-      if (status === "error") announce(kitT("kit.aiTasks.announce.failed", { label: t.label, error: error || "" }), "assertive");
+      if (status === "error") announce(spoken(kitT("kit.aiTasks.announce.failed", { label: t.label }), error || ""), "assertive");
       else announce(kitT(status === "done" ? "kit.aiTasks.announce.done" : "kit.aiTasks.announce.cancelled", { label: t.label }));
     },
 
@@ -413,6 +417,14 @@ export const useAiTasksStore = defineStore("aiTasks", {
       const error = err?.message || String(err || kitT("kit.aiTasks.unknownError"));
       this._end(t, "error", error);
       t.error = error;
+      // Said once: _end announced it (assertive), so the page's reportError of the same error shows its
+      // toast without saying it again (common/services/reportError.js) — one failure was announced twice,
+      // both assertive (the sixteenth review, 2026-10-20).
+      try {
+        if (err && typeof err === "object") err.announced = true;
+      } catch {
+        // a frozen error — it will be said twice
+      }
       this._archiveAfterLinger(id, "failed");
       // QC-37 (the toast law): failures signal DURABLY, not with a toast
       // that disappears — the titlebar chip badges red until the panel is

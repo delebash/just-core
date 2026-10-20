@@ -1629,6 +1629,38 @@ its fixes):
   documented `noProxy` option (it replaces NO_PROXY) is given the environment's list plus `localhost,127.0.0.1,::1`
   in http.js and llm/base.js (`platform/no_proxy.js`): "200 direct" with the same environment.
 
+**The fifteenth's Change folder, attacked** (*measured* and *tested*, 2026-10-20; just-house-paint's sixteenth review —
+scripts in the scratchpad's adv16/shell — and its fixes):
+
+- **Node 24.21's `fs.rmSync(dir, {recursive: true})` follows an NTFS junction and empties the folder it points to**
+  — on the junction itself and on a folder holding one; `fs.promises.rm` (and `fs.rm`) removes the link alone
+  (*measured*, `adv16/shell/s3c_rmsync_junction.mjs`, Electron 44.7). Every recursive remove in the kit is now on
+  `fs.promises.rm`: dataRoot.js (the move's undo, the sweep, Remove the old copy), runner/lifecycle.js `rmTree`
+  (Clear models, a model's removal), runner/binary.js `rmtree` (an engine's swap), data_api.js (the work folders'
+  sweep, a stopped restore's recovery — a folder moved aside first where the next step needs it gone), data_paths.js
+  `_adoptBundledData`, vitest_tmp.js (vitest awaits an async teardown). `tests/junction_removers.test.js` holds a
+  link to an outside folder under each; its files stay.
+- A junction needs no symbolic-link right on Windows (`fs.symlinkSync(target, path, "junction")`, `mklink /J`); a
+  symbolic link does (Developer Mode) — `fs.cp` with `verbatimSymlinks` recreates a junction as a symbolic link and
+  failed every move with a junction in the data folder (EPERM, "not allowed to write there"). The move now finds the
+  links first (Windows), copies the rest with `cp`'s `filter`, and makes each folder's link again as a junction (to
+  the same folder; one pointing inside the data to the same place in the copy); a file's link is refused, named.
+- A second launch during a move ran the start's sweep before Electron's `requestSingleInstanceLock` (*measured*,
+  `s1`): the lock is now taken first, the sweep runs once the app is ready, and the move's record carries its pid —
+  a process that answers `process.kill(pid, 0)` is moving still (*measured with two processes*,
+  fix16/s1_two_processes.mjs: the copy kept, the move committed). The new root's records (the old copies, the
+  token) are written before the pointer's step and the marker marked `committed` then: a sweep at or after the
+  commit never empties the new folder.
+- "Used after the move" from folder times flagged Finder's `.DS_Store` and Explorer's `Thumbs.db` (`s2`): only the
+  database's files count now. An old copy or a half copy on a drive that isn't there was forgotten for good (`s5`,
+  `s6`): a path whose parent folder is missing is "not connected" and kept. A start on the default folder this time,
+  or on an old copy, offers no move (a move from there left the newest folder known nowhere — `s2`); "from now on"
+  removes the default's moved-to record.
+- The window's token is read by the shell from the page (`webContents.executeJavaScript` of `localStorage`, the
+  kit's `just.serverToken`): docgen's Settings passes none.
+- The guard's peer check passed a peer only the kit's own node_modules held (`s4`): a peer now counts when Node
+  resolves it from the package that needs it, to a package the tree packs.
+
 **The screens at real sizes, fixed** (*measured*, 2026-10-20; just-house-paint's tenth review, an agent on the
 built app at 960/1366/1920, light and dark):
 

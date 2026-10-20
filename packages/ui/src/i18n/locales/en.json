@@ -306,6 +306,11 @@
       "oldCopyUsed": "The old copy was used after the move — last changed {date}. Removing it removes that work too; move what you need first.",
       "isOldCopy": "This folder holds the old copy of the data, left here when the data moved to {folder}: what you change here isn't in {folder}.",
       "setByVariable": "This data folder is set by {name} — change it there.",
+      "dataIsElsewhere": "Your data is in {folder}: connect it and restart, or Use the default folder from now on.",
+      "dataIsElsewhereVariable": "Your data is in {folder}: connect it and restart.",
+      "notConnected": "Not connected",
+      "removeOldSharedWith": "{apps} use this app's AI models: if they still use the old copy's, they download their models again.",
+      "moveBackAfterRemove": "To move the data back to the default folder, remove the old copy there first.",
       "defaultThisStart": "This start uses the default folder: {folder} can't be used now. Your data there is kept, and the app looks for it again at its next start.",
       "useDefault": "Use the default folder from now on…",
       "useDefaultTitle": "Use the default folder from now on?",
@@ -1472,7 +1477,7 @@
         "started": "{label}: started",
         "done": "{label}: done",
         "cancelled": "{label}: cancelled",
-        "failed": "{label}: failed — {error}"
+        "failed": "{label}: failed"
       },
       "showLess": "Show less",
       "showAll": "Show all ({n})",
@@ -1498,6 +1503,8 @@
     },
     "logs": {
       "live": "Live tail",
+      "dayLabel": "Day",
+      "levelLabel": "Lines shown",
       "level": {
         "all": "All levels",
         "warn": "Warnings & errors",
@@ -1583,7 +1590,8 @@
       },
       "reset": {
         "title": "Reset {app}?",
-        "label": "Wipes ALL data — projects, settings, AI providers — and reloads with the demo seed. Type {word} to confirm.",
+        "message": "Wipes ALL data — projects, settings, AI providers — and reloads with the demo seed.",
+        "typeToConfirm": "Type {word} to confirm",
         "mismatch": "Confirmation didn't match — not reset.",
         "done": "Reset — reloading…",
         "heading": "Reset {app}",

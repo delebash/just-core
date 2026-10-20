@@ -9,7 +9,8 @@
 // w3.org/International/questions/qa-bidi-unicode-controls). From just-house-paint (2026-10-20), for every app.
 //
 // Only a name that needs them gets the marks: one holding a strong letter of the OTHER direction than
-// the page's (<html dir>; left-to-right when it has none, or with no document). A plain name in the
+// the page's (<html dir>; left-to-right when it has none, or with no document), or any bidi control
+// character (U+200E/F, U+202A–202E, U+2066–2069) whatever its letters. A plain name in the
 // page's own direction — "Maple street" on an English page — comes back as typed: the marks were in
 // every name, and a braille display shows them (the screens-and-keyboard review, 2026-10-20). Which
 // letters are strong left-to-right or right-to-left is Google Closure Library's goog.i18n.bidi
@@ -33,6 +34,10 @@ const RTL_CHARS = "\u0591-\u06EF\u06FA-\u08FF\u200F\uD802-\uD803\uD83A-\uD83B" +
 
 const HAS_LTR = new RegExp(`[${LTR_CHARS}]`);
 const HAS_RTL = new RegExp(`[${RTL_CHARS}]`);
+// a bidi control — LRM, RLM, the embeddings and overrides LRE…RLO, the isolates LRI…PDI: a name holding
+// one is isolated whatever its letters, or the control reorders the sentence around it ("abc" + RLO +
+// "def" turned the rest of the sentence backwards — the sixteenth review, 2026-10-20)
+const BIDI_CONTROL = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/;
 
 /** The page's direction: "rtl" when <html dir="rtl">, else "ltr" (no dir, or no document). */
 function pageDirection() {
@@ -40,10 +45,11 @@ function pageDirection() {
   return String(dir || "").toLowerCase() === "rtl" ? "rtl" : "ltr";
 }
 
-/** `name` between FSI and PDI when it holds a strong letter of the other direction than the page's;
- *  else as it was typed. `dir` ("ltr" | "rtl") stands for the page's direction (a test, a server). */
+/** `name` between FSI and PDI when it holds a strong letter of the other direction than the page's, or a
+ *  bidi control; else as it was typed. `dir` ("ltr" | "rtl") stands for the page's direction (a test, a
+ *  server). */
 export function isolate(name, { dir } = {}) {
   const text = String(name ?? "");
   const other = (dir || pageDirection()) === "rtl" ? HAS_LTR : HAS_RTL;
-  return other.test(text) ? `${FSI}${text}${PDI}` : text;
+  return other.test(text) || BIDI_CONTROL.test(text) ? `${FSI}${text}${PDI}` : text;
 }

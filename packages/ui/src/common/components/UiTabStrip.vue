@@ -37,14 +37,21 @@
 import { QTab, QTabs } from "quasar";
 import { tabId, tabPanelId } from "./tabPanels.js";
 
-defineProps({
+const props = defineProps({
   // [{ id, label }] — the same shape SettingsShell has always taken.
   tabs: { type: Array, default: () => [] },
   modelValue: { type: String, default: "" },
   ariaLabel: { type: String, default: undefined },
   // the prefix of the tabs' and panels' ids (./tabPanels.js); none — no ids, no aria-controls
   idPrefix: { type: String, default: undefined },
+  // which tabs' panels are in the page, so aria-controls never names a missing element (Settings'
+  // eight unselected tabs pointed at panels that weren't there — the sixteenth review, 2026-10-20):
+  // "selected" (one panel rendered at a time — SettingsShell), "all" (every panel there, hidden or
+  // shown), or the ids of the tabs whose panels are there
+  panels: { type: [String, Array], default: "selected" },
 });
+const inPage = (id) =>
+  props.panels === "all" || (Array.isArray(props.panels) ? props.panels.includes(id) : id === props.modelValue);
 const emit = defineEmits(["update:modelValue"]);
 </script>
 
@@ -64,7 +71,7 @@ const emit = defineEmits(["update:modelValue"]);
       v-for="t in tabs" :key="t.id" :name="t.id" :label="t.label" :ripple="false"
       class="ui-tabstrip__tab" :class="{ on: t.id === modelValue }"
       :id="idPrefix ? tabId(idPrefix, t.id) : undefined"
-      :aria-controls="idPrefix ? tabPanelId(idPrefix, t.id) : undefined"
+      :aria-controls="idPrefix && inPage(t.id) ? tabPanelId(idPrefix, t.id) : undefined"
     />
   </QTabs>
 </template>

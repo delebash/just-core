@@ -43,14 +43,17 @@ body {
 .navlink--active, .navlink--active:hover { background: var(--accent-soft); color: var(--accent-ink); }
 .navlink__icon.q-item__section--avatar { min-width: 0; padding-right: 9px; color: inherit; }
 .nav-count { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
-.nav-count--error { background: var(--danger-bg); color: var(--danger); }
+/* the danger ink, not the danger fill: 4.23:1 in the dark theme with --danger (the sixteenth review) */
+.nav-count--error { background: var(--danger-bg); color: var(--danger-ink, var(--danger)); }
 .nav-divider { margin: var(--sp-2) 6px; background: var(--border); }
 
 /* The one content scroller, under the title bar; the pages flow in it (pageFlow). */
 .shell__main { height: 100%; min-width: 0; overflow-y: auto; padding: 20px var(--sp-5); }
 
 /* ── pages ──────────────────────────────────────────────────────────────── */
-.page__lede { margin: var(--sp-2) 0 var(--sp-4); color: var(--ink-2); max-width: var(--w-prose); }
+/* about 75 characters a line at the body size (an em is the font's size — ch, a "0", is wider than the
+   average letter: 70ch held ~100) */
+.page__lede { margin: var(--sp-2) 0 var(--sp-4); color: var(--ink-2); max-width: 35em; }
 .page__banner { margin: var(--sp-3) 0; max-width: var(--w-edit); }
 .cards { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-start; }
 .cards > .card { width: 280px; margin-bottom: 0; }
@@ -61,11 +64,13 @@ body {
   max-width: var(--w-edit);
 }
 .card h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-h2); }
-.card__actions { margin-top: var(--sp-3); }
+/* a card's buttons in a row that wraps, apart (Storage's two touched — the sixteenth review) */
+.card__actions { margin-top: var(--sp-3); display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
 .card__note { margin: var(--sp-2) 0 0; }
-/* a hint's lines at most 70 characters — the typographic measure's 45–75 (Bringhurst; WCAG 1.4.8 asks 80 or
-   fewer): in a Settings card at 1366 px a hint ran 846 px, ~135 characters (the screens review, 2026-10-20) */
-.hint { color: var(--muted); font-size: var(--fs-small); margin: 0 0 var(--sp-3); max-width: 70ch; }
+/* a hint's lines at most about 70 characters — the typographic measure's 45–75 (Bringhurst; WCAG 1.4.8 asks 80
+   or fewer): in a Settings card at 1366 px a hint ran 846 px, ~135 characters (the screens review, 2026-10-20). In
+   em, not ch: a "0" is wider than the average letter, and 70ch held 86–108 (the sixteenth review) */
+.hint { color: var(--muted); font-size: var(--fs-small); margin: 0 0 var(--sp-3); max-width: 33em; }
 .muted { color: var(--muted); }
 .mono { font-family: var(--font-mono); font-size: var(--fs-small); }
 /* Not on Quasar's own elements: Quasar names a flex row `row` too, and this rule would outrank

@@ -12,11 +12,19 @@
 //
 // The store ticks `now` every 500ms so every elapsed / freshness number
 // stays live without each row registering its own setInterval.
+//
+// Quasar's QDialog (position="right") underneath since 2026-10-20 (the sixteenth review: Enter
+// opened it and left the focus behind, its rows were hidden under it for the keyboard, Escape
+// dropped the focus on <body>): a modal dialog — its root role="dialog" aria-modal, named "AI
+// tasks", the focus moved into it, Tab kept in it (useTabWrap, as the help drawer), Escape or a
+// click outside closes it and gives the focus back to what opened it (QDialog's own). Its root's id
+// is AI_TASKS_PANEL_ID, which the triggers' aria-controls name.
 
+import { QDialog } from "quasar";
 import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { usePanelDismiss } from "../common/composables/usePanelDismiss.js";
-import { useAiTasksStore } from "../stores/aiTasks.js";
+import { wrapTab } from "../common/composables/useTabWrap.js";
+import { AI_TASKS_PANEL_ID, useAiTasksStore } from "../stores/aiTasks.js";
 import Icon from "../common/components/Icon.vue";
 import UiButton from "../common/components/UiButton.vue";
 // Shared run-stat format (#304). Tokens + tok/s single-sourced with AiTaskStrip; the local
@@ -51,15 +59,12 @@ function settledDurationMs(t) {
   return Math.max(0, (t.finishedAt || 0) - t.startedAt);
 }
 
-// Esc + click-outside dismissal comes from the shared composable (2026-07-19 —
-// this component used to carry its own near-identical copy; the toggle and
-// portal exemptions now live in ONE place). The panel needs one extra
-// exemption of its own: the toasts (Quasar's Notify) — the View action on a
-// completion toast calls openPanel, and without this the same click would bubble
-// here and close the panel it just opened.
+// Esc and the click outside are QDialog's (its backdrop takes the outside click — a toast, above
+// it, isn't outside); the store keeps the open state, so the triggers and openPanel() still drive it.
 const panelEl = ref(null);
-usePanelDismiss(() => tasks.panelOpen, panelEl, () => tasks.closePanel(), {
-  exempt: [".q-notification", ".q-notifications"],
+const open = computed({
+  get: () => tasks.panelOpen,
+  set: (v) => (v ? tasks.openPanel() : tasks.closePanel()),
 });
 
 function togglePreview(id) {
@@ -114,16 +119,20 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
 </script>
 
 <template>
-  <!-- Teleport to body so the panel escapes the host shell's stacking context
-       (e.g. an app-stage created by `position: fixed`). Without this, an
-       AppModal — which QDialog portals to body — paints above the entire shell
-       subtree regardless of the panel's local z-index, leaving the panel
-       blurred under the modal's backdrop-filter. With Teleport, both the
-       panel and the modal-overlay live as siblings of body and stack by
-       their own z-index values. -->
-  <Teleport to="body">
-    <transition name="aip-slide">
-      <aside v-if="tasks.panelOpen" ref="panelEl" class="aip" role="dialog" :aria-label="t('kit.nav.aiTasks')">
+  <!-- QDialog portals to body, so the panel escapes the host shell's stacking context (an
+       app-stage created by `position: fixed`) and stacks with an open AppModal by z-index: the
+       overlay (.aip-overlay) sits above the modals' (the kit theme, "Modal"), so Details on a
+       strip inside a modal opens the panel over it. -->
+  <QDialog
+    v-model="open"
+    :id="AI_TASKS_PANEL_ID"
+    class="aip-overlay"
+    position="right"
+    :aria-label="t('kit.nav.aiTasks')"
+    no-route-dismiss
+    @keydown="(e) => wrapTab(e, panelEl)"
+  >
+      <aside ref="panelEl" class="aip">
       <header class="aip-head">
         <div>
           <div class="aip-eyebrow">{{ t('kit.aiTasks.status') }}</div>
@@ -304,8 +313,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
         </UiButton>
       </section>
       </aside>
-    </transition>
-  </Teleport>
+  </QDialog>
 </template>
 
 <style scoped>
@@ -321,6 +329,9 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
      without this override it would take no clicks. */
   position: fixed; top: 56px; right: 16px; bottom: 32px; z-index: 120;
   pointer-events: auto;
+  /* QDialog's frame for its content (a capped size, its own scroller and layer) set aside: the
+     panel places and draws itself, as the help drawer does */
+  max-width: none; max-height: none; will-change: auto;
   width: min(420px, calc(100vw - 32px));
   background: var(--surface);
   border: 1px solid var(--border);
@@ -330,12 +341,6 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
   padding: 16px 18px 4px;
   gap: 12px;
   overflow: hidden;
-}
-.aip-slide-enter-active, .aip-slide-leave-active {
-  transition: transform .22s cubic-bezier(.4, .0, .2, 1), opacity .22s;
-}
-.aip-slide-enter-from, .aip-slide-leave-to {
-  transform: translateX(110%); opacity: 0;
 }
 
 .aip-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-shrink: 0; }

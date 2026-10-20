@@ -29,6 +29,7 @@
 // `str(Path(…))` gives — native separators, no "." parts, no trailing separator.
 
 import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import * as self from "./data_paths.js";
@@ -429,7 +430,9 @@ export function _adoptBundledData(old, fallback) {
       renameSync(old, fallback);
     } catch {
       cpSync(old, fallback, { recursive: true });
-      rmSync(old, { recursive: true, force: true });
+      // fs.promises.rm, never rmSync: Node 24's rmSync recursive follows an NTFS junction and empties its target
+      // (measured 2026-10-20) — started here, finished soon
+      void rm(old, { recursive: true, force: true, maxRetries: 5 }).catch(() => {});
     }
   } catch {
     // left where it was: the fallback starts empty, the old folder stays to be moved by hand

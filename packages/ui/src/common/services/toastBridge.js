@@ -20,7 +20,7 @@
 // screens-and-keyboard review, 2026-10-20), and a live role on it too would read it twice.
 
 import { Notify } from "quasar";
-import { announce } from "./announce.js";
+import { announce, sentence, spoken } from "./announce.js";
 import { kitT } from "./kitI18n.js";
 
 // sonner's icons for the four kinds (Heroicons, MIT License, Copyright (c) Tailwind Labs,
@@ -83,6 +83,11 @@ if (typeof document !== "undefined") document.addEventListener("visibilitychange
 const onEnter = () => { hovered = true; sync(); };
 const onLeave = () => { hovered = false; sync(); };
 
+// A server's detail is a lowercase phrase by the family's convention (a banner joins it after its title
+// with " — "); as a toast's own line it starts a sentence — its first letter capitalized ("download the
+// part-finding model first…" began the toast's second line; 2026-10-20) — and it is said after the title
+// as "Title. Detail." (./announce.js).
+
 function kindOf(kind) {
   if (kind === "warn") return "warning";
   return ["success", "error", "warning", "info"].includes(kind) ? kind : "";
@@ -94,14 +99,16 @@ function kindOf(kind) {
 // `duration` (ms) on the options object wins; the legacy positional `ms` arg is still
 // honored as a fallback (Infinity keeps the toast until it's closed). `title` +
 // `description` are accepted alongside `message` because many call sites pass that shape.
-export function pushToast({ message, title, description, kind, action, duration } = {}, ms) {
+// `announce: false` shows the toast without saying it — its words were said already (a failed AI task's,
+// by the task store).
+export function pushToast({ message, title, description, kind, action, duration, announce: say = true } = {}, ms) {
   const text = message ?? title;
   if (!text) return;
   const k = kindOf(kind);
   const t = { dismiss: null, remaining: duration ?? ms ?? 6000, startedAt: 0, timer: null };
   t.dismiss = Notify.create({
     message: String(text),
-    caption: description || undefined,
+    caption: description ? sentence(description) : undefined,
     position: "bottom",
     timeout: 0, // the timer is the bridge's, so it can pause
     group: false,
@@ -130,7 +137,7 @@ export function pushToast({ message, title, description, kind, action, duration 
   live.push(t);
   sync();
   while (live.length > MAX_VISIBLE) live[0].dismiss();
-  announce([text, description].filter(Boolean).join(". "), k === "error" ? "assertive" : "polite");
+  if (say) announce(spoken(text, description), k === "error" ? "assertive" : "polite");
 }
 
 // Dismiss any visible toast.

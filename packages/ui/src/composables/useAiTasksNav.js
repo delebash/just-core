@@ -17,7 +17,7 @@
 import { computed, reactive } from "vue";
 
 import { kitT } from "../common/services/kitI18n.js";
-import { useAiTasksStore } from "../stores/aiTasks.js";
+import { AI_TASKS_PANEL_ID, useAiTasksStore } from "../stores/aiTasks.js";
 
 export function useAiTasksNav() {
   const aiTasks = useAiTasksStore();
@@ -42,7 +42,14 @@ export function useAiTasksNav() {
     isOpen,
     toggle,
     // reactive, so the title follows a language change in apps that bind
-    // `v-bind="nav.navAttrs"` (the nested computed unwraps on read)
-    navAttrs: reactive({ "data-panel-toggle": "", title: computed(() => kitT("kit.nav.aiTasks")) }),
+    // `v-bind="nav.navAttrs"` (the nested computed unwraps on read). The row opens a dialog (the
+    // panel, AiStatusPanel on QDialog): it says whether it is open and which it is (2026-10-20).
+    navAttrs: reactive({
+      "data-panel-toggle": "",
+      title: computed(() => kitT("kit.nav.aiTasks")),
+      "aria-haspopup": "dialog",
+      "aria-expanded": computed(() => (aiTasks.panelOpen ? "true" : "false")),
+      "aria-controls": computed(() => (aiTasks.panelOpen ? AI_TASKS_PANEL_ID : undefined)),
+    }),
   };
 }

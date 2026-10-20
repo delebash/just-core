@@ -183,11 +183,10 @@ describe("Storage", () => {
 
   // 2026-10-20 (just-house-paint's fifteenth review): the question names the folder the move makes and the apps
   // sharing this app's models; the window's token goes with the data; the old copy is removed only when asked
-  test("Change folder's question names the folder it makes and the apps sharing the models; the token goes along", async () => {
+  test("Change folder's question names the folder it makes and the apps sharing the models (the shell carries the token itself)", async () => {
     shell.root = { root: "C:\\Data\\Old", default: "C:\\App\\data", portable: false, atDefault: false, folderName: "Family Template", defaultThisStart: null };
     shell.picked = "D:\\Folders";
     server.disk = { ...server.disk, sharedWith: ["JustWrite"] };
-    setServerToken("s3cr3t");
     vi.stubGlobal("location", { ...window.location, reload: vi.fn() });
     await mountSettings("storage");
     button("Change folder").click();
@@ -196,7 +195,7 @@ describe("Storage", () => {
     expect(text()).toContain("JustWrite use this app's AI models");
     _resolveDialog(true);
     await flushPromises();
-    expect(shell.relocated).toEqual([["D:\\Folders", "s3cr3t"]]);
+    expect(shell.relocated).toEqual(["D:\\Folders"]);
   });
 
   test("Move back to the default folder, the old copy removed after asking, and the default folder from now on", async () => {
@@ -228,6 +227,44 @@ describe("Storage", () => {
     _resolveDialog(true);
     await flushPromises();
     expect(shell.usedDefault).toBe(1);
+  });
+
+  // the sixteenth review (2026-10-20): no move from a start that runs elsewhere than the data; an old copy on a drive
+  // that isn't there; Move back said, not offered, while the default holds the old copy; Remove names the apps
+  // sharing the models
+  test("a start on the default folder this time: no Change folder or Move back — the data is elsewhere, said", async () => {
+    shell.root = { root: "C:\\App\\data", default: "C:\\App\\data", portable: true, atDefault: true, folderName: "Family Template", defaultThisStart: { folder: "E:\\Family Template" } };
+    await mountSettings("storage");
+    expect(text()).toContain("Your data is in E:\\Family Template: connect it and restart, or Use the default folder from now on.");
+    expect(button("Change folder")).toBeUndefined();
+    expect(button("Move back to the default folder")).toBeUndefined();
+    // the variable's folder missing: the variable's own words off too, and no "from now on"
+    wrapper.unmount();
+    shell.root = { ...shell.root, setBy: "VARNAME" };
+    await mountSettings("storage");
+    expect(text()).toContain("Your data is in E:\\Family Template: connect it and restart.");
+    expect(text()).not.toContain("set by VARNAME");
+    expect(button("Use the default folder from now on")).toBeUndefined();
+  });
+
+  test("an old copy on a drive that isn't there: not connected, not removable; Move back said while the default holds one", async () => {
+    shell.root = { root: "D:\\New\\Family Template", default: "C:\\App\\data", portable: false, atDefault: false, folderName: "Family Template", defaultThisStart: null };
+    shell.oldCopies = [
+      { root: "F:\\Stick\\Family Template", bytes: null, movedAt: 1, changedAt: null, connected: false },
+      { root: "C:\\App\\data", bytes: 1e9, movedAt: 1, changedAt: null, connected: true },
+    ];
+    server.disk = { ...server.disk, sharedWith: ["JustWrite"] };
+    await mountSettings("storage");
+    expect(text()).toContain("Not connected");
+    const removes = [...document.body.querySelectorAll(".ui-formgrid button")].filter((b) => b.textContent.includes("Remove the old copy"));
+    expect(removes.map((b) => b.disabled)).toEqual([true, false]);
+    expect(button("Move back to the default folder")).toBeUndefined();
+    expect(text()).toContain("To move the data back to the default folder, remove the old copy there first.");
+    removes[1].click();
+    await flushPromises();
+    expect(text()).toContain("JustWrite use this app's AI models: if they still use the old copy's, they download their models again.");
+    _resolveDialog(false);
+    await flushPromises();
   });
 
   test("the data-dir variable names the folder: no Change folder or Move back, the variable named", async () => {

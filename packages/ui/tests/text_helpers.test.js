@@ -26,6 +26,20 @@ test("on a right-to-left page a left-to-right name is the one marked", () => {
   expect(isolate("12", { dir: "rtl" })).toBe("12");
 });
 
+// The sixteenth review (2026-10-20): a Latin name holding an override (RLO) came back unwrapped, and the override
+// turned the rest of the sentence backwards. Any bidi control — LRM, RLM, LRE…RLO, LRI…PDI — gets the marks.
+test("a name holding a bidi control is isolated whatever its letters", () => {
+  const ch = (cp) => String.fromCharCode(cp);
+  const FSI = ch(0x2068);
+  const PDI = ch(0x2069);
+  for (const cp of [0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069]) {
+    const name = `abc${ch(cp)}def`;
+    expect(isolate(name), cp.toString(16)).toBe(`${FSI}${name}${PDI}`);
+    expect(isolate(name, { dir: "rtl" }), cp.toString(16)).toBe(`${FSI}${name}${PDI}`);
+  }
+  expect(isolate("abc def")).toBe("abc def");
+});
+
 test("the page's direction is <html dir>", () => {
   const html = { dir: "rtl" };
   globalThis.document = { documentElement: html };

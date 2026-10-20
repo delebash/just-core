@@ -53,6 +53,8 @@ export function reportError(err, { t = kitT } = {}) {
   } catch {
     // a frozen or primitive error — nothing to mark
   }
-  pushToast({ title, description: [detail, reference].filter(Boolean).join(" · ") || undefined, kind: "error", duration: 9000 });
+  // a failed AI task's error was said already, by the task store (stores/aiTasks.js): the toast shows it,
+  // the screen reader isn't told twice
+  pushToast({ title, description: [detail, reference].filter(Boolean).join(" · ") || undefined, kind: "error", duration: 9000, announce: !err?.announced });
   return true;
 }

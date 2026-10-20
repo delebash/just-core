@@ -70,8 +70,15 @@ test("the AI-tasks row is a real toggle: it opens, stays open, and a second clic
   await row.click();
   await page.waitForTimeout(400); // long enough for a wrong dismiss to have fired
   assert.equal(await page.locator('[role="dialog"][aria-label="AI tasks"]').count(), 1, "the panel opens and stays open");
-  await row.click();
+  // a modal panel since the sixteenth review (Quasar's QDialog): the second click lands on its backdrop, over the
+  // row, and closes it; Escape closes it too and gives the focus back to the row
+  await row.click({ force: true });
   await page.locator('[role="dialog"][aria-label="AI tasks"]').waitFor({ state: "detached" });
+  await row.click();
+  await page.locator('[role="dialog"][aria-label="AI tasks"]').waitFor();
+  await page.keyboard.press("Escape");
+  await page.locator('[role="dialog"][aria-label="AI tasks"]').waitFor({ state: "detached" });
+  assert.equal(await row.evaluate((el) => el === document.activeElement || el.contains(document.activeElement)), true, "the focus is back on the row");
 });
 
 test("Settings shows General, then the family's seven sections in canon order", async () => {

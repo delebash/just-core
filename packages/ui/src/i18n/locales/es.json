@@ -306,6 +306,11 @@
       "oldCopyUsed": "La copia anterior se usó después del traslado: último cambio {date}. Quitarla también quita ese trabajo; mueve primero lo que necesites.",
       "isOldCopy": "Esta carpeta guarda la copia anterior de los datos, que quedó aquí cuando se movieron a {folder}: lo que cambies aquí no está en {folder}.",
       "setByVariable": "Esta carpeta de datos la fija {name}: cámbiala allí.",
+      "dataIsElsewhere": "Tus datos están en {folder}: conéctala y reinicia, o usa la carpeta predeterminada a partir de ahora.",
+      "dataIsElsewhereVariable": "Tus datos están en {folder}: conéctala y reinicia.",
+      "notConnected": "No conectada",
+      "removeOldSharedWith": "{apps} usan los modelos de IA de esta aplicación: si aún usan los de la copia anterior, volverán a descargar sus modelos.",
+      "moveBackAfterRemove": "Para volver a la carpeta predeterminada, quita antes la copia anterior que hay allí.",
       "defaultThisStart": "Este inicio usa la carpeta predeterminada: {folder} no se puede usar ahora. Tus datos allí se conservan, y la aplicación vuelve a buscarlos en su próximo inicio.",
       "useDefault": "Usar la carpeta predeterminada a partir de ahora…",
       "useDefaultTitle": "¿Usar la carpeta predeterminada a partir de ahora?",
@@ -1472,7 +1477,7 @@
         "started": "{label}: iniciada",
         "done": "{label}: terminada",
         "cancelled": "{label}: cancelada",
-        "failed": "{label}: falló — {error}"
+        "failed": "{label}: falló"
       },
       "showLess": "Mostrar menos",
       "showAll": "Mostrar todo ({n})",
@@ -1498,6 +1503,8 @@
     },
     "logs": {
       "live": "Seguimiento en vivo",
+      "dayLabel": "Día",
+      "levelLabel": "Líneas mostradas",
       "level": {
         "all": "Todos los niveles",
         "warn": "Advertencias y errores",
@@ -1583,7 +1590,8 @@
       },
       "reset": {
         "title": "¿Restablecer {app}?",
-        "label": "Borra TODOS los datos — proyectos, ajustes, proveedores de IA — y recarga con los datos de demostración. Escribe {word} para confirmar.",
+        "message": "Borra TODOS los datos — proyectos, ajustes, proveedores de IA — y recarga con los datos de demostración.",
+        "typeToConfirm": "Escribe {word} para confirmar",
         "mismatch": "La confirmación no coincide — no se restableció.",
         "done": "Restablecido — recargando…",
         "heading": "Restablecer {app}",

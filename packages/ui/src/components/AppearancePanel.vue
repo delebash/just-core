@@ -19,7 +19,9 @@
 //
 // The host binds `:appearance` (its ui store's appearance object) and applies
 // the emitted `patch` partials via its store's `setAppearance`.
-import { computed } from "vue";
+// Each select is named by its row's title (aria-labelledby — they were named only by their value: the
+// sixteenth review, 2026-10-20).
+import { computed, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import UiSelect from "../common/components/UiSelect.vue";
 import UiSlider from "../common/components/UiSlider.vue";
@@ -45,16 +47,19 @@ const MODES = computed(() => [
   { label: t("kit.appearance.panel.mode.dark"), value: "dark" },
 ]);
 const fontOptions = UI_FONTS.map((f) => f.label);
+const uid = useId();
+const titleId = (row) => `appearance-${row}-${uid}`;
 </script>
 
 <template>
   <div class="setting-row">
     <div class="setting-row__head">
       <div>
-        <div class="setting-row__title">{{ t('kit.appearance.panel.theme') }}</div>
+        <div :id="titleId('theme')" class="setting-row__title">{{ t('kit.appearance.panel.theme') }}</div>
         <div class="setting-row__desc">{{ t('kit.appearance.panel.themeDesc') }}</div>
       </div>
       <UiSelect
+        :aria-labelledby="titleId('theme')"
         :model-value="appearance.mode"
         width="name"
         :options="MODES"
@@ -66,10 +71,11 @@ const fontOptions = UI_FONTS.map((f) => f.label);
   <div class="setting-row">
     <div class="setting-row__head">
       <div>
-        <div class="setting-row__title">{{ t('kit.appearance.panel.size') }}</div>
+        <div :id="titleId('size')" class="setting-row__title">{{ t('kit.appearance.panel.size') }}</div>
         <div class="setting-row__desc">{{ t('kit.appearance.panel.sizeDesc') }}</div>
       </div>
       <UiSelect
+        :aria-labelledby="titleId('size')"
         :model-value="appearance.uiScale"
         width="name"
         :options="UI_SCALES.map((s) => ({ label: t(s.labelKey), value: s.value }))"
@@ -81,10 +87,11 @@ const fontOptions = UI_FONTS.map((f) => f.label);
   <div class="setting-row">
     <div class="setting-row__head">
       <div>
-        <div class="setting-row__title">{{ t('kit.appearance.panel.font') }}</div>
+        <div :id="titleId('font')" class="setting-row__title">{{ t('kit.appearance.panel.font') }}</div>
         <div class="setting-row__desc">{{ t('kit.appearance.panel.fontDesc') }}</div>
       </div>
       <UiSelect
+        :aria-labelledby="titleId('font')"
         :model-value="appearance.uiFont"
         width="name"
         :options="fontOptions"
@@ -117,10 +124,11 @@ const fontOptions = UI_FONTS.map((f) => f.label);
   <div v-if="locales.length" class="setting-row">
     <div class="setting-row__head">
       <div>
-        <div class="setting-row__title">{{ t('kit.settings.language.label') }}</div>
+        <div :id="titleId('locale')" class="setting-row__title">{{ t('kit.settings.language.label') }}</div>
         <div class="setting-row__desc">{{ localeHint }}</div>
       </div>
       <UiSelect
+        :aria-labelledby="titleId('locale')"
         :model-value="appearance.locale"
         width="name"
         :options="locales"

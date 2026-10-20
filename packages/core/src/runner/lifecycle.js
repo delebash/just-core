@@ -67,8 +67,8 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  promises as fsp,
   readFileSync,
-  rmSync,
   statSync,
   unlinkSync,
   utimesSync,
@@ -378,13 +378,13 @@ function rglobSuffix(dir, suffix) {
   return out;
 }
 
-/** shutil.rmtree(p, ignore_errors=True). */
-function rmTree(p) {
-  try {
-    rmSync(p, { recursive: true, force: true });
-  } catch {
+/** shutil.rmtree(p, ignore_errors=True) — on fs.promises.rm: Node 24's rmSync recursive follows an NTFS junction and
+ *  empties its target (measured 2026-10-20, the sixteenth review); this removes the link and leaves what it points to
+ *  (a models folder linked in from another drive keeps its files). */
+async function rmTree(p) {
+  await fsp.rm(p, { recursive: true, force: true }).catch(() => {
     /* ignore_errors */
-  }
+  });
 }
 
 /** shutil.copy2: the bytes + the times. */
@@ -813,7 +813,7 @@ export const ENGINE_INSTALL_JOIN_TIMEOUT = 20.0;
  */
 export async function _rmtreeWithRetry(p, { attempts = 5, delay = 0.2 } = {}) {
   for (let i = 0; i < attempts; i++) {
-    rmTree(p);
+    await rmTree(p);
     if (!existsSync(p)) return true;
     await sleepS(delay);
   }
@@ -1571,7 +1571,7 @@ export class RunnerService {
     // really do come back — but they come back once, and a `freed` that counted each name
     // would overstate the reclaim (2x on Windows).
     const freed = await dirSize(hf, null, true);
-    rmTree(hf);
+    await rmTree(hf);
     try {
       mkdirSync(hf, { recursive: true }); // recreate empty so the next download has a home
     } catch (e) {
@@ -1641,7 +1641,7 @@ export class RunnerService {
       // dedupLinks: this repo dir holds blobs/ AND snapshots/, the same weights under two
       // names — one number, or the caller is told it freed twice the disk.
       freed += await dirSize(repoDir, null, true);
-      rmTree(repoDir);
+      await rmTree(repoDir);
     }
     return [freed, kept];
   }

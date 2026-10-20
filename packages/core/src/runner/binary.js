@@ -32,11 +32,11 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  promises as fsp,
   readdirSync,
   realpathSync,
   renameSync,
   rmdirSync,
-  rmSync,
   statSync,
   symlinkSync,
   unlinkSync,
@@ -776,11 +776,10 @@ export async function _fileSha256(file) {
   return h.digest("hex");
 }
 
-/** shutil.rmtree(p, ignore_errors=True) */
-function rmtree(p) {
-  try {
-    rmSync(p, { recursive: true, force: true });
-  } catch {}
+/** shutil.rmtree(p, ignore_errors=True) — on fs.promises.rm: Node 24's rmSync recursive follows an NTFS junction and
+ *  empties its target (measured 2026-10-20, the sixteenth review); this removes a link, never what it points to. */
+async function rmtree(p) {
+  await fsp.rm(p, { recursive: true, force: true }).catch(() => {});
 }
 
 /** Path.unlink(missing_ok=True) */
@@ -799,9 +798,9 @@ function unlinkMissingOk(p) {
  * it. Windows can't rename onto an existing dir, so the old one is moved aside first. Both
  * dirs are siblings under `<build>/`, so the renames stay on one volume.
  */
-export function _swapIntoPlace(staging, dest) {
+export async function _swapIntoPlace(staging, dest) {
   const backup = path.join(path.dirname(dest), `.old-${path.basename(dest)}`);
-  rmtree(backup);
+  await rmtree(backup);
   if (existsSync(dest)) renameSync(dest, backup);
   try {
     renameSync(staging, dest);
@@ -809,7 +808,7 @@ export function _swapIntoPlace(staging, dest) {
     if (existsSync(backup) && !existsSync(dest)) renameSync(backup, dest); // roll back — the working engine is restored
     throw e;
   }
-  rmtree(backup);
+  await rmtree(backup);
 }
 
 /**
@@ -891,7 +890,7 @@ export async function _stageAndSwap(
   // engine stays intact until a verified build is ready to swap in. Clear a crashed run's
   // leftover staging first.
   const staging = path.join(path.dirname(dest), `.staging-${asset.gpu}`);
-  rmtree(staging);
+  await rmtree(staging);
   mkdirSync(staging, { recursive: true });
   // The archives download OUTSIDE staging, under a name of their own, so a cancelled or
   // broken download resumes on the next attempt (the downloader keeps its `.part` and chunk
@@ -949,7 +948,7 @@ export async function _stageAndSwap(
     if (platform !== "windows") chmodSync(exe, statSync(exe).mode | 0o111);
     await self._verifyExeLaunches(exe, platform); // catches a missing runtime DLL/.so
     await self._verifyExeAcceptsFlags(exe, probeArgvs); // catches a flag upstream removed
-    _swapIntoPlace(staging, dest); // atomic — `dest` untouched until here
+    await _swapIntoPlace(staging, dest); // atomic — `dest` untouched until here
     for (const archive of fetched) unlinkMissingOk(archive); // installed: the archives have done their job
     try {
       rmdirSync(downloads); // only when empty — another's resume stays
@@ -957,7 +956,7 @@ export async function _stageAndSwap(
   } finally {
     // Success renamed staging → dest (this is a no-op); any failure leaves it, so clean it
     // up and let the error propagate with the live engine (`dest`) intact.
-    rmtree(staging);
+    await rmtree(staging);
   }
 
   return _findServerExe(dest, asset.serverExe);
@@ -972,7 +971,7 @@ export function dropUnpacked(root, drop) {
       const full = path.join(dir, e.name);
       if (e.isDirectory()) {
         walk(full);
-        if (!readdirSync(full).length) rmSync(full, { recursive: true });
+        if (!readdirSync(full).length) rmdirSync(full); // empty: no recursive remove needed
       } else if (drop(path.relative(root, full).split(path.sep).join("/"))) {
         unlinkSync(full);
         n += 1;

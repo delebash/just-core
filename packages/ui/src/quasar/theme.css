@@ -97,14 +97,18 @@
    current colour) and a link in the words take the intent's ink — a link underlined, never the
    browser's blue (2.6:1 on the dark danger tint; the VC++ link, the visual review 2026-10-20). A
    word with no break in it (a folder's path) breaks anywhere rather than run out of the banner. */
+/* As wide as its words, which run at most 38em (~75 characters at its size — em, not ch: a "0" is
+   wider than the average letter); it ran 767 px, 110–136 characters a line, in the AI photo dialog
+   (the sixteenth review, 2026-10-20). */
 .ui-banner {
+  width: fit-content; max-width: 100%;
   min-height: 0; padding: 8px 12px; border-radius: 6px; margin: 0 0 10px;
   background: var(--ui-banner-bg, var(--surface-2)); color: var(--ui-banner-ink, var(--ink));
   font: 12.5px/1.45 var(--font-ui, inherit);
 }
 .ui-banner:last-child { margin-bottom: 0; }
 .ui-banner .q-banner__avatar { align-self: center; }
-.ui-banner .q-banner__content { font: inherit; letter-spacing: inherit; min-width: 0; overflow-wrap: anywhere; }
+.ui-banner .q-banner__content { font: inherit; letter-spacing: inherit; flex: 1 1 auto; min-width: 0; max-width: 38em; overflow-wrap: anywhere; }
 .ui-banner .q-banner__content a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .ui-banner .q-banner__avatar:not(:empty) + .q-banner__content { padding-left: 8px; }
 .ui-banner .q-banner__actions.col-auto { padding-left: 10px; }
@@ -606,7 +610,10 @@
    closes at once, as it did. */
 .ui-modal-overlay { z-index: 200; }
 .help-drawer-overlay { z-index: 250; }
-:where(.ui-modal-overlay, .help-drawer-overlay) .q-dialog__backdrop { background: transparent; }
+/* the AI tasks panel (AiStatusPanel on QDialog position="right") — above a modal, so Details on a
+   strip inside one opens the panel over it */
+.aip-overlay { z-index: 260; }
+:where(.ui-modal-overlay, .help-drawer-overlay, .aip-overlay) .q-dialog__backdrop { background: transparent; }
 .ui-modal { animation: ui-modal-in 0.18s ease-out; }
 .q-transition--ui-modal-leave-active { animation: ui-modal-hold 0.16s; }
 .q-transition--ui-modal-leave-active:has(.ui-modal.is-dragged) { animation: none; }
@@ -635,7 +642,13 @@
   --ui-toast-success-bg: hsl(143, 85%, 96%); --ui-toast-success-border: hsl(145, 92%, 87%); --ui-toast-success-text: hsl(140, 100%, 27%);
   --ui-toast-info-bg: hsl(208, 100%, 97%); --ui-toast-info-border: hsl(221, 91%, 93%); --ui-toast-info-text: hsl(210, 92%, 45%);
   --ui-toast-warning-bg: hsl(49, 100%, 97%); --ui-toast-warning-border: hsl(49, 91%, 84%); --ui-toast-warning-text: hsl(31, 92%, 45%);
-  --ui-toast-error-bg: hsl(359, 100%, 97%); --ui-toast-error-border: hsl(359, 100%, 94%); --ui-toast-error-text: hsl(360, 100%, 45%);
+  /* the error toast in the host's danger pair, so it follows the theme (dark in the dark one): --danger-ink
+     on --danger-bg is 6.99:1 light and 7.17:1 dark at the worst hue (the template's tokens); sonner's
+     red was 4.35:1 and light in the dark theme (the sixteenth review, 2026-10-20) — its values stay the
+     fallback for a host without the tokens */
+  --ui-toast-error-bg: var(--danger-bg, hsl(359, 100%, 97%));
+  --ui-toast-error-border: color-mix(in oklab, var(--danger-ink, hsl(360, 100%, 45%)) 30%, var(--danger-bg, hsl(359, 100%, 97%)));
+  --ui-toast-error-text: var(--danger-ink, hsl(360, 100%, 45%));
   --ui-toast-bg: var(--ui-toast-normal-bg); --ui-toast-border: var(--ui-toast-normal-border); --ui-toast-text: var(--ui-toast-normal-text);
   position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
   width: 356px; max-width: calc(100vw - 32px); min-height: 0; margin: 10px 0 0; padding: 16px;

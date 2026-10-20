@@ -120,8 +120,13 @@ describe("reportError", () => {
       description: 'disk on fire · kit.errors.reference {"id":"r-5"}',
       kind: "error",
       duration: 9000,
+      announce: true,
     });
     expect(err.reported).toBe(true);
+    // a failed AI task's error was said by the task store: the toast shows it, unsaid (the sixteenth review)
+    const said = Object.assign(attachProblem(new Error("500"), 500, parseProblem(JSON.stringify({ title: "Internal Server Error", detail: "x" }))), { announced: true });
+    reportError(said, { t });
+    expect(pushToast).toHaveBeenLastCalledWith(expect.objectContaining({ kind: "error", announce: false }));
     // a title the server chose says what failed
     const job = attachProblem(new Error("500"), 500, parseProblem(JSON.stringify({ title: "The AI photo didn't finish", detail: "sd-cli failed (exit 3)" })));
     expect(errorMessage(job, { t })).toMatchObject({ title: "The AI photo didn't finish", detail: "sd-cli failed (exit 3)" });

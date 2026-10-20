@@ -31,7 +31,6 @@ import { confirmDialog } from "../common/services/dialog.js";
 import { fmtBytes } from "../common/services/downloadRate.js";
 import { reportError } from "../common/services/reportError.js";
 import { post, safeRequest } from "../common/services/serverApi.js";
-import { getServerToken } from "../common/services/serverToken.js";
 import { pushToast } from "../common/services/toastBridge.js";
 import { refresh as refreshRunnerModels } from "../composables/useRunnerModels.js";
 
@@ -115,9 +114,8 @@ async function moveTo(picked) {
   if (!yes) return;
   relocating.value = true;
   try {
-    // the window's access token (kept in this folder's browser profile) goes with the data — the token page would
-    // lock the window out after the restart otherwise
-    await props.shell.relocate(picked, { token: getServerToken() || null });
+    // (the shell carries the window's access token itself — this folder's browser profile keeps it)
+    await props.shell.relocate(picked);
     window.location.reload();
   } catch (e) {
     reportError(e);
@@ -141,10 +139,16 @@ const when = (ms) => new Intl.DateTimeFormat(locale.value, { dateStyle: "medium"
 /** An old copy the app ran on after its move (its work would go with it): said beside its button and in the question. */
 const usedNote = (copy) => (copy.changedAt ? t("kit.storagePanel.oldCopyUsed", { date: when(copy.changedAt) }) : "");
 
+/** The apps that use this app's AI models (`sharedWith`): an old copy's models may be theirs still. */
+function removeSharedNote() {
+  const apps = diskUsage.value?.sharedWith || [];
+  return apps.length ? t("kit.storagePanel.removeOldSharedWith", { apps: new Intl.ListFormat(locale.value, { type: "conjunction" }).format(apps) }) : "";
+}
+
 async function removeOldCopy(copy) {
   const yes = await confirmDialog({
     title: t("kit.storagePanel.removeOldTitle"),
-    message: [t("kit.storagePanel.removeOldMessage", { folder: copy.root, size: fmtBytes(copy.bytes) || "0 MB", current: storageRoot.value?.root || "" }), usedNote(copy)]
+    message: [t("kit.storagePanel.removeOldMessage", { folder: copy.root, size: fmtBytes(copy.bytes) || "0 MB", current: storageRoot.value?.root || "" }), usedNote(copy), removeSharedNote()]
       .filter(Boolean)
       .join(" "),
     confirmLabel: t("kit.storagePanel.removeOldConfirm"),
@@ -162,11 +166,16 @@ async function removeOldCopy(copy) {
   }
 }
 
+/** Where the data is when this start runs elsewhere — the default folder this time, or an old copy — or "". */
+const elsewhere = () => storageRoot.value?.defaultThisStart?.folder || storageRoot.value?.oldCopyOf?.root || "";
+/** The default folder still holds an old copy: Move back is refused there until it is removed. */
+const defaultHoldsOldCopy = () => oldCopies.value.some((c) => storageRoot.value?.default && pathKey(c.root) === pathKey(storageRoot.value.default));
+
 async function useDefaultFromNowOn() {
   const info = storageRoot.value;
   const yes = await confirmDialog({
     title: t("kit.storagePanel.useDefaultTitle"),
-    message: t("kit.storagePanel.useDefaultMessage", { folder: info.defaultThisStart.folder, default: info.default }),
+    message: t("kit.storagePanel.useDefaultMessage", { folder: elsewhere(), default: info.root }),
     confirmLabel: t("kit.storagePanel.useDefaultConfirm"),
   });
   if (!yes) return;
@@ -215,11 +224,11 @@ function clearSpawnLogs() {
   <section class="card">
     <h2>{{ t("kit.storagePanel.locationTitle") }}</h2>
     <p class="hint">{{ t("kit.storagePanel.locationHint", { saves: saves() }) }}</p>
-    <UiBanner v-if="storageRoot?.oldCopyOf" intent="warning" class="lu-storage__banner">
-      {{ t("kit.storagePanel.isOldCopy", { folder: storageRoot.oldCopyOf.root }) }}
-    </UiBanner>
-    <UiBanner v-if="storageRoot?.defaultThisStart" intent="warning" class="lu-storage__banner">
-      {{ t("kit.storagePanel.defaultThisStart", { folder: storageRoot.defaultThisStart.folder }) }}
+    <!-- this start runs elsewhere than the data (the default folder this time, or an old copy): said, and no move from
+         here — it would leave the data known nowhere (the sixteenth review) -->
+    <UiBanner v-if="elsewhere()" intent="warning" class="lu-storage__banner">
+      {{ storageRoot.defaultThisStart ? t("kit.storagePanel.defaultThisStart", { folder: storageRoot.defaultThisStart.folder }) : t("kit.storagePanel.isOldCopy", { folder: elsewhere() }) }}
+      {{ storageRoot.setBy ? t("kit.storagePanel.dataIsElsewhereVariable", { folder: elsewhere() }) : t("kit.storagePanel.dataIsElsewhere", { folder: elsewhere() }) }}
       <template v-if="shell?.useDefault && !storageRoot.setBy" #action>
         <UiButton intent="secondary" size="small" :label="t('kit.storagePanel.useDefault')" @click="useDefaultFromNowOn" />
       </template>
@@ -239,11 +248,11 @@ function clearSpawnLogs() {
           <td>
             <div class="lu-storage__row">
               <span class="lu-storage__mono">{{ copy.root }}</span>
-              <span>{{ fmtBytes(copy.bytes) || "0 MB" }}</span>
+              <span>{{ copy.connected === false ? t("kit.storagePanel.notConnected") : fmtBytes(copy.bytes) || "0 MB" }}</span>
               <UiButton
                 intent="danger-outline"
                 size="small"
-                :disabled="!!removing || relocating"
+                :disabled="!!removing || relocating || copy.connected === false"
                 :label="removing === copy.root ? t('kit.storagePanel.removing') : t('kit.storagePanel.removeOld')"
                 @click="removeOldCopy(copy)"
               />
@@ -253,18 +262,25 @@ function clearSpawnLogs() {
         </tr>
       </tbody>
     </table>
-    <!-- the data-dir variable names the folder: a Change-folder pointer would be ignored at the next start -->
-    <p v-if="storageRoot?.setBy" class="hint card__note">{{ t("kit.storagePanel.setByVariable", { name: storageRoot.setBy }) }}</p>
-    <div v-else-if="storageRoot" class="card__actions">
-      <UiButton intent="secondary" :disabled="relocating || !!removing" :label="relocating ? t('kit.storagePanel.moving') : t('kit.storagePanel.changeFolder')" @click="changeFolder" />
-      <UiButton
-        v-if="storageRoot.default && storageRoot.atDefault === false && !storageRoot.defaultThisStart"
-        intent="secondary"
-        :disabled="relocating || !!removing"
-        :label="t('kit.storagePanel.moveBack')"
-        @click="moveBack"
-      />
-    </div>
+    <template v-if="storageRoot">
+      <!-- no move while the data is elsewhere (said in the banner above), nor while the data-dir variable names the
+           folder (a Change-folder pointer would be ignored at the next start) -->
+      <p v-if="!elsewhere() && storageRoot.setBy" class="hint card__note">{{ t("kit.storagePanel.setByVariable", { name: storageRoot.setBy }) }}</p>
+      <div v-else-if="!elsewhere()" class="card__actions">
+        <UiButton intent="secondary" :disabled="relocating || !!removing" :label="relocating ? t('kit.storagePanel.moving') : t('kit.storagePanel.changeFolder')" @click="changeFolder" />
+        <UiButton
+          v-if="storageRoot.default && storageRoot.atDefault === false && !defaultHoldsOldCopy()"
+          intent="secondary"
+          :disabled="relocating || !!removing"
+          :label="t('kit.storagePanel.moveBack')"
+          @click="moveBack"
+        />
+      </div>
+      <!-- Move back would be refused while the default folder holds the old copy: said instead of offered -->
+      <p v-if="!elsewhere() && !storageRoot.setBy && storageRoot.atDefault === false && defaultHoldsOldCopy()" class="hint card__note">
+        {{ t("kit.storagePanel.moveBackAfterRemove") }}
+      </p>
+    </template>
     <p v-else class="hint card__note">{{ t("kit.storagePanel.desktopOnly") }}</p>
   </section>
 

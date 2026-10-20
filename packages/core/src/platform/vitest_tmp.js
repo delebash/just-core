@@ -7,7 +7,8 @@
 //   // vitest.config.js
 //   globalSetup: [fileURLToPath(import.meta.resolve("@delebash/core/platform/vitest_tmp"))]
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -19,13 +20,15 @@ export default function setup() {
   // Set before the workers start, so each inherits it (os.tmpdir() reads TEMP/TMP on Windows,
   // TMPDIR elsewhere).
   for (const k of VARS) process.env[k] = root;
-  return () => {
+  // (vitest awaits a teardown that returns a promise; fs.promises.rm, never rmSync — Node 24's rmSync recursive follows
+  // an NTFS junction a test made and empties its target, measured 2026-10-20)
+  return async () => {
     for (const k of VARS) {
       if (saved[k] === undefined) delete process.env[k];
       else process.env[k] = saved[k];
     }
     try {
-      rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
     } catch (e) {
       console.warn(`[vitest] could not remove the run's temp folder ${root}: ${e.message}`);
     }

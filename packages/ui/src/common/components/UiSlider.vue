@@ -226,11 +226,14 @@ watch(() => [props.marks, props.min, props.max, props.width], relayout, { deep: 
         @change="setValue($event, 'change')"
       />
       <span v-if="showNumber && readout" class="ui-slider-readout">{{ shown }}</span>
+      <!-- named as the slider is: inside a <label> the box took the label's text AND the value
+           ("Texture 1" — the sixteenth review, 2026-10-20) -->
       <UiInput
         v-else-if="showNumber"
         class="ui-slider-number"
         width="num"
         size="small"
+        :aria-label="ariaLabel"
         :disabled="disabled"
         :modelValue="numberText"
         @update:modelValue="onType"

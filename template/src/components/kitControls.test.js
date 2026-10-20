@@ -19,9 +19,16 @@
 // a menu closes on Tab and gives the focus back; a toast is said through the kit's live regions;
 // UiNumber reads with NumberParser and keeps a refused text in the box.
 import {
+  AiStatusButton,
   AiTaskStrip,
+  announce,
   AppDialog,
+  AppearancePanel,
   BootModelLoad,
+  DataManagement,
+  SettingsShell,
+  UiBanner,
+  UiSlider,
   closeHelp,
   configureHelp,
   HelpDrawer,
@@ -31,6 +38,7 @@ import {
   PaneHeader,
   promptDialog,
   pushToast,
+  reportError,
   schemaRules,
   tooltipDirective,
   UiField,
@@ -41,6 +49,7 @@ import {
   UiSegmented,
   useAiTasksStore,
   warmModelId,
+  withAiTask,
 } from "@delebash/ui";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
@@ -219,10 +228,12 @@ test("a toast is said through the kit's live regions — an error at once — an
   // Notify's own container left the page with an earlier test's body, so the toast is read off its options
   const create = vi.spyOn(quasar.Notify, "create");
   pushToast({ message: "Saved", kind: "success" });
-  pushToast({ title: "The export failed", description: "The drive is full", kind: "error" });
+  pushToast({ title: "The export failed", description: "the drive is full", kind: "error" }); // a server's detail: lowercase
   for (let i = 0; i < 3; i++) await flushPromises();
   expect(region("polite").textContent).toContain("Saved");
-  expect(region("assertive").textContent).toContain("The export failed. The drive is full");
+  expect(region("assertive").textContent).toContain("The export failed. The drive is full."); // "Title. Detail."
+  // the detail on the toast's own line starts with a capital
+  expect(create.mock.calls[1][0].caption).toBe("The drive is full");
   expect(create).toHaveBeenCalledTimes(2);
   for (const [options] of create.mock.calls) expect(options.attrs.role).toBeNull(); // Notify's role="alert" taken off
   create.mockRestore();
@@ -248,7 +259,7 @@ test("an AI task's start and end are said; its strip's bar is a progressbar with
   expect([bar.getAttribute("aria-valuemin"), bar.getAttribute("aria-valuemax")]).toEqual(["0", "100"]);
   handle.fail(new Error("The model stopped"));
   await flushPromises();
-  expect(region("assertive")).toContain("Suggesting a title: failed — The model stopped");
+  expect(region("assertive")).toContain("Suggesting a title: failed. The model stopped.");
   tasks.cancelAll();
 });
 
@@ -283,6 +294,310 @@ test("UiNumber reads '.7', '5.', '+15' and '1 500'; a refused text stays in the 
   expect(input().value).toBe("12abc");
   expect(await form.validate()).toBe(false);
   expect(messages()).toMatch(/number/i);
+});
+
+// ── The sixteenth review (2026-10-20): its probes (the scratchpad's adv16/ui) made tests ─────────────────
+
+// a UiNumber in a form, with or without rules, the values it gave and the form's submits
+async function numberForm(start, props = {}, { withRules = true, ignoreNull = false } = {}) {
+  const value = ref(start);
+  const emitted = [];
+  const submitted = [];
+  const ruleProps = withRules ? { rules, lazyRules: true } : {};
+  await mountHost(() =>
+    h(quasar.QForm, { ref: (f) => (form = f), onSubmit: () => submitted.push(value.value) }, () =>
+      h(UiNumber, {
+        id: "n",
+        modelValue: value.value,
+        "onUpdate:modelValue": (v) => {
+          emitted.push(v);
+          if (!(ignoreNull && v === null)) value.value = v;
+        },
+        ...ruleProps,
+        ...props,
+      }),
+    ),
+  );
+  return { value, emitted, submitted };
+}
+// Quasar validates a little later (its validation is debounced): a macrotask, then the promises
+const settle = async () => {
+  await new Promise((r) => setTimeout(r, 10));
+  for (let i = 0; i < 3; i++) await flushPromises();
+};
+
+test("UiNumber: Enter commits the text as leaving the box does — clamped — before the form submits", async () => {
+  const { value, submitted } = await numberForm(2048, { min: 512, max: 4096 });
+  input().focus();
+  await type("99999"); // past the max (4096)
+  key(input(), "Enter");
+  await form.submit();
+  await settle();
+  expect(value.value).toBe(4096);
+  expect(input().value).toBe("4,096");
+  expect(submitted).toEqual([4096]);
+});
+
+test("UiNumber: a half-typed text committed by Enter blocks the submit with its error, never the old value", async () => {
+  const { value, submitted } = await numberForm(2048);
+  input().focus();
+  for (const s of ["2", "2,", "2,04"]) await type(s);
+  expect(value.value).toBe(2); // "2," and "2,04" are on their way: nothing changed yet
+  key(input(), "Enter");
+  await form.submit();
+  await settle();
+  expect(submitted).toEqual([]);
+  expect(value.value).toBeNull();
+  expect(input().value).toBe("2,04");
+  expect(messages()).toContain("Must be a number");
+});
+
+test("UiNumber: what NumberParser refuses fails the field first — '1e3', '0x200', '2e3 ' — and is aria-invalid", async () => {
+  for (const text of ["1e3", "0x200", "0b1000000000", "2e3 "]) {
+    const { value } = await numberForm(1024);
+    input().focus();
+    await type(text);
+    input().dispatchEvent(new FocusEvent("blur"));
+    await settle();
+    expect(await form.validate(), text).toBe(false);
+    await settle();
+    expect(value.value, text).toBeNull();
+    expect(input().value, text).toBe(text);
+    expect(messages(), text).toContain("Must be a number");
+    expect(input().getAttribute("aria-invalid"), text).toBe("true");
+    wrapper.unmount();
+    document.body.innerHTML = "";
+  }
+});
+
+test("UiNumber with no rules (SyncPanel's minutes): '5 min' shows its error and is aria-invalid", async () => {
+  const { value } = await numberForm(5, { min: 0 }, { withRules: false, ignoreNull: true });
+  input().focus();
+  await type("5 min");
+  input().dispatchEvent(new FocusEvent("blur"));
+  await settle();
+  expect(input().value).toBe("5 min");
+  expect(value.value).toBe(5); // the host kept its setting — and the box says why nothing was saved
+  expect(messages()).toContain("Must be a number");
+  expect(input().getAttribute("aria-invalid")).toBe("true");
+});
+
+test("UiNumber: the arrows do nothing on a refused text or in a read-only box; '-0' is 0", async () => {
+  let n = await numberForm(40, { step: 5 }, { withRules: false });
+  input().focus();
+  await type("abc");
+  key(input(), "ArrowUp");
+  await settle();
+  expect(input().value).toBe("abc");
+  expect(n.emitted).toEqual([null]); // the text's null, never 0 + 5
+  wrapper.unmount();
+  document.body.innerHTML = "";
+  n = await numberForm(5, { readonly: true }, { withRules: false });
+  input().focus();
+  key(input(), "ArrowUp");
+  await settle();
+  expect(n.value.value).toBe(5);
+  expect(n.emitted).toEqual([]);
+  wrapper.unmount();
+  document.body.innerHTML = "";
+  n = await numberForm(3, {}, { withRules: false });
+  input().focus();
+  await type("-0");
+  input().dispatchEvent(new FocusEvent("blur"));
+  await settle();
+  expect(Object.is(n.value.value, 0)).toBe(true);
+  expect(input().value).toBe("0");
+});
+
+test("UiSegmented: a modified arrow picks nothing; right-to-left, → goes to the option before", async () => {
+  const value = ref("brush");
+  const options = ["look", "brush", "eraser"].map((v) => ({ value: v, label: v }));
+  await mountHost(() => h(UiSegmented, { modelValue: value.value, "onUpdate:modelValue": (v) => (value.value = v), options, ariaLabel: "Tool" }));
+  const radios = () => [...document.querySelectorAll('[role="radio"]')];
+  radios()[1].focus();
+  for (const mod of ["altKey", "ctrlKey", "metaKey"]) key(radios()[1], "ArrowRight", { [mod]: true });
+  await settle();
+  expect(value.value).toBe("brush");
+  key(radios()[1], "ArrowRight");
+  await settle();
+  expect(value.value).toBe("eraser");
+  wrapper.unmount();
+  document.body.innerHTML = "";
+  value.value = "brush";
+  document.documentElement.dir = "rtl";
+  try {
+    await mountHost(() => h(UiSegmented, { modelValue: value.value, "onUpdate:modelValue": (v) => (value.value = v), options, ariaLabel: "Tool" }));
+    radios()[1].focus();
+    key(radios()[1], "ArrowRight"); // the row runs from the right: → is the option before
+    await settle();
+    expect(value.value).toBe("look");
+    key(radios()[0], "ArrowLeft");
+    await settle();
+    expect(value.value).toBe("brush");
+  } finally {
+    document.documentElement.dir = "";
+  }
+});
+
+test("v-tooltip takes the name a screen reader computes: aria-hidden text and a select's options are none, a child's alt is", async () => {
+  const Comp = {
+    template: `
+      <div>
+        <span id="lbl">Close the panel</span>
+        <button id="b1" aria-labelledby="lbl" v-tooltip="'Close'"><svg aria-hidden="true"></svg></button>
+        <label for="i1">House name</label><input id="i1" v-tooltip="'Type the name'">
+        <button id="b2" v-tooltip="'Zoom in'"><svg aria-hidden="true"></svg></button>
+        <button id="b3" v-tooltip="'Tasks running'"><svg aria-hidden="true"></svg><span aria-hidden="true">2</span></button>
+        <a id="a1" href="#" v-tooltip="'Open the help'"><img alt="Help"></a>
+        <button id="b4" v-tooltip="'Delete'"><span aria-label="Remove this house"></span></button>
+        <button id="b5" v-tooltip="'Details'">Details</button>
+        <select id="s1" v-tooltip="'The brand'"><option>Behr</option><option>Valspar</option></select>
+      </div>`,
+  };
+  wrapper = mount(Comp, { attachTo: document.body, global: { plugins: plugins(), directives: { tooltip: tooltipDirective } } });
+  await flushPromises();
+  const name = (id) => computeAccessibleName(document.getElementById(id));
+  const label = (id) => document.getElementById(id).getAttribute("aria-label");
+  expect([name("b1"), label("b1")]).toEqual(["Close the panel", null]); // aria-labelledby kept
+  expect([name("i1"), label("i1")]).toEqual(["House name", null]); // its <label> kept
+  expect(name("b2")).toBe("Zoom in");
+  expect(name("b3")).toBe("Tasks running"); // its only text is aria-hidden: no name of its own
+  expect([name("a1"), label("a1")]).toEqual(["Help", null]); // the image's alt is its name
+  expect([name("b4"), label("b4")]).toEqual(["Remove this house", null]); // a child's aria-label is
+  expect([name("b5"), label("b5")]).toEqual(["Details", null]);
+  expect(name("s1")).toBe("The brand"); // a select's options are no name
+});
+
+test("a failed task is announced once — the task store's words — though the page reports it too", async () => {
+  installAnnouncer();
+  setActivePinia(createPinia());
+  await mountHost(() => h("div"));
+  const create = vi.spyOn(quasar.Notify, "create");
+  try {
+    await withAiTask({ feature: "aiphoto.render", label: "The AI photo of Maple street" }, async () => {
+      throw Object.assign(new Error("The GPU ran out of memory"), { status: 500, problem: { title: "The AI photo didn't finish", detail: "The GPU ran out of memory" } });
+    });
+  } catch (e) {
+    reportError(e); // the page's catch, as HousePage's
+  }
+  await settle();
+  const lines = [...document.querySelector('[data-live-announcer] [aria-live="assertive"]').children].map((d) => d.textContent);
+  expect(lines).toEqual(["The AI photo of Maple street: failed. The GPU ran out of memory."]);
+  expect(create).toHaveBeenCalledTimes(1); // the toast still shows
+  create.mockRestore();
+});
+
+test("while a modal dialog is open, what is said is said inside it (outside an aria-modal dialog isn't in the tree)", async () => {
+  installAnnouncer();
+  await mountHost(() => h(AppDialog));
+  const answer = promptDialog({ title: "Rename", confirmLabel: "Go", fields: [{ key: "name", label: "Name" }] });
+  await settle();
+  const modal = document.querySelector('[role="dialog"][aria-modal="true"]');
+  expect(modal).not.toBeNull();
+  // its own pair, there before anything is said
+  expect(modal.querySelector('[data-live-announcer] [aria-live="polite"]')).not.toBeNull();
+  announce("Saved");
+  expect(modal.querySelector('[data-live-announcer] [aria-live="polite"]').textContent).toContain("Saved");
+  expect(document.body.firstElementChild.textContent).not.toContain("Saved"); // not in the page's pair
+  [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel")?.click();
+  await answer;
+  await settle();
+  announce("Closed");
+  expect(document.body.firstElementChild.textContent).toContain("Closed"); // the page's pair again
+});
+
+// ── The sixteenth's screens review (2026-10-20, the scratchpad's screens3) ─────────────────────────────
+
+test("the AI tasks panel is a modal dialog: the focus moves in, Escape closes it and gives the focus back", async () => {
+  setActivePinia(createPinia());
+  await mountHost(() => h(AiStatusButton));
+  const trigger = document.querySelector(".ai-status-btn");
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  trigger.focus();
+  trigger.click();
+  await settle();
+  await new Promise((r) => setTimeout(r, 400)); // its slide-in
+  await settle();
+  const dialog = document.querySelector('[role="dialog"][aria-modal="true"]');
+  expect(computeAccessibleName(dialog)).toBe("AI tasks");
+  expect(dialog.contains(document.activeElement)).toBe(true);
+  expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  expect(trigger.getAttribute("aria-controls")).toBe(dialog.id);
+  // Quasar's Escape is the keydown and keyup pair
+  for (const type of ["keydown", "keyup"]) document.activeElement.dispatchEvent(new KeyboardEvent(type, { key: "Escape", keyCode: 27, bubbles: true }));
+  await settle();
+  await new Promise((r) => setTimeout(r, 400));
+  await settle();
+  expect(document.querySelector('[role="dialog"][aria-modal="true"]')).toBeNull();
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(trigger);
+});
+
+test("Appearance's selects are named by their rows' titles, not their values", async () => {
+  await mountHost(() => h(AppearancePanel, { appearance: { mode: "system", uiScale: 1, uiFont: "System", accentHue: 166 }, locales: ["en", "es"] }));
+  const names = [...document.querySelectorAll('[role="combobox"]')].map((el) => computeAccessibleName(el));
+  expect(names).toEqual(["Theme", "Interface size", "UI font", "Language"]);
+});
+
+test("a slider's number box is named as the slider, never with its value", async () => {
+  await mountHost(() => h("label", [h("span", "Texture"), h(UiSlider, { modelValue: 1, min: 0, max: 1, step: 0.05, ariaLabel: "Texture" })]));
+  expect(computeAccessibleName(document.querySelector(".ui-slider-number input"))).toBe("Texture");
+});
+
+test("info and warning banners are status, a danger one an alert", async () => {
+  await mountHost(() => ["info", "warning", "danger"].map((intent) => h(UiBanner, { intent }, () => intent)));
+  expect([...document.querySelectorAll(".ui-banner")].map((b) => b.getAttribute("role"))).toEqual(["status", "status", "alert"]);
+});
+
+test("an emptied number box whose schema takes no null says Required before anything is sent", async () => {
+  // a settings patch: every key optional, none nullable (just-house-paint's SettingsPatch)
+  const patch = schemaRules({ type: "object", properties: { cardCopy: { type: "integer", minimum: 0 } } }).cardCopy;
+  const value = ref(3);
+  const submitted = [];
+  await mountHost(() =>
+    h(quasar.QForm, { ref: (f) => (form = f), onSubmit: () => submitted.push(value.value) }, () =>
+      h(UiNumber, { id: "n", modelValue: value.value, "onUpdate:modelValue": (v) => (value.value = v), rules: patch, lazyRules: true }),
+    ),
+  );
+  input().focus();
+  await type("");
+  input().dispatchEvent(new FocusEvent("blur"));
+  await form.submit();
+  await settle();
+  expect(submitted).toEqual([]);
+  expect(messages()).toContain("Required");
+  // a nullable one may be emptied
+  const nullable = schemaRules({ type: "object", properties: { n: { anyOf: [{ type: "integer" }, { type: "null" }] } } }).n;
+  expect(nullable.nullable).toBe(true);
+  expect(patch.nullable).toBe(false);
+});
+
+test("Settings' tabs name only the panel that is in the page", async () => {
+  const sections = ["general", "appearance", "logs"].map((id) => ({ id, label: id }));
+  await mountHost(() => h(SettingsShell, { sections, modelValue: "appearance" }, () => h("p", "the panel")));
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  expect(tabs.map((tb) => tb.getAttribute("aria-controls") !== null)).toEqual([false, true, false]);
+  const panel = document.getElementById(tabs[1].getAttribute("aria-controls"));
+  expect(panel.getAttribute("role")).toBe("tabpanel");
+  expect(computeAccessibleName(document.querySelector('[role="tablist"]'))).toBe("Settings sections");
+});
+
+test("Reset asks with its sentence as the message, the field 'Type RESET to confirm', Reset off until it's typed", async () => {
+  await mountHost(() => [h(AppDialog), h(DataManagement, { appName: "Family Template" })]);
+  [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset…").click();
+  await settle();
+  const dlg = document.querySelector('[role="dialog"][aria-modal="true"]');
+  expect(dlg.querySelector(".ui-dialog__message").textContent).toContain("Wipes ALL data");
+  const field = dlg.querySelector("input");
+  expect(computeAccessibleName(field)).toBe("Type RESET to confirm");
+  const resetBtn = () => [...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset");
+  expect(resetBtn().disabled).toBe(true);
+  field.value = "RESET";
+  field.dispatchEvent(new Event("input"));
+  await settle();
+  expect(resetBtn().disabled).toBe(false);
+  [...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel").click();
+  await settle();
 });
 
 test("a model that failed to load at start offers the app's Troubleshooting page — only when the app has one", async () => {

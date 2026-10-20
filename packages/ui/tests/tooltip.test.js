@@ -15,6 +15,11 @@ vi.mock("@floating-ui/dom", () => ({
   flip: () => ({}),
   shift: () => ({}),
 }));
+// the accessible-name computation needs a real DOM (the template's kitControls.test.js runs the real one on
+// jsdom); here an element's name is its aria-label, else its text
+vi.mock("dom-accessibility-api", () => ({
+  computeAccessibleName: (el) => el.getAttribute("aria-label") || el.textContent || "",
+}));
 const { tooltipDirective } = await import("../src/common/services/tooltip.js");
 
 /** A minimal element: listeners, attributes, classList, remove(). */

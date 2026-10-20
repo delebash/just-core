@@ -11,6 +11,13 @@
 // number makes the value null and STAYS in the box, with its rule's error — never cleared on blur
 // (it was, to an empty box: the fifteenth review, 2026-10-20).
 //
+// The sixteenth review (2026-10-20): Enter commits the text exactly as leaving the box does (read,
+// clamped to min/max, the value given) before the form submits — Enter had submitted the old value,
+// or one past the max; a text that isn't a number fails the field by UiNumber's own rule, first,
+// with or without the caller's rules ("1e3" and "0x200" passed a schema's rules and Save sent null;
+// with no rules, "5 min" showed no error), and marks it aria-invalid; the arrows do nothing on such a
+// text (they replaced it with 0 + step) or in a read-only box; "-0" is 0.
+//
 // Locale: the `locale` prop pins one input; otherwise it follows the app's vue-i18n language.
 //
 // Wears the shared .ui-input visual (one input style app-wide); .ui-number only
@@ -52,7 +59,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "blur", "focus", "keydown"]);
 const attrs = useAttrs();
 
-const { locale: appLocale } = useI18n();
+const { t, locale: appLocale } = useI18n();
 const fmt = computed(() => new Intl.NumberFormat(props.locale || appLocale.value || undefined, {
   useGrouping: props.useGrouping,
   maximumFractionDigits: 20,
@@ -86,13 +93,16 @@ function clamp(n) {
 const field = ref(null);
 const inputEl = computed(() => field.value?.getNativeElement?.() ?? null);
 const display = ref(formatNumber(props.modelValue));
-
-const focusedNow = () => !!inputEl.value && document.activeElement === inputEl.value;
+// typed into since its last commit (leaving the box, Enter, an arrow): only then is a half-typed
+// number no error yet
+const typing = ref(false);
+// the box holds a text that isn't a number (one being typed excepted) — the field's own error
+const refusedNow = () => refused(display.value) && !(typing.value && partial(display.value));
 
 watch(() => props.modelValue, (v) => {
   // Don't reformat while the user is actively editing — the format pass happens
   // on blur. This preserves cursor position during entry.
-  if (focusedNow()) return;
+  if (inputEl.value && document.activeElement === inputEl.value) return;
   // a refused text stays in the box while the value is null (its rule says what's wrong)
   if (v == null && refused(display.value)) return;
   display.value = formatNumber(v);
@@ -104,13 +114,16 @@ function setValue(next) {
 
 function onInput(value) {
   display.value = value;
+  typing.value = true;
   const n = parseNumber(value);
   if (n !== null) setValue(n);
   else if (!partial(value)) setValue(null); // emptied, or not a number — a half-typed one changes nothing yet
 }
 
-function onBlur(e) {
-  const text = e.target.value;
+// What leaving the box and Enter both do with its text: a number is clamped, given and shown in the
+// language's form; an empty box is null; any other text is null and stays as typed, never cleared.
+function commit(text) {
+  typing.value = false;
   const n = parseNumber(text);
   if (n !== null) {
     const committed = clamp(n);
@@ -118,9 +131,12 @@ function onBlur(e) {
     display.value = formatNumber(committed);
   } else {
     setValue(null);
-    // emptied: empty; not a number: as typed, never cleared
     display.value = blank(text) ? "" : text;
   }
+}
+
+function onBlur(e) {
+  commit(e.target.value);
   emit("blur", e);
 }
 
@@ -129,37 +145,55 @@ function onFocus(e) { emit("focus", e); }
 function bump(delta) {
   const current = parseNumber(display.value) ?? 0;
   const next = clamp(current + delta * props.step);
-  emit("update:modelValue", next);
+  typing.value = false;
+  setValue(next);
   display.value = formatNumber(next);
 }
 
 function onKeydown(e) {
-  if (e.key === "ArrowUp")   { e.preventDefault(); bump(+1); }
-  if (e.key === "ArrowDown") { e.preventDefault(); bump(-1); }
+  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+    // a read-only box doesn't change, and a text that isn't a number isn't stepped from 0
+    if (!props.readonly && !refused(display.value)) {
+      e.preventDefault();
+      bump(e.key === "ArrowUp" ? 1 : -1);
+    }
+  } else if (e.key === "Enter" && !e.isComposing && !props.readonly) {
+    // committed before the key's default — the form's submit — sees the value
+    commit(e.target.value);
+  }
   emit("keydown", e);
 }
 
 // The rules (QInput's `rules`, e.g. the kit's schemaRules) judge the NUMBER, not the text shown:
 // the shown text is formatted ("2,048"), and a rule given it said "Must be a number" for every
 // value of 1,000 and more. Text that doesn't parse reaches the rule as it was typed, so the rule
-// still says what is wrong with it; an empty box reaches it as null (required). While the box is
-// focused, a number on its way ("-", "5,") is no error yet.
+// still says what is wrong with it; an empty box reaches it as null (required). The field's OWN
+// rule comes first, with or without the caller's: a text that isn't a number is "Must be a number"
+// (a half-typed one, while it is typed, is no error yet). Every rule reads the box's text as it is
+// now (`display`) — Enter commits it just before the form validates, ahead of QInput's prop.
 const numberRules = computed(() => {
-  const rules = attrs.rules;
-  if (!Array.isArray(rules)) return rules;
+  const rules = Array.isArray(attrs.rules) ? attrs.rules : [];
   const asNumber = (v) => {
     if (v === null || v === undefined || String(v).trim() === "") return null;
     const n = parseNumber(String(v));
     return n === null || Number.isNaN(n) ? v : n;
   };
-  return rules.map((rule) => (typeof rule === "function" ? (v) => (focusedNow() && partial(v) ? true : rule(asNumber(v))) : rule));
+  // an emptied box is null: where the schema takes no null (schemaRules' `nullable` false), it is
+  // "Required" before anything is sent
+  const own = () => {
+    if (refusedNow()) return t("kit.validation.number");
+    if (rules.nullable === false && blank(display.value)) return t("kit.validation.required");
+    return true;
+  };
+  const theirs = rules.map((rule) => (typeof rule === "function" ? () => (refusedNow() || (typing.value && partial(display.value)) ? true : rule(asNumber(display.value))) : rule));
+  return [own, ...theirs];
 });
 
 const classes = computed(() => [
   "ui-input", "ui-number",
   props.size === "small" && "ui-input--small",
   props.width && `ui-w-${props.width}`,
-  { "is-invalid": props.invalid, "is-disabled": props.disabled },
+  { "is-invalid": props.invalid || refusedNow(), "is-disabled": props.disabled },
 ]);
 useNativeEvents(inputEl, attrs, { blur: onBlur, focus: onFocus, keydown: onKeydown });
 </script>
@@ -178,7 +212,7 @@ useNativeEvents(inputEl, attrs, { blur: onBlur, focus: onFocus, keydown: onKeydo
     :readonly="readonly"
     :name="name"
     :for="id || inputId"
-    :aria-invalid="invalid ? 'true' : undefined"
+    :aria-invalid="invalid || refusedNow() ? 'true' : undefined"
     borderless
     dense
     hide-bottom-space

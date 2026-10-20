@@ -14,7 +14,7 @@
 
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { useAiTasksStore } from "../stores/aiTasks.js";
+import { AI_TASKS_PANEL_ID, useAiTasksStore } from "../stores/aiTasks.js";
 import Icon from "../common/components/Icon.vue";
 import AiStatusPanel from "./AiStatusPanel.vue";
 
@@ -42,6 +42,9 @@ const label = computed(() => (errors.value
       type="button"
       data-panel-toggle
       :aria-label="label"
+      aria-haspopup="dialog"
+      :aria-expanded="tasks.panelOpen ? 'true' : 'false'"
+      :aria-controls="tasks.panelOpen ? AI_TASKS_PANEL_ID : undefined"
       @click="toggle"
       v-tooltip.bottom="label">
       <Icon name="Sparkle" :size="13" />

@@ -844,10 +844,11 @@ function launcherCode(file, text = readFileSync(file, "utf8")) {
 // in the server's dependency tree that names a peer dependency (required — peerDependenciesMeta's `optional` ones
 // aside) expects the app to install it; electron-builder packs the server's declared dependencies and theirs, so a
 // peer nobody declares is missing from the installed app though the checkout's node_modules hides it. Every such
-// peer must be a `dependencies` entry of server/package.json — or of a package in its tree, which is packed with
-// that tree (the kit declares `hono` beside `@hono/node-server`, whose peer it is). Resolution as Node's:
-// node_modules up the tree from each package's real folder (a `file:` dependency — the kit — resolves from its
-// own). Required where the release is, advisory for the other apps.
+// peer must resolve — as Node resolves it, node_modules up the tree from the package's real folder — to a package the
+// server's tree packs (a `dependencies` entry of server/package.json or of a package in its tree: the kit declares
+// `hono` beside `@hono/node-server`, whose peer it is). Declared somewhere in the tree isn't enough: a peer only the
+// kit (a `file:` link, its own node_modules) holds can't be resolved from a package in the app's node_modules (the
+// sixteenth review's s4). Required where the release is, advisory for the other apps.
 function checkServerPeers(app) {
   const serverDir = join(app.dir, "server");
   const pkgPath = join(serverDir, "package.json");
@@ -861,9 +862,8 @@ function checkServerPeers(app) {
       if (dirname(d) === d) return null;
     }
   };
-  const seen = new Set();
-  const inTree = new Set(declared); // every name some package in the tree declares as a dependency
-  const needs = new Map(); // a required peer → the packages that need it
+  const seen = new Set(); // the real folders of the packages the tree packs
+  const needs = []; // [peer, the package's name, its folder]
   const visit = (dir) => {
     if (seen.has(dir)) return;
     seen.add(dir);
@@ -874,11 +874,8 @@ function checkServerPeers(app) {
       return;
     }
     const meta = pj.peerDependenciesMeta || {};
-    for (const peer of Object.keys(pj.peerDependencies || {})) {
-      if (!meta[peer]?.optional) needs.set(peer, [...(needs.get(peer) || []), pj.name]);
-    }
+    for (const peer of Object.keys(pj.peerDependencies || {})) if (!meta[peer]?.optional) needs.push([peer, pj.name, dir]);
     for (const dep of Object.keys(pj.dependencies || {})) {
-      inTree.add(dep);
       const d = find(dep, dir);
       if (d) visit(d);
     }
@@ -887,8 +884,13 @@ function checkServerPeers(app) {
     const d = find(dep, serverDir);
     if (d) visit(d);
   }
-  for (const [peer, by] of needs) {
-    if (inTree.has(peer)) continue;
+  const missing = new Map(); // a peer → the packages that can't reach it
+  for (const [peer, name, dir] of needs) {
+    const d = find(peer, dir);
+    if (d && seen.has(d)) continue;
+    missing.set(peer, [...(missing.get(peer) || []), name]);
+  }
+  for (const [peer, by] of missing) {
     const who = [...new Set(by)];
     report(app.name, `server/package.json doesn't depend on ${peer}, a peer dependency of ${who.slice(0, 3).join(", ")}${who.length > 3 ? ` and ${who.length - 3} more` : ""} — the installed app's server wouldn't have it (electron-builder packs declared dependencies)`);
   }

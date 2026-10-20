@@ -90,6 +90,13 @@ test("NumberParser reads what people type: '.7', '5.', '15.', '+15', '1 500', es
   expect(parseLocaleNumber("1,5", { locale: "en" })).toBeNull(); // the fourteenth review's: never 15
 });
 
+test("'-0' reads as 0, never -0 (the sixteenth review: the box kept '-0')", () => {
+  expect(Object.is(parseLocaleNumber("-0", { locale: "en" }), 0)).toBe(true);
+  expect(Object.is(parseLocaleNumber("-0.0", { locale: "en", step: 0.1 }), 0)).toBe(true);
+  // what NumberParser refuses stays refused — "1e3", "0x200" are no numbers here
+  for (const s of ["1e3", "0x200", "0b1000000000", "2e3 ", "Infinity", "1_000"]) expect(parseLocaleNumber(s, { locale: "en" }), s).toBeNull();
+});
+
 test("a number on its way is a partial number; text that can't become one isn't", () => {
   for (const s of ["", "-", "+", "\u2212", "5.", "1,", "1 5", ".", "0,0"]) expect(isPartialNumber(s, { locale: "en" }), s).toBe(true);
   for (const s of [",", "-,"]) expect(isPartialNumber(s, { locale: "es" }), s).toBe(true);
