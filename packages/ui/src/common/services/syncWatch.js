@@ -17,6 +17,7 @@
 // the OTHER windows' changes — just-house-paint's counter of changes made in other windows on one
 // server (2026-10-20), the same contract as a sync product's.
 import { get } from "./serverApi.js";
+import { onBack, pageShown } from "./visibility.js";
 
 // <input> types that aren't text boxes
 const NOT_TEXT = new Set(["button", "checkbox", "color", "file", "hidden", "image", "radio", "range", "reset", "submit"]);
@@ -32,11 +33,18 @@ export function isEditing(doc = globalThis.document) {
   return el.tagName === "INPUT" && !NOT_TEXT.has(String(el.type || "text").toLowerCase());
 }
 
+// While the page is hidden (a minimized window, a background tab, a sleeping phone) it asks nothing; it asks at once
+// when the page shows again or the network comes back (visibility.js).
 export function watchSync(onChange, { waitWhileEditing = false, waitWhile = null } = {}) {
   let last = null;
   let timer = null;
   let stopped = false;
+  let asking = false;
   const tick = async () => {
+    timer = null;
+    if (stopped || asking) return;
+    if (!pageShown()) return; // asleep: onBack wakes it
+    asking = true;
     let wait = 5;
     try {
       const r = await get("/v1/sync/rev");
@@ -50,12 +58,19 @@ export function watchSync(onChange, { waitWhileEditing = false, waitWhile = null
       }
     } catch {
       // the server is busy or restarting: try again next time
+    } finally {
+      asking = false;
     }
     if (!stopped) timer = setTimeout(tick, wait * 1000);
   };
+  const offBack = onBack(() => {
+    clearTimeout(timer);
+    void tick();
+  });
   void tick();
   return () => {
     stopped = true;
     clearTimeout(timer);
+    offBack();
   };
 }

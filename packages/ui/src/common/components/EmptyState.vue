@@ -45,6 +45,8 @@ const emit = defineEmits(["action"]);
      page at 1920px the box was ~1655px wide (the visual review, 2026-10-20) */
   width: fit-content;
   max-width: 100%;
+  /* centred where it stood before, in the middle of its area (JustWrite's modals left it at the left edge) */
+  margin-inline: auto;
   box-sizing: border-box;
   align-items: center;
   gap: 10px;

@@ -84,17 +84,29 @@ export const RUNNER_MACHINE_ROWS = Object.freeze({
  *  restore's unpacked copy then moves into place by a rename, not a copy); one an ended process left goes once
  *  it is an hour old (2026-10-20). */
 function workFolder(dbPath, kind) {
-  const parent = path.dirname(dbPath);
+  sweepWorkFolders(dbPath, [kind]);
+  return mkdtempSync(path.join(path.dirname(dbPath), `.${kind}-`));
+}
+
+/** The work folders an ended backup, restore or upload left beside the database at `dbPath`, an hour old or more —
+ *  each kind's next run takes its own; an app also runs this at start and now and then (a server up for weeks kept a
+ *  stopped restore's unpacked copy). Returns how many went. */
+export function sweepWorkFolders(dbPath, kinds = ["backup", "restore", "upload"]) {
+  const parent = path.dirname(String(dbPath));
+  let gone = 0;
   for (const name of existsSync(parent) ? readdirSync(parent) : []) {
-    if (!name.startsWith(`.${kind}-`)) continue;
+    if (!kinds.some((kind) => name.startsWith(`.${kind}-`))) continue;
     try {
       const old = path.join(parent, name);
-      if (Date.now() - statSync(old).mtimeMs > 3600_000) rmSync(old, { recursive: true, force: true });
+      if (Date.now() - statSync(old).mtimeMs > 3600_000) {
+        rmSync(old, { recursive: true, force: true });
+        gone++;
+      }
     } catch {
       // held or gone: the next one tries again
     }
   }
-  return mkdtempSync(path.join(parent, `.${kind}-`));
+  return gone;
 }
 
 /** The rows `keep` names in tables a restore replaces, read before it (put back after: restoreRows). */
@@ -155,34 +167,76 @@ async function renameHeld(from, to) {
   }
 }
 
+/** renameHeld for the start-up recovery, which runs before anything else (synchronous). */
+function renameHeldSync(from, to) {
+  for (let i = 1; ; i++) {
+    try {
+      return renameSync(from, to);
+    } catch (e) {
+      if (!HELD.has(e?.code) || i > 15) throw e;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Math.min(100 * i, 1000));
+    }
+  }
+}
+
+/** The table a restore marks its commit in, inside the same transaction as the restored rows (the commit record —
+ *  a record outside the database could say "not done" for tables already in). Not one of an app's tables: a
+ *  restore never replaces it. */
+const COMMIT_TABLE = "_kit_restore";
+
+/** The stamp of the last restore whose tables committed in the database at `dbPath`, or null. */
+function committedStamp(dbPath) {
+  if (!existsSync(dbPath)) return null;
+  const h = openDatabase(dbPath, { foreignKeys: false, timeoutMs: 5000 });
+  try {
+    if (!h.one("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", [COMMIT_TABLE])) return null;
+    return h.value(`SELECT stamp FROM "${COMMIT_TABLE}"`) ?? null;
+  } finally {
+    h.close();
+  }
+}
+
 /** A restore's record of the asset folders it is swapping, beside the database, until its tables are in: a
  *  server stopped between the two (the window closed mid-restore) finds it at its next start and puts the old
  *  folders back (finishInterruptedRestore) — the folders and the tables always from the same side. */
 const journalOf = (dbPath) => `${dbPath}.restoring`;
 
+/** A restore's record is still beside the database at `dbPath`: it hasn't been finished or undone. Nothing may
+ *  touch the folders it names until it is (an app's start-up sweep, another restore). */
+export const restoreUnfinished = (dbPath) => existsSync(journalOf(String(dbPath)));
+
 /**
- * At start, before anything reads the asset folders: a restore that stopped before its tables were in (its
- * record still beside the database) is undone — each folder it moved aside put back, the backup's copy moved
- * out of the way (`<dir>.restoring-<time>`, removed by the next restore or the app's own start-up sweep).
- * Synchronous; true when something was put back. makeDataRouter runs it as it is made.
+ * At start, before anything reads the asset folders: a restore that stopped in the middle (its record still beside
+ * the database) is finished or undone — by the database's own commit record. Its tables in (the record's stamp
+ * committed): the old folders it moved aside go. Not in: each folder it moved aside is put back and the backup's
+ * copy moved out of the way (`<dir>.restoring-<time>`, removed by the next restore or the app's start-up sweep).
+ * A rename Windows holds is retried; one that still fails throws with the record kept, so the next start tries
+ * again — and nothing may touch those folders meanwhile (restoreUnfinished). Synchronous; "forward", "back" or
+ * null (nothing to do). makeDataRouter runs it as it is made.
  */
 export function finishInterruptedRestore(dbPath) {
   const journal = journalOf(String(dbPath));
-  if (!existsSync(journal)) return false;
+  if (!existsSync(journal)) return null;
   let record;
   try {
     record = JSON.parse(readFileSync(journal, "utf8"));
   } catch {
     rmSync(journal, { force: true }); // cut short as it was written: nothing was moved yet
-    return false;
+    return null;
   }
-  for (const { dir, old } of [...(record.dirs || [])].reverse()) {
+  const dirs = [...(record.dirs || [])];
+  if (committedStamp(String(dbPath)) === record.stamp) {
+    rmSync(journal, { force: true });
+    for (const { old } of dirs) if (old) rmSync(old, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    return "forward";
+  }
+  for (const { dir, old } of dirs.reverse()) {
     if (old && !existsSync(old)) continue; // never moved, or already back
-    if (existsSync(dir)) renameSync(dir, `${dir}.restoring-${record.stamp}`);
-    if (old) renameSync(old, dir);
+    if (existsSync(dir)) renameHeldSync(dir, `${dir}.restoring-${record.stamp}`);
+    if (old) renameHeldSync(old, dir);
   }
   rmSync(journal, { force: true });
-  return true;
+  return "back";
 }
 
 /** A restore that can't swap a folder: nothing was changed. */
@@ -234,7 +288,7 @@ async function swapAssetDirs(pairs, journal) {
         step.moved = true;
       }
       try {
-        await rename(from, dir);
+        await renameHeld(from, dir); // the copy just unpacked: a scanner may be reading it
       } catch (e) {
         if (e?.code !== "EXDEV") throw e;
         await cp(from, dir, { recursive: true, preserveTimestamps: true }).catch(async (err) => {
@@ -248,8 +302,8 @@ async function swapAssetDirs(pairs, journal) {
     try {
       await undo();
     } catch (err) {
-      // the record stays: the next start puts the old folders back
-      throw new HttpError(500, `restore failed and its folders couldn't all be put back (${err?.code || err?.message}); the app puts them back when it starts again`);
+      // the record stays: the next start puts the old folders back (the caller shuts the writes out until then)
+      throw unfinished(err);
     }
     throw swapRefusal(e, current);
   }
@@ -257,7 +311,84 @@ async function swapAssetDirs(pairs, journal) {
     rmSync(journal, { force: true });
     return Promise.all(steps.filter((s) => s.old).map((s) => rm(s.old, RETRIES).catch(() => {})));
   };
-  return { undo, commit };
+  return { stamp, undo, commit };
+}
+
+/** A restore whose folders couldn't all be put back: the next start does (its record kept). */
+const unfinished = (err) => {
+  const e = new ApiError(500, "restore-unfinished", "The restore couldn't put your data back", `restart the app: it puts your data back as it starts (${err?.code || err?.message})`);
+  e.unfinished = true;
+  return e;
+};
+
+/** Every file and folder under `dir` that the same tree at `keep` doesn't have, removed (best effort). */
+async function prune(dir, keep) {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const there = path.join(keep, entry.name);
+    const here = path.join(dir, entry.name);
+    if (!existsSync(there)) await rm(here, RETRIES).catch(() => {});
+    else if (entry.isDirectory()) await prune(here, there);
+  }
+}
+
+/** The restore of a router without a gate (an app that hasn't taken it — its own open files would make the
+ *  all-or-nothing swap refuse): put the backup's copy `from` in place of the asset folder `dir`, after the tables. Both are on the
+ *  data drive for a moment (the old one until the new is swapped in); a drive too full for that falls back
+ *  to removing the old one first. A rename Windows holds is retried; one that still fails never leaves the
+ *  folder missing: the old one goes back, or the backup is copied in place. */
+async function legacyReplaceAssetDir(from, dir) {
+  const parent = path.dirname(dir);
+  const base = path.basename(dir);
+  // an earlier restore's held leftovers beside it
+  for (const name of existsSync(parent) ? await readdir(parent) : []) {
+    if (name.startsWith(`${base}.replaced-`) || name.startsWith(`${base}.restoring-`)) await rm(path.join(parent, name), RETRIES).catch(() => {});
+  }
+  const stamp = Date.now();
+  const staged = `${dir}.restoring-${stamp}`;
+  try {
+    // the unpacked backup moved beside it when it's on the same drive (no copy), else copied there
+    await rename(from, staged).catch(() => cp(from, staged, { recursive: true, preserveTimestamps: true }));
+  } catch (e) {
+    await rm(staged, RETRIES).catch(() => {});
+    if (e?.code !== "ENOSPC") throw e;
+    // no room for both copies at once: the old folder goes first, as before (a held file can then leave it
+    // half-replaced — only when the drive is too full for the safe way)
+    if (existsSync(dir)) await rm(dir, RETRIES);
+    await cp(from, dir, { recursive: true, preserveTimestamps: true });
+    return;
+  }
+  // held: the backup copied over the folder as it is — its files all land, and what it hasn't is removed
+  const copyOver = async () => {
+    await cp(staged, dir, { recursive: true, force: true, preserveTimestamps: true });
+    await prune(dir, staged);
+    await rm(staged, RETRIES).catch(() => {});
+  };
+  if (!existsSync(dir)) {
+    try {
+      return await renameHeld(staged, dir);
+    } catch {
+      return copyOver();
+    }
+  }
+  const old = `${dir}.replaced-${stamp}`;
+  try {
+    await renameHeld(dir, old);
+  } catch {
+    return copyOver();
+  }
+  try {
+    await renameHeld(staged, dir);
+  } catch {
+    // the swap half done: the old folder back where it was, then the backup copied over it
+    try {
+      await renameHeld(old, dir);
+    } catch {
+      await copyOver(); // the folder is missing: the backup's copy put there (the old one waits beside it)
+      return;
+    }
+    return copyOver();
+  }
+  await rm(old, RETRIES).catch(() => {}); // held: the next restore takes it
 }
 
 /** A point-in-time copy of the folder `d` at `to`: every file hard-linked (no bytes copied — a link keeps the
@@ -437,20 +568,33 @@ export function makeDataRouter({
   keepRows = RUNNER_MACHINE_ROWS,
   scrubBackup = null,
   beforeReplace = null,
-  gate = new MaintenanceGate(),
+  gate = null,
 }) {
   const assets = async () => entriesOf(assetDirs ? await assetDirs() : {});
   /** Every table across all metadatas, FK-ordered within each (parents first). */
   const orderedTables = () => tablesOf(metadata).flatMap(sortedTables);
   const kept = new Set(keepTables || []);
+  // The all-or-nothing restore (the folders swapped first, the commit record, the undo) is the app's that took the
+  // gate (and its beforeReplace): it has stopped its own work on the files by then. Without one, the restore before
+  // it — the tables, then each folder replaced with a copy-over fallback — so an app whose own open files (audio being
+  // played) would make the swap refuse keeps restoring (2026-10-20).
+  const transactional = gate !== null;
+  gate ??= new MaintenanceGate();
   gate.exempt(`${prefix}/restore`);
   gate.exempt(`${prefix}/reset`);
-  // a restore the server stopped in the middle of: its old folders back before anything reads them
+  // a restore the server stopped in the middle of: finished or undone before anything reads the folders
   const recovered = Promise.resolve()
     .then(() => getDbPath())
     .then((p) => finishInterruptedRestore(String(p)))
-    .then((back) => back && log.warning("a restore stopped before its tables were in: the folders it had moved are back"))
-    .catch((e) => log.error(`an interrupted restore couldn't be undone (${e?.code || e?.message}); tried again at the next start`));
+    .then((done) => {
+      if (done === "forward") log.warning("a restore stopped after its tables were in: the old folders it had moved aside are removed");
+      if (done === "back") log.warning("a restore stopped before its tables were in: the folders it had moved are back");
+    })
+    .catch((e) => {
+      // its folders aren't where the tables expect them: no write until a start puts them back
+      gate.closeUntilRestart();
+      log.error(`an interrupted restore couldn't be finished (${e?.code || e?.message}); tried again at the next start`);
+    });
 
   // FastAPI has no upload limit; a backup with audio is easily over 1 GiB — the restore streams
   // its upload to disk (receiveUpload); what it unpacks to must fit the drive (checkUnpackedFits).
@@ -539,7 +683,7 @@ export function makeDataRouter({
   });
 
   /** The backup's rows in place of the live ones, every table in one transaction (the hooks inside it). */
-  const copyTables = (liveDb, srcDb) => {
+  const copyTables = (liveDb, srcDb, stamp = null) => {
     const h = openDatabase(liveDb, { foreignKeys: false, timeoutMs: 5000 });
     try {
       h.run("ATTACH ? AS src", [srcDb]);
@@ -562,6 +706,12 @@ export function makeDataRouter({
         }
         restoreRows(h, held);
         if (afterCopy) afterCopy(h);
+        // the commit record: these rows are this restore's (finishInterruptedRestore rolls forward on it)
+        if (stamp !== null) {
+          h.exec(`CREATE TABLE IF NOT EXISTS "${COMMIT_TABLE}" (stamp INTEGER NOT NULL)`);
+          h.run(`DELETE FROM "${COMMIT_TABLE}"`);
+          h.run(`INSERT INTO "${COMMIT_TABLE}" (stamp) VALUES (?)`, [stamp]);
+        }
       });
       h.exec("DETACH src");
     } catch (e) {
@@ -575,11 +725,47 @@ export function makeDataRouter({
     }
   };
 
+  /** The backup's database checked before anything is shut out or moved: readable whole, and accepted by the app's
+   *  own hook (a synced app refusing another library's backup) — a dry run, rolled back. */
+  const checkBackup = (liveDb, srcDb) => {
+    let ok;
+    try {
+      const b = openDatabase(srcDb, { foreignKeys: false, timeoutMs: 5000 });
+      try {
+        ok = b.value("PRAGMA quick_check") === "ok";
+      } finally {
+        b.close();
+      }
+    } catch {
+      ok = false;
+    }
+    if (!ok) throw new HttpError(400, "restore failed: the backup's database is damaged");
+    if (!beforeCopy) return;
+    const h = openDatabase(liveDb, { foreignKeys: false, timeoutMs: 5000 });
+    try {
+      h.run("ATTACH ? AS src", [srcDb]);
+      h.exec("BEGIN");
+      try {
+        beforeCopy(h);
+      } finally {
+        h.exec("ROLLBACK");
+      }
+      h.exec("DETACH src");
+    } catch (e) {
+      if (Number.isInteger(e?.statusCode)) throw e;
+      throw new HttpError(400, `restore failed: ${String(e?.message ?? e).slice(0, 300)}`);
+    } finally {
+      h.close();
+    }
+  };
+
   app.post(`${prefix}/restore`, async (c) => {
     await recovered;
     // another restore or a reset running: refused before an upload of gigabytes
     if (gate.reason) throw new ApiError(409, "maintenance-busy", gate.refusal().title, "try again when it's done");
     const liveDb = String(await getDbPath());
+    // an earlier restore's record still names folders: never another on top of it
+    if (restoreUnfinished(liveDb)) throw unfinished({ message: "an earlier restore didn't finish" });
     const upDir = workFolder(liveDb, "upload");
     const tmp = workFolder(liveDb, "restore");
     try {
@@ -603,18 +789,39 @@ export function makeDataRouter({
       const srcDb = path.join(tmp, DB_ARCNAME);
       // each declared asset folder the backup has (one it leaves out stays as it is)
       const pairs = (await assets()).map(([arcname, d]) => [path.join(tmp, arcname), String(d)]).filter(([b]) => existsSync(b) && statSync(b).isDirectory());
+      checkBackup(liveDb, srcDb);
       await gate.closeFor("restore", async () => {
         if (beforeReplace) await beforeReplace();
-        // the folders first, all or nothing; then the tables in one transaction — the folders put back if it fails
-        const swap = await swapAssetDirs(pairs, journalOf(liveDb));
-        try {
+        if (!transactional) {
           copyTables(liveDb, srcDb);
-        } catch (e) {
-          await swap.undo().catch(() => {}); // a folder still held: the record puts it back at the next start
-          throw e;
+          if (afterTables) await afterTables();
+          for (const [bdir, d] of pairs) await legacyReplaceAssetDir(bdir, d);
+        } else {
+          // the folders first, all or nothing; then the tables in one transaction with the commit record — the
+          // folders put back if it fails
+          let swap;
+          try {
+            swap = await swapAssetDirs(pairs, journalOf(liveDb));
+          } catch (e) {
+            if (e?.unfinished) gate.closeUntilRestart();
+            throw e;
+          }
+          try {
+            copyTables(liveDb, srcDb, swap.stamp);
+          } catch (e) {
+            try {
+              await swap.undo();
+            } catch (err) {
+              // a folder still held: no write lands in the backup's copy under the old tables; the next start puts
+              // the old folders back
+              gate.closeUntilRestart();
+              throw unfinished(err);
+            }
+            throw e;
+          }
+          await swap.commit();
+          if (afterTables) await afterTables();
         }
-        await swap.commit();
-        if (afterTables) await afterTables();
         if (onReplaced) await onReplaced();
       });
     } finally {
@@ -626,6 +833,7 @@ export function makeDataRouter({
 
   app.post(`${prefix}/reset`, async (c) => {
     await recovered;
+    if (restoreUnfinished(String(await getDbPath()))) throw unfinished({ message: "an earlier restore didn't finish" });
     await gate.closeFor("reset", () => runReset());
     return c.json({ ok: true });
   });

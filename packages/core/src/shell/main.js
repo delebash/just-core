@@ -47,6 +47,7 @@ import {
   Menu,
   nativeImage,
   net,
+  powerMonitor,
   protocol,
   screen,
   session,
@@ -849,7 +850,13 @@ export function runDesktopApp(config) {
     createWindow();
     createTray();
     await startServer();
-    if (updatesOn) checkForUpdates();
+    if (updatesOn) {
+      checkForUpdates();
+      // a copy left running for weeks hears of a release too: every six hours, and when the computer wakes (the
+      // twelfth review, 2026-10-20 — electron-updater checks only when asked)
+      setInterval(() => checkForUpdates().catch(() => {}), 6 * 3600_000).unref?.();
+      powerMonitor.on("resume", () => checkForUpdates().catch(() => {}));
+    }
   });
   return { state, startServer, stopServer, quitApp };
 }

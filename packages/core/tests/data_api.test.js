@@ -35,7 +35,7 @@ function makeApp(opts = {}) {
   const app = createServer({ typeBase: "https://example.test/errors/" });
   if (opts.gate) app.use("*", opts.gate.middleware());
   if (opts.routes) opts.routes(app);
-  app.route("/", makeDataRouter({ getDbPath: () => db, metadata: [NOTES], runReset, assetDirs: () => ({ images: assets }), ...opts.router }));
+  app.route("/", makeDataRouter({ getDbPath: () => db, metadata: [NOTES], runReset, assetDirs: () => ({ images: assets }), ...(opts.gate ? { gate: opts.gate } : {}), ...opts.router }));
   return { app, engine, assets, tmp, db };
 }
 
@@ -104,11 +104,31 @@ test("restore_swaps_the_asset_folder_whole_and_takes_an_earlier_restores_leftove
   expect(existsSync(assets)).toBe(true);
 });
 
+test("restore_into_a_folder_windows_holds_lands_every_file_and_drops_the_rest_for_an_app_without_the_gate", async () => {
+  // an app that hasn't taken the gate keeps the restore before it: a file in the folder held open (a scanner, its
+  // own audio being played): on Windows the folder can't be renamed, so the backup is copied over it — every
+  // backed-up file lands, what the backup hasn't is removed
+  const { app, assets } = makeApp();
+  writeFileSync(join(assets, "a.txt"), "backed up");
+  const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
+  writeFileSync(join(assets, "a.txt"), "changed later");
+  writeFileSync(join(assets, "stale.png"), "not in the backup");
+  const held = openSync(join(assets, "a.txt"), "r");
+  try {
+    expect((await upload(app, blob)).status).toBe(200);
+  } finally {
+    closeSync(held);
+  }
+  expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("backed up");
+  expect(readdirSync(assets)).toEqual(["a.txt"]);
+}, 30000);
+
 test("restore_refuses_a_folder_another_program_holds_with_nothing_changed_then_works_once_it_is_let_go", async () => {
-  // a file in the folder held open past the retries (a viewer, a sync tool): on Windows the folder can't be
-  // renamed — the restore is refused and nothing changed, never the old folder half overwritten under restored
-  // tables (2026-10-20, the eleventh review); elsewhere a held file never stops a rename, and it just works
-  const { app, engine, assets, tmp } = makeApp();
+  // with the gate (the all-or-nothing restore): a file in the folder held open past the retries (a viewer, a sync
+  // tool) — on Windows the folder can't be renamed: the restore is refused and nothing changed, never the old folder
+  // half overwritten under restored tables (2026-10-20, the eleventh review); elsewhere a held file never stops a
+  // rename, and it just works
+  const { app, engine, assets, tmp } = makeApp({ gate: new MaintenanceGate(), router: {} });
   engine.run("INSERT INTO notes (id, body) VALUES (1, 'backed up')");
   writeFileSync(join(assets, "a.txt"), "backed up");
   const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
@@ -139,10 +159,14 @@ test("restore_refuses_a_folder_another_program_holds_with_nothing_changed_then_w
 
 test("a_restore_whose_tables_fail_puts_the_folders_back", async () => {
   let refuse = false;
+  // the table copy itself failing (a hook's own refusal only in the copy, not in the dry run before it)
+  let dry = true;
   const { app, engine, assets } = makeApp({
+    gate: new MaintenanceGate(),
     router: {
       beforeCopy: () => {
-        if (refuse) throw new ApiError(409, "restore-other-library", "Sync refused", "another library");
+        dry = !dry;
+        if (refuse && dry) throw new ApiError(409, "restore-other-library", "Sync refused", "another library");
       },
     },
   });
@@ -150,6 +174,7 @@ test("a_restore_whose_tables_fail_puts_the_folders_back", async () => {
   writeFileSync(join(assets, "a.txt"), "backed up");
   const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
   refuse = true;
+  dry = true;
   writeFileSync(join(assets, "a.txt"), "now");
   writeFileSync(join(assets, "b.txt"), "now too");
   expect((await upload(app, blob)).status).toBe(409);
@@ -169,17 +194,61 @@ test("a_restore_stopped_between_its_folders_and_its_tables_is_undone_at_the_next
   mkdirSync(old);
   writeFileSync(join(old, "mine.txt"), "m");
   writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 5, dirs: [{ dir, old }] }));
-  expect(finishInterruptedRestore(db)).toBe(true);
+  expect(finishInterruptedRestore(db)).toBe("back");
   expect(readdirSync(dir)).toEqual(["mine.txt"]);
   expect(existsSync(old)).toBe(false);
   expect(readdirSync(join(tmp, "images.restoring-5"))).toEqual(["from-backup.txt"]);
   expect(existsSync(`${db}.restoring`)).toBe(false);
   // nothing recorded: nothing done
-  expect(finishInterruptedRestore(db)).toBe(false);
+  expect(finishInterruptedRestore(db)).toBe(null);
   // stopped after recording, before moving anything: the folder stays
   writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 6, dirs: [{ dir, old: `${dir}.replaced-6` }] }));
-  expect(finishInterruptedRestore(db)).toBe(true);
+  expect(finishInterruptedRestore(db)).toBe("back");
   expect(readdirSync(dir)).toEqual(["mine.txt"]);
+  // stopped after its tables committed (their commit record holds its stamp): finished — the old folder goes
+  mkdirSync(`${dir}.replaced-7`);
+  const h = openDatabase(db, { foreignKeys: false });
+  h.exec("CREATE TABLE _kit_restore (stamp INTEGER NOT NULL)");
+  h.run("INSERT INTO _kit_restore (stamp) VALUES (7)");
+  h.close();
+  writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 7, dirs: [{ dir, old: `${dir}.replaced-7` }] }));
+  expect(finishInterruptedRestore(db)).toBe("forward");
+  expect(readdirSync(dir)).toEqual(["mine.txt"]);
+  expect(existsSync(`${dir}.replaced-7`)).toBe(false);
+  expect(existsSync(`${db}.restoring`)).toBe(false);
+});
+
+test("a_restore_whose_record_is_still_there_refuses_the_next_restore_and_a_reset_and_its_commit_is_recorded", async () => {
+  const { app, engine, assets, db } = makeApp({ gate: new MaintenanceGate(), router: {} });
+  engine.run("INSERT INTO notes (id, body) VALUES (1, 'x')");
+  writeFileSync(join(assets, "a.txt"), "x");
+  const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
+  expect((await upload(app, blob)).status).toBe(200);
+  // its commit is recorded inside the restored database
+  expect(engine.value("SELECT count(*) FROM _kit_restore")).toBe(1);
+  // a record left (a restore that couldn't put the folders back): nothing restores or resets on top of it
+  writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 1, dirs: [] }));
+  const r = await upload(app, blob);
+  expect(r.status).toBe(500);
+  expect(await r.json()).toMatchObject({ title: "The restore couldn't put your data back" });
+  expect((await app.request("/v1/data/reset", { method: "POST" })).status).toBe(500);
+});
+
+test("the_gate_refuses_a_restore_when_a_write_runs_past_the_drain_and_shuts_until_a_restart", async () => {
+  const gate = new MaintenanceGate();
+  let release;
+  const stuck = new Promise((r) => {
+    release = r;
+  });
+  const write = gate.middleware()({ req: { method: "POST", path: "/v1/x" } }, () => stuck);
+  await expect(gate.closeFor("restore", async () => "replaced", { drainMs: 30 })).rejects.toMatchObject({ statusCode: 409, title: "A change is still being saved" });
+  expect(gate.reason).toBe(null); // open again
+  release();
+  await write;
+  expect(await gate.closeFor("restore", async () => "replaced")).toBe("replaced");
+  gate.closeUntilRestart();
+  await expect(gate.closeFor("restore", async () => "replaced")).rejects.toMatchObject({ statusCode: 409 });
+  await expect(gate.middleware()({ req: { method: "POST", path: "/v1/x" } }, async () => {})).rejects.toMatchObject({ statusCode: 503, title: "The app needs a restart" });
 });
 
 test("the_gate_refuses_other_writes_while_a_restore_replaces_the_data_after_the_running_ones_end", async () => {
@@ -396,7 +465,9 @@ test("restore_hooks_run_around_the_copy_and_a_hook_refusal_is_the_answer", async
   engine.run("UPDATE notes SET body = 'changed' WHERE id = 1");
 
   expect((await upload(app, blob)).status).toBe(200);
+  // the hook first in a dry run (rolled back) — a refusal comes before anything is shut out or moved
   expect(calls).toEqual([
+    ["beforeCopy", "original", "changed"],
     ["beforeCopy", "original", "changed"],
     ["afterCopy", "original"],
     ["afterTables", "original"],
@@ -408,7 +479,7 @@ test("restore_hooks_run_around_the_copy_and_a_hook_refusal_is_the_answer", async
   const r = await upload(app, blob);
   expect(r.status).toBe(409);
   expect(await r.json()).toMatchObject({ status: 409, detail: "another library", error: "restore-other-library" });
-  expect(calls.map((c) => c[0])).toEqual(["beforeCopy"]);
+  expect(calls.map((c) => c[0])).toEqual(["beforeCopy"]); // the dry run's: refused there
   expect(rows(engine)).toEqual({ 1: "changed again" });
 });
 

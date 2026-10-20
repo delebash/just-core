@@ -57,3 +57,48 @@ describe("watchSync", () => {
     stop();
   });
 });
+
+describe("long sessions (the twelfth review)", () => {
+  test("watchSync asks nothing while the page is hidden, and at once when it shows again", async () => {
+    vi.useFakeTimers();
+    configureServerApi({ resolveBase: () => "http://127.0.0.1:1" });
+    const listeners = {};
+    const doc = { visibilityState: "hidden", addEventListener: (n, f) => (listeners[n] = f), removeEventListener: () => {}, querySelector: () => null };
+    vi.stubGlobal("document", doc);
+    vi.stubGlobal("window", { addEventListener: (n, f) => (listeners[`w:${n}`] = f), removeEventListener: () => {} });
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ rev: "b:1", pollSeconds: 1 }), { headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetch);
+    const stop = watchSync(() => {});
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetch).not.toHaveBeenCalled(); // hidden: nothing asked
+    doc.visibilityState = "visible";
+    listeners.visibilitychange();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(fetch).toHaveBeenCalledTimes(1); // shown: at once
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    doc.visibilityState = "hidden";
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetch).toHaveBeenCalledTimes(2); // hidden again: the next tick asks nothing
+    stop();
+  });
+
+  test("a request the token check refuses sends the app to its token page, once", async () => {
+    const { serverNeedsToken, get } = await import("../src/common/services/serverApi.js");
+    serverNeedsToken.value = false;
+    const needed = vi.fn();
+    configureServerApi({ resolveBase: () => "http://127.0.0.1:1", onTokenNeeded: needed });
+    const problem = { type: "https://app.local/errors/forbidden", title: "Forbidden", status: 403, detail: "Bearer token not accepted" };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(problem), { status: 403, headers: { "content-type": "application/problem+json" } })));
+    await expect(get("/v1/houses")).rejects.toMatchObject({ status: 403 });
+    await expect(get("/v1/houses/x")).rejects.toMatchObject({ status: 403 });
+    expect(needed).toHaveBeenCalledTimes(1);
+    expect(serverNeedsToken.value).toBe(true);
+    // another 403 (a renamed page refused — host-not-allowed) is not a token's
+    serverNeedsToken.value = false;
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ...problem, type: "https://app.local/errors/host-not-allowed" }), { status: 403 })));
+    await expect(get("/v1/x")).rejects.toMatchObject({ status: 403 });
+    expect(needed).toHaveBeenCalledTimes(1);
+    configureServerApi({ onTokenNeeded: null });
+  });
+});

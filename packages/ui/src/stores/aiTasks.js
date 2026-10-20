@@ -25,6 +25,7 @@
 // wall clock (a slow local model's healthy multi-second gaps aren't "stalling").
 // deltaCount (below) feeds that mean.
 
+import { pageShown } from "../common/services/visibility.js";
 import { defineStore } from "pinia";
 import { markRaw } from "vue";
 
@@ -110,7 +111,8 @@ export const useAiTasksStore = defineStore("aiTasks", {
     },
     _ensureTicker() {
       if (tickHandle) return;
-      tickHandle = setInterval(() => { this.now = Date.now(); }, 500);
+      // the clock moves only while the page is shown (a hidden window draws nothing — visibility.js)
+      tickHandle = setInterval(() => { if (pageShown()) this.now = Date.now(); }, 500);
     },
     // Gate on tasks that are actually RUNNING, not on `order.length` — JustVoice's
     // renderTasks fixed exactly this bug and the fix comes up with the store: a

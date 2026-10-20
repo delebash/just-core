@@ -33,8 +33,11 @@ const _cfg = {
  *  this computer and the window has none it takes (the health answer's `tokenRequired`) — for an app whose window
  *  signs in there (the kit's token storage and Server panel: the template's). Off, the window loads as before and
  *  its Settings → Server stays the way out (the other apps keep their tokens elsewhere — 2026-10-20). */
-export function configureServerApi({ resolveBase, authToken, askTokenOnThisComputer, sendClientId } = {}) {
+export function configureServerApi({ resolveBase, authToken, askTokenOnThisComputer, sendClientId, onTokenNeeded } = {}) {
   if (resolveBase) _cfg.resolveBase = resolveBase;
+  // a request the server's token check refused (a token removed in Settings while this window was open): the app
+  // shows the kit's token page (its ConnectionError) instead of failing every action one toast at a time
+  if (onTokenNeeded !== undefined) _cfg.onTokenNeeded = onTokenNeeded;
   if (askTokenOnThisComputer !== undefined) _cfg.askTokenOnThisComputer = !!askTokenOnThisComputer;
   // every request carries this window's id (transport.js) — for a server that tells its windows apart
   if (sendClientId !== undefined) setSendClientId(sendClientId);
@@ -78,6 +81,17 @@ export function authHeaders(extra) {
   return headers;
 }
 
+/** The server's token check refused this request (the kit's bearerAuth: 401 "unauthorized", 403 "forbidden"): the
+ *  app's onTokenNeeded, once, with serverNeedsToken set for the token page. */
+function noticeRefusedToken(status, problem) {
+  if (!_cfg.onTokenNeeded || serverNeedsToken.value) return;
+  const type = String(problem?.type || "");
+  if ((status === 401 && /\/unauthorized$/.test(type)) || (status === 403 && /\/forbidden$/.test(type))) {
+    serverNeedsToken.value = true;
+    _cfg.onTokenNeeded();
+  }
+}
+
 export function serverUrl(path) {
   return _cfg.resolveBase().replace(/\/$/, "") + path;
 }
@@ -95,6 +109,7 @@ async function _doRequest(path, opts) {
       // on it (e.g. "409" → needsSetup). The parts ride on the Error too
       // (status, problem, errors, requestId — app-structure §15).
       const parsed = parseProblem(text);
+      noticeRefusedToken(res.status, parsed.problem);
       throw attachProblem(new Error(`${res.status} ${res.statusText}: ${parsed.human}`.trim()), res.status, parsed, res.headers);
     }
     const ct = res.headers.get("content-type") || "";
@@ -175,6 +190,7 @@ export async function requestBlob(path, { method = "GET", body, headers } = {}) 
   const res = await serverFetch(serverUrl(path), opts);
   if (!res.ok) {
     const parsed = parseProblem(await res.text().catch(() => ""));
+    noticeRefusedToken(res.status, parsed.problem);
     throw attachProblem(new Error(`${res.status} ${res.statusText}: ${parsed.human}`.trim()), res.status, parsed, res.headers);
   }
   return res.blob();
@@ -186,6 +202,7 @@ export async function postForm(path, formData, opts = {}) {
   if (!res.ok) {
     // the §15 parts on the Error, as request() hangs them (status, problem, errors, requestId)
     const parsed = parseProblem(await res.text());
+    noticeRefusedToken(res.status, parsed.problem);
     throw attachProblem(new Error(`${res.status} ${res.statusText}: ${parsed.human}`), res.status, parsed, res.headers);
   }
   const ct = res.headers.get("content-type") || "";

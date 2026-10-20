@@ -1488,6 +1488,34 @@ just-house-paint's eleventh review — an agent driving two clients by fetch aga
   keeps a file as it was when the app replaces it by rename or removes it). Where links can't be made (FAT/exFAT,
   another drive) the live folder is read and a vanished file skipped.
 
+**Today's restore and windows, attacked; long sessions** (*measured* and *tested*, 2026-10-20; just-house-paint's
+twelfth review — two agents, scratch servers, real Edge and Playwright):
+
+- The restore's commit point was the journal's removal, not the database COMMIT: now the restored tables carry the
+  restore's stamp in `_kit_restore` (inside the same transaction — a commit record), and `finishInterruptedRestore`
+  rolls forward (removes the old folders) when it finds it, back otherwise. Its renames retry like the runtime's
+  (`renameHeldSync`, `Atomics.wait`); failing, the router shuts writes until a restart
+  (`MaintenanceGate.closeUntilRestart`), and nothing restores or resets on top of a record (`restoreUnfinished`) —
+  an app's start-up sweep mustn't touch the folders one names either (a failed recovery plus just-house-paint's
+  sweep removed the user's own houses in a scratch run). A failed undo at runtime shuts writes until a restart too.
+- The backup's database is checked before the gate closes (`PRAGMA quick_check`, the app's `beforeCopy` in a
+  rolled-back dry run); a write still running when the drain times out refuses the restore (409); the unpacked
+  copy's rename retries (a scanner); `beforeReplace` must stop the app's jobs AND wait for them (a find past its last
+  abort check deleted masks from the just-placed copy in the attack's trace).
+- *Measured*: a handle open inside a folder makes its rename fail (EPERM) on Windows — so an app whose own server
+  streams files from an asset folder (JustVoice's audio) would get "files-in-use" on every restore during playback.
+  The all-or-nothing swap is therefore the gate's: a router made without `gate` keeps the restore before it (tables,
+  then each folder replaced with the copy-over fallback). A read handle on a backup's hard link doesn't block
+  renaming the folder (*measured*). `linkTree` costs ~0.33 ms a file on the event loop (1 500 files 478 ms, 10 000
+  files 3.3 s — *measured*).
+- A hidden window's poll (a fetch, then a setTimeout) escapes Chromium's intensive throttling: 15 a minute, all day
+  (*measured*, Edge minimized). `common/services/visibility.js` (the Page Visibility API, `online`): watchSync, the
+  connection page (2 → 60 s backoff) and the AI tasks clock ask nothing while hidden and at once when shown.
+- `configureServerApi({ onTokenNeeded })`: a 401 "unauthorized" or 403 "forbidden" from bearerAuth sets
+  `serverNeedsToken` and calls the app once (a token removed while a tab was open left it alive on 403s).
+- The shell checks for updates every six hours and on `powerMonitor` `resume` (a copy left running for weeks never
+  heard of a release). EmptyState is centred (`margin-inline: auto`) where its narrowing left it at the left.
+
 **The screens at real sizes, fixed** (*measured*, 2026-10-20; just-house-paint's tenth review, an agent on the
 built app at 960/1366/1920, light and dark):
 

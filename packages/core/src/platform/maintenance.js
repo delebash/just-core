@@ -18,6 +18,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const WORDS = {
   restore: ["A backup is being restored", "your change wasn't saved — the app shows the restored data in a moment"],
   reset: ["The app is being reset", "your change wasn't saved — the app starts again from the beginning in a moment"],
+  restart: ["The app needs a restart", "a restore couldn't put your data back while it ran — restart the app: it puts it back as it starts"],
 };
 
 export class MaintenanceGate {
@@ -34,7 +35,7 @@ export class MaintenanceGate {
     this.#retryAfter = retryAfterSeconds;
   }
 
-  /** What is running ("restore" | "reset"), or null. */
+  /** What is running ("restore" | "reset"), "restart" (shut until the server starts again), or null. */
   get reason() {
     return this.#reason;
   }
@@ -67,10 +68,17 @@ export class MaintenanceGate {
     };
   }
 
+  /** Shut for good — until the server starts again (a restore that couldn't put the data back: what the tables
+   *  name isn't in the folders until the next start puts them back). */
+  closeUntilRestart() {
+    this.#reason = "restart";
+  }
+
   /**
-   * Run `fn` with the gate closed for `reason`: new writes refused at once, the running ones finished first
-   * (at most `drainMs` — a write that hangs never holds a restore forever). A second close while one runs is
-   * refused (409). The gate opens again whatever `fn` does.
+   * Run `fn` with the gate closed for `reason`: new writes refused at once, the running ones finished first. One
+   * still running after `drainMs` refuses `fn` instead (409 — never a restore under a write half done). A second
+   * close while one runs is refused (409). The gate opens again whatever `fn` does — unless it was shut until a
+   * restart meanwhile.
    */
   async closeFor(reason, fn, { drainMs = 60_000 } = {}) {
     if (this.#reason) throw new ApiError(409, "maintenance-busy", WORDS[this.#reason]?.[0] || "The data is being replaced", "try again when it's done");
@@ -85,10 +93,11 @@ export class MaintenanceGate {
           }),
         ]);
         clearTimeout(timer);
+        if (this.#active) throw new ApiError(409, "maintenance-busy", "A change is still being saved", "nothing was replaced — try again in a moment");
       }
       return await fn();
     } finally {
-      this.#reason = null;
+      if (this.#reason === reason) this.#reason = null;
     }
   }
 }

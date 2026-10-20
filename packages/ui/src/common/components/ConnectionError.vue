@@ -20,6 +20,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { checkServer, serverNeedsToken } from "../services/serverApi.js";
 import { setServerToken } from "../services/serverToken.js";
+import { onBack, pageShown } from "../services/visibility.js";
 
 // The words are the kit's (kit.connectionError.*) in the app's language; the app passes its own
 // translated name, need and dev hint.
@@ -40,16 +41,34 @@ const name = computed(() => props.appName || t("kit.connectionError.theApp"));
 const title = computed(() => t("kit.connectionError.title", { appName: name.value }));
 function retry() { location.reload(); }
 
-// Keep asking (one probe each time) and boot when the server answers.
-const PROBE_EVERY_MS = 2000;
+// Keep asking (one probe each time) and boot when the server answers: every 2 s at first, then less often up to once
+// a minute (a server gone for days isn't asked 43,200 times a day), not at all while the page is hidden, and at once
+// when it shows again or the network comes back (visibility.js; the twelfth review, 2026-10-20).
+const PROBE_FIRST_MS = 2000;
+const PROBE_MOST_MS = 60_000;
+let every = PROBE_FIRST_MS;
 let timer = null;
 let stopped = false;
+let probing = false;
 async function probe() {
   timer = null;
-  if (await checkServer({ tries: 1 })) retry();
+  if (stopped || probing || !pageShown()) return;
+  probing = true;
+  try {
+    if (await checkServer({ tries: 1 })) return retry();
+  } finally {
+    probing = false;
+  }
   // a server that wants a token answers the same until one is given: stop asking
-  else if (!stopped && !serverNeedsToken.value) timer = setTimeout(probe, PROBE_EVERY_MS);
+  if (stopped || serverNeedsToken.value) return;
+  timer = setTimeout(probe, every);
+  every = Math.min(every * 1.5, PROBE_MOST_MS);
 }
+const offBack = onBack(() => {
+  every = PROBE_FIRST_MS;
+  clearTimeout(timer);
+  void probe();
+});
 
 // The token form: kept, tried once, the app loads when the server takes it.
 const token = ref("");
@@ -65,8 +84,8 @@ async function connect() {
     connecting.value = false;
   }
 }
-onMounted(() => { timer = setTimeout(probe, PROBE_EVERY_MS); });
-onBeforeUnmount(() => { stopped = true; clearTimeout(timer); });
+onMounted(() => { timer = setTimeout(probe, PROBE_FIRST_MS); });
+onBeforeUnmount(() => { stopped = true; clearTimeout(timer); offBack(); });
 </script>
 
 <template>

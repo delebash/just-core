@@ -5,7 +5,7 @@
 export { bearerAuth } from "./auth.js";
 export { starletteCors } from "./cors.js";
 export { CAPACITOR_ORIGINS, csrfOrigin } from "./csrf.js";
-export { finishInterruptedRestore, makeDataRouter } from "./data_api.js";
+export { finishInterruptedRestore, makeDataRouter, restoreUnfinished, sweepWorkFolders } from "./data_api.js";
 export { fromDataRelative, installDir, resolveDataDir, toDataRelative } from "./data_paths.js";
 export { dirSize, makeDiskRouter } from "./disk_api.js";
 export { ApiError, HttpError, installErrorHandlers, requestIdOf, unhandledEnvelope } from "./errors.js";
