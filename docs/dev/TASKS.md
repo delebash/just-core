@@ -65,6 +65,14 @@ STATE:  OPEN — from JustWrite's session (JW 5c6a33f..949258d, its dry runs). T
         the object form (a list `publish: [ {...} ]` reported as none); a git-ignored generated file
         (src/phone/worker-bundle/server-worker.js) checked for setInterval — skip ignored files; a setInterval that
         ticks a clock (JW's Sidebar.vue, Date.now every 15 s) reported as a poll.
+        The release's start check passes a broken build on Windows and macOS (JW, 2026-10-20): start-packaged.js starts
+        the unpacked app inside the checkout, so Node's package lookup walks up out of app.asar into the repo's own
+        node_modules and finds what the package lacks — JW's server imported @tiptap/extension-mention, whose required
+        peer @tiptap/suggestion wasn't declared, so electron-builder left it out; Windows and Mac passed, only the
+        AppImage (mounted under /tmp) failed ("Cannot find package"); win-unpacked copied to %TEMP% failed the same.
+        To fix (template and every app's copy, and the e2e drivers that start the unpacked build): start a copy of
+        the unpacked build in the system temp folder; and a guard check that every required (non-optional)
+        peerDependency in the server's dependency tree is declared.
 
 ## A standard start for every new just app: a `/new-just-app` skill on the kit's `template/` [2026-10-17]
 STATE:  PARTLY DECIDED 2026-10-17 (session web-2a, run from `E:\Dev\Web`). The user, verbatim:
