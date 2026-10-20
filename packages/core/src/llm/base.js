@@ -165,6 +165,14 @@ export const removePrefix = (s, p) => (p && s.startsWith(p) ? s.slice(p.length) 
 /** httpx.HTTPError for transport failures (connect, read, timeout) — what `except
  * httpx.HTTPError` caught. Its message is the underlying cause (undici's own "fetch
  * failed" says nothing). */
+/** What an AI run rejects with when its `signal` aborts it (the caller gone, a Cancel): an `AbortError`, the signal's
+ *  reason as its cause — never a provider's failure (the twenty-first review: Cancel left the run going). */
+export function abortError(signal = null) {
+  return Object.assign(new Error("the AI run was cancelled"), { name: "AbortError", code: "ABORT_ERR", cause: signal?.reason });
+}
+/** An abort — the kit's own (abortError), fetch's DOMException, an SDK's user abort. */
+export const isAbortError = (e) => e?.name === "AbortError" || e?.code === "ABORT_ERR" || e?.constructor?.name === "APIUserAbortError";
+
 export class TransportError extends Error {
   constructor(message, options) {
     super(message, options);
@@ -214,7 +222,7 @@ export function httpxBody(json) {
  * read, so a transport failure anywhere is a TransportError. → `{status, text, json()}`
  * (`json()` throws SyntaxError — json.JSONDecodeError — on a bad body).
  */
-export async function httpxRequest(method, url, { json, headers, timeout }) {
+export async function httpxRequest(method, url, { json, headers, timeout, signal = null }) {
   const body = httpxBody(json);
   let r;
   let text;
@@ -224,9 +232,11 @@ export async function httpxRequest(method, url, { json, headers, timeout }) {
       headers,
       body,
       dispatcher: agentFor(timeout),
+      ...(signal ? { signal } : {}),
     });
     text = await r.text();
   } catch (e) {
+    if (signal?.aborted) throw abortError(signal);
     throw new TransportError(transportText(e), { cause: e });
   }
   return { status: r.status, text, json: () => JSON.parse(text) };
@@ -234,7 +244,7 @@ export async function httpxRequest(method, url, { json, headers, timeout }) {
 
 /** httpx `client.stream(...)`: the response with its body unread (`.status`, `.body`).
  * A transport failure is a TransportError. */
-export async function httpxStream(method, url, { json, headers, timeout }) {
+export async function httpxStream(method, url, { json, headers, timeout, signal = null }) {
   const body = httpxBody(json);
   try {
     return await http.fetch(url, {
@@ -242,8 +252,10 @@ export async function httpxStream(method, url, { json, headers, timeout }) {
       headers,
       body,
       dispatcher: agentFor(timeout),
+      ...(signal ? { signal } : {}),
     });
   } catch (e) {
+    if (signal?.aborted) throw abortError(signal);
     throw new TransportError(transportText(e), { cause: e });
   }
 }

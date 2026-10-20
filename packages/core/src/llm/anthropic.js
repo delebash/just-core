@@ -16,7 +16,7 @@
 
 import * as http from "../platform/http.js";
 import { errText, pyInt, rstrip } from "../platform/py.js";
-import { adapterHttpError, LLMResponse, popReasoning, StreamDelta, selectAllowed, splitSystem } from "./base.js";
+import { abortError, adapterHttpError, LLMResponse, popReasoning, StreamDelta, selectAllowed, splitSystem } from "./base.js";
 
 let sdk = null;
 /** The Anthropic SDK, imported on first use (Python measured `import anthropic` at ~584 ms
@@ -215,12 +215,13 @@ export class AnthropicAdapter {
 
   // ── the adapter contract ────────────────────────────────────────
 
-  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {}) {
+  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {}) {
     const kwargs = this._buildKwargs(messages, { model, temperature, maxTokens, system, think, extra });
     let msg;
     try {
-      msg = await (await this._ensureClient()).messages.create(kwargs);
+      msg = await (await this._ensureClient()).messages.create(kwargs, signal ? { signal } : undefined);
     } catch (e) {
+      if (signal?.aborted) throw abortError(signal);
       throw await this._d10(e);
     }
     const text = msg.content
@@ -240,14 +241,14 @@ export class AnthropicAdapter {
 
   async *streamChat(
     messages,
-    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {},
+    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {},
   ) {
     const kwargs = this._buildKwargs(messages, { model, temperature, maxTokens, system, think, extra });
     let pt = 0;
     let ct = 0;
     let finish = "";
     try {
-      const events = await (await this._ensureClient()).messages.create({ ...kwargs, stream: true });
+      const events = await (await this._ensureClient()).messages.create({ ...kwargs, stream: true }, signal ? { signal } : undefined);
       // Raw stream events: message_start carries usage on .message.usage;
       // content_block_delta with a text_delta carries .delta.text; message_delta carries
       // the running output_tokens on .usage.
@@ -270,6 +271,7 @@ export class AnthropicAdapter {
         }
       }
     } catch (e) {
+      if (signal?.aborted) throw abortError(signal);
       throw await this._d10(e, { stream: true });
     }
     yield StreamDelta({ done: true, prompt_tokens: pt, completion_tokens: ct, finish_reason: finish });

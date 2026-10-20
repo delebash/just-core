@@ -105,7 +105,7 @@ export class OpenAICompatAdapter {
     }
   }
 
-  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {}) {
+  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {}) {
     const body = {
       model: model || this.default_model,
       messages: buildChatMessages(messages, system),
@@ -123,7 +123,7 @@ export class OpenAICompatAdapter {
     const url = `${this._apiBase}/chat/completions`;
     let r;
     try {
-      r = await httpxRequest("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds });
+      r = await httpxRequest("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds, signal });
     } catch (e) {
       if (e instanceof TransportError) {
         const err = new RuntimeError(`${this.provider_type} request failed: ${e.message}`);
@@ -151,7 +151,7 @@ export class OpenAICompatAdapter {
 
   async *streamChat(
     messages,
-    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {},
+    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {},
   ) {
     const body = {
       model: model || this.default_model,
@@ -180,7 +180,7 @@ export class OpenAICompatAdapter {
     let finish = "";
     // A transport failure propagates as itself (Python's stream path doesn't wrap httpx
     // errors) — a TransportError carrying the cause's text.
-    const r = await httpxStream("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds });
+    const r = await httpxStream("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds, signal });
     if (r.status >= 400) {
       const detail = await r.text();
       throw new RuntimeError(`${this.provider_type} stream ${r.status}: ${cpSlice(detail, 0, 400)}`);

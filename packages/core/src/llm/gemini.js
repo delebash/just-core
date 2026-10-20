@@ -26,7 +26,7 @@
 
 import * as http from "../platform/http.js";
 import { errText, isJsonObject, rstrip, ValueError } from "../platform/py.js";
-import { adapterHttpError, LLMResponse, popReasoning, removePrefix, StreamDelta, selectAllowed, splitSystem } from "./base.js";
+import { abortError, adapterHttpError, LLMResponse, popReasoning, removePrefix, StreamDelta, selectAllowed, splitSystem } from "./base.js";
 
 let sdk = null;
 /** The google-genai SDK, imported on first use (Python measured the import at ~918 ms of
@@ -165,12 +165,13 @@ export class GeminiAdapter {
     return { modelId, contents: GeminiAdapter._contents(turns), config };
   }
 
-  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {}) {
+  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {}) {
     const { modelId, contents, config } = this._prepare(messages, { model, temperature, maxTokens, system, think, extra });
     let r;
     try {
-      r = await (await this._ensureClient()).models.generateContent({ model: modelId, contents, config });
+      r = await (await this._ensureClient()).models.generateContent({ model: modelId, contents, config: signal ? { ...config, abortSignal: signal } : config });
     } catch (e) {
+      if (signal?.aborted) throw abortError(signal);
       throw await this._d10(e);
     }
     const cand = r.candidates?.length ? r.candidates[0] : null;
@@ -192,14 +193,14 @@ export class GeminiAdapter {
 
   async *streamChat(
     messages,
-    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {},
+    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {},
   ) {
     const { modelId, contents, config } = this._prepare(messages, { model, temperature, maxTokens, system, think, extra });
     let pt = 0;
     let ct = 0;
     let finish = "";
     try {
-      const stream = await (await this._ensureClient()).models.generateContentStream({ model: modelId, contents, config });
+      const stream = await (await this._ensureClient()).models.generateContentStream({ model: modelId, contents, config: signal ? { ...config, abortSignal: signal } : config });
       for await (const chunk of stream) {
         const um = chunk.usageMetadata;
         if (um != null) {
@@ -214,6 +215,7 @@ export class GeminiAdapter {
         if (piece) yield StreamDelta({ text: piece });
       }
     } catch (e) {
+      if (signal?.aborted) throw abortError(signal);
       throw await this._d10(e, { stream: true });
     }
     yield StreamDelta({ done: true, prompt_tokens: pt, completion_tokens: ct, finish_reason: finish });

@@ -4,7 +4,7 @@
 // (Python resolved these lazily so a host without SQLAlchemy could import the adapters;
 // ES modules load what they import, so the same names are plain re-exports.)
 
-export { LLMMessage, LLMResponse } from "./base.js";
+export { abortError, isAbortError, LLMMessage, LLMResponse } from "./base.js";
 export { buildLlmConfig } from "./config_builder.js";
 export * as db from "./db.js";
 export { TABLES as LLM_TABLES } from "./db.js";

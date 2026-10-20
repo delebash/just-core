@@ -1789,6 +1789,11 @@ review — scripts in the scratchpad's adv18/shell — and its fixes; reruns in 
   - An AI run that can't reach its model: the runner's ensure-ready refusals are marked `localNotReady` (503,
     "engine-not-ready"), the adapters' no-status failures `unreachable` (502, "provider-unreachable");
     `aiRunHttpError` (@delebash/core/llm) answers both for an app's own route.
+  - **@hono/node-server aborts `c.req.raw.signal` when the client's connection closes before the answer** (tested:
+    tests/ai_run_abort.test.js, a real socket destroyed mid-run). runAction / streamAction take `{signal}` and pass it
+    to the provider's request (the kit's fetch, the Anthropic and OpenAI SDKs' request options, @google/genai's
+    `config.abortSignal`); an abort rejects with an AbortError (`isAbortError`), and /v1/ai/run answers the gone
+    client with nothing logged (the twenty-first review: Cancel left the run, and the app's AI hold, going).
   - **Sec-Fetch-Site `same-site` from another loopback port** (*measured*, Electron 44, the twentieth attack —
     scratchpad adv20/eprobe): an `<img>` or a no-cors fetch on http://127.0.0.1:A to http://127.0.0.1:B arrives
     `same-site` with no Origin — a site is scheme + registrable domain, ports aside (the HTML standard's "same site").

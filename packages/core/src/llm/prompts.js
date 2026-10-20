@@ -41,7 +41,7 @@ import {
   ValueError,
   W,
 } from "../platform/py.js";
-import { httpxRequest, LLMMessage, TransportError } from "./base.js";
+import { abortError, httpxRequest, isAbortError, LLMMessage, TransportError } from "./base.js";
 import * as dispatch from "./dispatch.js";
 import * as presetResolve from "./preset_resolve.js";
 import { seededPresetNameKey } from "./seed.js";
@@ -584,8 +584,10 @@ function resolveAction(store, body) {
 const asRunRequest = (body) => model(RunRequest, body, "RunRequest");
 
 /** The dispatch keyword arguments both run paths send. */
-function dispatchArgs(config, r, body) {
+function dispatchArgs(config, r, body, signal = null) {
   return {
+    // the run's abort (the caller gone, a Cancel): the provider's request is aborted with it
+    signal,
     config,
     feature: r.featureKey,
     // The action key routes to its own model when it has one, else the feature default.
@@ -611,14 +613,17 @@ function dispatchArgs(config, r, body) {
  * resident, and dispatch. Shared by POST /v1/ai/run AND in-server feature callers
  * (JustVoice's features run in-process) — one source, no drift. → LLMResponse.
  * Throws UnknownActionError / MissingTemplateVariables / LLMNotConfiguredError; usage lands
- * in the ledger via dispatch, same as every run.
+ * in the ledger via dispatch, same as every run. `signal` (an AbortSignal — the request's own, a Cancel's): when it
+ * aborts, the provider's request (the local engine's included) is aborted and the run rejects with an AbortError
+ * (base.js isAbortError) — the twenty-first review: Cancel left the run going and the app's AI hold held.
  */
-export async function runAction(store, config, body) {
+export async function runAction(store, config, body, { signal = null } = {}) {
   body = asRunRequest(body);
   const r = resolveAction(store, body);
   // QC-43b: a run routed to the bundled local runner makes its model resident first.
   await ensureLocalReady(config, r.featureKey, body.action, r.providerOverride, r.modelOverride);
-  return dispatch.chat(dispatchArgs(config, r, body));
+  if (signal?.aborted) throw abortError(signal);
+  return dispatch.chat(dispatchArgs(config, r, body, signal));
 }
 
 /**
@@ -629,11 +634,12 @@ export async function runAction(store, config, body) {
  * clean UnknownActionError / MissingTemplateVariables / LLMNotConfiguredError before any
  * frame: `for await (const d of await streamAction(…))`.
  */
-export async function streamAction(store, config, body) {
+export async function streamAction(store, config, body, { signal = null } = {}) {
   body = asRunRequest(body);
   const r = resolveAction(store, body);
   await ensureLocalReady(config, r.featureKey, body.action, r.providerOverride, r.modelOverride);
-  return dispatch.streamChat(dispatchArgs(config, r, body));
+  if (signal?.aborted) throw abortError(signal);
+  return dispatch.streamChat(dispatchArgs(config, r, body, signal));
 }
 
 /** How a run's prompt sits in its model's context — measured, not estimated (Python's
@@ -820,9 +826,14 @@ export function makeFeatureRouter(getStore, getConfig) {
     // The whole resolve→render→overlay→ensure→dispatch path IS runAction (the helper
     // in-server feature callers share — one source, no drift).
     let resp;
+    // the request's own signal: a client that leaves (or cancels) aborts the provider's request — @hono/node-server
+    // aborts it when the connection closes before the answer (tests/ai_run_abort.test.js)
+    const signal = c.req.raw.signal;
     try {
-      resp = await runAction(getStore(), getConfig(), body);
+      resp = await runAction(getStore(), getConfig(), body, { signal });
     } catch (e) {
+      // the client is gone: nobody to answer, and nothing failed (no 500 in the log)
+      if (signal.aborted && isAbortError(e)) return c.body(null, 499);
       const mapped = runErrorToHttp(e, body);
       if (mapped) throw mapped;
       // 501 → the UI shows the actionable "wire an LLM provider" message.
@@ -889,7 +900,8 @@ export function makeFeatureRouter(getStore, getConfig) {
         return;
       }
       try {
-        for await (const delta of dispatch.streamChat(dispatchArgs(getConfig(), r, body))) {
+        // (the request's own signal: a client that leaves aborts the provider's request, not only the pulling)
+        for await (const delta of dispatch.streamChat(dispatchArgs(getConfig(), r, body, c.req.raw.signal))) {
           let frame;
           if (delta.done) {
             frame = {
@@ -914,6 +926,7 @@ export function makeFeatureRouter(getStore, getConfig) {
           if (closed) break;
         }
       } catch (e) {
+        if (closed || isAbortError(e)) return; // the client left: nothing to say, nothing failed
         if (e instanceof dispatch.LLMNotConfiguredError) await send(sseFrame({ error: errText(e) }));
         else await send(sseFrame({ error: cpSlice(errText(e), 0, 200) })); // an error frame, not a 500
       }

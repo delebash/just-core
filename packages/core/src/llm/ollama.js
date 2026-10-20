@@ -79,12 +79,12 @@ export class OllamaAdapter {
     return body;
   }
 
-  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {}) {
+  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {}) {
     const body = this._body(messages, { model, temperature, maxTokens, system, think, extra }, false);
     const url = `${this._baseUrl}/api/chat`;
     let r;
     try {
-      r = await httpxRequest("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds });
+      r = await httpxRequest("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds, signal });
     } catch (e) {
       if (e instanceof TransportError) {
         const err = Object.assign(new RuntimeError(`ollama request failed: ${e.message}`), { unreachable: true });
@@ -111,14 +111,14 @@ export class OllamaAdapter {
 
   async *streamChat(
     messages,
-    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {},
+    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {},
   ) {
     const body = this._body(messages, { model, temperature, maxTokens, system, think, extra }, true);
     const url = `${this._baseUrl}/api/chat`;
     let pt = 0;
     let ct = 0;
     let finish = "";
-    const r = await httpxStream("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds });
+    const r = await httpxStream("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds, signal });
     if (r.status >= 400) {
       const detail = await r.text();
       throw new RuntimeError(`ollama stream ${r.status}: ${cpSlice(detail, 0, 400)}`);

@@ -293,6 +293,7 @@ export async function chat({
   registry = null,
   action = null,
   extra = null,
+  signal = null,
 }) {
   const [adapter, model] = resolveRoute(config, feature, { registry, action, providerOverride, modelOverride });
   const effThink = !!think;
@@ -306,7 +307,8 @@ export async function chat({
   try {
     const release = busyGuard(adapter);
     try {
-      resp = await adapter.chat([...messages], { model, temperature, maxTokens, system, think: effThink, extra: ext });
+      // (`signal`: the run's caller gone or its Cancel — the provider's request is aborted, the run rejects AbortError)
+      resp = await adapter.chat([...messages], { model, temperature, maxTokens, system, think: effThink, extra: ext, ...(signal ? { signal } : {}) });
     } finally {
       release();
     }
@@ -359,6 +361,7 @@ export async function* streamChat({
   registry = null,
   action = null,
   extra = null,
+  signal = null,
 }) {
   const [adapter, model] = resolveRoute(config, feature, { registry, action, providerOverride, modelOverride });
   const effThink = !!think;
@@ -381,6 +384,7 @@ export async function* streamChat({
         system,
         think: effThink,
         extra: ext,
+        ...(signal ? { signal } : {}),
       })) {
         if (delta.done) {
           pt = delta.prompt_tokens;

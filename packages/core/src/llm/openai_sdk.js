@@ -30,7 +30,7 @@
 import * as http from "../platform/http.js";
 import { getLogger } from "../platform/log.js";
 import { errText, isJsonObject, pyInt, RuntimeError, rstrip, ValueError } from "../platform/py.js";
-import { adapterHttpError, buildChatMessages, LLMResponse, popReasoning, StreamDelta, selectAllowed, splitSystem } from "./base.js";
+import { abortError, adapterHttpError, buildChatMessages, LLMResponse, popReasoning, StreamDelta, selectAllowed, splitSystem } from "./base.js";
 
 const log = getLogger("llm_runner.llm.openai_sdk");
 
@@ -239,10 +239,11 @@ export class OpenAISDKAdapter {
 
   /** Create a Responses call; when a reasoning model 400s on `temperature`, drop it and
    * retry ONCE with a single WARNING. */
-  async _responsesCreate(kwargs, { stream }) {
+  async _responsesCreate(kwargs, { stream, signal = null }) {
     const client = await this._ensureClient();
+    const options = signal ? { signal } : undefined;
     try {
-      return await client.responses.create({ ...kwargs, stream });
+      return await client.responses.create({ ...kwargs, stream }, options);
     } catch (e) {
       if (
         (await isStatusError(e)) &&
@@ -252,7 +253,7 @@ export class OpenAISDKAdapter {
       ) {
         log.warning("openai Responses rejected temperature — retrying once without it (reasoning model)");
         delete kwargs.temperature;
-        return await client.responses.create({ ...kwargs, stream });
+        return await client.responses.create({ ...kwargs, stream }, options);
       }
       throw e;
     }
@@ -270,14 +271,15 @@ export class OpenAISDKAdapter {
 
   // ── the adapter contract ────────────────────────────────────────
 
-  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {}) {
+  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {}) {
     const opts = { model, temperature, maxTokens, system, think, extra };
     if (this.provider_type === "openai") {
       const kwargs = this._responsesKwargs(messages, opts);
       let r;
       try {
-        r = await this._responsesCreate(kwargs, { stream: false });
+        r = await this._responsesCreate(kwargs, { stream: false, signal });
       } catch (e) {
+        if (signal?.aborted) throw abortError(signal);
         throw await this._d10(e);
       }
       const usage = r.usage ?? null;
@@ -299,8 +301,9 @@ export class OpenAISDKAdapter {
     const kwargs = this._ccKwargs(messages, { ...opts, stream: false });
     let resp;
     try {
-      resp = await (await this._ensureClient()).chat.completions.create(kwargs);
+      resp = await (await this._ensureClient()).chat.completions.create(kwargs, signal ? { signal } : undefined);
     } catch (e) {
+      if (signal?.aborted) throw abortError(signal);
       throw await this._d10(e);
     }
     const choice = resp.choices?.length ? resp.choices[0] : null;
@@ -318,9 +321,9 @@ export class OpenAISDKAdapter {
 
   async *streamChat(
     messages,
-    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null } = {},
+    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {},
   ) {
-    const opts = { model, temperature, maxTokens, system, think, extra };
+    const opts = { model, temperature, maxTokens, system, think, extra, signal };
     if (this.provider_type === "openai") yield* this._streamResponses(messages, opts);
     else yield* this._streamCc(messages, opts);
   }
@@ -331,7 +334,7 @@ export class OpenAISDKAdapter {
     let ct = 0;
     let finish = "";
     try {
-      const stream = await this._responsesCreate(kwargs, { stream: true });
+      const stream = await this._responsesCreate(kwargs, { stream: true, signal: opts.signal });
       for await (const event of stream) {
         const etype = event?.type ?? null;
         if (etype === "response.output_text.delta") {
@@ -354,6 +357,7 @@ export class OpenAISDKAdapter {
       }
     } catch (e) {
       if (e instanceof RuntimeError) throw e; // the D10 stream error just raised — don't re-wrap
+      if (opts.signal?.aborted) throw abortError(opts.signal);
       throw await this._d10(e, { stream: true });
     }
     yield StreamDelta({ done: true, prompt_tokens: pt, completion_tokens: ct, finish_reason: finish });
@@ -365,7 +369,7 @@ export class OpenAISDKAdapter {
     let ct = 0;
     let finish = "";
     try {
-      const stream = await (await this._ensureClient()).chat.completions.create(kwargs);
+      const stream = await (await this._ensureClient()).chat.completions.create(kwargs, opts.signal ? { signal: opts.signal } : undefined);
       for await (const chunk of stream) {
         const cu = chunk?.usage ?? null;
         if (cu != null) {
@@ -381,6 +385,7 @@ export class OpenAISDKAdapter {
         }
       }
     } catch (e) {
+      if (opts.signal?.aborted) throw abortError(opts.signal);
       throw await this._d10(e, { stream: true });
     }
     yield StreamDelta({ done: true, prompt_tokens: pt, completion_tokens: ct, finish_reason: finish });
