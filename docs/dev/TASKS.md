@@ -63,27 +63,6 @@ STATE:  OPEN — kit 70e6df1 + 010360f (just-house-paint's fifteenth review). Ju
         remove it yet. JustWrite: 9 providerScope tests need a ResizeObserver stub (the AI page is on Quasar's tabs).
         The template's start-packaged.js now runs a temp copy of the unpacked build — every app's copy should.
 
-## The template and the guard: what JustWrite's adoption found [2026-10-20]
-STATE:  OPEN — from JustWrite's session (JW 5c6a33f..949258d, its dry runs). To fix in the template and the guard:
-        a .deb needs `homepage` in package.json beside `linux.maintainer` (electron-builder: "Please specify project
-        homepage" on ubuntu-22.04 — the template's comment names only the maintainer); a universal Mac build needs
-        `mac.x64ArchFiles` naming the binaries identical in both halves (@electron/universal refuses them — koffi's
-        @koromix/koffi-darwin-* and better-sqlite3's prebuilds/; JW:
-        `'**/node_modules/{@koromix/koffi-darwin-*,better-sqlite3/prebuilds}/**'`) — the template is single-arch,
-        said in its comment for an app that goes universal; the extension-less launcher `build/launcher/<app>-server`
-        pinned LF in .gitattributes (`*.sh eol=lf` misses it). The guard's false positives: `publish:` matched only
-        the object form (a list `publish: [ {...} ]` reported as none); a git-ignored generated file
-        (src/phone/worker-bundle/server-worker.js) checked for setInterval — skip ignored files; a setInterval that
-        ticks a clock (JW's Sidebar.vue, Date.now every 15 s) reported as a poll.
-        The release's start check passes a broken build on Windows and macOS (JW, 2026-10-20): start-packaged.js starts
-        the unpacked app inside the checkout, so Node's package lookup walks up out of app.asar into the repo's own
-        node_modules and finds what the package lacks — JW's server imported @tiptap/extension-mention, whose required
-        peer @tiptap/suggestion wasn't declared, so electron-builder left it out; Windows and Mac passed, only the
-        AppImage (mounted under /tmp) failed ("Cannot find package"); win-unpacked copied to %TEMP% failed the same.
-        To fix (template and every app's copy, and the e2e drivers that start the unpacked build): start a copy of
-        the unpacked build in the system temp folder; and a guard check that every required (non-optional)
-        peerDependency in the server's dependency tree is declared.
-
 ## A standard start for every new just app: a `/new-just-app` skill on the kit's `template/` [2026-10-17]
 STATE:  PARTLY DECIDED 2026-10-17 (session web-2a, run from `E:\Dev\Web`). The user, verbatim:
         "we should have a standard for any just app or any new just app so when i start a project
