@@ -122,6 +122,9 @@ describe("reportError", () => {
       duration: 9000,
     });
     expect(err.reported).toBe(true);
+    // a title the server chose says what failed
+    const job = attachProblem(new Error("500"), 500, parseProblem(JSON.stringify({ title: "The AI photo didn't finish", detail: "sd-cli failed (exit 3)" })));
+    expect(errorMessage(job, { t })).toMatchObject({ title: "The AI photo didn't finish", detail: "sd-cli failed (exit 3)" });
   });
   test("a refusal shows the server's words; a lost connection says so; a cancel shows nothing", () => {
     const refused = attachProblem(new Error("409"), 409, parseProblem(JSON.stringify({ title: "Conflict", detail: "that name is taken" })));

@@ -277,7 +277,8 @@ export function makeDataRouter({ getDbPath, metadata, runReset, assetDirs = null
       for (const [arcname, d] of await assets()) {
         const bdir = path.join(tmp, arcname);
         if (existsSync(bdir) && statSync(bdir).isDirectory()) {
-          if (existsSync(String(d))) await rm(String(d), { recursive: true });
+          // Windows holds a just-written file a moment: Node's own retries (EBUSY / EPERM / ENOTEMPTY)
+          if (existsSync(String(d))) await rm(String(d), { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
           await cp(bdir, String(d), { recursive: true, preserveTimestamps: true });
         }
       }

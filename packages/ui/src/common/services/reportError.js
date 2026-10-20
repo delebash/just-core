@@ -19,7 +19,9 @@ export function errorMessage(err, { t = kitT } = {}) {
   if (!status && err instanceof TypeError) return { title: t("kit.errors.offline"), detail: "", reference: "" };
   if (status >= 500) {
     const detail = typeof problem?.detail === "string" ? problem.detail : "";
-    return { title: t("kit.errors.server"), detail, reference: reference || t("kit.errors.seeLogs") };
+    // a title the server chose ("The AI photo didn't finish") says what failed; HTTP's own doesn't
+    const own = typeof problem?.title === "string" && problem.title && problem.title !== "Internal Server Error" ? problem.title : "";
+    return { title: own || t("kit.errors.server"), detail, reference: reference || t("kit.errors.seeLogs") };
   }
   if (status >= 400) {
     const detail = typeof problem?.detail === "string" ? problem.detail : String(err?.message || "");
