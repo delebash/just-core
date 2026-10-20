@@ -49,7 +49,9 @@ const tablesOf = (metadata) => {
 
 const RETRIES = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
 
-/** Put the backup's copy `from` in place of the asset folder `dir` (see the restore route). */
+/** Put the backup's copy `from` in place of the asset folder `dir` (see the restore route). Both are on the
+ *  data drive for a moment (the old one until the new is swapped in); a drive too full for that falls back
+ *  to removing the old one first. */
 async function replaceAssetDir(from, dir) {
   const parent = path.dirname(dir);
   const base = path.basename(dir);
@@ -59,7 +61,18 @@ async function replaceAssetDir(from, dir) {
   }
   const stamp = Date.now();
   const staged = `${dir}.restoring-${stamp}`;
-  await cp(from, staged, { recursive: true, preserveTimestamps: true });
+  try {
+    // the unpacked backup moved beside it when it's on the same drive (no copy), else copied there
+    await rename(from, staged).catch(() => cp(from, staged, { recursive: true, preserveTimestamps: true }));
+  } catch (e) {
+    await rm(staged, RETRIES).catch(() => {});
+    if (e?.code !== "ENOSPC") throw e;
+    // no room for both copies at once: the old folder goes first, as before (a held file can then leave it
+    // half-replaced — only when the drive is too full for the safe way)
+    if (existsSync(dir)) await rm(dir, RETRIES);
+    await cp(from, dir, { recursive: true, preserveTimestamps: true });
+    return;
+  }
   if (!existsSync(dir)) return rename(staged, dir);
   const old = `${dir}.replaced-${stamp}`;
   try {
