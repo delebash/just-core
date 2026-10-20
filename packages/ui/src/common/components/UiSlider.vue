@@ -29,7 +29,9 @@
 // docs/plans/2026-10-09-kit-controls-on-quasar.md), drawn as the browser's own range input was
 // (the kit's theme, ../../quasar/theme.css, "Slider"); the number box, the readout and the
 // measured mark labels stay the kit's. The keys are the native ones (arrows a step, Page Up/Down
-// ten, Home/End the ends); `change` comes when a drag or a key is let go.
+// ten, Home/End the ends); `change` comes when a drag or a key is let go, or the number box is
+// left with a number typed in it — a page whose work is too slow for every drag step applies the
+// value on `change` and shows `update:modelValue` meanwhile.
 
 import { QSlider } from "quasar";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
@@ -104,16 +106,26 @@ const typing = ref(null);
 watch(value, () => { typing.value = null; });
 const numberText = computed(() => (typing.value !== null ? typing.value : shown.value));
 
+// A number typed since the box was last left. Each one sets the value as it is typed, and the new
+// value clears `typing` (the watch above) — so leaving the box saw nothing typed, and `change`
+// never came from the box: a page that applies a value on `change` (the slider let go) missed it.
+let typedValue = false;
 function onType(s) {
   typing.value = s;
   const n = Number(s);
-  if (s !== "" && s !== "-" && Number.isFinite(n)) setValue(n);
+  if (s !== "" && s !== "-" && Number.isFinite(n)) {
+    typedValue = true;
+    setValue(n);
+  }
 }
-// Left untouched, emptied or half-typed, the box goes back to the value (./numberBox.js)
+// Left untouched, emptied or half-typed, the box goes back to the value (./numberBox.js); a number
+// typed in it is its `change`
 function onCommit() {
   const n = committedNumber(typing.value);
   typing.value = null;
   if (n !== null) setValue(n, "change");
+  else if (typedValue) emit("change", value.value);
+  typedValue = false;
 }
 
 const markPos = (m) => {
