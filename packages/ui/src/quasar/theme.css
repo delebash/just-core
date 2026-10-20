@@ -22,6 +22,31 @@
 :where(.q-btn) { text-transform: var(--btn-text-transform, none); letter-spacing: var(--btn-letter-spacing, normal); }
 /* The hover/focus overlay Quasar paints over buttons, chips and items. */
 :where(.q-focus-helper) { display: none; }
+/* Keyboard focus, then, is the family's ring (the host's --focus-ring: a box-shadow, as every
+   other use in this sheet reads it), on everything of Quasar's that takes focus — a button, a
+   clickable item, a focusable, anything an app gives a tab stop. A box-shadow, not an outline:
+   QBtn carries Quasar's .no-outline (outline: 0 !important), and an !important in the quasar
+   layer outranks every unlayered rule. The transparent outline is the ring under forced colours
+   (a Windows contrast theme drops box-shadows and paints outlines). Kept at zero specificity: a
+   control with its own ring below (.ui-btn, .ui-seg, .ui-tabstrip__tab, .ui-chip) keeps it, and so
+   does an app's own; a menu's items (tabindex -1, focus moved by the arrows) keep their highlight.
+   Left out: the checkbox and the toggle (their box wears the ring) and a field's own input (its
+   field does — .ui-input:focus-within, the select's control; a ring on both measured double).
+   The fallback, for a host without the token, is the accent (3:1 or more on the family's grounds). */
+:where(.q-btn, .q-item, .q-focusable, [tabindex]:not([tabindex="-1"])):where(:focus-visible):where(:not(.ui-checkbox, .ui-toggle, .q-field__native, .q-select__focus-target)) {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus-ring, 0 0 0 2px var(--accent));
+}
+/* A list item's quieter text — its caption, header and overline, its side section — is the text's
+   own colour faded: Quasar's 54 % (70 % for an overline) measured 3.6:1 on the family's light grounds
+   (WCAG 2 AA asks 4.5:1). At 75 % every family ink (each app's, each ink palette's) is 4.6:1 or more
+   on every family ground in light mode and 6.2:1 in dark (computed, 2026-10-20). A caption in a side
+   section takes the section's colour as it is, not faded twice. Zero specificity: an app's colour on
+   one wins. */
+:where(.q-item__label--caption, .q-item__label--header, .q-item__label--overline, .q-item__section--side:not(.q-item__section--avatar)) {
+  color: color-mix(in srgb, currentColor 75%, transparent);
+}
+:where(.q-item__section--side) :where(.q-item__label--caption, .q-item__label--overline) { color: inherit; }
 
 /* ── Tag (UiTag on QBadge) ─────────────────────────────────────────────── */
 /* Borderless soft tint by default (--tag-border-width: 0); a host that wants outlined pills
@@ -384,7 +409,7 @@
 .ui-seg .q-btn.is-off { opacity: .5; cursor: not-allowed; }
 .ui-seg .q-btn.is-off:hover { background: transparent; }
 .ui-seg .q-btn.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
-.ui-seg .q-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent-soft); }
+.ui-seg .q-btn:focus-visible { outline: none; box-shadow: var(--focus-ring, 0 0 0 2px var(--accent-soft)); }
 .ui-seg .ui-seg__label { font-weight: 600; }
 .ui-seg .ui-seg__sub { font-size: 11px; color: var(--muted); }
 .ui-seg--small .q-btn { padding: 4px 8px; font-size: 12px; }

@@ -36,6 +36,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useI18n } from "vue-i18n";
 
 import UiInput from "./UiInput.vue";
+import { committedNumber } from "./numberBox.js";
 
 const { n: fmtNum } = useI18n();
 
@@ -108,10 +109,11 @@ function onType(s) {
   const n = Number(s);
   if (s !== "" && s !== "-" && Number.isFinite(n)) setValue(n);
 }
+// Left untouched, emptied or half-typed, the box goes back to the value (./numberBox.js)
 function onCommit() {
-  const n = Number(typing.value);
+  const n = committedNumber(typing.value);
   typing.value = null;
-  if (Number.isFinite(n)) setValue(n, "change");
+  if (n !== null) setValue(n, "change");
 }
 
 const markPos = (m) => {

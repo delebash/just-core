@@ -97,13 +97,16 @@ export function resolveTint(value, table, mode) {
 // ── Ink (text) colour palettes ───────────────────────────────────────
 // "auto" leaves the tokens.css defaults; every other palette sets --ink/--ink-2/
 // --muted/--subtle together so the four text shades stay a consistent family.
+// --muted (the third) is 4.5:1 or more (WCAG 2 AA) on every ground the family paints text on, in its
+// mode: each app's surfaces, the soft accent tints at every hue, the surface tints above
+// (tests/ink_palettes.test.js measures it); --ink-2 stays darker than it (soft's was raised for that).
 export const INK_PALETTES = {
   auto:    labelled("ink.auto",    { auto: true }),
-  warm:    labelled("ink.warm",    { light: ["#221f18","#534c3d","#8c8369","#aaa089"], dark: ["#f0e9d8","#c9c0aa","#988e74","#6f6753"] }),
-  neutral: labelled("ink.neutral", { light: ["#1c1c1f","#4a4a4f","#828286","#a8a8ad"], dark: ["#ededed","#c5c5c8","#8c8c92","#66666b"] }),
-  cool:    labelled("ink.cool",    { light: ["#1a1d22","#474c54","#7d8590","#a5acb6"], dark: ["#e8eef2","#c3cbd3","#8893a0","#5e6976"] }),
-  sepia:   labelled("ink.sepia",   { light: ["#3a2c20","#685440","#9a8267","#b69e83"], dark: ["#efe2ce","#c7b696","#9a8b6a","#6b5d40"] }),
-  soft:    labelled("ink.soft",    { light: ["#3a3a3a","#6a6a6a","#9a9a9a","#b8b8b8"], dark: ["#dcdcdc","#b5b5b5","#8a8a8a","#666666"] }),
+  warm:    labelled("ink.warm",    { light: ["#221f18","#534c3d","#6d644b","#aaa089"], dark: ["#f0e9d8","#c9c0aa","#a1977c","#6f6753"] }),
+  neutral: labelled("ink.neutral", { light: ["#1c1c1f","#4a4a4f","#646468","#a8a8ad"], dark: ["#ededed","#c5c5c8","#97979d","#66666b"] }),
+  cool:    labelled("ink.cool",    { light: ["#1a1d22","#474c54","#5e6570","#a5acb6"], dark: ["#e8eef2","#c3cbd3","#8e99a6","#5e6976"] }),
+  sepia:   labelled("ink.sepia",   { light: ["#3a2c20","#685440","#786147","#b69e83"], dark: ["#efe2ce","#c7b696","#a59674","#6b5d40"] }),
+  soft:    labelled("ink.soft",    { light: ["#3a3a3a","#585858","#656565","#b8b8b8"], dark: ["#dcdcdc","#b5b5b5","#979797","#666666"] }),
 };
 
 // ── UI size scale ────────────────────────────────────────────────────

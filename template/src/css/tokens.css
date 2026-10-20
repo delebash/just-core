@@ -18,7 +18,9 @@
   --accent-soft: oklch(0.948 0.011 var(--accent-hue));
   --on-accent: #fff;
 
-  --ink: #1a1a1a; --ink-2: #4a4a4a; --muted: #888;
+  /* --muted, tertiary text: 4.56:1 on the darkest light ground it sits on (the selected row's
+     tint, --accent-soft, at any accent hue), 5.10:1 on --bg — WCAG 2 AA asks 4.5:1 */
+  --ink: #1a1a1a; --ink-2: #4a4a4a; --muted: #6b6b6b;
   --bg: #fafaf7;
   --surface: #fff; --surface-2: #fbfaf7; --surface-3: #f3f1ec;
   --border: #e3e1dc; --border-strong: #cfccc4; --border-soft: #eceae5;
@@ -29,11 +31,16 @@
   --success-hue: 166;
   --success:    oklch(0.538 0.080 var(--success-hue));
   --success-bg: oklch(0.948 0.011 var(--success-hue));
+  /* text on --success-bg (the kit's success tag — a close ΔE): 6.29:1 at its worst hue */
+  --success-ink: oklch(0.446 0.068 var(--success-hue));
   --info-hue: 250;
   --info:    oklch(0.547 0.123 var(--info-hue));
   --info-bg: oklch(0.955 0.015 var(--info-hue));
   --gold: oklch(0.712 0.124 82);
   --warn-bg: #fff8e3;
+  /* text on --warn-bg (the kit's accent2 tag — a scheme's "AI"): 8.76:1. The appearance engine
+     sets the same value when it runs; this is the tag's ink before it does */
+  --warn-ink: oklch(0.40 0.10 80);
 
   --r-sm: 6px; --r-card: 10px; --btn-radius: 8px;
   --btn-pad-y: 8px; --btn-pad-x: 16px; --btn-font-size: 14px;
@@ -48,6 +55,10 @@
   --w-num: 84px; --w-token: 110px; --w-id: 180px; --w-name: 280px; --w-url: 360px;
   --w-path: 480px; --w-prose: 640px; --w-edit: 880px;
   --tag-border-width: 0;
+  /* keyboard focus — the kit's :focus-visible ring, a box-shadow as the kit reads it (JustVoice's
+     shape): 2 px of --accent-ink, 6.29:1 or more on every ground it meets in either theme, at any
+     accent hue (WCAG 2.2 focus appearance asks 3:1) */
+  --focus-ring: 0 0 0 2px var(--accent-ink);
   --shadow-2: 0 1px 0 rgba(20, 22, 24, 0.05), 0 8px 24px rgba(20, 22, 24, 0.06);
 }
 
@@ -56,7 +67,8 @@
   --accent-ink:  oklch(0.780 0.070 var(--accent-hue));
   --accent-soft: oklch(0.300 0.032 var(--accent-hue));
 
-  --ink: #f0eee8; --ink-2: #c5c2bb; --muted: #8a8780;
+  /* --muted: 4.77:1 or more on every dark ground, the selected row's tint included */
+  --ink: #f0eee8; --ink-2: #c5c2bb; --muted: #a09d96;
   --bg: #1a1c1a;
   --surface: #232624; --surface-2: #1e211f; --surface-3: #2a2e2c;
   --border: #353835; --border-strong: #4a4d49; --border-soft: #2e312e;
@@ -65,9 +77,12 @@
   --danger-bg: oklch(0.300 0.050 var(--danger-hue));
   --success:    oklch(0.673 0.093 var(--success-hue));
   --success-bg: oklch(0.300 0.032 var(--success-hue));
+  --success-ink: oklch(0.780 0.070 var(--success-hue));
   --info:    oklch(0.700 0.110 var(--info-hue));
   --info-bg: oklch(0.300 0.040 var(--info-hue));
   --gold: oklch(0.78 0.10 82);
   --warn-bg: #38311f;
+  --warn-ink: oklch(0.86 0.09 80);
+  --focus-ring: 0 0 0 2px var(--accent-ink);
   --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
 }

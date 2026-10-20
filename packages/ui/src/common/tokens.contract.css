@@ -15,12 +15,18 @@
  *
  * ── Colour roles ───────────────────────────────────────────
  *   --accent           primary brand colour (solid buttons, checked states)
- *   --accent-soft      faint accent tint (focus ring, soft tag bg)
+ *   --accent-soft      faint accent tint (soft tag bg, selected rows)
+ *   --focus-ring       keyboard focus ring, a box-shadow VALUE (0 0 0 2px <colour>) — every
+ *                      control's :focus-visible and the theme's ring on Quasar's focusables
+ *                      (quasar/theme.css) read it; its colour 3:1 or more against every ground
+ *                      it meets, both themes (WCAG 2.2 focus appearance). Without it a control
+ *                      falls back to a faint --accent-soft halo (~1.2:1).
  *   --accent-ink       accent text on a soft-accent background
  *   --on-accent        text/icon colour ON a solid --accent fill (usually #fff)
  *   --ink              primary text
  *   --ink-2            secondary text (button labels, field labels)
- *   --muted            tertiary text (placeholders, hints)
+ *   --muted            tertiary text (placeholders, hints) — 4.5:1 or more on every ground it sits
+ *                      on, the selected-row tint (--accent-soft) included (WCAG 2 AA)
  *   --surface          base control background (input, card)
  *   --surface-2        recessed background (segmented track, disabled input)
  *   --surface-3        hover background for quiet controls
@@ -51,8 +57,8 @@
  *
  *   :root {
  *     --accent: #3a7d63; --accent-soft: #e8f0eb; --accent-ink: #2c6049;
- *     --on-accent: #fff;
- *     --ink: #1a1a1a; --ink-2: #4a4a4a; --muted: #888;
+ *     --on-accent: #fff; --focus-ring: 0 0 0 2px var(--accent-ink);
+ *     --ink: #1a1a1a; --ink-2: #4a4a4a; --muted: #6b6b6b;   (4.59:1 on these grounds; #888 was 3.05:1)
  *     --surface: #fff; --surface-2: #fbfaf7; --surface-3: #f3f1ec;
  *     --border: #e3e1dc; --border-strong: #cfccc4;
  *     --danger: #a8442e; --danger-bg: #fbecea;
