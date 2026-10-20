@@ -53,6 +53,19 @@ OPEN:   found by the checks, not caused by the rename: JustWrite's lint error
         `@../just-core/docs/family-rules.md` import — declined, the family rules silently never load
         (RESEARCH §6).
 
+## The template and the guard: what JustWrite's adoption found [2026-10-20]
+STATE:  OPEN — from JustWrite's session (JW 5c6a33f..949258d, its dry runs). To fix in the template and the guard:
+        a .deb needs `homepage` in package.json beside `linux.maintainer` (electron-builder: "Please specify project
+        homepage" on ubuntu-22.04 — the template's comment names only the maintainer); a universal Mac build needs
+        `mac.x64ArchFiles` naming the binaries identical in both halves (@electron/universal refuses them — koffi's
+        @koromix/koffi-darwin-* and better-sqlite3's prebuilds/; JW:
+        `'**/node_modules/{@koromix/koffi-darwin-*,better-sqlite3/prebuilds}/**'`) — the template is single-arch,
+        said in its comment for an app that goes universal; the extension-less launcher `build/launcher/<app>-server`
+        pinned LF in .gitattributes (`*.sh eol=lf` misses it). The guard's false positives: `publish:` matched only
+        the object form (a list `publish: [ {...} ]` reported as none); a git-ignored generated file
+        (src/phone/worker-bundle/server-worker.js) checked for setInterval — skip ignored files; a setInterval that
+        ticks a clock (JW's Sidebar.vue, Date.now every 15 s) reported as a poll.
+
 ## A standard start for every new just app: a `/new-just-app` skill on the kit's `template/` [2026-10-17]
 STATE:  PARTLY DECIDED 2026-10-17 (session web-2a, run from `E:\Dev\Web`). The user, verbatim:
         "we should have a standard for any just app or any new just app so when i start a project
