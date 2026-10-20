@@ -1431,6 +1431,80 @@ just-house-paint's ninth review, a reading of its help against the code):
   the scheme and Host the server sees (`@hono/node-server` takes the scheme from the socket). The template passes the
   `<APP>_ALLOWED_HOSTS` names' origins as `csrfOrigin`'s `extraOrigins` — the operator's declared public names.
 
+**Today's changes as the other apps meet them** (*code + test*, 2026-10-20; just-house-paint's tenth review, an
+agent reading JustWrite, JustVoice and docgen against the kit):
+
+- The health answer's `tokenRequired` stopped every app's window at the token page when "require a token on this
+  computer" is on — but only the template's apps sign in there: JustVoice keeps its token under `jt:token`,
+  JustWrite's and docgen's Settings keep none, and their way out (Settings → Server, open from this computer) was
+  behind the page. Now `checkServer` stops there only for an app that opts in (`installLlmUi({
+  askTokenOnThisComputer: true })` — the template and just-house-paint); the others load as before.
+- The restore kept the whole `runner_setting` table, which also holds the user's default preset, model-list rules
+  and update policy (a backup moved to a new computer lost them, or left the default pointing at a preset that's
+  gone). Now `keepTables` is `runner_binary` alone and `keepRows` keeps only this computer's settings in it:
+  `pinned_build`, the calibration model's URL, hash and size, and `cache_root`.
+- The `:focus-visible` ring matched JustWrite's TipTap editor (tabindex 0, contenteditable — focus-visible even on a
+  click): a ring round the whole writing area. Editable areas are left out.
+- `bundledInstall` counted any Linux run with `APPIMAGE` set — a dev checkout started from a terminal an AppImage
+  launched would have moved its `data/` out. Now only a packaged app, and only `AppRun` beside its executable.
+- A backup or restore worked in the system's temp: on a nearly full system drive it failed while the data lived on
+  another. Their work folders are now beside the database (`.backup-*`, `.restore-*`, `.upload-*`, swept after
+  an hour), and a restore's unpacked copy moves into place by a rename.
+- The shell's `.part` save could fail where the old in-place write worked (a viewer holding the last export):
+  `save_place.js` retries the rename, then copies over in place.
+- Not changed, for those apps to decide: JustVoice's `/mcp` from Docker (`host.docker.internal`) is refused by the
+  Host guard unless the app passes `allowedHosts`; JustVoice's `mcp/context.js` still trusts a raw loopback peer
+  (a proxy's clients too).
+
+**Several windows on one server, and replacing the data under them** (*measured* and *tested*, 2026-10-20;
+just-house-paint's eleventh review — an agent driving two clients by fetch against the real server and against
+`createApp` with a fake part finder):
+
+- With nothing checking versions and no page reading again, the second window's save overwrote the first's every
+  time: a whole-map PATCH of a design's colors, a whole outline PUT from a page opened earlier (another window's
+  Box undone, two parts claiming the same 60000 px), a Find started elsewhere unseen. The standards used: JSON
+  Merge Patch (RFC 7396) for per-part maps, ETag / If-Match / 412 (RFC 9110 §13.1.1) for whole outlines, and the
+  kit's `watchSync` (its `GET /v1/sync/rev` contract) on a counter of the OTHER windows' changes — each window sends
+  an id (`X-Client-Id`; `installLlmUi({ sendClientId: true })`, transport.js), so its own saves never move its counter.
+  `watchSync` takes `waitWhile()` (the app's own reason to hold a change — a stroke in flight) and hands `onChange`
+  the server's answer.
+- A restore had no write gate: a save during it answered 200 and was gone; the app's jobs were stopped only after
+  the data was replaced. `MaintenanceGate` (platform/maintenance.js): `makeDataRouter({ gate, beforeReplace })`
+  closes it around a restore's and a reset's replacement — other writes 503 with Retry-After (RFC 9110 §15.6.4),
+  the ones in flight finished first (a drain, at most 60 s), `beforeReplace` (the app's teardown) before anything
+  moves. The kit's error handler now sends an `ApiError`'s own headers (it dropped them; only `HttpError` kept
+  them).
+- A restore with a file held past the retries answered 500 after its tables had committed: `houses/` half the
+  backup's, half the old (the copy-over fallback hit EBUSY on a read-only-share handle), or — held share-all —
+  pruned a house added meanwhile. Now the folders are swapped first, all or nothing (a folder that can't be moved
+  refuses the restore, 409 `files-in-use`, nothing changed; the copy-over path is gone), then the tables in one
+  transaction, the folders put back if it fails. A record beside the database (`<db>.restoring`) lives from the
+  first rename to the commit: a server stopped in between finds it as `makeDataRouter` is made and puts the old
+  folders back (`finishInterruptedRestore`). On Windows a folder with a file open in it (Node's own handles share
+  delete) can't be renamed: `renameHeld` retries about ten seconds (*tested*).
+- A backup taken while another window deleted a house: 500 ENOENT, or a zip whose database lists the house with
+  none of its files. Now the database copy (`VACUUM INTO`) and hard links to every asset file are made in one
+  synchronous step — nothing else in the server runs between them — and the zip is read from the links (a link
+  keeps a file as it was when the app replaces it by rename or removes it). Where links can't be made (FAT/exFAT,
+  another drive) the live folder is read and a vanished file skipped.
+
+**The screens at real sizes, fixed** (*measured*, 2026-10-20; just-house-paint's tenth review, an agent on the
+built app at 960/1366/1920, light and dark):
+
+- QTabs decides it overflows from the SUM of its tabs' widths (QTabs.js `updateContainer`): a `gap` between tabs
+  isn't counted, so with 2px gaps a strip up to (tabs − 1) × 2px too narrow clipped its last tab with no arrows.
+  UiTabStrip is now one row with QTabs' own outside arrows (Quasar's default and Material's scrollable tabs; it
+  wrapped before), the gap moved into each tab's padding.
+- An SVG shown as an `<img>` takes its `prefers-color-scheme` from the img element's `color-scheme`, not the
+  system's alone (Chromium): `color-scheme: light dark` on the img and a dark style inside the SVG make a boot
+  plate follow the app's theme.
+- The toggle's off state measured 1.04–1.44:1 (a white thumb on a near-white track); drawn as Material 3's
+  unselected switch (an outlined track, the thumb in the outline's colour, both `--muted`): 5.10:1 on the page and
+  5.11:1 on the track in light, 6.33:1 and 6.00:1 in dark; on, the dark surface on the dark accent 5.40:1 (white
+  was 2.83:1).
+- Quasar's QCard is white whatever the theme (the Dark plugin is off): the kit's theme gives it the family's
+  surface, ink, edge and radius at zero specificity.
+
 **The clipboard and the headless launcher off Windows** (*code + measured*, 2026-10-19; just-house-paint's seventh
 review):
 

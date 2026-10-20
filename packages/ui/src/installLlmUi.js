@@ -101,6 +101,9 @@ function warnNoOpener() {
  *                           (it keeps the kit's token storage and uses its Server panel): the boot
  *                           check stops there when the server requires a token even on this computer
  *                           (configureServerApi). Off by default — the window loads as before.
+ * @param opts.sendClientId  true when the app's server tells its windows apart: every request carries
+ *                           this window's id (X-Client-Id, transport.js), and the server's watchSync
+ *                           counter moves only for other windows' changes. Off by default.
  */
 export function installLlmUi(app, {
   i18n,
@@ -115,6 +118,7 @@ export function installLlmUi(app, {
   featurePanels,
   external = true,
   askTokenOnThisComputer = false,
+  sendClientId = false,
 } = {}) {
   if (!i18n?.global) {
     throw new Error("installLlmUi needs the app's vue-i18n instance: installLlmUi(app, { i18n }) — see app-structure §Q.");
@@ -126,7 +130,7 @@ export function installLlmUi(app, {
   // THE invariant: the app transport and the kit's LLM views resolve to the SAME
   // base. They were two calls, and the day they disagreed the kit views 404'd into
   // empty lists in the production webview only. One resolver, called once, both fed.
-  configureServerApi({ resolveBase: resolve, askTokenOnThisComputer });
+  configureServerApi({ resolveBase: resolve, askTokenOnThisComputer, sendClientId });
   const base = resolve();
   configureLlmUi({ baseUrl: base });
   setQuickSetupApplied(onQuickSetupApplied);

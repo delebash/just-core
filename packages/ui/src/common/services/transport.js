@@ -50,12 +50,26 @@ let tokenSource = getServerToken;
 export function setAuthTokenSource(fn) {
   tokenSource = fn ?? getServerToken;
 }
+// This window's own id, new at each load: sent as X-Client-Id when the app asks (setSendClientId), so its server
+// tells this window's changes from another window's — the counter the kit's watchSync reads moves only for the
+// others' (just-house-paint, 2026-10-20: two windows on one server overwrote each other's work unseen).
+const CLIENT_ID = globalThis.crypto?.randomUUID?.() ?? `w-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+let sendClientId = false;
+/** This window's id (X-Client-Id). */
+export const clientId = () => CLIENT_ID;
+/** Every request carries this window's id from now on (on), or not (off — the default). */
+export function setSendClientId(on) {
+  sendClientId = !!on;
+}
+
 function withAuth(input, init) {
   const token = tokenSource();
-  if (!token) return init;
+  if (!token && !sendClientId) return init;
   const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
   // eslint-disable-next-line i18next/no-literal-string -- an HTTP header (RFC 6750), not words
-  if (!headers.has("authorization")) headers.set("Authorization", `Bearer ${token}`);
+  if (token && !headers.has("authorization")) headers.set("Authorization", `Bearer ${token}`);
+  // eslint-disable-next-line i18next/no-literal-string -- an HTTP header, not words
+  if (sendClientId && !headers.has("x-client-id")) headers.set("X-Client-Id", CLIENT_ID);
   return { ...init, headers };
 }
 

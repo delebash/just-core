@@ -42,7 +42,7 @@ const { t } = useI18n();
         </tr>
         <tr v-if="sourceUrl">
           <th>{{ t("kit.aboutPanel.source") }}</th>
-          <td><a :href="sourceUrl" @click.prevent="openExternal(sourceUrl)">{{ sourceUrl.replace("https://", "") }}</a></td>
+          <td><a class="lu-about__link" :href="sourceUrl" @click.prevent="openExternal(sourceUrl)">{{ sourceUrl.replace("https://", "") }}</a></td>
         </tr>
       </tbody>
     </table>
@@ -51,4 +51,7 @@ const { t } = useI18n();
 
 <style scoped>
 .lu-about__mono { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--fs-small, 12.5px); }
+/* the theme's link colour (the kit's other links: LogsPanel's Download, the hardware strip's
+   actions), not the browser's blue and visited purple */
+.lu-about__link, .lu-about__link:visited { color: var(--accent-ink, var(--accent)); }
 </style>

@@ -65,7 +65,7 @@ export async function resetWorkspace() {
   log.info("workspace reset to its first-run state");
 }
 
-export const router = (dataDir) =>
+export const router = (dataDir, { gate } = {}) =>
   makeDataRouter({
     getDbPath: () => dbPath(dataDir),
     metadata: [APP_TABLES, LLM_TABLES],
@@ -74,5 +74,9 @@ export const router = (dataDir) =>
     ...keepAuth,
     // a backup from an older version: its settings get what this one's seed adds and upgrades (as at start)
     afterTables: () => seedWorkspace(getDb()),
+    // what would write into the data being replaced stops before it is (the gate is closed by then), and what was
+    // derived from the old data after
+    beforeReplace: stopRunnerBestEffort,
     onReplaced: stopRunnerBestEffort,
+    gate,
   });

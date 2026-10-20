@@ -5,12 +5,13 @@
 export { bearerAuth } from "./auth.js";
 export { starletteCors } from "./cors.js";
 export { CAPACITOR_ORIGINS, csrfOrigin } from "./csrf.js";
-export { makeDataRouter } from "./data_api.js";
+export { finishInterruptedRestore, makeDataRouter } from "./data_api.js";
 export { fromDataRelative, installDir, resolveDataDir, toDataRelative } from "./data_paths.js";
 export { dirSize, makeDiskRouter } from "./disk_api.js";
 export { ApiError, HttpError, installErrorHandlers, requestIdOf, unhandledEnvelope } from "./errors.js";
 export { makeHealthRouter } from "./health_api.js";
 export { installFileLog, installLogRing, makeLogsRouter } from "./logs_api.js";
+export { MaintenanceGate } from "./maintenance.js";
 export { migrate, schemaVersion } from "./migrate.js";
 export { makePrefsRouter } from "./prefs_api.js";
 export * as procs from "./procs.js";

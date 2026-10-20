@@ -9,7 +9,13 @@
 //
 // `waitWhileEditing`: the change waits while a dialog is open or the cursor is in a text box,
 // and lands at the first check after (decided 2026-10-15, JustVoice TASKS "The register's 35
-// questions…", P18 — a reload would lose unsaved typing).
+// questions…", P18 — a reload would lose unsaved typing). `waitWhile()`: the app's own reason to
+// wait (just-house-paint: a brush stroke or its save in flight, which no text box shows). `onChange`
+// gets the server's answer (`{ rev, pollSeconds, … }`).
+//
+// A server that tells its windows apart (installLlmUi `sendClientId`) moves the counter only for
+// the OTHER windows' changes — just-house-paint's counter of changes made in other windows on one
+// server (2026-10-20), the same contract as a sync product's.
 import { get } from "./serverApi.js";
 
 // <input> types that aren't text boxes
@@ -26,7 +32,7 @@ export function isEditing(doc = globalThis.document) {
   return el.tagName === "INPUT" && !NOT_TEXT.has(String(el.type || "text").toLowerCase());
 }
 
-export function watchSync(onChange, { waitWhileEditing = false } = {}) {
+export function watchSync(onChange, { waitWhileEditing = false, waitWhile = null } = {}) {
   let last = null;
   let timer = null;
   let stopped = false;
@@ -37,8 +43,9 @@ export function watchSync(onChange, { waitWhileEditing = false } = {}) {
       wait = Number(r?.pollSeconds) > 0 ? Number(r.pollSeconds) : wait;
       const changed = last !== null && r.rev !== last;
       // mid-edit: `last` stays, so the next check sees the change again
-      if (!(changed && waitWhileEditing && isEditing())) {
-        if (changed) await onChange();
+      const hold = changed && ((waitWhileEditing && isEditing()) || waitWhile?.());
+      if (!hold) {
+        if (changed) await onChange(r);
         last = r.rev;
       }
     } catch {

@@ -4,12 +4,13 @@
 // Python's SQLAlchemy `MetaData` + `Table("notes", …)` is a one-table TABLES list here;
 // the zip is read back with the module's own reader (its Python interop was checked by
 // hand, 2026-10-07: Python's zipfile reads these backups and these read Python's).
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, statfsSync, utimesSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statfsSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
-import { checkUnpackedFits, makeDataRouter, sortedTables } from "../src/platform/data_api.js";
+import { checkUnpackedFits, finishInterruptedRestore, makeDataRouter, sortedTables } from "../src/platform/data_api.js";
 import { ApiError } from "../src/platform/errors.js";
+import { MaintenanceGate } from "../src/platform/maintenance.js";
 import { createServer } from "../src/platform/server.js";
 import { openDatabase } from "../src/platform/sql.js";
 import { ZipReader, ZipWriter } from "../src/platform/zip.js";
@@ -19,7 +20,7 @@ const NOTES = {
   ddl: "CREATE TABLE notes (\n\tid INTEGER NOT NULL, \n\tbody VARCHAR, \n\tPRIMARY KEY (id)\n)",
 };
 
-function makeApp() {
+function makeApp(opts = {}) {
   const tmp = mkdtempSync(join(tmpdir(), "kit-data-"));
   const db = join(tmp, "app.db");
   const engine = openDatabase(db, { foreignKeys: false });
@@ -32,8 +33,10 @@ function makeApp() {
   const assets = join(tmp, "images");
   mkdirSync(assets);
   const app = createServer({ typeBase: "https://example.test/errors/" });
-  app.route("/", makeDataRouter({ getDbPath: () => db, metadata: [NOTES], runReset, assetDirs: () => ({ images: assets }) }));
-  return { app, engine, assets, tmp };
+  if (opts.gate) app.use("*", opts.gate.middleware());
+  if (opts.routes) opts.routes(app);
+  app.route("/", makeDataRouter({ getDbPath: () => db, metadata: [NOTES], runReset, assetDirs: () => ({ images: assets }), ...opts.router }));
+  return { app, engine, assets, tmp, db };
 }
 
 const rows = (engine) => Object.fromEntries(engine.all("SELECT id, body FROM notes").map((r) => [r.id, r.body]));
@@ -101,23 +104,155 @@ test("restore_swaps_the_asset_folder_whole_and_takes_an_earlier_restores_leftove
   expect(existsSync(assets)).toBe(true);
 });
 
-test("restore_into_a_folder_windows_holds_lands_every_file_and_drops_the_rest", async () => {
-  // a file in the folder held open (a scanner, a viewer): on Windows the folder can't be renamed, so the
-  // backup is copied over it — every backed-up file lands, what the backup hasn't is removed
-  const { app, assets } = makeApp();
+test("restore_refuses_a_folder_another_program_holds_with_nothing_changed_then_works_once_it_is_let_go", async () => {
+  // a file in the folder held open past the retries (a viewer, a sync tool): on Windows the folder can't be
+  // renamed — the restore is refused and nothing changed, never the old folder half overwritten under restored
+  // tables (2026-10-20, the eleventh review); elsewhere a held file never stops a rename, and it just works
+  const { app, engine, assets, tmp } = makeApp();
+  engine.run("INSERT INTO notes (id, body) VALUES (1, 'backed up')");
   writeFileSync(join(assets, "a.txt"), "backed up");
   const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
+  engine.run("UPDATE notes SET body = 'changed later' WHERE id = 1");
   writeFileSync(join(assets, "a.txt"), "changed later");
   writeFileSync(join(assets, "stale.png"), "not in the backup");
   const held = openSync(join(assets, "a.txt"), "r");
+  let r;
   try {
-    expect((await upload(app, blob)).status).toBe(200);
+    r = await upload(app, blob);
   } finally {
     closeSync(held);
   }
+  if (process.platform === "win32") {
+    expect(r.status).toBe(409);
+    expect(await r.json()).toMatchObject({ title: "A file in the app's data is open in another program" });
+    expect(rows(engine)).toEqual({ 1: "changed later" });
+    expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("changed later");
+    expect(readdirSync(assets).sort()).toEqual(["a.txt", "stale.png"]);
+    expect(readdirSync(tmp).filter((n) => n.startsWith("images.") || n.endsWith(".restoring"))).toEqual([]);
+    r = await upload(app, blob);
+  }
+  expect(r.status).toBe(200);
+  expect(rows(engine)).toEqual({ 1: "backed up" });
   expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("backed up");
   expect(readdirSync(assets)).toEqual(["a.txt"]);
-}, 30000);
+}, 60000);
+
+test("a_restore_whose_tables_fail_puts_the_folders_back", async () => {
+  let refuse = false;
+  const { app, engine, assets } = makeApp({
+    router: {
+      beforeCopy: () => {
+        if (refuse) throw new ApiError(409, "restore-other-library", "Sync refused", "another library");
+      },
+    },
+  });
+  engine.run("INSERT INTO notes (id, body) VALUES (1, 'backed up')");
+  writeFileSync(join(assets, "a.txt"), "backed up");
+  const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
+  refuse = true;
+  writeFileSync(join(assets, "a.txt"), "now");
+  writeFileSync(join(assets, "b.txt"), "now too");
+  expect((await upload(app, blob)).status).toBe(409);
+  expect(readdirSync(assets).sort()).toEqual(["a.txt", "b.txt"]);
+  expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("now");
+});
+
+test("a_restore_stopped_between_its_folders_and_its_tables_is_undone_at_the_next_start", () => {
+  // the record a restore leaves beside the database while its folders are swapped: the next start puts the old
+  // folders back (the tables were never replaced) and moves the backup's copy out of the way
+  const tmp = mkdtempSync(join(tmpdir(), "kit-data-journal-"));
+  const db = join(tmp, "app.db");
+  const dir = join(tmp, "images");
+  const old = `${dir}.replaced-5`;
+  mkdirSync(dir);
+  writeFileSync(join(dir, "from-backup.txt"), "b");
+  mkdirSync(old);
+  writeFileSync(join(old, "mine.txt"), "m");
+  writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 5, dirs: [{ dir, old }] }));
+  expect(finishInterruptedRestore(db)).toBe(true);
+  expect(readdirSync(dir)).toEqual(["mine.txt"]);
+  expect(existsSync(old)).toBe(false);
+  expect(readdirSync(join(tmp, "images.restoring-5"))).toEqual(["from-backup.txt"]);
+  expect(existsSync(`${db}.restoring`)).toBe(false);
+  // nothing recorded: nothing done
+  expect(finishInterruptedRestore(db)).toBe(false);
+  // stopped after recording, before moving anything: the folder stays
+  writeFileSync(`${db}.restoring`, JSON.stringify({ stamp: 6, dirs: [{ dir, old: `${dir}.replaced-6` }] }));
+  expect(finishInterruptedRestore(db)).toBe(true);
+  expect(readdirSync(dir)).toEqual(["mine.txt"]);
+});
+
+test("the_gate_refuses_other_writes_while_a_restore_replaces_the_data_after_the_running_ones_end", async () => {
+  // 2026-10-20, the eleventh review: a design saved during a restore answered 200 and vanished, and jobs were
+  // stopped only after the data was replaced
+  const gate = new MaintenanceGate();
+  const order = [];
+  let releaseSlow;
+  const slowWrite = new Promise((r) => {
+    releaseSlow = r;
+  });
+  let during = null;
+  let app;
+  ({ app } = makeApp({
+    gate,
+    routes: (a) => {
+      a.post("/v1/slow", async (c) => {
+        await slowWrite;
+        order.push("slow write ended");
+        return c.json({ ok: true });
+      });
+      a.post("/v1/write", (c) => c.json({ ok: true }));
+    },
+    router: {
+      gate,
+      beforeReplace: async () => {
+        order.push("beforeReplace");
+        during = await app.request("/v1/write", { method: "POST" });
+        order.push(`backup during: ${(await app.request("/v1/data/backup", { method: "GET" })).status}`);
+      },
+      afterTables: () => order.push("afterTables"),
+      onReplaced: () => order.push("onReplaced"),
+    },
+  }));
+  const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
+  const slow = app.request("/v1/slow", { method: "POST" });
+  await new Promise((r) => setTimeout(r, 20));
+  const restoring = upload(app, blob);
+  await new Promise((r) => setTimeout(r, 100));
+  expect(order).toEqual([]); // the restore waits for the write in flight
+  releaseSlow();
+  expect((await slow).status).toBe(200);
+  expect((await restoring).status).toBe(200);
+  expect(order).toEqual(["slow write ended", "beforeReplace", "backup during: 503", "afterTables", "onReplaced"]);
+  expect(during.status).toBe(503);
+  expect(during.headers.get("retry-after")).toBe("5");
+  expect(await during.json()).toMatchObject({ title: "A backup is being restored" });
+  // open again
+  expect((await app.request("/v1/write", { method: "POST" })).status).toBe(200);
+});
+
+test("a_backup_is_the_database_and_the_files_at_one_moment", async () => {
+  // the files are linked in the same synchronous step as the database copy: a file removed after it (here by the
+  // scrub hook, which runs between the copy and the zip) is still in the backup, as the database it goes with
+  const { app, assets, tmp, engine } = makeApp({
+    router: {
+      scrubBackup: () => {
+        rmSync(join(assets, "photo.jpg"));
+      },
+    },
+  });
+  engine.run("INSERT INTO notes (id, body) VALUES (1, 'house')");
+  mkdirSync(join(assets, "h1"));
+  writeFileSync(join(assets, "photo.jpg"), "pixels");
+  writeFileSync(join(assets, "h1", "mask.png"), "outline");
+  const r = await app.request("/v1/data/backup", { method: "GET" });
+  expect(r.status).toBe(200);
+  const names = await zipNames(await bytes(r), tmp);
+  expect(names).toEqual(expect.arrayContaining(["db.sqlite", "images/photo.jpg", "images/h1/mask.png"]));
+  // the links went with the backup
+  await new Promise((r2) => setTimeout(r2, 50));
+  expect(readdirSync(tmp).filter((n) => n.startsWith(".backup-"))).toEqual([]);
+});
 
 // 2026-10-19, the security review (just-house-paint): a backup's engine rows name the executables the next
 // engine install runs; a backup carries what the app scrubs out of it; a zip can lie about its sizes.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // The family's Quasar theme, part 3: Quasar's own icons — the select arrow, a chip's remove, a
-// table's sort arrow and pager, the expansion chevron — drawn with the kit's line icons
-// (../common/iconPaths.js) instead of Material's. Moved here from JustWrite's phone UI-library
+// table's sort arrow and pager, the expansion chevron, a tab strip's arrows — drawn with the kit's
+// line icons (../common/iconPaths.js) instead of Material's. Moved here from JustWrite's phone UI-library
 // test (docs/plans/2026-10-08-phone-ui-library-test.md in justwrite-app). Quasar takes an SVG
 // icon as "path@@style|viewBox" (QIcon); the keys the kit has no icon for keep the Material SVGs
 // of Quasar's svg-material-icons set. installQuasarTheme() (./install.js) sets it.
@@ -23,4 +23,6 @@ export default {
   fab: { icon: kit("Plus"), activeIcon: kit("Close") },
   pagination: { ...base.pagination, prev: kit("ChevLeft"), next: kit("ChevRight") },
   table: { ...base.table, arrowUp: kit("ArrowUp"), prevPage: kit("ChevLeft"), nextPage: kit("ChevRight") },
+  // a tab strip's sideways arrows (UiTabStrip on QTabs)
+  tabs: { ...base.tabs, left: kit("ChevLeft"), right: kit("ChevRight") },
 };

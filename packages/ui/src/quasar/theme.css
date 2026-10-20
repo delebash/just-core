@@ -32,8 +32,12 @@
    does an app's own; a menu's items (tabindex -1, focus moved by the arrows) keep their highlight.
    Left out: the checkbox and the toggle (their box wears the ring) and a field's own input (its
    field does — .ui-input:focus-within, the select's control; a ring on both measured double).
-   The fallback, for a host without the token, is the accent (3:1 or more on the family's grounds). */
-:where(.q-btn, .q-item, .q-focusable, [tabindex]:not([tabindex="-1"])):where(:focus-visible):where(:not(.ui-checkbox, .ui-toggle, .q-field__native, .q-select__focus-target)) {
+   The fallback, for a host without the token, is the accent (3:1 or more on the family's grounds).
+   Left out too: an editable area (contenteditable, a TipTap/ProseMirror editor — JustWrite's
+   manuscript has tabindex="0"). It shows its own caret, and the browser counts it as keyboard-
+   focused even on a mouse click, so the ring went round the whole writing area on every click
+   (2026-10-20; tests/theme_rules.test.js pins this list). */
+:where(.q-btn, .q-item, .q-focusable, [tabindex]:not([tabindex="-1"])):where(:focus-visible):where(:not(.ui-checkbox, .ui-toggle, .q-field__native, .q-select__focus-target, [contenteditable]:not([contenteditable="false"]), .ProseMirror)) {
   outline: 2px solid transparent;
   box-shadow: var(--focus-ring, 0 0 0 2px var(--accent));
 }
@@ -47,6 +51,15 @@
   color: color-mix(in srgb, currentColor 75%, transparent);
 }
 :where(.q-item__section--side) :where(.q-item__label--caption, .q-item__label--overline) { color: inherit; }
+
+/* ── Card (QCard) ──────────────────────────────────────────────────────── */
+/* Quasar's card is white with a black-alpha edge whatever the theme (its Dark plugin is off): in the
+   dark theme a card's text — the ink, light there — stood on white, unreadable (Just House Paint's
+   house cards, the visual review 2026-10-20). The family's surface, ink, edge and card radius
+   instead. Zero specificity: an app's own card rule wins. */
+:where(.q-card) { background: var(--surface, #fff); color: var(--ink, inherit); border-radius: var(--r-card, 10px); }
+:where(.q-card--bordered) { border-color: var(--border, rgba(0, 0, 0, .12)); }
+:where(.q-card:not(.q-card--flat)) { box-shadow: var(--shadow-2, none); }
 
 /* ── Tag (UiTag on QBadge) ─────────────────────────────────────────────── */
 /* Borderless soft tint by default (--tag-border-width: 0); a host that wants outlined pills
@@ -152,12 +165,19 @@
 
 /* ── Switch (UiToggle on QToggle) ──────────────────────────────────────── */
 /* Today's 38 × 22 track with a 16px thumb: QToggle's inner element is the track, its thumb the
-   thumb; Quasar's own track line, its shadowed circle and its hover halo are not used. */
+   thumb; Quasar's own track line, its shadowed circle and its hover halo are not used.
+   Off is drawn as Material 3's unselected switch is (m3.material.io/components/switch/specs): an
+   outlined track with a thumb in the outline's colour, both --muted — a white thumb on a near-white
+   track and a --border edge measured 1.04:1 and 1.25:1 in light, 1.06:1 and 1.44:1 in dark, an
+   "off" switch nobody could see (WCAG 1.4.11 asks 3:1 for what shows a control and its state).
+   --muted: 5.10:1 on --bg, 5.11:1 on the track (--surface-2) in light; 6.33:1 and 6.00:1 in dark.
+   On, the thumb is --surface on the accent: #fff, 4.89:1, in light; in dark white was 2.83:1 on the
+   lighter dark accent, the dark surface is 5.40:1 (computed 2026-10-20, the family tokens). */
 .ui-toggle { flex-shrink: 0; cursor: pointer; }
 :where(.q-toggle.ui-toggle) { vertical-align: baseline; }
 .ui-toggle .q-toggle__inner {
   position: relative; width: 38px; min-width: 38px; height: 22px; padding: 0; font-size: 16px;
-  border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2);
+  border: 1px solid var(--muted, #6b6b6b); border-radius: 999px; background: var(--surface-2);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 :where(.ui-toggle) .q-toggle__track,
@@ -165,16 +185,17 @@
 :where(.ui-toggle .q-toggle__thumb)::after { display: none; }
 .ui-toggle .q-toggle__thumb {
   position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
-  background: var(--surface); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  background: var(--muted, #6b6b6b);
   transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s ease;
 }
-.ui-toggle:hover:not(.ui-toggle--disabled) .q-toggle__inner { border-color: var(--border-strong, var(--border)); }
+.ui-toggle:hover:not(.ui-toggle--disabled) .q-toggle__inner { border-color: var(--ink-2, var(--ink)); }
+.ui-toggle:hover:not(.ui-toggle--disabled):not(.ui-toggle--on) .q-toggle__thumb { background: var(--ink-2, var(--ink)); }
 .ui-toggle--on .q-toggle__inner { background: var(--accent); border-color: var(--accent); }
 .ui-toggle--on:hover:not(.ui-toggle--disabled) .q-toggle__inner {
   background: color-mix(in oklab, var(--accent) 88%, black);
   border-color: color-mix(in oklab, var(--accent) 88%, black);
 }
-.ui-toggle--on .q-toggle__thumb { left: 2px; transform: translateX(16px); background: #fff; }
+.ui-toggle--on .q-toggle__thumb { left: 2px; transform: translateX(16px); background: var(--surface, #fff); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15); }
 .ui-toggle--disabled { opacity: 0.5; cursor: not-allowed; }
 /* the ring goes round the track, as it went round the native button: QToggle's root carries Quasar's
    no-outline (outline: 0 !important, which wins from inside its layer) */
@@ -428,22 +449,29 @@
 /* ── Tab strip (UiTabStrip on QTabs + QTab) ────────────────────────────── */
 /* JustWrite's Settings values, verbatim — one look, every app, every strip. QTabs is the strip, its
    content row holds the tabs, each QTab is a tab with Quasar's label inside. The 2px underline is
-   the tab's own bottom border sitting ON the strip's 1px rule (margin-bottom: -1px), as before. A
-   strip too narrow for its tabs wraps them onto more rows, as before (JustVoice's Settings has two
-   rows at 1440px) — Quasar's sideways scrolling with arrows would hide the last tabs — so the row
-   wraps and doesn't clip, and the arrows stay hidden. Quasar's sliding indicator, its 48px tabs,
-   its uppercase 14px label, its dimmed inactive tabs and its positioning are not used (a positioned
-   tab painted after an animation is composited and loses its sub-pixel text). A keyboard-focused
-   tab wears the kit buttons' focus ring: the tab isn't a <button> any more, so neither the
-   browser's ring (JustVoice, docgen) nor JustWrite's removal of it reach it. */
-.ui-tabstrip { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-:where(.ui-tabstrip) .q-tabs__content { flex-wrap: wrap; gap: inherit; overflow: visible; position: static; }
-:where(.ui-tabstrip) .q-tabs__arrow { display: none; }
-:where(.q-tabs.ui-tabstrip) { position: static; }
+   the tab's own bottom border sitting ON the strip's 1px rule: the content row reaches 1px into the
+   strip's border (margin-bottom: -1px), and the tabs' borders paint over it. ONE row, always: a
+   strip too narrow for its tabs scrolls sideways with Quasar's own arrows outside the row (QTabs'
+   outside-arrows, mobile-arrows — UiTabStrip sets them), a faded arrow at either end; the arrow keys
+   between tabs scroll the focused one into view (Quasar). Until 2026-10-20 the row wrapped instead
+   (JustVoice's Settings had two rows at 1440px); decided after Just House Paint's visual review (QTabs'
+   default, Material's scrollable tabs) —
+   "About" alone on a second row at 960px, "Designs" alone under its house panel — is one row.
+   No gap between the tabs: QTabs decides it overflows from the SUM of its tabs' widths, which a gap
+   isn't part of (QTabs.js updateContainer — with 2px gaps a strip up to (tabs − 1) × 2px too narrow
+   would clip its last tab with no arrows), so the 2px the gap gave is in each tab's padding (17px
+   a side, was 16px + a 2px gap). Quasar's sliding indicator, its 48px tabs,
+   its uppercase 14px label, its dimmed inactive tabs and its positioned tabs are not used (a
+   positioned tab painted after an animation is composited and loses its sub-pixel text). A
+   keyboard-focused tab wears the kit buttons' focus ring: the tab isn't a <button> any more, so
+   neither the browser's ring (JustVoice, docgen) nor JustWrite's removal of it reach it. */
+.ui-tabstrip { display: flex; flex-wrap: nowrap; border-bottom: 1px solid var(--border); flex-shrink: 0; min-width: 0; }
+:where(.ui-tabstrip) .q-tabs__content { gap: 0; margin-bottom: -1px; }
+:where(.ui-tabstrip) .q-tabs__arrow { font-size: 18px; min-width: 0; color: var(--ink-2); text-shadow: none; }
 .ui-tabstrip__tab {
   appearance: none; background: none; border: 0;
-  border-bottom: 2px solid transparent; margin-bottom: -1px;
-  padding: 10px 16px; font: inherit; font-size: 13px; font-weight: 600;
+  border-bottom: 2px solid transparent;
+  padding: 10px 17px; font: inherit; font-size: 13px; font-weight: 600;
   color: var(--ink-2); cursor: pointer;
 }
 :where(.q-tab.ui-tabstrip__tab) {

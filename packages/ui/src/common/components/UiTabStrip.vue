@@ -25,9 +25,11 @@
 // a tab (.ui-tabstrip__tab, `.on` when chosen), and the look is the kit's theme
 // (../../quasar/theme.css, "Tab strip"). Quasar's tab pattern comes with it: role="tablist" and
 // "tab" with aria-selected, and one tab stop with arrow keys / Home / End between the tabs (a tab
-// is a focusable <div> now, with the kit buttons' focus ring). A strip
-// too narrow for its tabs still wraps them onto more rows (the theme keeps Quasar's sideways
-// scrolling off). The panels live in the consumer, so there is no tabpanel wiring.
+// is a focusable <div> now, with the kit buttons' focus ring). The strip is ONE row: too narrow for
+// its tabs, it scrolls sideways with QTabs' own arrows outside the row (outside-arrows; mobile-arrows
+// so a phone shows them too) — decided 2026-10-20 after Just House Paint's visual review (QTabs' own default
+// and Material's scrollable tabs); it wrapped onto more rows before (the
+// theme, "Tab strip"). The panels live in the consumer, so there is no tabpanel wiring.
 import { QTab, QTabs } from "quasar";
 
 defineProps({
@@ -45,6 +47,8 @@ const emit = defineEmits(["update:modelValue"]);
     :model-value="modelValue"
     align="left"
     breakpoint="0"
+    outside-arrows
+    mobile-arrows
     no-caps
     :aria-label="ariaLabel"
     @update:model-value="(id) => emit('update:modelValue', id)"

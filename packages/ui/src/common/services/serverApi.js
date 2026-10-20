@@ -12,7 +12,7 @@
 
 import { attachProblem, parseProblem } from "./apiError.js";
 import { adoptTokenFromAddress, getServerToken } from "./serverToken.js";
-import { serverFetch, setAuthTokenSource } from "./transport.js";
+import { serverFetch, setAuthTokenSource, setSendClientId } from "./transport.js";
 import { ref } from "vue";
 
 // Reactive so views binding `api.lastError` update. Shared instance: the app's
@@ -33,9 +33,11 @@ const _cfg = {
  *  this computer and the window has none it takes (the health answer's `tokenRequired`) — for an app whose window
  *  signs in there (the kit's token storage and Server panel: the template's). Off, the window loads as before and
  *  its Settings → Server stays the way out (the other apps keep their tokens elsewhere — 2026-10-20). */
-export function configureServerApi({ resolveBase, authToken, askTokenOnThisComputer } = {}) {
+export function configureServerApi({ resolveBase, authToken, askTokenOnThisComputer, sendClientId } = {}) {
   if (resolveBase) _cfg.resolveBase = resolveBase;
   if (askTokenOnThisComputer !== undefined) _cfg.askTokenOnThisComputer = !!askTokenOnThisComputer;
+  // every request carries this window's id (transport.js) — for a server that tells its windows apart
+  if (sendClientId !== undefined) setSendClientId(sendClientId);
   if (authToken) {
     _cfg.authToken = authToken;
     setAuthTokenSource(authToken);

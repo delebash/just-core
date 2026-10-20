@@ -25,6 +25,7 @@ import {
   installFileLog,
   installLogRing,
   makeDiskRouter,
+  MaintenanceGate,
   makeLogsRouter,
   makeShutdownRouter,
   SHUTDOWN_PATH,
@@ -137,6 +138,11 @@ export async function createApp(dataDir = null) {
   app.use("*", csrfOrigin({ appOrigins: APP_ORIGINS, extraOrigins: proxyOrigins, typeBase: TYPE_BASE }));
   app.use("*", starletteCors({ allowOrigins: [...APP_ORIGINS, ...CAPACITOR_ORIGINS], allowMethods: ["*"], allowHeaders: ["*"] }));
   app.use("*", bearerAuth({ readAuth, typeBase: TYPE_BASE, loopbackOpenPaths: [SHUTDOWN_PATH], allowedHosts }));
+  // While a restore or a reset replaces the data, every other window's write is refused (503, Retry-After) and the
+  // ones already running finish first — never a save that lands half-way or answers 200 and is lost (the kit's
+  // MaintenanceGate; the data router closes it). The shell's shutdown always passes.
+  const gate = new MaintenanceGate({ exempt: [SHUTDOWN_PATH] });
+  app.use("*", gate.middleware());
 
   // 4. The database and the app state the routes read.
   const db = openAppDatabase(dataDir);
@@ -152,7 +158,7 @@ export async function createApp(dataDir = null) {
   app.route("/", prefsRouter());
   app.route("/", makeLogsRouter(PRODUCT));
   app.route("/", makeDiskRouter(dataDir));
-  app.route("/", dataRouter(dataDir));
+  app.route("/", dataRouter(dataDir, { gate }));
 
   // 6. The AI stack: the host mounts the runner's process API, installLlm mounts the rest.
   app.route("/", runnerRouter());

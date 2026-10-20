@@ -154,8 +154,9 @@ onMounted(() => {
       <span class="lu-pcard-title">{{ t('kit.storage.serverLogs') }}</span>
       <span class="lu-muted lu-logs-sub">{{ t('kit.logs.sub') }}</span>
       <span class="lu-logs-spacer" />
-      <UiSelect :model-value="selected" :options="dayOptions" @update:model-value="onPickDay" />
-      <UiSelect v-model="level" :options="LEVEL_OPTIONS" />
+      <!-- as wide as their choice, not the card (they were 647–846 px — the visual review, 2026-10-20) -->
+      <UiSelect :model-value="selected" :options="dayOptions" width="fit" @update:model-value="onPickDay" />
+      <UiSelect v-model="level" :options="LEVEL_OPTIONS" width="fit" />
       <UiButton intent="secondary" size="small" :loading="loading" @click="refresh">↻ {{ t('kit.common.refresh') }}</UiButton>
     </div>
     <div class="lu-logs-head lu-logs-actions">

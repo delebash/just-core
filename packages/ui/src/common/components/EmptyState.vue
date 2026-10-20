@@ -41,6 +41,11 @@ const emit = defineEmits(["action"]);
 .ui-empty {
   display: flex;
   flex-direction: column;
+  /* as wide as what it holds (its message wraps at 32em), never the page's width: on an empty
+     page at 1920px the box was ~1655px wide (the visual review, 2026-10-20) */
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
   align-items: center;
   gap: 10px;
   padding: 36px 16px;

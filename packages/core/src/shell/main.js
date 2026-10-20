@@ -391,14 +391,19 @@ export function runDesktopApp(config) {
   function createWindow() {
     const w = config.window || {};
     const saved = loadWindowState();
+    // the screen it opens on: no bigger than its work area, its minimum included — a 960 × 700 minimum is taller
+    // than a 1280 × 720 screen's work area (1080p at 150 %), and the window hung under the taskbar unable to
+    // shrink (just-house-paint's eleventh review, measured 2026-10-20)
+    const area = (saved?.x !== undefined && saved?.y !== undefined ? screen.getDisplayMatching({ x: saved.x, y: saved.y, width: saved.width || 1, height: saved.height || 1 }) : screen.getPrimaryDisplay()).workAreaSize;
+    const fit = (n, max) => (n ? Math.min(n, max) : n);
     const win = new BrowserWindow({
       title: w.title || config.productName,
-      width: saved?.width || w.width || 1280,
-      height: saved?.height || w.height || 800,
+      width: fit(saved?.width || w.width || 1280, area.width),
+      height: fit(saved?.height || w.height || 800, area.height),
       x: saved?.x,
       y: saved?.y,
-      minWidth: w.minWidth,
-      minHeight: w.minHeight,
+      minWidth: fit(w.minWidth, area.width),
+      minHeight: fit(w.minHeight, area.height),
       backgroundColor: w.backgroundColor,
       icon: config.icon,
       show: false,

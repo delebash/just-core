@@ -267,8 +267,11 @@ jobs:
           ' "$TAG" > release-notes.md
           PRE=""
           case "$TAG" in *-*) PRE="--prerelease" ;; esac
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" $PRE --title "$PRODUCT $TAG" --notes-file release-notes.md
+          # a new release is a draft until every file is attached: published first, it was the "Latest" an
+          # installed copy's update check read before its latest.yml was there (the eleventh review, 2026-10-20)
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" $PRE --draft --title "$PRODUCT $TAG" --notes-file release-notes.md
           shopt -s nullglob
           cd dist/electron/Packaged
           # the installers, and electron-updater's feed: latest*.yml (one per platform) and the .blockmaps
           gh release upload "$TAG" *.exe *.dmg *.zip *.AppImage *.deb *.blockmap latest*.yml --clobber
+          gh release edit "$TAG" --draft=false

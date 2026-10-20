@@ -353,7 +353,8 @@ export function installErrorHandlers(app, { typeBase, onUnhandled = null }) {
         instance,
       });
       for (const [k, v] of Object.entries(err.extra || {})) if (!(k in body)) body[k] = v;
-      return problem(c, err.statusCode, body);
+      // its own headers too (a 503's Retry-After — the maintenance gate)
+      return problem(c, err.statusCode, body, err.headers);
     }
     if (err instanceof HttpError) {
       const [slug, title] = HTTP_SLUGS[err.statusCode] || ["error", "Error"];

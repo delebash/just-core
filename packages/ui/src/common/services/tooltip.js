@@ -74,13 +74,21 @@ function setupState(el, content, placement) {
     el.removeAttribute("aria-describedby");
   }
 
+  // ONE pending show at a time. A focus and a pointerenter can both arrive
+  // during the delay (Help's drawer closed by Esc hands the "?" its focus back
+  // while the pointer re-enters it): each armed a timer, and the first one's
+  // tooltip was overwritten by the second's — never removed, one more on
+  // screen per open-and-close (the visual review, 2026-10-20;
+  // tests/tooltip.test.js).
   const show = () => {
-    clearTimeout(hideTimer);
+    clearTimeout(hideTimer); hideTimer = null;
     if (tooltipEl || !s.content) return;
+    clearTimeout(showTimer);
     showTimer = setTimeout(() => {
+      showTimer = null;
       // The anchor can leave the DOM during the show delay (a closing modal,
       // a re-rendered row) — never open against a detached node.
-      if (!el.isConnected) return;
+      if (!el.isConnected || tooltipEl) return;
       tooltipEl = createTooltipEl(s.content);
       el.setAttribute("aria-describedby", tooltipEl.id);
       addDocListeners();
@@ -123,8 +131,9 @@ function setupState(el, content, placement) {
   };
 
   const hide = () => {
-    clearTimeout(showTimer);
+    clearTimeout(showTimer); showTimer = null;
     if (!tooltipEl) return;
+    clearTimeout(hideTimer);
     hideTimer = setTimeout(() => {
       if (!tooltipEl) return;
       tooltipEl.classList.remove("is-visible");

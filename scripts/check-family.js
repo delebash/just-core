@@ -1251,6 +1251,28 @@ function checkRestoreKeepsTokens(app) {
       report(`${relative(app.dir, f).replace(/\\/g, "/")}: a restore replaces the access tokens with the backup's (or none) — keep this server's (the template's data_admin.js keepAuth: beforeCopy / afterCopy)`);
   }
 }
+// ── a restore shuts the other writes out ──────────────────────────────────────
+// While a restore or a reset replaces the data, a write from another window answered 200 and was lost, or landed
+// over the restored data (just-house-paint's eleventh review, 2026-10-20): the app mounts the kit's
+// MaintenanceGate before its routes and hands it to makeDataRouter, with its teardown as `beforeReplace`.
+// Required where the release is, advisory elsewhere until each app takes it.
+function checkMaintenanceGate(app) {
+  const src = join(app.dir, "server", "src");
+  if (!existsSync(src)) return;
+  const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
+  const code = walk(src)
+    .filter((p) => p.endsWith(".js"))
+    .map((f) => [f, codeOf(f)]);
+  const routers = code.filter(([, y]) => /\bmakeDataRouter\s*\(/.test(y));
+  if (!routers.length) return;
+  if (!code.some(([, y]) => /\.use\(\s*["']\*["']\s*,\s*\w+\.middleware\(\s*\)\s*\)/.test(y) && /\bnew\s+MaintenanceGate\s*\(/.test(y)))
+    report("server/src: no maintenance gate before the routes — a write during a restore is lost (the template's app.js: new MaintenanceGate, app.use(\"*\", gate.middleware()))");
+  for (const [f, y] of routers) {
+    const where = relative(app.dir, f).replace(/\\/g, "/");
+    if (!/\bgate\s*[,}:]/.test(y)) report(`${where}: makeDataRouter without the app's gate — its restore never shuts the other writes out (the template's data_admin.js)`);
+    if (!/\bbeforeReplace\s*:/.test(y)) report(`${where}: makeDataRouter without beforeReplace — the app's jobs run on while the data is replaced (the template's data_admin.js)`);
+  }
+}
 function checkRelease(app) {
   const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
   const workflow = join(app.dir, ".github", "workflows", "release.yml");
@@ -1329,6 +1351,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkChrome(app, files);
   checkRelease(app);
   checkRestoreKeepsTokens(app);
+  checkMaintenanceGate(app);
   checkCorsOrigins(app);
   checkClipboard(app.name, app.dir, files, RELEASE_REQUIRED.has(app.name));
   checkOneSaveDoor(app, files);

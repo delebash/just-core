@@ -34,6 +34,9 @@ const props = defineProps({
   options: { type: Array, default: () => [] },
 });
 const app = computed(() => props.appName || t("kit.dataManagement.defaultApp"));
+// "Reset Just House Paint": an app's name as it is written; only the generic word is lowercased
+// mid-heading ("Reset workspace") — the name was lowercased too (the visual review, 2026-10-20)
+const resetName = computed(() => props.appName || t("kit.dataManagement.defaultApp").toLowerCase());
 const busy = ref("");
 // The options' live checked-state, seeded from each entry's default (on unless
 // the app says otherwise).
@@ -156,7 +159,7 @@ async function reset() {
     </div>
     <div class="lu-data-row lu-data-danger">
       <div class="lu-data-info">
-        <b>{{ t('kit.dataManagement.reset.heading', { app: app.toLowerCase() }) }}</b>
+        <b>{{ t('kit.dataManagement.reset.heading', { app: resetName }) }}</b>
         <span class="lu-muted">{{ t('kit.dataManagement.reset.hint') }}</span>
       </div>
       <div class="lu-data-actions">
