@@ -48,10 +48,35 @@ const tablesOf = (metadata) => {
 };
 
 const RETRIES = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
+const HELD = new Set(["EPERM", "EACCES", "EBUSY"]);
+
+/** A rename, retried while Windows holds a file in the folder (a scanner reading files just written —
+ *  Node's rename doesn't retry as its rm does): about five seconds, then its error. */
+async function renameHeld(from, to) {
+  for (let i = 1; ; i++) {
+    try {
+      return await rename(from, to);
+    } catch (e) {
+      if (!HELD.has(e?.code) || i > 10) throw e;
+      await new Promise((r) => setTimeout(r, 100 * i));
+    }
+  }
+}
+
+/** Every file and folder under `dir` that the same tree at `keep` doesn't have, removed (best effort). */
+async function prune(dir, keep) {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const there = path.join(keep, entry.name);
+    const here = path.join(dir, entry.name);
+    if (!existsSync(there)) await rm(here, RETRIES).catch(() => {});
+    else if (entry.isDirectory()) await prune(here, there);
+  }
+}
 
 /** Put the backup's copy `from` in place of the asset folder `dir` (see the restore route). Both are on the
  *  data drive for a moment (the old one until the new is swapped in); a drive too full for that falls back
- *  to removing the old one first. */
+ *  to removing the old one first. A rename Windows holds is retried; one that still fails never leaves the
+ *  folder missing: the old one goes back, or the backup is copied in place. */
 async function replaceAssetDir(from, dir) {
   const parent = path.dirname(dir);
   const base = path.basename(dir);
@@ -73,17 +98,37 @@ async function replaceAssetDir(from, dir) {
     await cp(from, dir, { recursive: true, preserveTimestamps: true });
     return;
   }
-  if (!existsSync(dir)) return rename(staged, dir);
+  // held: the backup copied over the folder as it is — its files all land, and what it hasn't is removed
+  const copyOver = async () => {
+    await cp(staged, dir, { recursive: true, force: true, preserveTimestamps: true });
+    await prune(dir, staged);
+    await rm(staged, RETRIES).catch(() => {});
+  };
+  if (!existsSync(dir)) {
+    try {
+      return await renameHeld(staged, dir);
+    } catch {
+      return copyOver();
+    }
+  }
   const old = `${dir}.replaced-${stamp}`;
   try {
-    await rename(dir, old);
+    await renameHeld(dir, old);
   } catch {
-    // held: the backup's files copied over the folder as it is, every one of them landing
-    await cp(staged, dir, { recursive: true, force: true, preserveTimestamps: true });
-    await rm(staged, RETRIES).catch(() => {});
-    return;
+    return copyOver();
   }
-  await rename(staged, dir);
+  try {
+    await renameHeld(staged, dir);
+  } catch {
+    // the swap half done: the old folder back where it was, then the backup copied over it
+    try {
+      await renameHeld(old, dir);
+    } catch {
+      await copyOver(); // the folder is missing: the backup's copy put there (the old one waits beside it)
+      return;
+    }
+    return copyOver();
+  }
   await rm(old, RETRIES).catch(() => {}); // held: the next restore takes it
 }
 

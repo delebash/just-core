@@ -4,7 +4,7 @@
 // Python's SQLAlchemy `MetaData` + `Table("notes", …)` is a one-table TABLES list here;
 // the zip is read back with the module's own reader (its Python interop was checked by
 // hand, 2026-10-07: Python's zipfile reads these backups and these read Python's).
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
@@ -98,6 +98,24 @@ test("restore_swaps_the_asset_folder_whole_and_takes_an_earlier_restores_leftove
   expect(readdirSync(tmp).filter((n) => n.startsWith("images."))).toEqual([]);
   expect(existsSync(assets)).toBe(true);
 });
+
+test("restore_into_a_folder_windows_holds_lands_every_file_and_drops_the_rest", async () => {
+  // a file in the folder held open (a scanner, a viewer): on Windows the folder can't be renamed, so the
+  // backup is copied over it — every backed-up file lands, what the backup hasn't is removed
+  const { app, assets } = makeApp();
+  writeFileSync(join(assets, "a.txt"), "backed up");
+  const blob = await bytes(await app.request("/v1/data/backup", { method: "GET" }));
+  writeFileSync(join(assets, "a.txt"), "changed later");
+  writeFileSync(join(assets, "stale.png"), "not in the backup");
+  const held = openSync(join(assets, "a.txt"), "r");
+  try {
+    expect((await upload(app, blob)).status).toBe(200);
+  } finally {
+    closeSync(held);
+  }
+  expect(readFileSync(join(assets, "a.txt"), "utf8")).toBe("backed up");
+  expect(readdirSync(assets)).toEqual(["a.txt"]);
+}, 30000);
 
 test("restore_rejects_bad_zip", async () => {
   const { app } = makeApp();

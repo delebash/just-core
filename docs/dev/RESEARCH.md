@@ -1340,6 +1340,31 @@ e5c2cfb · cc8d672 · e53dc21; not re-run by this session):
   JustVoice lint, 1,359 server (1 skipped), 259 unit, `build:spa`, health; just-sqlite-sync lint and 70
   tests; the guard: no violations, 29 advisory findings (29 before).
 
+**The window drew the app — what "[shell] window loaded" means** (*code*, 2026-10-19; just-house-paint's
+sixth review):
+
+- Electron's `did-finish-load` says the document finished loading, not that the app is on screen: a
+  bundle whose script throws leaves an empty `#q-app` and the event still fires. So the shell prints
+  `[shell] window loaded` only once `#q-app .q-layout` exists (Quasar's layout, which every family app
+  and the template render — checked 2026-10-19), polled every 500 ms for up to a minute, and
+  `[shell] window failed: <why>` for a failed load (`did-fail-load`, except -3 ERR_ABORTED, a load
+  replaced by another), a crashed page (`render-process-gone`) or a layout never drawn —
+  `packages/core/src/shell/main.js:455-468`. The template's `scripts/start-packaged.js` (each app's
+  release check on every runner) waits for one line or the other, reading the output as one running text
+  so a line split across two reads still counts, and stops at once on "window failed".
+- (was: printed on `did-finish-load` alone, until 2026-10-19 — just-house-paint's sixth review.)
+
+**A restore's asset folder on Windows: a held rename** (*measured + code*, 2026-10-19, this machine):
+
+- Renaming a folder fails (EPERM) while a file inside it is open — Windows holds a just-written file a
+  moment (a scanner, the indexer). The restore's `replaceAssetDir` stages the backup's copy beside the
+  folder, then swaps by renames, each retried up to 10 times (100·n ms) on EPERM/EACCES/EBUSY; a rename
+  that still fails never leaves the folder missing: the old one goes back, or the backup's copy is copied
+  over the folder and what the backup lacks is pruned. `packages/core/tests/data_api.test.js:102` holds a file with `openSync` and every backup file lands;
+  `packages/core/src/platform/data_api.js:51-133`. An app's own start-up sweep can find the staged copy
+  (`<dir>.restoring-<time>`) with no folder beside it if the process died between the two renames —
+  just-house-paint puts it back (its database is restored first, so the staged copy is the matching one).
+
 ## 3 · AI tasks and the stream frames
 
 - `GET /v1/ai/resolved-route` rows carry `context` (since `1476549` + `b9ea75d`, 2026-10-11): the

@@ -85,11 +85,17 @@ async function run() {
   console.log(`starting ${exe} (data folder ${dataDir}, port ${port})`);
   const t0 = Date.now();
   const child = spawn(exe, args, { env: { ...process.env, [dataDirEnv]: dataDir }, stdio: ["ignore", "pipe", "inherit"], detached: process.platform !== "win32" });
-  // the shell says when its window's page loaded (the kit's runDesktopApp): the window, not only the server
+  // the shell says when its window drew the app, or why it didn't (the kit's runDesktopApp) — read as one
+  // running text, so a line split across two reads still counts
   let windowLoaded = false;
+  let windowFailed = null;
+  let seen = "";
   child.stdout.on("data", (chunk) => {
     process.stdout.write(chunk);
-    if (String(chunk).includes("[shell] window loaded")) windowLoaded = true;
+    seen = (seen + String(chunk)).slice(-4000);
+    if (seen.includes("[shell] window loaded")) windowLoaded = true;
+    const failed = seen.match(/\[shell\] window failed: ([^\r\n]*)/);
+    if (failed) windowFailed = failed[1];
   });
   let exited = null;
   child.on("exit", (code, signal) => {
@@ -98,10 +104,13 @@ async function run() {
   child.on("error", (e) => {
     exited = { code: e.code || e.message, signal: null }; // it couldn't be started at all
   });
+  let answered = false;
   try {
     for (;;) {
-      if (exited) throw new Error(`the app quit before it answered (exit ${exited.code ?? exited.signal})`);
+      if (exited) throw new Error(`the app quit before ${answered ? "its window drew" : "it answered"} (exit ${exited.code ?? exited.signal})`);
+      if (windowFailed) throw new Error(`its window didn't draw: ${windowFailed}`);
       const h = await health();
+      if (h) answered = true;
       if (h && windowLoaded) {
         if (h.version !== pkg.version) throw new Error(`it answered as version ${h.version}, not ${pkg.version}`);
         console.log(`it answered in ${((Date.now() - t0) / 1000).toFixed(1)} s: ${h.product} ${h.version}`);

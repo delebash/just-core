@@ -449,9 +449,24 @@ export function runDesktopApp(config) {
       e.preventDefault();
       quitApp();
     });
-    // the window's page loaded — the release's start check waits for this line (scripts/start-packaged.js):
-    // a server that answers behind a window that never draws isn't a working app
-    win.webContents.once("did-finish-load", () => console.log("[shell] window loaded"));
+    // the app drawn in the window — the release's start check waits for this line (scripts/start-packaged.js):
+    // a server that answers behind a window that never draws isn't a working app. An error page or a
+    // missing bundle "finishes loading" too (measured, Electron 44.7), so the app's own layout is asked for
+    // (Quasar's .q-layout in #q-app — a failed start's message has none); a failed load says so instead.
+    let failedLoad = null;
+    win.webContents.on("did-fail-load", (_e, code, description) => {
+      if (code !== -3) failedLoad = `${code} ${description}`; // -3: a navigation the page itself replaced
+    });
+    win.webContents.on("render-process-gone", (_e, d) => console.log(`[shell] window failed: the page's process ${d.reason}`));
+    win.webContents.once("did-finish-load", async () => {
+      if (failedLoad) return console.log(`[shell] window failed: ${failedLoad}`);
+      for (let i = 0; i < 120 && !win.isDestroyed(); i++) {
+        const drawn = await win.webContents.executeJavaScript("!!document.querySelector('#q-app .q-layout')", true).catch(() => false);
+        if (drawn) return console.log("[shell] window loaded");
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      console.log("[shell] window failed: the app never drew its layout");
+    });
     win.loadURL(home);
     state.win = win;
     return win;
