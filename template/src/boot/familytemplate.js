@@ -11,7 +11,7 @@
 //   3. renderer errors to the server's log (installErrorReporting, §15), the tooltip directive the
 //      kit's controls use, the native save dialog for files the app makes, Help over docs/;
 //   4. the server check: down → every route goes to /offline (outside the layout), and back to the
-//      page it came from once it answers;
+//      page it came from once it answers; up → the kit's watcher of other windows' changes;
 //   5. the preferences before the ui store's first read, the theme before mount;
 //   6. the warm start, awaited before mount, so the splash is up on the first paint (§11).
 import { defineBoot } from "#q-app";
@@ -25,6 +25,7 @@ import {
   installLlmUi,
   startWarmOnBoot,
   tooltipDirective,
+  watchOtherWindows,
 } from "@delebash/ui";
 import { i18n } from "../i18n/index.js";
 import { hasDoc, loadDoc, titleForSlug } from "../services/helpDocs.js";
@@ -50,6 +51,9 @@ async function boot({ app, router, store: pinia }) {
     // the window signs in at the kit's token page (its Server panel keeps a token) when the server requires one
     // even on this computer
     askTokenOnThisComputer: true,
+    // every request carries this window's id: the server counts the changes other windows make (the kit's
+    // watchOtherWindows)
+    sendClientId: true,
     // no embedding features in this app
     capabilities: { embeddings: false },
   });
@@ -75,6 +79,8 @@ async function boot({ app, router, store: pinia }) {
     return;
   }
   router.beforeEach((to) => (to.path === "/offline" ? to.query.from || "/" : true));
+  // another window's changes on this server: the pages read again (a restore or a reset reloads the window)
+  watchOtherWindows();
 
   await bootPrefs();
   useUiStore(pinia).boot();

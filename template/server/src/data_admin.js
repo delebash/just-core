@@ -17,7 +17,7 @@ import { makeDataRouter } from "@delebash/core/platform";
 import { sortedTables } from "@delebash/core/platform/data_api";
 import { getLogger } from "@delebash/core/platform/log";
 import * as lifecycle from "@delebash/core/runner/lifecycle";
-import { getDb } from "./app_state.js";
+import { getDb, getState } from "./app_state.js";
 import { dbPath, recreateAppTables } from "./database/index.js";
 import { APP_TABLES } from "./database/schema.js";
 import { seedWorkspace } from "./database/seed.js";
@@ -62,6 +62,9 @@ export async function resetWorkspace() {
   recreateAppTables(db, APP_TABLES);
   if (auth !== undefined) setSetting(db, "auth", auth);
   seedWorkspace(db);
+  // the data's new epoch: every other window reloads (the kit's ChangeCounter)
+  getState().changes?.renewEpoch(db);
+  getState().changes?.replaced();
   log.info("workspace reset to its first-run state");
 }
 
@@ -72,11 +75,20 @@ export const router = (dataDir, { gate } = {}) =>
     runReset: resetWorkspace,
     assetDirs: () => ({}),
     ...keepAuth,
+    // and the data's new epoch, in the same transaction as the restored rows (the backup's own row replaced)
+    afterCopy: (h) => {
+      keepAuth.afterCopy(h);
+      getState().changes?.renewEpoch(h);
+    },
     // a backup from an older version: its settings get what this one's seed adds and upgrades (as at start)
     afterTables: () => seedWorkspace(getDb()),
     // what would write into the data being replaced stops before it is (the gate is closed by then), and what was
     // derived from the old data after
     beforeReplace: stopRunnerBestEffort,
-    onReplaced: stopRunnerBestEffort,
+    // every window reloads — only once the data has been replaced (a refused restore replaced nothing)
+    onReplaced: async () => {
+      getState().changes?.replaced();
+      await stopRunnerBestEffort();
+    },
     gate,
   });

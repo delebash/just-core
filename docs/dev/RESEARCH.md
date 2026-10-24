@@ -1521,7 +1521,10 @@ just-house-paint's eleventh review — an agent driving two clients by fetch aga
   kit's `watchSync` (its `GET /v1/sync/rev` contract) on a counter of the OTHER windows' changes — each window sends
   an id (`X-Client-Id`; `installLlmUi({ sendClientId: true })`, transport.js), so its own saves never move its counter.
   `watchSync` takes `waitWhile()` (the app's own reason to hold a change — a stroke in flight) and hands `onChange`
-  the server's answer.
+  the server's answer. Since 2026-10-24 both halves are the kit's (the engines plan, F1): the server's
+  `ChangeCounter` + `makeSyncRevRouter` (`platform/window_changes.js` — the app passes its data-write paths and
+  its settings store, where the data's epoch row lives) and the screen's `watchOtherWindows` / `otherWindows` /
+  `holdChangesWhile` (`common/services/otherWindows.js`); the template wires them (its notes read again).
 - A restore had no write gate: a save during it answered 200 and was gone; the app's jobs were stopped only after
   the data was replaced. `MaintenanceGate` (platform/maintenance.js): `makeDataRouter({ gate, beforeReplace })`
   closes it around a restore's and a reset's replacement — other writes 503 with Retry-After (RFC 9110 §15.6.4),

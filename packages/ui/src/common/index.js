@@ -115,6 +115,7 @@ export { adoptTokenFromAddress, getServerToken, setServerToken } from "./service
 export { answerWorkerCalls, inAppServer, serverFetch, setServerTransport, workerFetch } from "./services/transport.js";
 // another device's changes landing on the server (sync): the app reloads what it shows
 export { replacingData, watchSync } from "./services/syncWatch.js";
+export { holdChangesWhile, otherWindows, watchOtherWindows } from "./services/otherWindows.js";
 
 // shared appearance/theming engine + catalogs (host calls applyAppearance at boot)
 export * from "./services/appearance.js";

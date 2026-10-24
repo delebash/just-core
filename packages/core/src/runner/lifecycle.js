@@ -126,6 +126,7 @@ import {
   Overrides,
   RunnerStartError,
 } from "./process.js";
+import { runtimeServices } from "./runtime_service.js";
 import * as self from "./lifecycle.js";
 
 const log = getLogger("llm_runner.runner.lifecycle");
@@ -1725,11 +1726,19 @@ export class RunnerService {
    * llama-server would crash it (and on Windows an open file can't be unlinked). A
    * download-only op runs on a separate channel invisible to `resident()`; that edge stays
    * safe-by-design (the wipe just makes the download re-fetch).
+   *
+   * Every kind's models (docs/plans/2026-10-24-engines-the-llama-way.md, K11): the kit runtimes' model rows
+   * (runtime_service.js) live in the same `hf`. One downloading or running a job refuses ("models busy"); an idle
+   * runtime server is stopped first — its files are going — and through a linked cache only their own files go.
    */
   async clearModelsCache() {
     const busy = new Set(["loaded", "sleeping", "loading", "downloading", "starting"]);
     const inUse = ((await this.resident()).models || []).filter((m) => busy.has(m.status)).map((m) => m.id);
     if (inUse.length) return { ok: false, detail: "unload models first", models: inUse };
+    const runtimes = runtimeServices();
+    const working = runtimes.flatMap((s) => s.busyModels());
+    if (working.length) return { ok: false, detail: "models busy", models: working };
+    for (const s of runtimes) await s.releaseModels();
     // One walk, one source: the same size measurement the /v1/disk/usage panel shows.
     const { dirSize } = await import("../platform/disk_api.js");
     const hf = path.join(this._cacheRoot, "hf");
@@ -1744,6 +1753,7 @@ export class RunnerService {
       // (2026-10-20: the eighteenth review's "the catalog's repos" still took other tools' files)
       const files = new Set();
       for (const row of catalogRows(this)) for (const f of rowFiles(hf, row)) files.add(f);
+      for (const s of runtimes) for (const f of s.modelFiles()) files.add(f);
       return { ok: true, bytes: await removeFiles(files, hf) };
     }
     const freed = await dirSize(hf, null, true);

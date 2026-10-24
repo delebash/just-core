@@ -588,7 +588,14 @@ const RENAMED_PROVIDER_NAMES = { "local-llamacpp": ["Built-in server — llama.c
 // (2026-10-07) made it 900 — a database made before kept 60, and a non-streamed local run thinking at High
 // failed at 61 s while llama-server answered at 82 s (JustWrite, 2026-10-24). A row still holding exactly
 // an old seeded value gets today's; a user's own timeout is never touched.
+// tests/seed_defaults.test.js holds today's DEFAULT_PROVIDERS: change a provider's default and it fails until the
+// outgoing value is kept here (or beside it, for another field).
 const PRIOR_PROVIDER_TIMEOUTS = { "local-llamacpp": [60] };
+// Prior seeded runner settings, per key, the same way (docs/plans/2026-10-24-engines-the-llama-way.md F2): a row still
+// holding exactly an earlier default gets today's. When a DEFAULT_RUNNER_SETTINGS value changes, add the outgoing value
+// here — tests/seed_defaults.test.js holds today's and fails until you do. `pinned_build` stays out: an install keeps
+// its llama.cpp pin until its owner updates the engine (runner/config.js DEFAULT_PINNED_BUILD).
+export const PRIOR_RUNNER_SETTINGS = {};
 
 // ── seeders (operate on the passed handle; the caller's tx is the commit) ────
 export function seedDefaultProviders(h) {
@@ -1200,10 +1207,14 @@ export function seedDefaultRunnerBinaries(h) {
 }
 
 export function seedDefaultRunnerSettings(h) {
-  const existing = new Set(h.all('select "key" from runner_setting').map((r) => r.key));
+  const existing = new Map(h.all('select "key", value from runner_setting').map((r) => [r.key, r.value]));
   let added = 0;
   for (const r of DEFAULT_RUNNER_SETTINGS) {
-    if (existing.has(r.key)) continue;
+    if (existing.has(r.key)) {
+      // still an earlier default (its owner never changed it): today's
+      if ((PRIOR_RUNNER_SETTINGS[r.key] || []).includes(existing.get(r.key))) h.update("runner_setting", { value: strOr(r, "value", "") }, { key: r.key });
+      continue;
+    }
     h.insert("runner_setting", { key: r.key, value: strOr(r, "value", ""), built_in: true });
     added += 1;
   }

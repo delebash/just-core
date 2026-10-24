@@ -98,7 +98,10 @@
       "notesTitle": "Notes",
       "notesHint": "How the Notes list shows your notes.",
       "pageSize": "Notes per page",
-      "maxImportKilobytes": "Largest file to import (KB)"
+      "maxImportKilobytes": "Largest file to import (KB)",
+      "windowsTitle": "Other windows",
+      "windowsHint": "The app open in more than one place at once — the desktop app, a browser on this server, a phone: how often each one looks for what the others changed. It shows their changes by itself.",
+      "checkSeconds": "Look for other windows' changes every (seconds)"
     },
     "appearanceHint": "How the app looks — applied at once and kept by the app.",
     "accentNote": "The default, 166°, is green.",

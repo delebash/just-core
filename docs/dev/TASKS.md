@@ -52,8 +52,13 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         booking, image jobs; a real render through the kit on this RTX 2070; step 4 (16cb2a1) image models as
         `runtime_model` rows with pinned file sets in the HF cache (a hard link where Windows allows no symlink);
         step 5 feature routing by kind — presets and providers carry a kind, an image preset's bounded settings, the
-        runtime's built-in `local-sdcpp` provider, `runImageFeature`. Next: K11 (Clear models cache knows every
-        kind and never takes a busy runtime's files), then round A2 (F1–F6), then K10 + K13.
+        runtime's built-in `local-sdcpp` provider, `runImageFeature`. K11 BUILT (Clear models cache knows the
+        runtimes' models, never takes a busy one's files). Round A2 BUILT (the plan's F1–F6 each say what was built
+        and what changed while building): the multi-window counter and watcher, the settings upgrade (the kit's
+        own runner settings too), the text helpers, the held renames, the family's page looks as the kit's
+        `common/app.css` with the guard's check 23 — the template and house-paint on all of them; JustWrite,
+        JustVoice and docgen told to adopt `common/app.css` (their copies printed by the guard). Next: K10 + K13,
+        then house-paint's round B.
 
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning

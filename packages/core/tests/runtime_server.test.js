@@ -10,7 +10,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { runtimeVariantDir } from "../src/runner/binary.js";
 import { binaryAsset, DEFAULT_SDCPP_BINARIES, DEFAULT_SDCPP_BUILD } from "../src/runner/config.js";
 import { EngineBusyError, RuntimeService } from "../src/runner/runtime_service.js";
-import { imageJobBody, runImageJob, sdServerArgv } from "../src/runner/sdcpp.js";
+import { imageJobBody, runImageJob, runVideoJob, sdServerArgv, videoJobBody } from "../src/runner/sdcpp.js";
 
 const NVIDIA_BOX = { platform: "windows", runtimes: { cuda: true }, gpus: [{ computeCap: "7.5" }] };
 const CPU_BOX = { platform: "windows", runtimes: {}, gpus: [] };
@@ -175,7 +175,7 @@ function fakeSd(final, { steps = 4 } = {}) {
   const fetchFn = async (url, init = {}) => {
     calls.push([init.method ?? "GET", url.replace(/^http:\/\/[^/]+/, "")]);
     const json = (body, status = 200) => ({ status, ok: status < 300, json: async () => body });
-    if (url.endsWith("/sdcpp/v1/img_gen")) return json({ id: "job-1", status: "queued" }, 202);
+    if (/\/sdcpp\/v1\/(img|vid)_gen$/.test(url)) return json({ id: "job-1", status: "queued" }, 202);
     if (url.endsWith("/cancel")) return json({ cancel_requested: true });
     polls += 1;
     if (polls <= steps) return json({ status: "generating", preview: { step: polls, total_steps: steps } });
@@ -201,4 +201,39 @@ test("the job client: Cancel asks sd-server to stop and the job ends cancelled; 
   expect(sd.calls).toContainEqual(["POST", "/sdcpp/v1/jobs/job-1/cancel"]);
   const failed = fakeSd({ status: "failed", error: { message: "out of memory" } }, { steps: 0 });
   await expect(runImageJob("http://127.0.0.1:1", {}, { fetchFn: failed.fetchFn, sleep: async () => {} })).rejects.toThrow(/out of memory/);
+});
+
+test("sd-server's video body: frames, fps, the flow shift and the VAE's tiling, the first and last frame as base64", () => {
+  const png = Buffer.from([1, 2, 3]);
+  const tiling = { enabled: true, temporal_tiling: true, extra_tiling_args: "temporal_tile_frames=4" };
+  const body = videoJobBody({ prompt: "a fox runs", negativePrompt: "blurry", width: 1280, height: 704, frames: 121, fps: 24, init: png, end: png, params: { steps: 3, cfg: 1, seed: 7, flowShift: 5, sigmas: [1, 0.757, 0.522, 0], vaeTiling: tiling } });
+  expect(body).toMatchObject({
+    prompt: "a fox runs",
+    negative_prompt: "blurry",
+    width: 1280,
+    height: 704,
+    video_frames: 121,
+    fps: 24,
+    seed: 7,
+    output_format: "webm",
+    preview: "proj",
+    init_image: "AQID",
+    end_image: "AQID",
+    vae_tiling_params: tiling,
+    sample_params: { sample_method: "euler", sample_steps: 3, flow_shift: 5, custom_sigmas: [1, 0.757, 0.522, 0], guidance: { txt_cfg: 1 } },
+  });
+  expect(videoJobBody({ prompt: "p", width: 8, height: 8, frames: 5 })).not.toHaveProperty("vae_tiling_params");
+});
+
+test("the video job: posted to vid_gen, step progress, then the whole encoded file and what it is", async () => {
+  const webm = Buffer.from("WEBM");
+  const sd = fakeSd({ status: "completed", result: { output_format: "webm", mime_type: "video/webm", fps: 24, frame_count: 121, b64_json: webm.toString("base64") } }, { steps: 3 });
+  const seen = [];
+  const out = await runVideoJob("http://127.0.0.1:1", { prompt: "p" }, { fetchFn: sd.fetchFn, sleep: async () => {}, onProgress: (p) => seen.push(p.step) });
+  expect(sd.calls[0]).toEqual(["POST", "/sdcpp/v1/vid_gen"]);
+  expect(out.bytes.equals(webm)).toBe(true);
+  expect(out).toMatchObject({ mimeType: "video/webm", format: "webm", fps: 24, frames: 121 });
+  expect(seen).toEqual([1, 2, 3]);
+  const empty = fakeSd({ status: "completed", result: {} }, { steps: 0 });
+  await expect(runVideoJob("http://127.0.0.1:1", {}, { fetchFn: empty.fetchFn, sleep: async () => {} })).rejects.toThrow(/no video/);
 });

@@ -1,0 +1,149 @@
+/* SPDX-License-Identifier: MIT */
+/* The family's page looks — the base, the shell, pages, cards, hints, forms, Settings and the AI page, the
+   warm-start splash — one copy for every app (docs/plans/2026-10-24-engines-the-llama-way.md F5 + F6: they were the
+   template's app.scss, copied into each app, and the kit's own panels use .card and .hint). An app lists it in
+   quasar.config.js `css` right before its own app.scss, which keeps only the app's own looks; the family guard
+   fails an app that lists it and still defines one of its classes. The family rules: a height:100% chain (NEVER
+   100vh), one scroller per area, every control sized to its content, and every colour, font and size from
+   tokens.css (app-structure §4, §17). docgen's app.scss was the donor of the shell's classes. */
+
+* { box-sizing: border-box; }
+html, body, #q-app { height: 100%; margin: 0; } /* #q-app: Quasar's mount point */
+body {
+  font: var(--fs-body)/1.5 var(--font-ui);
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* ── the shell: the title bar over the nav and the content ──────────────── */
+/* The layout (Quasar's q-layout, fixed to the window by the kit's quasar/theme.css) paints the
+   app's background. */
+.shell { background: var(--bg); }
+
+/* The kit's TitleBar takes the kit's look (.titlebar, .titlebar__title, .iconbtn in common/styles.css). */
+
+/* The nav column, filling the drawer. */
+.shell__nav {
+  height: 100%; display: flex; flex-direction: column; gap: 2px;
+  padding: 14px 10px 12px;
+  background: var(--surface); border-right: 1px solid var(--border);
+}
+.shell__brand { display: flex; align-items: center; gap: var(--sp-2); font-weight: 700; padding: 2px 8px 14px; }
+.brand-mark {
+  width: 22px; height: 22px; border-radius: var(--r-sm); flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: var(--on-accent);
+  font-size: 10px; font-weight: 700;
+}
+.brand-name { font-size: var(--fs-small); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shell__links { display: flex; flex-direction: column; gap: 2px; }
+/* the nav rows are Quasar's QItem links */
+.navlink {
+  min-height: 34px; padding: 0 10px; border-radius: var(--r-sm);
+  color: var(--ink-2); font-weight: 500; font-size: var(--fs-small);
+}
+.navlink:hover { background: var(--surface-3); }
+.navlink--active, .navlink--active:hover { background: var(--accent-soft); color: var(--accent-ink); }
+.navlink__icon.q-item__section--avatar { min-width: 0; padding-right: 9px; color: inherit; }
+.nav-count { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+/* the danger ink, not the danger fill: 4.23:1 in the dark theme with --danger (the sixteenth review) */
+.nav-count--error { background: var(--danger-bg); color: var(--danger-ink, var(--danger)); }
+.nav-divider { margin: var(--sp-2) 6px; background: var(--border); }
+
+/* The one content scroller, under the title bar; the pages flow in it (pageFlow). */
+.shell__main { height: 100%; min-width: 0; overflow-y: auto; padding: 20px var(--sp-5); }
+
+/* ── pages ──────────────────────────────────────────────────────────────── */
+/* about 75 characters a line at the body size (an em is the font's size — ch, a "0", is wider than the
+   average letter: 70ch held ~100) */
+.page__lede { margin: var(--sp-2) 0 var(--sp-4); color: var(--ink-2); max-width: 32em; }
+.page__banner { margin: var(--sp-3) 0; max-width: var(--w-edit); }
+/* a content page is as wide as its list, so its header buttons sit at the list's right edge */
+.page--content { max-width: var(--w-edit); }
+.cards { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-start; }
+.cards > .card { width: 280px; margin-bottom: 0; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-card); padding: var(--sp-4); margin-bottom: var(--sp-4);
+  max-width: var(--w-edit);
+}
+.card h2 { margin: 0 0 var(--sp-1); font-size: var(--fs-h2); }
+/* a card's buttons in a row that wraps, apart (Storage's two touched — the sixteenth review) */
+.card__actions { margin-top: var(--sp-3); display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.card__note { margin: var(--sp-2) 0 0; }
+/* a hint's lines at most about 70 characters — the typographic measure's 45–75 (Bringhurst; WCAG 1.4.8 asks 80
+   or fewer): in a Settings card at 1366 px a hint ran 846 px, ~135 characters (the screens review, 2026-10-20). In
+   em, not ch: a "0" is wider than the average letter, and 70ch held 86–108 (the sixteenth review); 33em still
+   held 71–77 (the seventeenth) */
+.hint { color: var(--muted); font-size: var(--fs-small); margin: 0 0 var(--sp-3); max-width: 30em; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-size: var(--fs-small); }
+/* Words for a screen reader only (what a colour or a shape says to the eye) — the common visually-hidden pattern
+   (Bootstrap's .visually-hidden); Quasar ships none. */
+.visually-hidden {
+  position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important;
+  margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important; border: 0 !important;
+}
+/* Not on Quasar's own elements: Quasar names a flex row `row` too, and this rule would outrank
+   Quasar's inside them. :where() keeps it one class. */
+:where(:not([class*="q-"])).row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.url-box {
+  max-width: var(--w-url); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
+}
+.token-list { list-style: none; margin: 0 0 var(--sp-3); padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+/* ── forms (app-structure §15, §17): fields as wide as what they hold, the button row on the
+   right, a button on a row of labelled fields aligned with the inputs ─────────────────────── */
+.form { display: flex; flex-direction: column; gap: var(--sp-3); }
+/* the form's gap spaces its fields; the kit's .ui-field margin would push a row's button off its input */
+.form .ui-field { margin: 0; }
+.form__inline { display: flex; align-items: flex-start; gap: var(--sp-2); flex-wrap: wrap; }
+.form__row { display: flex; align-items: flex-end; gap: var(--sp-3); flex-wrap: wrap; }
+.form__actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-2); }
+.toggle-row { display: flex; align-items: center; gap: 10px; margin-top: var(--sp-3); cursor: pointer; }
+
+/* ── a list row with a main action and buttons of its own ───────────────────────────────────────
+   The row isn't the button — a button inside a button is lost to the keyboard and to screen readers
+   (WAI-ARIA: no interactive content inside a button). Its main action is a button of its own,
+   stretched over the whole row by a pseudo-element (the stretched-link pattern: Bootstrap's
+   .stretched-link, Inclusive Components' "Cards"), so a click anywhere on the row still does it;
+   the row's other buttons sit above it (.row-side), and a click on the side's words goes through.
+   The keyboard ring goes round the row, on the stretched part. The row (a QItem) is positioned.
+   (just-house-paint's parts, designs and AI photos — the engines plan's F5.) */
+.row-action {
+  position: static; width: 100%; min-height: 0; padding: 0;
+  font: inherit; color: inherit; text-align: left;
+}
+.row-action::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-sm); }
+.row-action:focus-visible { box-shadow: none; }
+.row-action:focus-visible::after { box-shadow: var(--focus-ring); }
+.row-action__body { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; min-width: 0; text-align: left; }
+.row-side { position: relative; z-index: 1; pointer-events: none; }
+.row-side :is(button, [title]) { pointer-events: auto; }
+
+/* ── Settings, AI ───────────────────────────────────────────────────────── */
+.settings { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.settings__logs { display: flex; flex-direction: column; }
+/* the disk-usage grid: a label column and a value/action column (JustWrite's) */
+.diskgrid { display: grid; grid-template-columns: 150px auto; justify-content: start; gap: var(--sp-2) 14px; font-size: var(--fs-small); align-items: center; }
+.ai-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ai-area { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ai-area > * { flex: 1; min-height: 0; }
+
+/* ── the warm-start splash — the plate (index.html's #app-boot shows the same image with the same
+   fit), the kit's <BootModelLoad/> in its bottom strip ───────────────────── */
+.splash {
+  position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end; background: var(--bg);
+}
+/* the plate's own dark rules (prefers-color-scheme inside the SVG) follow the colour scheme it is
+   shown in: here the app's theme, which is known by now */
+.splash__plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; color-scheme: light; }
+[data-theme="dark"] .splash__plate { color-scheme: dark; }
+.splash__strip {
+  position: relative; z-index: 1; width: min(560px, 90%);
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0 0 7vh;
+}

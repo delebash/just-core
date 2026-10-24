@@ -32,3 +32,11 @@ backup (**Settings → Backups**).
 
 **Settings → General → Notes per page** sets how many notes a page of the list shows (5 to 100);
 **Largest file to import** how big a file Import a file takes (1 to 1,024 KB; 100 to start).
+
+## More than one window
+
+The app can be open in several places at once — the desktop app, a browser on its server, a phone.
+A note added, changed or deleted in one shows in the others by itself; each looks for the others'
+changes every few seconds (**Settings → General → Other windows**, 1 to 60 seconds; 3 to start).
+A change waits while you're typing or a dialog is open, so nothing you're writing is lost. After a
+backup is restored or the app is reset in one window, the others reload and say so.

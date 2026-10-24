@@ -530,8 +530,11 @@ kit's peer dependencies go in THIS app's `package.json` (`packages/ui/package.js
 
 - **Vue 3 + `vue-router` in HASH mode** + **per-domain Pinia stores** (`stores/<domain>.js`).
 - **`src/css/tokens.css`** — copy the reference block from the kit's
-  `common/tokens.contract.css` and retune values; **`src/css/app.scss`** — the app's own
-  classes: the `height:100%` chain (NEVER `100vh`), ONE scroller per area.
+  `common/tokens.contract.css` and retune values; **the kit's `common/app.css`** — the family's
+  page looks (the base and its `height:100%` chain — NEVER `100vh` — the shell, pages, cards,
+  hints, forms, Settings, the AI page, the splash), listed in `quasar.config.js > css` right
+  before **`src/css/app.scss`** — the app's own classes only, ONE scroller per area; a class
+  the kit's sheet has is never defined there again (the family guard fails a copy; 2026-10-24).
 - **Kit-first, always**: controls come from `@delebash/ui` (`UiButton`, `UiInput`,
   `UiSelect`, `UiMultiSelect`, `UiCheckbox`, `pushToast`…). **A missing capability is
   built IN THE KIT** on Quasar's components with the one-`intent` design contract —

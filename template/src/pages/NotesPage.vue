@@ -8,12 +8,14 @@
 // is components/NoteDialog.vue (the §15 form); a delete asks first through the kit's
 // confirmDialog, naming what is lost; Import a file sends a text file to the upload route (§15) — a
 // refusal (too big, not text, too long) shows through reportError. The first note saved is this
-// app's moment for the once-ever AI offer (§11).
+// app's moment for the once-ever AI offer (§11). Another window's change (the kit's otherWindows) reads the list
+// again in place.
 import {
   confirmDialog,
   EmptyState,
   errorMessage,
   Icon,
+  otherWindows,
   PaneHeader,
   pageFlow,
   pushToast,
@@ -24,7 +26,7 @@ import {
   UiInput,
   UiTable,
 } from "@delebash/ui";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import NoteDialog from "../components/NoteDialog.vue";
 import { useNotesStore } from "../stores/notes.js";
@@ -50,6 +52,8 @@ async function load() {
   }
 }
 onMounted(load);
+// a note added, changed or deleted in another window (the desktop app, a browser on this server, a phone)
+watch(() => otherWindows.changes, load);
 
 const firstLoad = computed(() => notes.loading && !notes.loaded);
 const failedReason = computed(() => {

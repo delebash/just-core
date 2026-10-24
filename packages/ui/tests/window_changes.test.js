@@ -5,6 +5,7 @@
 // and waits while the app says so (a stroke or its save in flight) — the change lands at the first
 // check after.
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { holdChangesWhile, otherWindows, watchOtherWindows } from "../src/common/services/otherWindows.js";
 import { configureServerApi } from "../src/common/services/serverApi.js";
 import { replacingData, watchSync } from "../src/common/services/syncWatch.js";
 import { clientId, serverFetch } from "../src/common/services/transport.js";
@@ -55,6 +56,55 @@ describe("watchSync", () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(seen.length).toBe(1); // once
     stop();
+  });
+});
+
+describe("watchOtherWindows (moved from just-house-paint, 2026-10-24)", () => {
+  test("the counter moving bumps the pages; a busy page holds it; a new series reloads the window", async () => {
+    vi.useFakeTimers();
+    configureServerApi({ resolveBase: () => "http://127.0.0.1:1" });
+    const kept = new Map();
+    vi.stubGlobal("sessionStorage", { getItem: (k) => kept.get(k) ?? null, setItem: (k, v) => kept.set(k, String(v)), removeItem: (k) => kept.delete(k) });
+    const answer = { rev: 1, epoch: "e1", pollSeconds: 1 };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(answer), { headers: { "content-type": "application/json" } })));
+    const reload = vi.fn();
+    const stop = watchOtherWindows({ reload });
+    await vi.advanceTimersByTimeAsync(10);
+    const start = otherWindows.changes;
+
+    answer.rev = 2;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(otherWindows.changes).toBe(start + 1);
+
+    // a stroke being saved: the change waits for it
+    let busy = true;
+    const release = holdChangesWhile(() => busy);
+    answer.rev = 3;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(otherWindows.changes).toBe(start + 1);
+    busy = false;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(otherWindows.changes).toBe(start + 2);
+    release();
+
+    // a restore on the server: everything replaced — the window reloads
+    answer.rev = 4;
+    answer.epoch = "e2";
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(otherWindows.changes).toBe(start + 2);
+    // the reload is marked (a page's "leave without saving?" lets it go), the words kept for after it, and the new
+    // series taken first: kept on the page, it would not reload again for it (just-house-paint's nineteenth review)
+    expect(otherWindows.replaced).toBe(true);
+    expect(kept.get("kit.replacedElsewhere")).toBe("1");
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(reload).toHaveBeenCalledTimes(1);
+    stop();
+    // the next start says it once
+    const again = watchOtherWindows({ reload });
+    expect(kept.has("kit.replacedElsewhere")).toBe(false);
+    again();
+    otherWindows.replaced = false;
   });
 });
 

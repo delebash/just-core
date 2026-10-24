@@ -10,8 +10,9 @@ The holding pen for unscheduled ideas about the shared stack — same charter as
   apart (its server/src/changes.js, `X-Client-Id` — installLlmUi `sendClientId`), answers `GET
   /v1/sync/rev` so the kit's watchSync re-reads the open page, and versions what two windows could save
   over each other (ETag / If-Match / 412, JSON Merge Patch for per-part maps). The template's notes have
-  the same lost update (two windows saving one note). Moving `changes.js` into the kit
-  (`platform/changes.js`) and giving the template's notes an If-Match would make it the family's.
+  the same lost update (two windows saving one note). The counter is the kit's since 2026-10-24
+  (`platform/window_changes.js`, the UI kit's `watchOtherWindows` — the engines plan's F1; the template
+  wires it); what is left is giving the template's notes an If-Match.
 
 - **2026-10-19 · The kit's leftover-engine sweep (JustVoice's `engines/leftovers.js` for llama-server).**
   A failed warm start now offers the app's Troubleshooting page (BootModelLoad's default `#failed`).

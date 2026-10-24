@@ -45,7 +45,7 @@ const TOOLS = computed(() => [
   { to: "/settings", label: t("kit.nav.appSettings"), icon: "Settings" },
 ]);
 const aiTasksNav = useAiTasksNav();
-// The drawer's width, which QDrawer takes in pixels (app.scss .shell__nav fills it).
+// The drawer's width, which QDrawer takes in pixels (the kit's common/app.css .shell__nav fills it).
 const NAV_WIDTH = 200;
 
 // The shell's menus speak the app's language; it holds only their English until told.

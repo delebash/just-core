@@ -63,7 +63,11 @@ function fakeFetch(input, init = {}) {
     return Promise.resolve(json(server.auth));
   }
   if (url.pathname === "/v1/disk/usage") return Promise.resolve(json(server.disk));
-  if (url.pathname === "/v1/llm-runner/models-cache/clear") return Promise.resolve(json({ ok: true }));
+  if (url.pathname === "/v1/settings") {
+    if (method === "PATCH") Object.assign(server.settings, JSON.parse(init.body));
+    return Promise.resolve(json(server.settings));
+  }
+  if (url.pathname === "/v1/llm-runner/models-cache/clear") return Promise.resolve(json(server.clear));
   return Promise.resolve(json({}));
 }
 
@@ -95,7 +99,7 @@ const text = () => document.body.textContent;
 const button = (words) => [...document.body.querySelectorAll("button")].find((b) => b.textContent.includes(words));
 
 beforeEach(() => {
-  server = { calls: [], auth: { tokens: [], requireForLoopback: false }, disk: { modelsCache: 2e9, spawnLogs: 1e6, total: 3e9, diskFree: 5e10 } };
+  server = { calls: [], auth: { tokens: [], requireForLoopback: false }, disk: { modelsCache: 2e9, spawnLogs: 1e6, total: 3e9, diskFree: 5e10 }, clear: { ok: true }, settings: { "notes.pageSize": 25, "notes.maxImportKilobytes": 100, "windows.checkSeconds": 3 } };
   Object.assign(shell, { version: "", root: null, picked: null, relocated: [], keepRunning: [], oldCopies: [], removed: [], forgotten: [], oldCopiesAsked: [], usedDefault: 0 });
   setServerToken(""); // a token a test's window kept (the Server panel) isn't the next test's
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
@@ -403,5 +407,33 @@ describe("Storage", () => {
     await flushPromises();
     expect(server.calls.some((c) => c[0] === "POST" && c[1] === "/v1/llm-runner/models-cache/clear")).toBe(true);
     expect(server.calls.filter((c) => c[1] === "/v1/disk/usage").length).toBe(before + 1);
+  });
+
+  test("a model downloading or at work: the clear is refused in the screen's words", async () => {
+    server.clear = { ok: false, detail: "models busy", models: ["flux2-klein-4b"] };
+    await mountSettings("storage");
+    [...document.body.querySelectorAll("button")].find((b) => b.textContent.trim() === "Clear…").click();
+    await flushPromises();
+    _resolveDialog(true);
+    await flushPromises();
+    expect(text()).toContain("A model is downloading or working on an AI job — try again when it's done.");
+  });
+});
+
+describe("General", () => {
+  test("a card per group, each saving only its own fields from the Save on its row", async () => {
+    await mountSettings("general");
+    const cards = [...document.body.querySelectorAll("section.card")].filter((c) => c.querySelector("form"));
+    expect(cards.map((c) => c.querySelector("h2").textContent)).toEqual(["Notes", "Other windows"]);
+    const box = document.getElementById("setting-check-seconds");
+    expect(box.value).toBe("3");
+    box.value = "10";
+    box.dispatchEvent(new Event("input"));
+    await flushPromises();
+    const saves = cards.map((c) => [...c.querySelectorAll("button")].find((b) => b.textContent.trim() === "Save"));
+    expect(saves[0].getAttribute("aria-disabled")).toBe("true"); // nothing changed on the Notes card
+    saves[1].click();
+    await flushPromises();
+    expect(server.calls.filter((c) => c[0] === "PATCH" && c[1] === "/v1/settings").map((c) => c[2])).toEqual([{ "windows.checkSeconds": 10 }]);
   });
 });

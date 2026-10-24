@@ -612,12 +612,17 @@ function checkQuasar(app) {
 }
 
 // ── check 6 · the same file in two apps and in neither the kit nor the standard ─
+// Files every app must have at a path its framework fixes, each already the kit's in one line — not copies to
+// promote: Quasar reads src/css/quasar.variables.scss from the app (quasar.dev/style/sass-scss-variables), and each
+// app's is `@import "@delebash/ui/quasar/variables.scss"` (2026-10-24, the engines plan's F6).
+const FRAMEWORK_PATHS = new Map([["quasar.variables.scss", /^(\s*\/\/[^\n]*\n)*\s*@import\s+["']@delebash\/ui\/quasar\/variables\.scss["'];\s*$/]]);
 function checkCrossAppTwins(perApp, kitFiles) {
   const seen = new Map();
   for (const [app, files] of perApp) {
     for (const file of files) {
       const name = basename(file);
       if (kitFiles.has(name)) continue;
+      if (FRAMEWORK_PATHS.get(name)?.test(readFileSync(file, "utf8").replace(/\r\n/g, "\n"))) continue;
       if (!seen.has(name)) seen.set(name, []);
       seen.get(name).push({ app, file });
     }
@@ -1548,6 +1553,37 @@ function checkEngines(app) {
   }
 }
 
+// ── check 23 · the family's page looks are the kit's (the engines plan, F5 + F6 — 2026-10-24) ─────────────────
+// The kit's packages/ui/src/common/app.css holds the looks every app copied from the template's app.scss (the base,
+// the shell, pages, cards, hints, forms, Settings, the AI page, the splash) — the kit's own panels use .card and
+// .hint. An app that lists it in quasar.config.js `css` defines none of its classes again in src/css/app.scss (a
+// rule whose selector is the bare class — `.houses .card` refines it, and is the app's); the template lists it. An
+// app not on it yet is told which of its classes are the kit's (printed, not failing) until its session moves it.
+const KIT_LOOKS = join(KIT, "packages", "ui", "src", "common", "app.css");
+/** The classes `css` defines with a bare selector (`.card`, `.card:hover` — not `.houses .card`). */
+function bareClasses(css) {
+  const out = new Set();
+  const plain = css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  for (const m of plain.matchAll(/([^{}@;]+)\{/g)) {
+    for (const sel of m[1].split(",")) {
+      const one = /^\s*\.([a-zA-Z][\w-]*)(?::{1,2}[\w-]+(?:\([^)]*\))?)*\s*$/.exec(sel);
+      if (one) out.add(one[1]);
+    }
+  }
+  return out;
+}
+function checkKitLooks(app) {
+  if (!existsSync(KIT_LOOKS)) return;
+  const kit = bareClasses(readFileSync(KIT_LOOKS, "utf8"));
+  const cfg = existsSync(join(app.dir, "quasar.config.js")) ? readFileSync(join(app.dir, "quasar.config.js"), "utf8") : "";
+  const listed = /['"]~@delebash\/ui\/common\/app\.css['"]/.test(cfg);
+  const sheet = join(app.dir, "src", "css", "app.scss");
+  const copies = existsSync(sheet) ? [...bareClasses(readFileSync(sheet, "utf8"))].filter((c) => kit.has(c)).sort() : [];
+  if (listed && copies.length) fail(app.name, `src/css/app.scss defines the kit's ${copies.map((c) => `.${c}`).join(", ")} again — it lists the kit's common/app.css; keep only the app's own looks`);
+  else if (!listed && app === TEMPLATE) fail(app.name, "quasar.config.js doesn't list ~@delebash/ui/common/app.css — the family's page looks");
+  else if (!listed && copies.length) info(app.name, `src/css/app.scss copies ${copies.length} of the kit's page looks (${copies.slice(0, 6).map((c) => `.${c}`).join(", ")}${copies.length > 6 ? "…" : ""}) — list ~@delebash/ui/common/app.css before it and keep only the app's own (the engines plan, F6)`);
+}
+
 for (const app of [...APPS, TEMPLATE]) {
   if (!existsSync(app.dir)) { fail(app.name, `not found at ${app.dir}`); continue; }
   const files = notIgnored(app.dir, walk(join(app.dir, "src")));
@@ -1591,6 +1627,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkAgentsRules(app);
   checkEsModules(app.name, app.dir);
   checkEngines(app);
+  checkKitLooks(app);
 }
 checkCrossAppTwins(perApp, kitFiles);
 checkDocsCrossApp();

@@ -5,10 +5,13 @@
 import { RuntimeError } from "@delebash/core/platform/py";
 
 export class AppState {
-  /** @param {string} dataDir  @param {object} db the kit's database handle (platform/sql.js) */
-  constructor(dataDir, db) {
+  /** @param {string} dataDir  @param {object} db the kit's database handle (platform/sql.js)
+   *  @param {object} [opts] `changes`: the kit's ChangeCounter (other windows' changes — a restore or a reset is
+   *  everyone's) */
+  constructor(dataDir, db, { changes = null } = {}) {
     this.dataDir = dataDir;
     this.db = db;
+    this.changes = changes;
   }
 }
 

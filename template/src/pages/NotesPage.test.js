@@ -8,7 +8,7 @@
 // rules come from the route's own schema, a server 422 lands under its field, Save is disabled while
 // it saves, a delete asks first, and Import a file sends the file to the upload route — its refusal
 // shown in the server's words.
-import { _resolveDialog, dialogState, errorMessage, installLlmUi, LlmUiHosts } from "@delebash/ui";
+import { _resolveDialog, dialogState, errorMessage, installLlmUi, LlmUiHosts, otherWindows } from "@delebash/ui";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia } from "pinia";
@@ -292,4 +292,15 @@ test("Import a file sends the file to the upload route; a refusal says why in th
   expect(reported).toHaveLength(1);
   expect(errorMessage(reported[0])).toMatchObject({ title: "Not a text file", detail: "Import a plain text file, such as .txt or .md." });
   expect(server.notes).toHaveLength(1);
+});
+
+test("another window's change reads the list again, in place", async () => {
+  await mountPage();
+  expect(text()).toContain("No notes yet");
+  server.notes = [{ id: "n9", title: "From the phone", body: "", pinned: false, createdAt: "2026-10-17T10:00:00.000Z", updatedAt: "2026-10-17T10:00:00.000Z" }];
+  const before = server.calls.filter((c) => c === "GET /v1/notes").length;
+  otherWindows.changes++;
+  await flushPromises();
+  expect(server.calls.filter((c) => c === "GET /v1/notes").length).toBe(before + 1);
+  expect(text()).toContain("From the phone");
 });

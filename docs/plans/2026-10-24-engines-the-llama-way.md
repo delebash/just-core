@@ -131,6 +131,10 @@ kit ships no models, as today.
   runtime holds (the arbiter's bookings + open ONNX sessions) and it knows every kind's rows — the two
   reasons house-paint kept its own folders (its TASKS:1706-1712). In a shared cache it removes only this
   app's catalog rows' files, as the per-model delete already does (`runner/api.js`:526-529).
+  **BUILT 2026-10-24 for the server runtimes** (ONNX sessions come with K6): a runtime model downloading or running a
+  job refuses the clear ("models busy" — the screen's `kit.storagePanel.modelsBusy`); an idle runtime server stops
+  first (its files are going) and its models' last download results are forgotten; through a linked cache only the
+  runtime rows' own files go (`RuntimeService.busyModels/modelFiles/releaseModels`, `lifecycle.clearModelsCache`).
 - **K12 · it can't happen again (Fable's four stops, from round A — not last).**
   1. `scripts/check-family.js` FAILS an app that: downloads from GitHub releases or Hugging Face, or
      unpacks an archive, outside the kit's runtime/model code; spawns a native engine or creates ONNX
@@ -221,26 +225,57 @@ Quasar controls where the kit has one; the family guard's full advisory list rea
   (`server/src/changes.js`, `api/sync_api.js`); no other app and not the template has one, so a new app
   gets no multi-window safety. Fix: the kit's change counter + `/v1/sync/rev` router; the template wires
   it; house-paint drops its copy.
+  **BUILT 2026-10-24:** `platform/window_changes.js` (`ChangeCounter` — the app passes its data-write paths and its
+  settings store, where the epoch row lives — and `makeSyncRevRouter`); its screen half was app-local too, so it
+  moved with it: the UI kit's `common/services/otherWindows.js` (`watchOtherWindows`, `otherWindows`,
+  `holdChangesWhile`, the words `kit.windows.replaced`). The template wires both (the counter, the route, the
+  epoch on restore and reset, a `windows.checkSeconds` setting in its own Settings card, the Notes page reading
+  again); house-paint's `changes.js`, `sync_api.js` and `otherWindows.js` went.
 - **F2 · a better default never reaches an existing install.** house-paint upgrades an untouched setting by
   its old default's fingerprint (`database/previous_defaults.js` + `upgradeSettings`, tested by
   `settings_upgrade.test.js`); the kit's own seeding has the same hole — JustWrite's local provider keeps
   the old 60 s timeout though the seed says 900 (JustWrite's finding #7, 2026-10-24). Fix: the
   fingerprint upgrade in the kit, for an app's settings and the kit's own seeded rows; the template wires
   it with its test.
+  **BUILT 2026-10-24:** `platform/settings_upgrade.js` (`fingerprint`, `defaultsFingerprints`, `upgradeSettings`);
+  the kit's runner settings upgrade the same way (`PRIOR_RUNNER_SETTINGS`, beside the providers' prior names and
+  timeouts — the llama.cpp pin stays out, its owner updates it); `tests/seed_defaults.test.js` holds today's kit
+  defaults. The template's and house-paint's tests hold today's fingerprint of EVERY setting (house-paint's held
+  only the five that had changed), so no default changes without its old value kept.
 - **F3 · cutting text without splitting a character.** `server/src/shared/text.js cutToLength` (grapheme
   clusters, `Intl.Segmenter`) is general-purpose; the kit has no such helper. Fix: into the kit beside
   its other text helpers; house-paint imports it.
+  **BUILT 2026-10-24:** the whole file moved — its five name helpers (`cleanName`, `nameKey`, `nameProblem`,
+  `visibleText`, `controlsAsSpaces`) are general too, and moving one would have split it: `platform/text.js`
+  (browser-safe, `@delebash/core/platform/text`), tested in `tests/text.test.js`.
 - **F4 · a rename Windows may hold.** `server/src/files.js` uses `renameSync` (:109, :204) where the kit
   exports `renameHeldSync` (`platform/rename_held.js`:33). Fix: the kit's.
+  **BUILT 2026-10-24** with the kit's async `renameHeld`, not `renameHeldSync`: both renames sit in async work (a
+  reset, a restore's put-back) the server keeps answering beside, and the sync one blocks the event loop while it
+  waits (the kit's own doc keeps it for code that must not yield).
 - **F5 · a list row that is one button.** `.row-action` is defined in house-paint's `src/css/app.scss`:100
   and used by JustWrite (`ChaptersPage.vue`), JustVoice (`app.scss`) and the kit's own `AiModelsArea.vue`
   — the same look in several places, not in the kit's `common/styles.css`. Fix: one kit look (or
   control); the copies go.
+  **CORRECTED 2026-10-24, building it:** the others are different looks with like names — JustWrite's
+  `.ol-row-actions` and the kit's `.lu-prow-actions` are button containers, JustVoice's `.jv-rowact` small icon
+  buttons; the stretched-link row is house-paint's alone. It is general (Bootstrap's `.stretched-link`), so it went
+  into the kit's page looks with F6.
 - **F6 · the template's shared looks are copies.** `.card`, `.form`, `.shell`, `.splash`, `.navlink`,
   `.muted`, `.mono`, `.hint`… live in the template's `src/css/app.scss` and are copied into every app;
   `quasar.variables.scss` is identical in all five (the guard asks "should it be shared?"); house-paint's
   `.visually-hidden` exists nowhere else. Fix: promote them to the kit's `common/styles.css`; each app's
   `app.scss` keeps only its own looks; a guard check fails a copy of a kit look.
+  **BUILT 2026-10-24, in a sheet of its own:** attacked before building — `common/styles.css` loads in every app, and
+  JustWrite's, JustVoice's and docgen's `.card`/`.hint` differ (titles 12.5, 14, 14.5 px; no max-width), so the
+  template's rules there would have changed their screens unseen. So `@delebash/ui/common/app.css` (the base, the
+  shell, pages, cards, hints, `.visually-hidden`, forms, the stretched-link row, Settings, the AI page, the splash
+  with house-paint's colour-scheme fix), listed by an app right before its own `app.scss`: the template and
+  house-paint now (their `app.scss` keep only the Notes and the swatch/houses looks); the guard's check 23 fails an
+  app that lists it and defines one of its classes again, fails a template without it, and tells the others
+  (JustWrite 5 copies, JustVoice 6, docgen 23) until their sessions move. `quasar.variables.scss` was already a
+  one-line import of the kit's in all five (the hashes differed by line endings) — Quasar reads it from the app's
+  path — so check 6 no longer asks to share it.
 - **F7 · the skill that makes an app may be stale.** The guard: "the installed skill new-just-app/SKILL.md
   differs from the kit's skills/". Fix: reinstall (`node scripts/install-skills.js`); the guard FAILS on a
   stale skill instead of advising; K12's N list and plan check go into the kit's copy.

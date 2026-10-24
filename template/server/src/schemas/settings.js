@@ -11,6 +11,8 @@ export const SETTINGS = {
   "notes.pageSize": T.Integer({ minimum: 5, maximum: 100 }),
   // The largest text file Import a file takes, in KB (a note holds up to 20,000 characters).
   "notes.maxImportKilobytes": T.Integer({ minimum: 1, maximum: 1024 }),
+  // How often a window looks for what other windows changed on this server, in seconds.
+  "windows.checkSeconds": T.Integer({ minimum: 1, maximum: 60 }),
 };
 
 export const SETTING_KEYS = Object.keys(SETTINGS);

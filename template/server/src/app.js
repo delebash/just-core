@@ -20,6 +20,7 @@ import { installLlm, runnerRouter } from "@delebash/core/llm";
 import {
   bearerAuth,
   CAPACITOR_ORIGINS,
+  ChangeCounter,
   createServer,
   csrfOrigin,
   installFileLog,
@@ -28,6 +29,7 @@ import {
   MaintenanceGate,
   makeLogsRouter,
   makeShutdownRouter,
+  makeSyncRevRouter,
   resourceIsolation,
   SHUTDOWN_PATH,
   serveUi,
@@ -44,6 +46,7 @@ import { AppState, setState } from "./app_state.js";
 import { readAuth } from "./auth.js";
 import { router as dataRouter } from "./data_admin.js";
 import { openAppDatabase } from "./database/index.js";
+import { getSetting, setSetting } from "./database/settings.js";
 import { FEATURE_CATALOG } from "./feature_catalog.js";
 import { defaultDataDir, SOURCE_ROOT } from "./paths.js";
 import { DEFAULT_FEATURE_PROMPTS } from "./seed_feature_prompts.js";
@@ -91,6 +94,10 @@ function isFile(p) {
     return false;
   }
 }
+
+/** The writes that change what another window shows: the notes and the app's settings. Not one: a window's own
+ *  prefs, an AI run, a log line, the tokens. */
+export const DATA_WRITES = /^\/v1\/(notes|settings)(\/|$)/;
 
 /** installLlm's arguments: this app's AI data (app-structure §8). */
 const llmArgs = (db, dataDir) => ({
@@ -146,10 +153,16 @@ export async function createApp(dataDir = null) {
   // MaintenanceGate; the data router closes it). The shell's shutdown always passes.
   const gate = new MaintenanceGate({ exempt: [SHUTDOWN_PATH] });
   app.use("*", gate.middleware());
+  // Each window's writes that succeed are counted apart (the kit's ChangeCounter — its X-Client-Id), so the other
+  // windows' pages read again (GET /v1/sync/rev); a restore and a reset are everyone's change (data_admin.js).
+  const changes = new ChangeCounter({ writes: DATA_WRITES, getSetting, setSetting });
+  app.use("*", changes.middleware());
 
   // 4. The database and the app state the routes read.
   const db = openAppDatabase(dataDir);
-  setState(new AppState(dataDir, db));
+  // the data's epoch is kept in the database (a restore or a reset renews it)
+  changes.useDatabase(db);
+  setState(new AppState(dataDir, db, { changes }));
 
   // 5. The family routers.
   app.route("/", healthRouter());
@@ -159,6 +172,7 @@ export async function createApp(dataDir = null) {
   app.route("/", makeShutdownRouter());
   app.route("/", serverAuthRouter());
   app.route("/", prefsRouter());
+  app.route("/", makeSyncRevRouter(changes, { pollSeconds: () => getSetting(db, "windows.checkSeconds") }));
   app.route("/", makeLogsRouter(PRODUCT));
   app.route("/", makeDiskRouter(dataDir));
   app.route("/", dataRouter(dataDir, { gate }));

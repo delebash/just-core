@@ -352,6 +352,7 @@
       "clearModelsSharedWith": "This cache is shared with {apps} on this computer: clearing it clears their models too.",
       "clearModelsConfirm": "Clear models cache",
       "unloadFirst": "A model is loaded — unload it first (AI Settings → Unload), then try again.",
+      "modelsBusy": "A model is downloading or working on an AI job — try again when it's done.",
       "clearModelsFailed": "Couldn't clear the models cache."
     },
     "catalog": {
@@ -1958,6 +1959,9 @@
     },
     "fileSave": {
       "failed": "save failed"
+    },
+    "windows": {
+      "replaced": "The data was replaced in another window (a backup restored, or a reset) — this window shows it as it is now."
     },
     "warmStartup": "Load the default local model into memory on startup",
     "hardware": {

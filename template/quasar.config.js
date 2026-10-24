@@ -36,6 +36,8 @@ export default defineConfig(() => {
       '~@delebash/ui/styles.css',
       '~@delebash/ui/common/styles.css',
       '~@delebash/ui/quasar/theme.css',
+      // the family's page looks (the shell, pages, cards, forms, the splash) — this app's app.scss only adds its own
+      '~@delebash/ui/common/app.css',
       'app.scss',
     ],
 

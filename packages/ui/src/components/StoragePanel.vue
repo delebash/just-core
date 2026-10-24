@@ -313,8 +313,9 @@ async function clearModelsCache() {
   await run("models", async () => {
     const res = await post("/v1/llm-runner/models-cache/clear");
     if (res?.ok === false) {
-      const loaded = res.detail === "unload models first";
-      pushToast({ kind: "error", title: loaded ? t("kit.storagePanel.unloadFirst") : t("kit.storagePanel.clearModelsFailed"), description: loaded ? undefined : res.detail });
+      // the server's two refusals in the screen's words: a chat model loaded; an image model downloading or at work
+      const said = { "unload models first": "kit.storagePanel.unloadFirst", "models busy": "kit.storagePanel.modelsBusy" }[res.detail];
+      pushToast({ kind: "error", title: said ? t(said) : t("kit.storagePanel.clearModelsFailed"), description: said ? undefined : res.detail });
     }
   });
   // the AI page's catalog re-reads which models are on disk (they now download again)

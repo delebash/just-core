@@ -118,6 +118,7 @@ export class RuntimeService {
     this._cancel = new AsyncEvent();
     this._task = null;
     this._server = null; // { handle, modelKey }
+    this._jobs = 0; // jobs running on the server now
     this._starting = null;
     this._idleTimer = null;
   }
@@ -306,6 +307,32 @@ export class RuntimeService {
     return this.modelsStatus().find((x) => x.id === id);
   }
 
+  /** The models whose files are in use and must not be deleted: downloading, or running a job on the server. */
+  busyModels() {
+    const ids = [...this._modelState].filter(([, s]) => s.status === "downloading").map(([id]) => id);
+    if (this._jobs > 0 && this._server?.modelKey && !ids.includes(this._server.modelKey)) ids.push(this._server.modelKey);
+    return ids;
+  }
+
+  /** Every file this runtime's model rows put in the HF cache: each one's snapshot entry and its blob. */
+  modelFiles() {
+    const out = new Set();
+    for (const m of this._modelsFn()) {
+      for (const f of m.files) {
+        out.add(this._fileAt(f));
+        out.add(path.join(this.hfRoot, `models--${f.repo.replaceAll("/", "--")}`, "blobs", f.sha256));
+      }
+    }
+    return out;
+  }
+
+  /** Before the models cache is cleared (nothing busy — busyModels()): the server lets go of its files, and the
+   *  models' last download results are forgotten (their files are about to go). */
+  async releaseModels() {
+    await this.stopServer();
+    for (const [id, s] of this._modelState) if (s.status !== "downloading") this._modelState.delete(id);
+  }
+
   /** The model as a server starts on it: `{key, files: {slot: path}}` — or an error when its files aren't all here. */
   modelFor(id) {
     const m = this._model(id);
@@ -394,6 +421,7 @@ export class RuntimeService {
     const arb = this._arbiter();
     const { key, idleMb, peakMb } = this._booking();
     arb.busyBegin(this.rt.kind);
+    this._jobs += 1;
     try {
       if (peakMb > idleMb && !(await arb.makeRoom(peakMb - idleMb, { exclude: key, hardware: this._hardwareFn(), reason: `${this.rt.label} job` }))) {
         throw new EngineBusyError(this.rt.label);
@@ -401,6 +429,7 @@ export class RuntimeService {
       this._book(peakMb);
       return await fn(this._server.handle.url);
     } finally {
+      this._jobs -= 1;
       arb.busyEnd(this.rt.kind);
       if (this._server?.handle.isAlive()) {
         this._book(idleMb);

@@ -6,3 +6,5 @@
   with a database and backups, the AI setup, settings, help, and tests at every level.
 - **Notes**, the example area: write, pin, filter and delete notes, and let the AI suggest a title.
 - **Settings → General**: how many notes a page of the list shows.
+- **More than one window**: the app open in several places at once shows each one's changes in the
+  others by itself (**Settings → General → Other windows**).

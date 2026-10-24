@@ -352,6 +352,7 @@
       "clearModelsSharedWith": "Esta caché se comparte con {apps} en este equipo: borrarla también borra sus modelos.",
       "clearModelsConfirm": "Borrar la caché de modelos",
       "unloadFirst": "Hay un modelo cargado: descárgalo primero (Ajustes de IA → Descargar) y vuelve a intentarlo.",
+      "modelsBusy": "Un modelo se está descargando o está haciendo un trabajo de IA: vuelve a intentarlo cuando termine.",
       "clearModelsFailed": "No se pudo borrar la caché de modelos."
     },
     "catalog": {
@@ -1958,6 +1959,9 @@
     },
     "fileSave": {
       "failed": "error al guardar"
+    },
+    "windows": {
+      "replaced": "Los datos se reemplazaron en otra ventana (se restauró una copia de seguridad o se restableció todo): esta ventana los muestra como están ahora."
     },
     "warmStartup": "Cargar el modelo local predeterminado en la memoria al iniciar",
     "hardware": {
