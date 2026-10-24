@@ -1220,6 +1220,12 @@ re-checked by the session that saved them; paths are from before the just-core r
   key storage, the memory arbiter, updates, installers, testing, security, the docs convention,
   AGENTS.md, commits/CI. **A** — keyboard shortcuts, database and migrations, releases. **N** —
   accessibility, client-side form validation, image/vision models, performance budgets, signing.
+- **Image/vision models were built app-local while still N (2026-10-24):** just-house-paint's AI photo
+  (stable-diffusion.cpp) and part finder (SAM 3 on ONNX Runtime) were built inside the app instead of the
+  kit first; audio.cpp is half in (JustVoice, on the kit's install/spawn/arbiter, its own pins and screens).
+  The plan to bring every engine in the way llama.cpp is, with a standards check of house-paint and the
+  template: [`../plans/2026-10-24-engines-the-llama-way.md`](../plans/2026-10-24-engines-the-llama-way.md)
+  (waiting for the user's go).
 - **Validation, errors and logging today:** the error envelope is written down only in the header of
   `server/src/platform/errors.js` (RFC 7807 problem+json, a pydantic-style 422, a FastAPI-style 404), in two
   shapes (`errors: "problem" | "fastapi"`; docgen uses fastapi, a listed deviation). Server validation is
