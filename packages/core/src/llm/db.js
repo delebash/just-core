@@ -40,6 +40,9 @@ export const ADDED_COLUMNS = [
   ["model_measurements", "ram_model_mb", "INTEGER NOT NULL DEFAULT 0"],
   ["knob_catalog", "fit_relevant", "BOOLEAN NOT NULL DEFAULT 0"],
   ["feature_prompts", "position", "INTEGER NOT NULL DEFAULT 0"],
+  // a preset's kind (llm · image · vision · …) and its kind's own settings — the engines plan, K8 + K8b (2026-10-24)
+  ["engine_presets", "kind", "VARCHAR NOT NULL DEFAULT 'llm'"],
+  ["engine_presets", "params", "VARCHAR NOT NULL DEFAULT '{}'"],
 ];
 
 let handle = null;

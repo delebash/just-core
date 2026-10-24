@@ -26,6 +26,7 @@ import { getLogger } from "../platform/log.js";
 import { pyFloatParse, pyOr, pySorted, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
 import { idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
+import { presetParams } from "./preset_params.js";
 import * as db from "./db.js";
 import * as modelListRules from "./model_list_rules.js";
 import { DEFAULT_PRICING } from "./pricing.js";
@@ -955,6 +956,8 @@ export function seedDefaultEnginePresets(h) {
       reasoning_effort: strOr(p, "reasoning_effort", ""),
       think: truthy(pyOr(get(p, "think"), false)),
       recipe: strOr(p, "recipe", ""),
+      kind: strOr(p, "kind", "llm"),
+      params: JSON.stringify(presetParams(strOr(p, "kind", "llm"), get(p, "params") || {})),
       position: intOr(p, "position", 0),
       built_in: true,
     });
@@ -1098,6 +1101,24 @@ export function seedRuntimeBinaries(h, ids) {
       if (truthy(r.built_in) && !wanted.has(`${r.platform}\u0000${r.gpu}`)) h.delete("runtime_binary", { runtime: id, platform: r.platform, gpu: r.gpu });
     }
     if (!h.get("runner_setting", pinKey(id))) h.insert("runner_setting", { key: pinKey(id), value: rt.defaults.pinnedBuild, built_in: true });
+    // its built-in provider (`local-<id>`, of its kind): what an image preset routes to, like local-llamacpp for chat
+    const providerId = `local-${id}`;
+    if (!h.get("llm_providers", providerId)) {
+      h.insert("llm_providers", {
+        id: providerId,
+        name: `Built-in — ${rt.label}`,
+        kind: rt.kind,
+        built_in: true,
+        position: h.count("llm_providers"),
+        provider_type: providerId,
+        base_url: "",
+        api_key: null,
+        default_model: "",
+        embedding_model: "",
+        timeout_seconds: 900,
+        local: true,
+      });
+    }
     if (rt.defaults.idleSeconds != null && !h.get("runner_setting", idleKey(id))) {
       h.insert("runner_setting", { key: idleKey(id), value: String(rt.defaults.idleSeconds), built_in: true });
     }

@@ -50,6 +50,10 @@ export const EnginePresetRow = T.Object({
   // "frontier" (preset_resolve.presetRecipe) — or "local" / "frontier" as the user sets it.
   recipe: opt(T.String(), ""),
   samplers: opt(T.Array(PresetFlagRow), []), // long-tail Plane-2 samplers
+  // The model's kind (llm · image · vision — runner/runtimes.js) and its kind's own settings: for an image model
+  // `{steps, cfg, strength, sampler, seed}` (preset_params.js). A chat preset's are its fields above.
+  kind: opt(T.String(), "llm"),
+  params: opt(T.Record(T.String(), T.Any()), {}),
   builtIn: opt(T.Boolean(), false),
   position: opt(T.Integer(), 0),
   // READ-ONLY, filled at list time (D4-1 leg 3): the model this preset's FACTORY seed points
@@ -124,8 +128,8 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
     const known = knownActions();
     if (known.size && !known.has(featureKey)) throw refuse("featureKey", `No AI feature with the key ${strRepr(featureKey)}`);
   };
-  const presets = () => {
-    const rows = getPresets().list();
+  const presets = (kind = "llm") => {
+    const rows = getPresets().list({ kind });
     // D4-1 leg 3: annotate each row with its factory model (the app's registered seed
     // library, joined by preset id) so the wizard can detect "differs from factory"
     // without a second endpoint.
@@ -140,7 +144,8 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
   const assignments = () => model(AssignmentsResponse, { defaultPresetId: getDefault(), features: getRefs().list() });
 
   // ── presets CRUD ──────────────────────────────────────────────────────────
-  app.get("/v1/ai/engine-presets", async (c) => c.json(presets()));
+  // ?kind=image lists the image presets; without it, the chat presets every screen has always listed
+  app.get("/v1/ai/engine-presets", async (c) => c.json(presets(c.req.query("kind") || "llm")));
 
   app.post("/v1/ai/engine-presets", input({ body: EnginePresetRow }), async (c) => {
     const body = c.req.valid("json");

@@ -49,8 +49,11 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         the skill carries the N list. BUILT, the image runtime in the kit: step 1 (2c67973) the registry + sd.cpp's
         builds as seeded rows; step 2 (cd0422f) its engine — install, Cancel, needs, removal, /v1/ai/runtimes;
         step 3 (45b2b1f) sd-server run by the kit — one server start (llama's router on it too), the arbiter
-        booking, image jobs; a real render through the kit on this RTX 2070. Next: step 4, image models as catalog
-        rows with file sets (K4).
+        booking, image jobs; a real render through the kit on this RTX 2070; step 4 (16cb2a1) image models as
+        `runtime_model` rows with pinned file sets in the HF cache (a hard link where Windows allows no symlink);
+        step 5 feature routing by kind — presets and providers carry a kind, an image preset's bounded settings, the
+        runtime's built-in `local-sdcpp` provider, `runImageFeature`. Next: K11 (Clear models cache knows every
+        kind and never takes a busy runtime's files), then round A2 (F1–F6), then K10 + K13.
 
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning

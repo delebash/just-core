@@ -241,6 +241,9 @@ test("the presets router answers as FastAPI did", async () => {
     think: false,
     recipe: "",
     samplers: [],
+    // the model kind and its kind's own settings (the engines plan, K8b — a chat preset's are {})
+    kind: "llm",
+    params: {},
     builtIn: false,
     position: 0,
     factoryModel: "",

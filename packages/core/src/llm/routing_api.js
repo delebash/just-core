@@ -56,8 +56,9 @@ export const RoutingResponse = T.Object({
  * and the nav group it belongs to (`group`, display-only; NOT a routing key — routing is
  * owned by the action's preset).
  */
-export function FeatureCatalogEntry({ key, label, hint = "", group = "", labelKey = "", hintKey = "", groupKey = "" }) {
-  return { key, label, hint, group, labelKey, hintKey, groupKey };
+export function FeatureCatalogEntry({ key, label, hint = "", group = "", labelKey = "", hintKey = "", groupKey = "", kind = "llm" }) {
+  // `kind`: the model kind the feature runs on (llm · image · vision — runner/runtimes.js); its presets are that kind's
+  return { key, label, hint, group, labelKey, hintKey, groupKey, kind };
 }
 
 /** Build the /v1/ai/routing GET+PUT router over a host RoutingStore and the host's feature

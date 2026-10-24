@@ -1115,7 +1115,7 @@ export const TABLES = [
   },
   {
     "name": "engine_presets",
-    "ddl": "CREATE TABLE engine_presets (\n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tprovider_id VARCHAR NOT NULL, \n\tmodel VARCHAR NOT NULL, \n\ttemperature FLOAT, \n\ttop_p FLOAT, \n\tmax_tokens INTEGER NOT NULL, \n\treasoning_effort VARCHAR NOT NULL, \n\tthink BOOLEAN NOT NULL, \n\trecipe VARCHAR NOT NULL, \n\tposition INTEGER NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tPRIMARY KEY (id)\n)",
+    "ddl": "CREATE TABLE engine_presets (\n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tprovider_id VARCHAR NOT NULL, \n\tmodel VARCHAR NOT NULL, \n\ttemperature FLOAT, \n\ttop_p FLOAT, \n\tmax_tokens INTEGER NOT NULL, \n\treasoning_effort VARCHAR NOT NULL, \n\tthink BOOLEAN NOT NULL, \n\trecipe VARCHAR NOT NULL, \n\tkind VARCHAR NOT NULL, \n\tparams VARCHAR NOT NULL, \n\tposition INTEGER NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tPRIMARY KEY (id)\n)",
     "indexes": [],
     "columns": {
       "id": {
@@ -1163,6 +1163,16 @@ export const TABLES = [
         "kind": "text",
         "notNull": true,
         "default": ""
+      },
+      "kind": {
+        "kind": "text",
+        "notNull": true,
+        "default": "llm"
+      },
+      "params": {
+        "kind": "text",
+        "notNull": true,
+        "default": "{}"
       },
       "position": {
         "kind": "int",

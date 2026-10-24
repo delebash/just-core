@@ -24,6 +24,7 @@ import { pyFloat, pyIntOf, pyJson, pyStrScalar, unwrap } from "../platform/pyjso
 import { pyFloatParse, pyInt, pyOr, pySorted, pyStr, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
 import { idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
+import { presetParams } from "./preset_params.js";
 import { RunnerConfig } from "../runner/schema.js";
 import * as db from "./db.js";
 import * as identity from "./identity.js";
@@ -90,10 +91,11 @@ const providerColumns = (cfg) => ({
 });
 
 export class ProviderStore {
-  list() {
+  /** The providers of one kind — "llm" (the chat providers every screen and the registry use) unless asked. */
+  list({ kind = "llm" } = {}) {
     return db
       .session()
-      .all("select * from llm_providers order by position", [], "llm_providers")
+      .all("select * from llm_providers where kind = ? order by position", [kind], "llm_providers")
       .map(providerToConfig);
   }
 
@@ -563,6 +565,8 @@ const enginePresetToWire = (p, samplers) => ({
   think: p.think,
   recipe: p.recipe ?? "",
   samplers: samplers.map((x) => ({ flagName: x.param_name, flagValue: x.value })),
+  kind: p.kind || "llm",
+  params: JSON.parse(p.params || "{}"),
   builtIn: p.built_in,
   position: p.position,
   factoryModel: "",
@@ -588,7 +592,8 @@ export function _deleteEnginePresetRows(h, ids) {
 export const RECIPES = ["", "local", "frontier"];
 
 export class EnginePresetStore {
-  list() {
+  /** The presets of one kind ("llm" — what every chat screen lists — unless asked). */
+  list({ kind = "llm" } = {}) {
     const h = db.session();
     const sm = new Map();
     for (const r of h.all("select * from engine_preset_samplers", [], "engine_preset_samplers")) {
@@ -596,7 +601,7 @@ export class EnginePresetStore {
       sm.get(r.preset_id).push(r);
     }
     return h
-      .all("select * from engine_presets order by position, id", [], "engine_presets")
+      .all("select * from engine_presets where kind = ? order by position, id", [kind], "engine_presets")
       .map((p) =>
         enginePresetToWire(
           p,
@@ -622,6 +627,8 @@ export class EnginePresetStore {
         reasoning_effort: p.reasoningEffort,
         think: p.think,
         recipe: RECIPES.includes(p.recipe) ? p.recipe : "",
+        kind: p.kind || "llm",
+        params: JSON.stringify(presetParams(p.kind || "llm", p.params)),
       };
       if (h.get("engine_presets", pid)) h.update("engine_presets", vals, { id: pid });
       else h.insert("engine_presets", { id: pid, position: h.count("engine_presets"), ...vals });
@@ -639,6 +646,14 @@ export class EnginePresetStore {
   delete(presetId) {
     const h = db.session();
     h.tx(() => _deleteEnginePresetRows(h, [presetId])); // children + parent (host-agnostic)
+  }
+
+  /** One preset, whatever its kind, or null. */
+  get(presetId) {
+    const h = db.session();
+    const p = h.get("engine_presets", presetId);
+    if (!p) return null;
+    return enginePresetToWire(p, pySorted(h.all("select * from engine_preset_samplers where preset_id = ?", [presetId]), (x) => x.param_name));
   }
 }
 
