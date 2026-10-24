@@ -111,10 +111,11 @@ export async function runImageJob(url, body, { onProgress = null, signal = null,
 export const SDCPP_SERVER = Object.freeze({ argv: sdServerArgv, ready: sdReady });
 
 /**
- * One image edit through the kit's sd.cpp runtime: its server started on `model` (`{key, files: {slot: path}}`) if it
+ * One image edit through the kit's sd.cpp runtime: its server started on `model` (`{key, files: {slot: path}, peakVramMb}`
+ * — RuntimeService.modelFor(id)) if it
  * isn't already, room made on the card, the job run — `request` as imageJobBody takes it. → a PNG Buffer.
  */
 export async function imageEdit(service, { model, request, onProgress = null, signal = null }) {
-  await service.ensureServer({ modelKey: model.key, files: model.files });
+  await service.ensureServer({ modelKey: model.key, files: model.files, peakVramMb: model.peakVramMb ?? 0 });
   return service.runJob((url) => runImageJob(url, imageJobBody(request), { onProgress, signal }));
 }

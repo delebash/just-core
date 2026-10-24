@@ -26,6 +26,7 @@ export function prepareLlm(
     modelCatalogExtra = [],
     modelTunesSeed = [],
     runtimes = [],
+    runtimeModels = [],
     classTunesSeed = [],
     classTuneIdentity = {},
     embedTemplates = [],
@@ -48,6 +49,7 @@ export function prepareLlm(
     modelCatalogExtra: [...(modelCatalogExtra || [])],
     modelTunesSeed: [...(modelTunesSeed || [])],
     runtimes: [...(runtimes || [])],
+    runtimeModels: [...(runtimeModels || [])],
     classTunesSeed: [...(classTunesSeed || [])],
     classTuneIdentity: { ...(classTuneIdentity || {}) },
     embedTemplates: [...(embedTemplates || [])],
@@ -57,12 +59,13 @@ export function prepareLlm(
   });
   // 2b. the boot-order guarantee: the app's extra catalog rows + this box's tune seed exist
   // the moment the routers mount, before the host's own seedLlm call runs.
-  if (modelCatalogExtra?.length || modelTunesSeed?.length || runtimes?.length) {
+  if (modelCatalogExtra?.length || modelTunesSeed?.length || runtimes?.length || runtimeModels?.length) {
     handle.tx(() => {
       if (modelCatalogExtra?.length) seed.seedExtraCatalog(handle, modelCatalogExtra);
       if (modelTunesSeed?.length) seed.seedModelTunesIfMissing(handle, hwKeyFn(), modelTunesSeed);
       // the app's kit runtimes besides llama.cpp (["sdcpp"]): their build rows and pin, before the routes mount
       if (runtimes?.length) seed.seedRuntimeBinaries(handle, runtimes);
+      if (runtimeModels?.length) seed.seedRuntimeModels(handle, runtimeModels, runtimes);
     });
   }
   // 3. the DB-backed usage ledger.

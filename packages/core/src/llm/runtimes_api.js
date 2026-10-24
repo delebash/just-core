@@ -10,6 +10,17 @@ import { getRuntimeService, runtimeServices } from "../runner/runtime_service.js
 
 const IdParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }) });
 const InstallIn = T.Object({ gpu: opt(T.String({ maxLength: 32 })), force: opt(T.Boolean()) });
+const ModelParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }), modelId: T.String({ minLength: 1, maxLength: 128 }) });
+
+/** A model call, its "no such model" as a 404. */
+function modelCall(fn) {
+  try {
+    return fn();
+  } catch (e) {
+    if (e?.notFound) throw notFound(e.message);
+    throw e;
+  }
+}
 
 function serviceOf(c) {
   const svc = getRuntimeService(c.req.valid("param").id);
@@ -33,5 +44,19 @@ export function makeRuntimesRouter() {
   });
   app.post("/v1/ai/runtimes/:id/engine/install/cancel", input({ params: IdParams }), (c) => c.json(serviceOf(c).cancelInstall()));
   app.delete("/v1/ai/runtimes/:id/engine", input({ params: IdParams }), async (c) => c.json(await serviceOf(c).uninstall()));
+  // its models: each one's size and state, a download (202) with progress and Cancel, removal
+  app.get("/v1/ai/runtimes/:id/models", input({ params: IdParams }), (c) => c.json({ models: serviceOf(c).modelsStatus() }));
+  app.post("/v1/ai/runtimes/:id/models/:modelId/download", input({ params: ModelParams }), (c) =>
+    c.json(modelCall(() => serviceOf(c).downloadModel(c.req.valid("param").modelId)), 202),
+  );
+  app.post("/v1/ai/runtimes/:id/models/:modelId/download/cancel", input({ params: ModelParams }), (c) =>
+    c.json(modelCall(() => serviceOf(c).cancelModelDownload(c.req.valid("param").modelId))),
+  );
+  app.delete("/v1/ai/runtimes/:id/models/:modelId", input({ params: ModelParams }), async (c) => {
+    const svc = serviceOf(c);
+    const modelId = c.req.valid("param").modelId;
+    modelCall(() => svc._model(modelId));
+    return c.json(await svc.deleteModel(modelId));
+  });
   return app;
 }

@@ -26,8 +26,10 @@
 import {
   copyFileSync,
   existsSync,
+  linkSync,
   mkdirSync,
   readdirSync,
+  rmSync,
   statSync,
   symlinkSync,
   utimesSync,
@@ -621,6 +623,72 @@ export function cachedGgufPath(repo, quant, { cacheRoot, mmproj = null } = {}) {
  * `acquireModel(repo, quant, mmproj, {revision, cacheRoot, onProgress, cancelCheck,
  * segments, retries})`.
  */
+/**
+ * snapshot/<path> → its blob: a relative symlink (the cache dir stays movable), else a HARD link — Windows without
+ * symlink rights (no Developer Mode) allows one on the same drive, and the file isn't stored twice (the copy this
+ * used to fall back to doubled every model: a 4.3 GB file took 8.6 GB) — else a copy (another drive).
+ */
+export function linkSnapshot(blob, snapshotFile) {
+  try {
+    symlinkSync(relative(dirname(snapshotFile), blob), snapshotFile, "file");
+    return "symlink";
+  } catch {}
+  try {
+    linkSync(blob, snapshotFile);
+    return "hardlink";
+  } catch {}
+  copyFileSync(blob, snapshotFile); // shutil.copy2: the bytes + the times
+  const st = statSync(blob);
+  utimesSync(snapshotFile, st.atime, st.mtime);
+  return "copy";
+}
+
+/** A pinned file's place in the HF cache layout: `<root>/models--<owner>--<name>/snapshots/<revision>/<path>`. */
+export function snapshotFilePath(cacheRoot, repo, revision, path) {
+  return join(String(cacheRoot), `models--${repo.replaceAll("/", "--")}`, "snapshots", revision, path);
+}
+
+/**
+ * Download a pinned file set — a kit runtime's model (`[{repo, revision, path, sha256, bytes}]`) — into the HF cache
+ * layout: each file a blob named by its SHA-256, checked against it, its snapshot path linked to it (linkSnapshot).
+ * A file already there with its size is kept. → the snapshot paths, in the same order.
+ */
+export async function acquireFileSet(files, { cacheRoot, onProgress = null, cancelCheck = null, segments = 1, retries = 3, verify = null } = {}) {
+  const total = files.reduce((a, f) => a + Number(f.bytes || 0), 0) || null;
+  let done = 0;
+  const out = [];
+  for (const f of files) {
+    if (cancelCheck && cancelCheck()) throw new DownloadCancelled();
+    const repoDir = join(String(cacheRoot), `models--${f.repo.replaceAll("/", "--")}`);
+    const blob = join(repoDir, "blobs", f.sha256);
+    const snapshotFile = join(repoDir, "snapshots", f.revision, f.path);
+    mkdirSync(dirname(blob), { recursive: true });
+    mkdirSync(dirname(snapshotFile), { recursive: true });
+    if (!existsSync(blob) || statSync(blob).size !== Number(f.bytes)) {
+      const url = `${_HF_BASE}/${encodeRepo(f.repo)}/resolve/${encodeURIComponent(f.revision)}/${encodeRepo(f.path)}`;
+      const base = done;
+      log.info(`downloading ${f.path} (${f.bytes} bytes) from ${f.repo}@${f.revision}`);
+      await download.streamDownload(url, blob, {
+        onProgress: onProgress ? (n) => onProgress(base + n, total) : null,
+        cancelCheck,
+        segments,
+        retries,
+        headers: self._hfHeaders(),
+      });
+      const got = verify ? await verify(blob) : null;
+      if (got != null && got !== f.sha256) {
+        rmSync(blob, { force: true });
+        throw new Error(`${f.path} from ${f.repo} doesn't match its pinned SHA-256 (got ${got}) — the download was removed`);
+      }
+    }
+    if (!existsSync(snapshotFile)) linkSnapshot(blob, snapshotFile);
+    done += Number(f.bytes || 0);
+    if (onProgress) onProgress(done, total);
+    out.push(snapshotFile);
+  }
+  return out;
+}
+
 export async function acquireModel(
   repo,
   quant,
@@ -661,17 +729,7 @@ export async function acquireModel(
       });
     }
 
-    // snapshot/<path> -> blob. Relative symlink so the cache dir is movable; copy fallback on
-    // Windows without symlink privilege (same as huggingface_hub).
-    if (!existsSync(snapshotFile)) {
-      try {
-        symlinkSync(relative(dirname(snapshotFile), blob), snapshotFile, "file");
-      } catch {
-        copyFileSync(blob, snapshotFile); // shutil.copy2: the bytes + the times
-        const st = statSync(blob);
-        utimesSync(snapshotFile, st.atime, st.mtime);
-      }
-    }
+    if (!existsSync(snapshotFile)) linkSnapshot(blob, snapshotFile);
 
     cumulative += size;
     if (onProgress) onProgress(cumulative, grandTotal);

@@ -888,6 +888,23 @@ export class RunnerConfigStore {
     return { id, pinnedBuild: pin, binaries: (rows.length ? rows : rt.defaults.binaries).map(asset), idleSeconds, memory: rt.defaults.memory ?? null };
   }
 
+  /** A kit runtime's models (`runtime_model`), in their order: `{runtime, id, name, kind, license, files, peakVramMb, builtIn}`. */
+  listRuntimeModels(runtime) {
+    return db
+      .session()
+      .all("select * from runtime_model where runtime = ? order by position, id", [runtime], "runtime_model")
+      .map((r) => ({
+        runtime: r.runtime,
+        id: r.id,
+        name: r.name,
+        kind: r.kind,
+        license: r.license,
+        files: JSON.parse(r.files || "[]"),
+        peakVramMb: Number(r.peak_vram_mb || 0),
+        builtIn: truthy(r.built_in),
+      }));
+  }
+
   /** Add or change one build row of a kit runtime (the engine panel's edit) — a user row, never built in. */
   upsertRuntimeBinary(id, row) {
     if (!runtimeOf(id)?.defaults) throw new ValueError(`no kit runtime "${id}" with build rows`);

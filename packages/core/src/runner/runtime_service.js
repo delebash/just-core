@@ -10,7 +10,7 @@
 //    made on the card (the arbiter evicts another holder — the chat model) and with its kind busy so nothing evicts it
 //    mid-job.
 // One service per runtime the app turned on (installLlm({ runtimes })).
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -19,6 +19,7 @@ import { getLogger } from "../platform/log.js";
 import { getArbiter } from "./arbiter.js";
 import * as binary from "./binary.js";
 import * as hardware from "./hardware.js";
+import * as models from "./models.js";
 import * as processMod from "./process.js";
 import { runtimeOf } from "./runtimes.js";
 
@@ -87,6 +88,7 @@ export class RuntimeService {
     hardwareFn = () => hardware.detected(),
     systemFn = thisSystem,
     probeArgvs = null,
+    modelsFn = () => [],
     server = null,
     logDir = null,
     beforeRemove = null,
@@ -103,6 +105,8 @@ export class RuntimeService {
     this._hardwareFn = hardwareFn;
     this._systemFn = systemFn;
     this._probeArgvs = probeArgvs;
+    this._modelsFn = modelsFn;
+    this._modelState = new Map(); // model id → { status, error, downloaded, total, cancel }
     this._spec = server;
     this._logDir = logDir || cacheRoot;
     this._beforeRemove = beforeRemove ?? (() => this.stopServer());
@@ -212,6 +216,103 @@ export class RuntimeService {
     return this.status();
   }
 
+  // ── the models (pinned file sets in the kit's HF cache: `<cacheRoot>/hf`) ──────────────────────────
+
+  get hfRoot() {
+    return path.join(this.cacheRoot, "hf");
+  }
+
+  _fileAt(f) {
+    return models.snapshotFilePath(this.hfRoot, f.repo, f.revision, f.path);
+  }
+
+  _here(m) {
+    return m.files.every((f) => {
+      const at = this._fileAt(f);
+      return existsSync(at) && statSync(at).size === Number(f.bytes);
+    });
+  }
+
+  _model(id) {
+    const m = this._modelsFn().find((x) => x.id === id);
+    if (!m) throw Object.assign(new Error(`no model "${id}" for ${this.rt.label}`), { notFound: true });
+    return m;
+  }
+
+  /** Each model: its size, whether all its files are here (`onDisk`), whether the server runs it, its download's progress
+   *  (`status`, `downloaded` bytes of `total`). */
+  modelsStatus() {
+    return this._modelsFn().map((m) => {
+      const { cancel, ...state } = this._modelState.get(m.id) ?? { status: "", error: "", downloaded: 0, total: 0 };
+      return {
+        id: m.id,
+        name: m.name,
+        kind: m.kind,
+        license: m.license,
+        bytes: m.files.reduce((a, f) => a + Number(f.bytes || 0), 0),
+        onDisk: this._here(m),
+        running: this._server?.handle.isAlive() && this._server.modelKey === m.id,
+        ...state,
+      };
+    });
+  }
+
+  /** Start a model's download in the background (its progress in modelsStatus()). */
+  downloadModel(id) {
+    const m = this._model(id);
+    const st = this._modelState.get(id);
+    if (st?.status === "downloading") return this.modelsStatus().find((x) => x.id === id);
+    const cancel = new AsyncEvent();
+    const state = { status: "downloading", error: "", downloaded: 0, total: 0, cancel };
+    this._modelState.set(id, state);
+    background(`${this.rt.id} model ${id}`, async () => {
+      try {
+        await models.acquireFileSet(m.files, {
+          cacheRoot: this.hfRoot,
+          verify: (file) => binary._fileSha256(file),
+          onProgress: (n, total) => {
+            state.downloaded = n;
+            state.total = total || 0;
+          },
+          cancelCheck: () => cancel.isSet(),
+        });
+        this._modelState.set(id, { status: "downloaded", error: "", downloaded: 0, total: 0 });
+      } catch (e) {
+        const cancelled = cancel.isSet();
+        this._modelState.set(id, { status: cancelled ? "cancelled" : "error", error: cancelled ? "" : String(e?.message || e), downloaded: 0, total: 0 });
+        if (!cancelled) log.warning(`${this.rt.id} model ${id} download failed: ${e?.message || e}`);
+      }
+    }, log);
+    return this.modelsStatus().find((x) => x.id === id);
+  }
+
+  /** Stop a model's download at its next chunk. */
+  cancelModelDownload(id) {
+    this._modelState.get(id)?.cancel?.set();
+    return this.modelsStatus().find((x) => x.id === id);
+  }
+
+  /** Remove a model's files (the server stops first if it runs it); a file another model row uses stays. */
+  async deleteModel(id) {
+    const m = this._model(id);
+    if (this._server?.modelKey === id) await this.stopServer();
+    const others = new Set(this._modelsFn().filter((x) => x.id !== id).flatMap((x) => x.files.map((f) => f.sha256)));
+    for (const f of m.files) {
+      if (others.has(f.sha256)) continue;
+      await rm(this._fileAt(f), { force: true });
+      await rm(path.join(this.hfRoot, `models--${f.repo.replaceAll("/", "--")}`, "blobs", f.sha256), { force: true });
+    }
+    this._modelState.delete(id);
+    return this.modelsStatus().find((x) => x.id === id);
+  }
+
+  /** The model as a server starts on it: `{key, files: {slot: path}}` — or an error when its files aren't all here. */
+  modelFor(id) {
+    const m = this._model(id);
+    if (!this._here(m)) throw Object.assign(new Error(`${m.name} isn't downloaded`), { notDownloaded: true });
+    return { key: m.id, files: Object.fromEntries(m.files.map((f) => [f.slot, this._fileAt(f)])), peakVramMb: m.peakVramMb };
+  }
+
   // ── the server ─────────────────────────────────────────────────────────────────────────────────
 
   /** The arbiter key and what this box's build holds on the card: idle, and a job's peak (a CPU build: nothing). */
@@ -219,7 +320,8 @@ export class RuntimeService {
     const { cfg, asset } = this._pick();
     const onCard = asset && asset.gpu !== "cpu";
     const mem = cfg.memory ?? this.rt.defaults.memory ?? { idleMb: 0, peakMb: 0 };
-    return { key: `${this.rt.kind}:${this.rt.id}`, idleMb: onCard ? mem.idleMb : 0, peakMb: onCard ? mem.peakMb : 0 };
+    const peak = this._server?.peakMb || mem.peakMb; // the running model's own peak (runtime_model.peak_vram_mb) first
+    return { key: `${this.rt.kind}:${this.rt.id}`, idleMb: onCard ? mem.idleMb : 0, peakMb: onCard ? peak : 0 };
   }
 
   _book(mb) {
@@ -236,12 +338,13 @@ export class RuntimeService {
     }
   }
 
-  /** The server running `modelKey` from `files` (`{slot: path}`) — started (or restarted on another model) when needed. */
-  async ensureServer({ modelKey, files }) {
+  /** The server running `modelKey` from `files` (`{slot: path}`) — started (or restarted on another model) when needed;
+   *  `peakVramMb` the model's own peak on the card during a job (0: the runtime's default). */
+  async ensureServer({ modelKey, files, peakVramMb = 0 }) {
     if (this._server?.handle.isAlive() && this._server.modelKey === modelKey) return this._server.handle;
     if (this._starting) await this._starting.catch(() => {});
     if (this._server?.handle.isAlive() && this._server.modelKey === modelKey) return this._server.handle;
-    this._starting = this._start(modelKey, files);
+    this._starting = this._start(modelKey, files, peakVramMb);
     try {
       return await this._starting;
     } finally {
@@ -249,7 +352,7 @@ export class RuntimeService {
     }
   }
 
-  async _start(modelKey, files) {
+  async _start(modelKey, files, peakVramMb = 0) {
     if (!this._spec) throw new TypeError(`${this.rt.id} has no server`);
     await this.stopServer();
     const exe = this.installedExe();
@@ -267,7 +370,7 @@ export class RuntimeService {
       logPath: path.join(this._logDir, `${this.rt.id}-server.log`),
       probeTimeout: 60,
     });
-    this._server = { handle, modelKey };
+    this._server = { handle, modelKey, peakMb: Number(peakVramMb) || 0 };
     this._book(this._booking().idleMb);
     this._armIdle();
     return handle;

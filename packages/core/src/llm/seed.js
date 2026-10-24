@@ -99,6 +99,7 @@ export function configureAppSeed({
   modelCatalogExtra = null,
   modelTunesSeed = null,
   runtimes = null,
+  runtimeModels = null,
   hwKeyFn = null,
   testSamples = null,
   featurePromptHeals = null,
@@ -119,6 +120,8 @@ export function configureAppSeed({
   // The kit runtimes the app turns on besides llama.cpp (["sdcpp"]): their build rows and pins are seeded on
   // both paths too (boot and a data reset), like the catalog rows.
   if (runtimes != null) app.runtimes = [...runtimes];
+  // their models (FLUX.2 klein for sd.cpp, …): the app's pinned file sets, seeded the same way.
+  if (runtimeModels != null) app.runtime_models = [...runtimeModels];
   if (modelTunesSeed != null) app.model_tunes_seed = [...modelTunesSeed];
   if (hwKeyFn != null) app.hw_key_fn = hwKeyFn;
   // §7.3 Lab test samples — synthesized rows for the Lab's Sample button.
@@ -1102,6 +1105,48 @@ export function seedRuntimeBinaries(h, ids) {
   return added;
 }
 
+/**
+ * The app's models for its kit runtimes (`runtime_model`): each a pinned file set — `{runtime, id, name, license,
+ * files: [{slot, repo, revision, path, sha256, bytes}], peakVramMb}`. Unlike a chat catalog row, a built-in row follows
+ * the app's definition on every seed (its files are the app's pins, not the user's edits — a new revision has to
+ * reach an install made before it); a built-in row the app no longer lists goes; a row the user added stays.
+ */
+export function seedRuntimeModels(h, rows, runtimes = []) {
+  const byRuntime = new Map((runtimes || []).map((id) => [id, []]));
+  for (const r of rows || []) {
+    const rt = runtimeOf(r.runtime);
+    if (!rt?.defaults) throw new ValueError(`a runtime model names no kit runtime: "${r.runtime}"`);
+    if (!byRuntime.has(r.runtime)) byRuntime.set(r.runtime, []);
+    byRuntime.get(r.runtime).push(r);
+  }
+  let written = 0;
+  for (const [runtime, list] of byRuntime) {
+    const kind = runtimeOf(runtime).kind;
+    const wanted = new Set(list.map((r) => r.id));
+    list.forEach((r, i) => {
+      const vals = {
+        name: String(r.name ?? r.id),
+        kind,
+        license: String(r.license ?? ""),
+        files: JSON.stringify(r.files ?? []),
+        peak_vram_mb: Number(r.peakVramMb ?? 0),
+        built_in: true,
+        position: i,
+      };
+      const key = { runtime, id: String(r.id) };
+      const have = h.get("runtime_model", key);
+      if (!have) h.insert("runtime_model", { ...key, ...vals });
+      else if (truthy(have.built_in)) h.update("runtime_model", vals, key);
+      else return;
+      written += 1;
+    });
+    for (const old of h.all("select id, built_in from runtime_model where runtime = ?", [runtime])) {
+      if (truthy(old.built_in) && !wanted.has(old.id)) h.delete("runtime_model", { runtime, id: old.id });
+    }
+  }
+  return written;
+}
+
 export function seedDefaultRunnerBinaries(h) {
   const bins = rconfig.DEFAULT_BINARIES;
   const wanted = new Set(bins.map((b) => `${b.platform}\u0000${b.gpu}`));
@@ -1342,6 +1387,7 @@ export function seedLlm(h = null) {
     seedDefaultRunnerBinaries(h);
     seedDefaultRunnerSettings(h);
     if (truthy(app.runtimes)) seedRuntimeBinaries(h, app.runtimes);
+    if (app.runtime_models != null || truthy(app.runtimes)) seedRuntimeModels(h, app.runtime_models ?? [], app.runtimes ?? []);
     seedModelListRules(h);
     seedDefaultKnobs(h);
     seedDefaultHardwareClasses(h); // before class-tunes: the config's class must exist

@@ -911,6 +911,58 @@ export const TABLES = [
     }
   },
   {
+    "name": "runtime_model",
+    "ddl": "CREATE TABLE runtime_model (\n\truntime VARCHAR NOT NULL, \n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tkind VARCHAR NOT NULL, \n\tlicense VARCHAR NOT NULL, \n\tfiles VARCHAR NOT NULL, \n\tpeak_vram_mb INTEGER NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tPRIMARY KEY (runtime, id)\n)",
+    "indexes": [],
+    "columns": {
+      "runtime": {
+        "kind": "text",
+        "pk": true,
+        "notNull": true
+      },
+      "id": {
+        "kind": "text",
+        "pk": true,
+        "notNull": true
+      },
+      "name": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "kind": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "license": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "files": {
+        "kind": "text",
+        "notNull": true,
+        "default": "[]"
+      },
+      "peak_vram_mb": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      },
+      "built_in": {
+        "kind": "bool",
+        "notNull": true,
+        "default": false
+      },
+      "position": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      }
+    }
+  },
+  {
     "name": "runner_setting",
     "ddl": "CREATE TABLE runner_setting (\n\t\"key\" VARCHAR NOT NULL, \n\tvalue VARCHAR NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tPRIMARY KEY (\"key\")\n)",
     "indexes": [],

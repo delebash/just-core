@@ -216,6 +216,8 @@ export async function installLlm(
     modelTunesSeed = [],
     // the kit runtimes this app turns on besides llama.cpp (["sdcpp"] — runner/runtimes.js): their builds are seeded
     runtimes = [],
+    // their models — pinned file sets, e.g. FLUX.2 klein for sd.cpp (seed.seedRuntimeModels)
+    runtimeModels = [],
     classTunesSeed = [],
     classTuneIdentity = {},
     embedTemplates = [],
@@ -253,6 +255,7 @@ export async function installLlm(
     modelCatalogExtra,
     modelTunesSeed,
     runtimes,
+    runtimeModels,
     classTunesSeed,
     classTuneIdentity,
     embedTemplates,
@@ -470,6 +473,7 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
         cacheRoot: String(resolvedCache),
         configFn: () => stores.getRunnerConfigStore().getRuntimeConfig(id),
         probeArgvs: RUNTIME_PROBES[id] ?? null,
+        modelsFn: () => stores.getRunnerConfigStore().listRuntimeModels(id),
         server: RUNTIME_SERVERS[id] ?? null,
         logDir: runtimeRoot ? String(runtimeRoot) : String(resolvedCache),
       }),
