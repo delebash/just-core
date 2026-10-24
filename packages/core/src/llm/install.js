@@ -45,6 +45,9 @@ import { makeProviderRouter } from "./provider_api.js";
 import { makeReasoningMapRouter } from "./reasoning_map_api.js";
 import { makeRoutingRouter } from "./routing_api.js";
 import { makeRunnerConfigRouter } from "./runner_config_api.js";
+import { makeRuntimesRouter } from "./runtimes_api.js";
+import { configureRuntimeServices, RuntimeService } from "../runner/runtime_service.js";
+import { SDCPP_PROBE_ARGVS } from "../runner/sdcpp.js";
 import * as seed from "./seed.js";
 import * as stores from "./stores.js";
 import * as switchResolve from "./switch_resolve.js";
@@ -52,6 +55,9 @@ import { makeSwitchPresetsRouter } from "./switch_presets_api.js";
 import { makeTestSamplesRouter } from "./test_samples_api.js";
 
 const log = getLogger("llm_runner.llm.install");
+
+// The launch flags each kit runtime's staged build must accept before it replaces a working one.
+const RUNTIME_PROBES = { sdcpp: SDCPP_PROBE_ARGVS };
 
 /** The memoized whole-machine tuning key (gpu|vram|cores|ramGB) the model_tunes layer uses. */
 export const currentHwKey = () => hardware.currentMachineKey();
@@ -76,6 +82,8 @@ export function mountLlmRouters(app, { featurePrompts, config, allowKeyReveal, d
   app.route("/", makePromptRouter(stores.getPromptStore, featurePrompts));
   app.route("/", makeFeatureRouter(stores.getPromptStore, config));
   app.route("/", makeRoutingRouter(stores.getRoutingStore, seed.appFeatureCatalog));
+  // the app's kit runtimes besides llama.cpp (installLlm({ runtimes })) — their engines' status, install, removal
+  app.route("/", makeRuntimesRouter());
   app.route(
     "/",
     makePresetsRouter(
@@ -256,7 +264,7 @@ export async function installLlm(
   if (app) mountLlmRouters(app, { featurePrompts, config, allowKeyReveal, dataDir, product });
   // 6. point the bundled runner's catalog/switches at the shared DB.
   if (runnerCatalog) {
-    wireRunnerCatalog(dataDir, { cacheRoot, product, speechModelsFn });
+    wireRunnerCatalog(dataDir, { cacheRoot, product, speechModelsFn, runtimes });
     // Seed-vs-file self-heal: re-derive catalog facts from ALREADY-DOWNLOADED GGUFs whose
     // rows never got the identify pass. A background task — boot never waits on file reads.
     background(
@@ -322,7 +330,7 @@ export function siblingCacheWithModels(dataDir) {
 }
 
 /** Point the bundled runner at the shared DB: catalog, switches, config, the cache. */
-export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = "", speechModelsFn = null } = {}) {
+export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = "", speechModelsFn = null, runtimes = [] } = {}) {
   const catalogFn = () =>
     stores
       .getModelCatalogStore()
@@ -452,6 +460,18 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
     fitRelevantFlagsFn: stores.listFitRelevantFlags,
     speechModelsFn,
   });
+  // One engine service per kit runtime the app turned on (runner/runtime_service.js), in the same engine cache.
+  configureRuntimeServices(
+    (runtimes || []).map((id) => [
+      id,
+      new RuntimeService({
+        id,
+        cacheRoot: String(resolvedCache),
+        configFn: () => stores.getRunnerConfigStore().getRuntimeConfig(id),
+        probeArgvs: RUNTIME_PROBES[id] ?? null,
+      }),
+    ]),
+  );
 
   // A run routed to the bundled runner makes its model resident BEFORE dispatch.
   dispatch.setEnsureLocalModel((modelId) => lifecycle.getService().ensureModelReady(modelId));
