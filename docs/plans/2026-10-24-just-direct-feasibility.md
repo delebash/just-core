@@ -128,8 +128,12 @@ below is a proxy from another card.
   or the user's key per feature). ArtCraft itself runs nothing locally (§A), so the local half is new ground.
 - **Every feature local and smooth on this PC: no.** Images, voice, music, the LLM, a 3D stage and the editor —
   yes. Video — a queue, not interactive: 480p, ~2–5 s clips, minutes each by proxy (unmeasured here), the LLM
-  unloaded meanwhile, RAM nearly full on 14B. Lip-sync, image-to-3D, 720p+ and long clips — not usable here; the
-  cloud key covers them.
+  unloaded meanwhile, RAM nearly full on 14B. Lip-sync and image-to-3D — not usable here; the cloud key covers them.
+  **720p for 5 s is unmeasured, not ruled out**: LTX-2.3 distilled Q4 made 20 s at 900×1600 in 21 min on an RTX 3070
+  8 GB laptop with 32 GB RAM (ComfyUI + SageAttention); LTX-2 made 10 s at 720p in under 15 min on an RTX 3050 6 GB
+  with 44 GB RAM; Wan2.2 TI2V-5B is a native 720p model (§B) — all on Ampere/Ada cards, none on Turing or in sd.cpp
+  (was: "720p+ and long clips — not usable here", from the agent's blocker list, until 2026-10-24).
+- **The user's bar, 2026-10-24:** "if we cant do text to video 5s 720p clicp on this pc then it is not worth it".
 - **The first step is a measurement**, the way P1 was for sd.cpp: Wan2.2 A14B I2V Q4 (and Q3) + the 4-step LoRA
   through sd-server `vid_gen` on this card at 832×480 × 33/81 frames — time, RAM, card, how it looks. That number
   decides whether local video is a tool or a toy.
