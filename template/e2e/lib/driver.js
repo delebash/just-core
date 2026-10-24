@@ -20,18 +20,18 @@
 
 import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { createRequire } from "node:module";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { _electron } from "playwright-core";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(here, "../..");
 const APP_ROOT = path.join(REPO_ROOT, "dist", "electron", "UnPackaged");
 // Electron is the desktop app's dependency, installed in src-electron/ (Quasar's Electron mode).
-const ELECTRON = createRequire(path.join(REPO_ROOT, "src-electron", "package.json"))("electron");
+// Its package's main export is the binary's path — an ES import by file URL (no require).
+const { default: ELECTRON } = await import(pathToFileURL(path.join(REPO_ROOT, "src-electron", "node_modules", "electron", "index.js")).href);
 
 /** The shell's id (src-electron/electron-main.js) — its switch is <ID>_DEV_NO_SERVER. */
 const ID = "familytemplate";

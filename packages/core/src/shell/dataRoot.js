@@ -796,16 +796,20 @@ const shellLog = { warn: (s) => console.warn(`[shell] ${s}`) };
 // this thread waits at most START_LOOK_MS (Atomics.wait — the documented way to wait on a worker; an offline share's
 // pointer blocked the start 21 s — the eighteenth review, measured).
 const START_LOOK_MS = 4000;
-const START_LOOK = `const { workerData } = require("node:worker_threads"); const fs = require("node:fs");
-try { fs.statSync(workerData.root); } catch {}
-const flag = new Int32Array(workerData.flag); Atomics.store(flag, 0, 1); Atomics.notify(flag, 0);`;
+// The worker is an ES module given as a data: URL (nodejs.org/api/worker_threads.html — a Worker's filename may be a
+// `data:` URL): no file to load from inside the packaged app's asar, and no CommonJS eval.
+const START_LOOK = new URL(
+  `data:text/javascript,${encodeURIComponent(`import { workerData } from "node:worker_threads"; import { statSync } from "node:fs";
+try { statSync(workerData.root); } catch {}
+const flag = new Int32Array(workerData.flag); Atomics.store(flag, 0, 1); Atomics.notify(flag, 0);`)}`,
+);
 
 /** Does `root`'s drive answer within START_LOOK_MS? (A worker that can't start: yes — the check goes on as before.) */
 export function answersInTime(root, ms = START_LOOK_MS) {
   const flag = new Int32Array(new SharedArrayBuffer(4));
   let worker;
   try {
-    worker = new Worker(START_LOOK, { eval: true, workerData: { root: path.resolve(String(root)), flag: flag.buffer } });
+    worker = new Worker(START_LOOK, { workerData: { root: path.resolve(String(root)), flag: flag.buffer } });
   } catch {
     return true;
   }

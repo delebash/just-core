@@ -45,7 +45,7 @@
 // `processCmdline` reads it from the OS (see there).
 
 import { readdirSync, readFileSync, realpathSync, statSync, accessSync, constants as fsc } from "node:fs";
-import { createRequire } from "node:module";
+import { koffi } from "./koffi.js";
 import os from "node:os";
 import path from "node:path";
 import { Mutex } from "../platform/asyncutil.js";
@@ -1757,7 +1757,7 @@ let winApi = null;
 /** kernel32's module functions and dxgi's factory through koffi, bound once (Windows only; throws elsewhere). */
 function _winApi() {
   if (winApi) return winApi;
-  const koffi = createRequire(import.meta.url)("koffi");
+  if (!koffi) throw new Error("kernel32 and dxgi are Windows-only");
   const k32 = koffi.load("kernel32.dll");
   const dxgi = koffi.load("dxgi.dll");
   winApi = {

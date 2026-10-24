@@ -40,7 +40,7 @@
 // can differ from Python's; and the capture keeps only the last 1 MiB (Python's never-read
 // PIPE would instead have blocked the child once the OS buffer filled).
 
-import { createRequire } from "node:module";
+import { koffi } from "./koffi.js";
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
@@ -1083,8 +1083,7 @@ let k32 = null;
 /** kernel32's job functions through koffi, bound once (Windows only; throws elsewhere). */
 export function _kernel32() {
   if (k32) return k32;
-  const require = createRequire(import.meta.url);
-  const koffi = require("koffi");
+  if (!koffi) throw new Error("kernel32 is Windows-only");
   const lib = koffi.load("kernel32.dll");
   k32 = {
     CreateJobObjectW: lib.func("CreateJobObjectW", "void *", ["void *", "void *"]),

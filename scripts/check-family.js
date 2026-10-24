@@ -1453,6 +1453,54 @@ function checkRelease(app) {
 }
 
 const perApp = [];
+// ── check 20 · modern ES modules everywhere (the family rules, 2026-10-24) ─────────────────────────
+// `.js` files with standard `import` — app and kit code, scripts, tests and tools alike: a `require(`, a
+// `createRequire` or an `.mjs`/`.cjs` file fails. The only CommonJS is what a platform forces (ESM_PLATFORM, each
+// with its doc). JustWrite's and JustVoice's files from before the rule are listed by name (ESM_KNOWN) and printed
+// until their sessions convert them — a file leaves the list when it's converted; any other file fails. Comment
+// lines aren't code.
+const ESM_PLATFORM = new Map([
+  ["packages/core/src/shell/preload.js", "Electron's sandboxed preload is CommonJS — electronjs.org/docs/latest/tutorial/esm"],
+  ["src-capacitor/capacitor.config.js", "Capacitor's .js config loader takes no ES module — quasar.dev/quasar-cli-vite/developing-capacitor-apps/configuring-capacitor"],
+]);
+const ESM_KNOWN = new Map([
+  ["JustVoice", new Set([
+    "scripts/mock-snapshots.js",
+    "scripts/node24.js",
+    "scripts/smoke.js",
+    "scripts/smoke_gui.js",
+    "server/src/engines/leftovers.js",
+  ])],
+]);
+const ESM_SKIP = new Set(["node_modules", "dist", ".git", "build", "out", ".quasar", "android", "ios", "www", "coverage", "target", ".venv", "__pycache__", "data"]);
+function walkAll(dir, out = []) {
+  if (!existsSync(dir)) return out;
+  for (const entry of readdirSync(dir)) {
+    if (ESM_SKIP.has(entry)) continue;
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) walkAll(full, out);
+    else out.push(full);
+  }
+  return out;
+}
+const REQUIRE = /\brequire\s*\(|\bcreateRequire\b/;
+function checkEsModules(name, dir, roots = ["."]) {
+  const files = notIgnored(dir, roots.flatMap((r) => walkAll(join(dir, r))));
+  for (const f of files) {
+    const rel = relative(dir, f).replace(/\\/g, "/");
+    if (/\.(mjs|cjs)$/.test(rel)) {
+      fail(name, `${rel} is an .mjs/.cjs file — the family's code is .js ES modules (family rules)`);
+      continue;
+    }
+    if (!/\.(js|vue)$/.test(rel) || ESM_PLATFORM.has(rel)) continue;
+    if (name === "kit" && rel === "scripts/check-family.js") continue; // REQUIRE above is this check's own pattern, not a use
+    const code = readFileSync(f, "utf8").split(/\r?\n/).filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+    if (!REQUIRE.test(code)) continue;
+    if (ESM_KNOWN.get(name)?.has(rel)) info(name, `${rel} uses require — known since 2026-10-24; its session converts it to an ES import (family rules)`);
+    else fail(name, `${rel} uses require/createRequire — the family's code is ES modules: a standard import, await import() or import.meta.resolve() (family rules)`);
+  }
+}
+
 for (const app of [...APPS, TEMPLATE]) {
   if (!existsSync(app.dir)) { fail(app.name, `not found at ${app.dir}`); continue; }
   const files = notIgnored(app.dir, walk(join(app.dir, "src")));
@@ -1494,6 +1542,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkNoWindowGlobal(app, files);
   checkResearchRegister(app.name, app.dir);
   checkAgentsRules(app);
+  checkEsModules(app.name, app.dir);
 }
 checkCrossAppTwins(perApp, kitFiles);
 checkDocsCrossApp();
@@ -1504,6 +1553,7 @@ checkSkeletonKit();
 checkClipboard("kit", KIT, walk(join(KIT, "packages", "ui", "src")), true);
 checkI18nKit();
 checkResearchRegister("kit", KIT);
+checkEsModules("kit", KIT, ["packages", "scripts", "skills"]);
 // The /new-just-app skill runs from ~/.claude/skills — advisory when that copy differs from the kit's.
 for (const d of installedSkillDrift()) info("kit", `the installed skill ${d.name}/${d.file} differs from the kit's skills/ — run node scripts/install-skills.js`);
 
