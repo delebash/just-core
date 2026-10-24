@@ -70,12 +70,15 @@ kit ships no models, as today.
 - **K3 · install the same way (S2).** `/v1/ai/runtimes/:runtime/engine/{status,install,cancel,uninstall,
   update-check}` on `acquireRuntime`; llama's `/v1/llm-runner/engine/*` stays. (`/v1/engines/*` is NOT
   used: JustVoice's server already mounts it.)
-- **K4 · models of every kind are catalog rows (S3).** `model_catalog` gains `kind` (default `llm`),
-  `runtime` (default `llamacpp`) and `files` — a file set `[{slot, repo, revision, path, sha256, bytes}]`
-  for models that are several files (FLUX: diffusion + text encoder + VAE; SAM 3: three ONNX + data +
-  tokenizer). Added columns only (the kit's `db.js` column list), no table rebuild. Downloaded by the
-  same download route/status map into the same HF cache layout. `LuModelCatalog` and the routes default
-  to `kind=llm`, so JustWrite and docgen see no change.
+- **K4 · models of every kind are catalog rows (S3).** BUILT as a `runtime_model` table (runtime, id) beside
+  the chat catalog — CHANGED 2026-10-24 while building: the chat catalog is LLM-shaped (quant-picked files,
+  fit physics, MTP) and feeds the llama runner and every LLM screen, so image rows in it would have needed a
+  kind filter on every one of those paths. Same mechanism as the catalog: rows the app seeds
+  (`installLlm({ runtimeModels })`), each a pinned file set `[{slot, repo, revision, path, sha256, bytes}]`
+  (FLUX: diffusion + text encoder + VAE; SAM 3: three ONNX + data + tokenizer), downloaded into the same HF
+  cache layout (each file a blob by its SHA-256, checked), with status, Cancel and removal routes. Found on
+  the way and fixed in the kit: the cache copied every file where Windows allows no symlink (each model on
+  disk twice) — now a hard link.
 - **K5 · the sd.cpp runtime (S4).** sd-server (`examples/server`, MIT) spawned like llama-server — as P1
   measured it (kit RESEARCH, "stable-diffusion.cpp's server, measured on this PC"): pinned at
   `master-1004-a85db96` (the first build P1 found with mid-render Cancel, `models/status` and
