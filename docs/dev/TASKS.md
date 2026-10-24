@@ -44,7 +44,13 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         `master-1004`). JustWrite's #5–#7 and the no-break space BUILT with tests; the ES-modules conversion
         BUILT in the kit, the template, house-paint and docgen (JustWrite and JustVoice told — their files on the
         guard's known list); just-sqlite-sync's Yjs BUILT (70 tests). docgen's ten guard findings DONE by its
-        session (483cdd2…dc7a58f). Next: round A.
+        session (483cdd2…dc7a58f). The four stops LIVE: the guard's checks 20 (ES modules), 21 (engines through the
+        kit, today's files listed), 22 (a new plan names its kit code — scripts/check-plan.js), a stale skill fails;
+        the skill carries the N list. BUILT, the image runtime in the kit: step 1 (2c67973) the registry + sd.cpp's
+        builds as seeded rows; step 2 (cd0422f) its engine — install, Cancel, needs, removal, /v1/ai/runtimes;
+        step 3 (45b2b1f) sd-server run by the kit — one server start (llama's router on it too), the arbiter
+        booking, image jobs; a real render through the kit on this RTX 2070. Next: step 4, image models as catalog
+        rows with file sets (K4).
 
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning
