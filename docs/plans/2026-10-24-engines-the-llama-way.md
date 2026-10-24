@@ -76,12 +76,18 @@ kit ships no models, as today.
   tokenizer). Added columns only (the kit's `db.js` column list), no table rebuild. Downloaded by the
   same download route/status map into the same HF cache layout. `LuModelCatalog` and the routes default
   to `kind=llm`, so JustWrite and docgen see no change.
-- **K5 · the sd.cpp runtime (S4).** sd-server (`examples/server`, MIT) spawned like llama-server, its own
-  web page (if any) off; a model is loaded while in use and unloaded after a seeded idle time and on
-  arbiter eviction; renders through its native job API (`/sdcpp/v1/img_gen`, `GET /sdcpp/v1/jobs/{id}`
-  for progress, `…/cancel`) — no log parsing; a crash fails the job in words and the next render starts
-  it again. Its memory is booked from a measured peak (the shared `model_measurements`, as JustVoice's
-  speech engines do). Doc: github.com/leejet/stable-diffusion.cpp/blob/master/examples/server/api.md.
+- **K5 · the sd.cpp runtime (S4).** sd-server (`examples/server`, MIT) spawned like llama-server — as P1
+  measured it (kit RESEARCH, "stable-diffusion.cpp's server, measured on this PC"): pinned at
+  `master-1004-a85db96` (the first build P1 found with mid-render Cancel, `models/status` and
+  `models/unload`; the old pin `master-973` has none of them); started with the catalog row's files on its
+  command line (loading by recipe needs sd-server's own category folders, which the HF cache layout isn't),
+  so another model = a restart (ready in ~1.3 s); its WebUI replaced by a blank page (`--serve-html-path`);
+  renders through the native job API (`POST /sdcpp/v1/img_gen`, `GET /sdcpp/v1/jobs/{id}`,
+  `…/cancel`) with `preview: "proj"` for step progress — no log parsing; stopped after a seeded idle time
+  and on arbiter eviction (with CPU offload it holds ~8 GB of RAM and ~90 MB of the card while loaded; a
+  stop frees both); a crash fails the job in words and the next render starts it again. Its memory is
+  booked from a measured peak (the shared `model_measurements`, as JustVoice's speech engines do). Doc:
+  github.com/leejet/stable-diffusion.cpp/blob/master/examples/server/api.md.
 - **K6 · the onnx runtime (in-process models).** Kit code owns session create/dispose, the
   execution-provider order and CPU fallback, the idle release and the arbiter booking (kind `vision`).
   The `onnxruntime-node` package is the APP's: the app imports it and hands the module to the kit
@@ -243,6 +249,9 @@ after each:
    344 MB + CUDA runtime 563 MB + FLUX.2 klein Q8 4.3 GB + Qwen3-4B Q8 4.3 GB + VAE 0.17 GB. The card is
    shared with JustVoice: message its session first. If sd-server can't reproduce the render, stop and
    come back.
+   **DONE 2026-10-24** (kit RESEARCH, "stable-diffusion.cpp's server, measured on this PC"): pixel-identical
+   to sd-cli on both builds, warm renders 15.4 s vs 19.2 s, Cancel / unload / status only on the newest
+   build (`master-1004`) → K5 pins it; the cost is RAM (~8 GB while loaded), not the card (~90 MB).
 2. **Round A · the foundation:** K1 (with audio.cpp's descriptor as a fixture), K2, K4, K7, K11, K12 (all
    four stops, the guard printing today's known files), docs. llama.cpp on the shared parts; no app
    changes. Kit + every app green.
@@ -264,7 +273,8 @@ after each:
 - **D1 · sd-server resident instead of sd-cli per render** — reverses house-paint TASKS:1701-1705. Why:
   llama.cpp and audio.cpp are both resident servers; the arbiter + an idle unload give the 8 GB card back
   (the old reason for a process per render); progress and Cancel come from its API instead of its log.
-  Cost: ~6.5 GB held while loaded (until idle or evicted). P1 measures it first.
+  Cost, measured in P1: ~8 GB of RAM and ~90 MB of the card while loaded (CPU offload), until idle or
+  evicted. DECIDED (the user's go, 2026-10-24), on `master-1004`.
 - **D2 · `onnxruntime-node` stays the app's package, handed to kit code** — measured why the standard
   alternatives fail here (K6).
 - **D3 · the guard's known-file list** — today's house-paint and JustVoice files printed, not failing,

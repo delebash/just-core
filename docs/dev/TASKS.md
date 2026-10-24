@@ -13,6 +13,39 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## Every engine the llama.cpp way, the standards check, JustWrite's findings [2026-10-24]
+GO:     the user, verbatim: "the speech engine audio cpp and the stable diffusion cpp should be integratet eh
+        same way as the lamma cpp, we started off with lamma added audio now we add stable diffusion, you
+        should know how to add it correctly, think o0n it come up with a plan. do it right" · "should you do a
+        better standard check and update the template, i want this done correctly fully, no shortcuts" · on the
+        plan, its decisions and JustWrite's findings: "fix it all your rec do it right like a professional go".
+PLAN:   `docs/plans/2026-10-24-engines-the-llama-way.md` — rounds P1 (the sd-server spike), A (the foundation +
+        the four stops), A2 (F1–F7), B (images), C (vision), D (jobs), E (JustVoice, its session), P7 (the
+        house-paint release, only at zero).
+DECIDED (the recs, under the go): D1 sd-server resident — P1 measures first; if it can't reproduce today's
+        render, stop and come back · D2 `onnxruntime-node` stays the app's package, handed to kit code · D3 the
+        guard's named known-file list, printed not failing, each file leaving in its round · D4 JustVoice's move
+        by its session after round C · D5 "App Settings" family-wide (the kit's own sidebar word) — docgen's
+        help page retitled by its session · D6 the other apps' guard findings sent to their sessions, docgen's
+        CORS first.
+ALSO:   JustWrite's findings (2026-10-24): #5 the Tune dialog's header says the catalog row's state (one
+        vocabulary — the 2026-07-26 ruling); #6 PricingEditor — the actions cell aligned with its row, Save shown
+        only on an edited row; #7 the local provider's timeout — an untouched old seed value upgraded (F2) and a
+        timeout field in the provider form; just-sqlite-sync — its default Yjs loaded only when no `yjs` is
+        passed. Also JustWrite's: a size and its unit never part (a no-break space in `fmtBytes`/`fmtSpeed`).
+ALSO:   the user, 2026-10-24, verbatim: "why would you use require everything should use the stard import
+        statement, this is the modern way" · "you should not write any of your own mjs or ejs files just js
+        with standard es6 import statment, this is rule" · "deos this rule work in any new session or app?" ·
+        "just do it like a profresional … fix this correctly" → the rule in the user's global CLAUDE.md and in
+        `docs/family-rules.md` (every repo's AGENTS.md block), the guard's check 20, every `require` converted
+        or named as the platform's (kit RESEARCH, "ES modules everywhere"); "the kit and template come first"
+        and "every AI engine goes through the kit" in the same two places.
+STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's server, measured on this PC"; D1 on
+        `master-1004`). JustWrite's #5–#7 and the no-break space BUILT with tests; the ES-modules conversion
+        BUILT in the kit, the template, house-paint and docgen (JustWrite and JustVoice told — their files on the
+        guard's known list); just-sqlite-sync's Yjs BUILT (70 tests). docgen's ten guard findings DONE by its
+        session (483cdd2…dc7a58f). Next: round A.
+
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning
         that the kit holds the shared server platform, not only the LLM runner: "ok so we need to just

@@ -1226,6 +1226,54 @@ re-checked by the session that saved them; paths are from before the just-core r
   The plan to bring every engine in the way llama.cpp is, with a standards check of house-paint and the
   template: [`../plans/2026-10-24-engines-the-llama-way.md`](../plans/2026-10-24-engines-the-llama-way.md)
   (waiting for the user's go).
+- **stable-diffusion.cpp's server, measured on this PC** (*measured, 2026-10-24* — the plan's P1; RTX 2070
+  8 GB; FLUX.2 klein 4B Q8 + Qwen3-4B Q8 + its VAE, `--offload-to-cpu`; house-paint's house1 → Positive Red
+  scored by the app's own `aiRepaint`; files in the session scratchpad):
+  - Both the pinned `master-973-f0aac52` and the newest `master-1004-a85db96` ship `sd-server.exe` beside
+    `sd-cli.exe`, in all nine platform assets (the CUDA runtime zip is the same file).
+  - The render through sd-server's native job API (`POST /sdcpp/v1/img_gen`: `init_image` + `ref_images` +
+    `mask_image`, strength 1, `sample_params` euler / 4 steps / `guidance.txt_cfg` 1, seed 42) is
+    pixel-identical to sd-cli's (mean |Δ| 0, both builds): ΔE 0.31 after the lock, 9.2 before, 13.29 the whole
+    wall.
+  - Time per render: sd-cli 19.2–20.9 s; sd-server the first 18.0–18.6 s, warm 15.3–15.4 s; ready 0.8–1.3 s
+    after start (the weights load at the first job).
+  - Memory with `--offload-to-cpu`: the card holds ~90 MB while loaded and idle (705 vs 614 MB); the process
+    7,958 MB RSS after a job (the weights in RAM); master-1004's `POST /sdcpp/v1/models/unload` → state
+    "empty", RSS 455 MB.
+  - master-973 has no `/sdcpp/v1/models/status` or `/unload` (404) and refuses a cancel while generating
+    (409 "job is currently generating and cannot be interrupted yet"); master-1004 cancels mid-render
+    (`cancel_requested`, the job "cancelled" 2.9 s later).
+  - Step progress only with a preview: `preview: "proj"` gives `preview.step/total_steps` 1/4 … 4/4 with a
+    49 KB image at no measurable cost (13.9 s warm); `"tae"` costs +4.5 s.
+  - `GET /` serves "stable-diffusion.cpp WebUI"; no flag turns it off; `--serve-html-path <a blank file>`
+    replaces it.
+  - Loading by recipe (`POST /sdcpp/v1/models/load`) needs the files under `--model-dir` in its category
+    folders (diffusion_models/, text_encoders/, vae/); a flat folder lists none (`model-files: []`). Its 108
+    built-in recipes include flux2-klein-4b and flux3-klein. Command-line preload works
+    (`origin: command_line`).
+- **ES modules everywhere — each `require` case and its documented ES-module form** (*web + measured,
+  2026-10-24*; the family rule of that day, checked by the guard's check 20):
+  - Electron's sandboxed preload must be CommonJS (electronjs.org/docs/latest/tutorial/esm) — the one
+    kit exception (`packages/core/src/shell/preload.js`).
+  - Capacitor: Quasar's docs say JS projects get `capacitor.config.js` "in CommonJS form" because
+    "Capacitor's `.js` config loader doesn't yet handle ESM exports correctly"
+    (quasar.dev/quasar-cli-vite/developing-capacitor-apps/configuring-capacitor); Capacitor's own page names
+    `.ts` and `.json` only (capacitorjs.com/docs/config) — `.json` would lose Quasar's
+    `defineCapacitorConfig` (its dev-server URL, the splash's scale type). The second exception.
+  - koffi documents `import koffi from 'koffi'` (koffi.dev/start). The kit's two Windows-only loads share
+    `runner/koffi.js` — a conditional top-level `await import("koffi")`, so the callers stay synchronous and no
+    other platform loads the native module; the real job-object test (`KIT_REAL_SPAWN=1`) passes on it.
+    JustWrite's phone bundle contains neither call site (no `_kernel32`/`dxgi.dll` in its server-worker
+    bundle), so the phone is untouched.
+  - A Node worker given CommonJS code by `eval: true` becomes an ES module given as a `data:` URL
+    (nodejs.org/api/worker_threads.html: a Worker's filename may be a `data:` URL) — no file to load from
+    inside the packaged app's asar (`shell/dataRoot.js`).
+  - The electron package's main export is the binary's path: an ES `import electron from "electron"` where
+    Electron is the package's own dependency (the kit), or `await import()` of
+    `src-electron/node_modules/electron/index.js` by file URL in an app (Electron lives in `src-electron/`)
+    — the scripts' and e2e drivers' form; Electron's Node 24.21 starts from both.
+  - `require.resolve("pkg/package.json")` → `fileURLToPath(import.meta.resolve("pkg/package.json"))`
+    (house-paint's `finder.js`; resolves `onnxruntime-node/package.json` the same).
 - **Validation, errors and logging today:** the error envelope is written down only in the header of
   `server/src/platform/errors.js` (RFC 7807 problem+json, a pydantic-style 422, a FastAPI-style 404), in two
   shapes (`errors: "problem" | "fastapi"`; docgen uses fastapi, a listed deviation). Server validation is
