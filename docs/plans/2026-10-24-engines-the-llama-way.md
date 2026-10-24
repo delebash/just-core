@@ -181,6 +181,30 @@ JustVoice (by its own session, with the user's go — this session never commits
   kit cache; `SpeechEnginesTab` → the kit tab; speech defaults → presets for its speech features; its
   jobs → the kit's; its DSP process → a registered runtime or the kit's helper-process seam.
 
+## Build design — what each new kit piece is made of (2026-10-24)
+
+Every row's Kit code names the existing kit code the piece is built from (`node scripts/check-plan.js` checks
+it). New modules: `runner/runtimes.js` (the registry), `runner/runtime_service.js` (install, status, server
+lifecycle, idle stop and arbiter booking for any server runtime), `runner/sdcpp.js` (sd-server's argv, its
+readiness, its image job — submit, `preview: "proj"` progress, cancel, result), `llm/runtimes_api.js` (the
+routes), the `runtime_binary` table.
+
+| Piece | Standard (doc link) | Kit code |
+|---|---|---|
+| One spawn / port / health / kill for every server runtime | llama-server's own start (the reference) | `startRouter` `findFreePort` `spawnChild` `closeJob` `packages/core/src/runner/process.js` |
+| Engine builds as seeded, editable rows per runtime | llama.cpp's `runner_binary` + `pinned_build` | `seedExtraCatalog` `packages/core/src/llm/seed.js` `packages/core/src/llm/stores.js` `packages/core/src/llm/runner_config_api.js` |
+| Install: pick the asset, download, stage, probe, swap | the kit's generic runtime install | `acquireRuntime` `selectRuntimeAsset` `packages/core/src/runner/binary.js` |
+| What a build needs (VC++ DLLs, macOS, glibc) checked before install | house-paint's checks, moved | `missingDlls` `versionAtLeast` `systemVersions` `packages/core/src/runner/hardware.js` |
+| Models as catalog rows with file sets, in the HF cache layout | huggingface.co/docs/huggingface_hub/guides/manage-cache | `streamDownload` `packages/core/src/runner/models.js` `packages/core/src/runner/download.js` |
+| One GPU ledger for every kind | the kit's arbiter | `getArbiter` `packages/core/src/runner/arbiter.js` |
+| sd-server's image job | github.com/leejet/stable-diffusion.cpp/blob/master/examples/server/api.md | `packages/core/src/runner/process.js` `findFreePort` |
+| Feature routing by kind, presets by kind | the kit's routing | `resolveRoute` `packages/core/src/llm/dispatch.js` `packages/core/src/llm/preset_resolve.js` `packages/core/src/llm/presets_api.js` |
+| Jobs: 202 + a job resource to poll and DELETE | RFC 9110 §15.3.3 · Microsoft REST API Guidelines (long-running operations) | `createDownloadTask` `withAiTask` `packages/ui/src/composables/useDownloadTask.js` |
+| Engine and model screens per kind | the AI page's llama.cpp screens | `AiModelsArea` `LuRunnerEngine` `DownloadBar` `StoragePanel` |
+| ONNX sessions, providers, idle release | onnxruntime.ai/docs/get-started/with-javascript/node.html | `getArbiter` `packages/core/src/runner/arbiter.js` |
+| The AI photo's feather, paste-back and colour lock | no library does the lock (house-paint TASKS) | app — house-paint's `aiphoto/edit.js` and `pixels.js` stay the app's work |
+| SAM 3's pre/post-processing (the samexporter port) | kept by the user's word (house-paint TASKS) | app — house-paint's adapter, registered in the kit's provider registry |
+
 ## The full standards check (2026-10-24) — house-paint and the template beyond the engines
 
 How: every house-paint file not in the template (74) sorted into house-painting logic, engines (above) and
