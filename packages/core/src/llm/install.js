@@ -47,7 +47,7 @@ import { makeRoutingRouter } from "./routing_api.js";
 import { makeRunnerConfigRouter } from "./runner_config_api.js";
 import { makeRuntimesRouter } from "./runtimes_api.js";
 import { configureRuntimeServices, RuntimeService } from "../runner/runtime_service.js";
-import { SDCPP_PROBE_ARGVS } from "../runner/sdcpp.js";
+import { SDCPP_PROBE_ARGVS, SDCPP_SERVER } from "../runner/sdcpp.js";
 import * as seed from "./seed.js";
 import * as stores from "./stores.js";
 import * as switchResolve from "./switch_resolve.js";
@@ -56,8 +56,9 @@ import { makeTestSamplesRouter } from "./test_samples_api.js";
 
 const log = getLogger("llm_runner.llm.install");
 
-// The launch flags each kit runtime's staged build must accept before it replaces a working one.
+// Each kit runtime's launch flags (a staged build must accept them before it replaces a working one) and its server.
 const RUNTIME_PROBES = { sdcpp: SDCPP_PROBE_ARGVS };
+const RUNTIME_SERVERS = { sdcpp: SDCPP_SERVER };
 
 /** The memoized whole-machine tuning key (gpu|vram|cores|ramGB) the model_tunes layer uses. */
 export const currentHwKey = () => hardware.currentMachineKey();
@@ -469,6 +470,8 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
         cacheRoot: String(resolvedCache),
         configFn: () => stores.getRunnerConfigStore().getRuntimeConfig(id),
         probeArgvs: RUNTIME_PROBES[id] ?? null,
+        server: RUNTIME_SERVERS[id] ?? null,
+        logDir: runtimeRoot ? String(runtimeRoot) : String(resolvedCache),
       }),
     ]),
   );

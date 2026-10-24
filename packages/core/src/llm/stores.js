@@ -23,7 +23,7 @@ import { model } from "../platform/models.js";
 import { pyFloat, pyIntOf, pyJson, pyStrScalar, unwrap } from "../platform/pyjson.js";
 import { pyFloatParse, pyInt, pyOr, pySorted, pyStr, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
-import { pinKey, runtimeOf } from "../runner/runtimes.js";
+import { idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
 import { RunnerConfig } from "../runner/schema.js";
 import * as db from "./db.js";
 import * as identity from "./identity.js";
@@ -883,7 +883,9 @@ export class RunnerConfigStore {
       serverExe: r.server_exe,
       requires: typeof r.requires === "string" ? JSON.parse(r.requires || "{}") : (r.requires ?? {}),
     });
-    return { id, pinnedBuild: pin, binaries: (rows.length ? rows : rt.defaults.binaries).map(asset) };
+    const idleRow = h.get("runner_setting", idleKey(id))?.value;
+    const idleSeconds = idleRow != null && idleRow !== "" ? Number(idleRow) : (rt.defaults.idleSeconds ?? 0);
+    return { id, pinnedBuild: pin, binaries: (rows.length ? rows : rt.defaults.binaries).map(asset), idleSeconds, memory: rt.defaults.memory ?? null };
   }
 
   /** Add or change one build row of a kit runtime (the engine panel's edit) — a user row, never built in. */

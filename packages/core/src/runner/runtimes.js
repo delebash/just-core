@@ -14,7 +14,9 @@ export const RUNTIMES = Object.freeze({
     label: "stable-diffusion.cpp",
     folder: "sdcpp",
     license: "MIT",
-    defaults: Object.freeze({ pinnedBuild: DEFAULT_SDCPP_BUILD, binaries: DEFAULT_SDCPP_BINARIES }),
+    // idleSeconds: the server stops after this long with no job (a seeded setting, idle_seconds:sdcpp). memory: what it
+    // holds on the card — idle with --offload-to-cpu ~90 MB, a FLUX.2 klein render's peak 6.41 GB (RTX 2070, measured).
+    defaults: Object.freeze({ pinnedBuild: DEFAULT_SDCPP_BUILD, binaries: DEFAULT_SDCPP_BINARIES, idleSeconds: 300, memory: Object.freeze({ idleMb: 128, peakMb: 6600 }) }),
   }),
 });
 
@@ -26,3 +28,6 @@ export const rowRuntimes = () => Object.values(RUNTIMES).filter((r) => r.default
 
 /** The runner_setting key holding a runtime's pinned build. */
 export const pinKey = (id) => `pinned_build:${id}`;
+
+/** The runner_setting key holding how long a runtime's server waits idle before it stops (seconds). */
+export const idleKey = (id) => `idle_seconds:${id}`;

@@ -1475,17 +1475,40 @@ export async function startRouter(
     _now = null,
   } = {},
 ) {
-  const popen = _popen ?? ((a, o) => procs.popen(a, o));
-  const health = _health ?? ((u) => self._defaultHealth(u));
-  const sleepFn = _sleep ?? sleepS;
-  const now = _now ?? monotonic;
   const url = `http://${host}:${port}`;
   const argv = composeRouterArgv({ modelsDir, modelsPreset, modelsMax, sleepIdleSeconds, host, port });
+  return startServerProcess(serverExe, argv, {
+    url,
+    health: _health ?? ((u) => self._defaultHealth(u)),
+    label: "llama-server router",
+    note: `models_max=${modelsMax} sleep_idle=${pyStr(sleepIdleSeconds)}`,
+    logPath,
+    probeTimeout,
+    Handle: RouterHandle,
+    _popen,
+    _sleep,
+    _now,
+  });
+}
+
+/**
+ * Start a kit runtime's server — llama-server's router above, sd-server (runner/sdcpp.js), … — one way: the kit's
+ * spawn (the Windows job object takes its whole tree down with it), `health(url)` until it answers, and when it
+ * never does, the log's tail in the error and nothing left running.
+ */
+export async function startServerProcess(
+  serverExe,
+  argv,
+  { url, health, label = "server", note = "", logPath = null, probeTimeout = 60.0, Handle = ServerHandle, _popen = null, _sleep = null, _now = null } = {},
+) {
+  const popen = _popen ?? ((a, o) => procs.popen(a, o));
+  const sleepFn = _sleep ?? sleepS;
+  const now = _now ?? monotonic;
   freshLog(logPath);
-  log.info(`spawning llama-server router: models_max=${modelsMax} sleep_idle=${pyStr(sleepIdleSeconds)}`);
+  log.info(`spawning ${label}${note ? `: ${note}` : ""}`);
   const [proc, job] = await self._spawnChild(popen, [String(serverExe), ...argv], logPath);
   if (await _waitUntilHealthy(proc, url, probeTimeout, health, sleepFn, now)) {
-    return new RouterHandle({ process: proc, url, jobHandle: job });
+    return new Handle({ process: proc, url, jobHandle: job });
   }
   const rc = pollProc(proc);
   const output = await failureOutput(proc, rc, logPath);
@@ -1493,5 +1516,5 @@ export async function startRouter(
   self._closeJob(job); // a failed spawn's job dies with its child
   const status = rc === null ? "still running, killed on timeout" : `exit ${rc}`;
   const where = logPath ? `  [log: ${logPath}]` : "";
-  throw new RunnerStartError(`llama-server router failed to become healthy (${status}): ${tailChars(output, 1000)}${where}`);
+  throw new RunnerStartError(`${label} failed to become healthy (${status}): ${tailChars(output, 1000)}${where}`);
 }

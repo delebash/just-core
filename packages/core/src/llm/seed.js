@@ -25,7 +25,7 @@ import { pyFloat, pyIntOf, pyJson, pyStrScalar, unwrap } from "../platform/pyjso
 import { getLogger } from "../platform/log.js";
 import { pyFloatParse, pyOr, pySorted, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
-import { pinKey, runtimeOf } from "../runner/runtimes.js";
+import { idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
 import * as db from "./db.js";
 import * as modelListRules from "./model_list_rules.js";
 import { DEFAULT_PRICING } from "./pricing.js";
@@ -1095,6 +1095,9 @@ export function seedRuntimeBinaries(h, ids) {
       if (truthy(r.built_in) && !wanted.has(`${r.platform}\u0000${r.gpu}`)) h.delete("runtime_binary", { runtime: id, platform: r.platform, gpu: r.gpu });
     }
     if (!h.get("runner_setting", pinKey(id))) h.insert("runner_setting", { key: pinKey(id), value: rt.defaults.pinnedBuild, built_in: true });
+    if (rt.defaults.idleSeconds != null && !h.get("runner_setting", idleKey(id))) {
+      h.insert("runner_setting", { key: idleKey(id), value: String(rt.defaults.idleSeconds), built_in: true });
+    }
   }
   return added;
 }
