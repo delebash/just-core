@@ -842,6 +842,75 @@ export const TABLES = [
     }
   },
   {
+    "name": "runtime_binary",
+    "ddl": "CREATE TABLE runtime_binary (\n\truntime VARCHAR NOT NULL, \n\tplatform VARCHAR NOT NULL, \n\tgpu VARCHAR NOT NULL, \n\tsource VARCHAR NOT NULL, \n\tasset_url VARCHAR, \n\tasset_bytes INTEGER NOT NULL, \n\tsha256 VARCHAR, \n\truntime_url VARCHAR, \n\truntime_bytes INTEGER NOT NULL, \n\truntime_sha256 VARCHAR, \n\tserver_exe VARCHAR NOT NULL, \n\trequires VARCHAR NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tPRIMARY KEY (runtime, platform, gpu)\n)",
+    "indexes": [],
+    "columns": {
+      "runtime": {
+        "kind": "text",
+        "pk": true,
+        "notNull": true
+      },
+      "platform": {
+        "kind": "text",
+        "pk": true,
+        "notNull": true
+      },
+      "gpu": {
+        "kind": "text",
+        "pk": true,
+        "notNull": true
+      },
+      "source": {
+        "kind": "text",
+        "notNull": true,
+        "default": "github"
+      },
+      "asset_url": {
+        "kind": "text"
+      },
+      "asset_bytes": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      },
+      "sha256": {
+        "kind": "text"
+      },
+      "runtime_url": {
+        "kind": "text"
+      },
+      "runtime_bytes": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      },
+      "runtime_sha256": {
+        "kind": "text"
+      },
+      "server_exe": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "requires": {
+        "kind": "text",
+        "notNull": true,
+        "default": "{}"
+      },
+      "built_in": {
+        "kind": "bool",
+        "notNull": true,
+        "default": false
+      },
+      "position": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      }
+    }
+  },
+  {
     "name": "runner_setting",
     "ddl": "CREATE TABLE runner_setting (\n\t\"key\" VARCHAR NOT NULL, \n\tvalue VARCHAR NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tPRIMARY KEY (\"key\")\n)",
     "indexes": [],

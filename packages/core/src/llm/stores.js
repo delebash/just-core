@@ -23,6 +23,7 @@ import { model } from "../platform/models.js";
 import { pyFloat, pyIntOf, pyJson, pyStrScalar, unwrap } from "../platform/pyjson.js";
 import { pyFloatParse, pyInt, pyOr, pySorted, pyStr, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
+import { pinKey, runtimeOf } from "../runner/runtimes.js";
 import { RunnerConfig } from "../runner/schema.js";
 import * as db from "./db.js";
 import * as identity from "./identity.js";
@@ -856,6 +857,71 @@ export class RunnerConfigStore {
       warmDefaultOnStartup: warm,
       binaries: cfg.llamacpp.binaries.map(runnerBinaryToRow),
     };
+  }
+
+  /**
+   * A kit runtime's builds (runner/runtimes.js) — `{pinnedBuild, binaries}` from `runtime_binary` and
+   * `pinned_build:<id>`, each row as a BinaryAsset (camelCase) plus `assetBytes`, `runtimeBytes` and `requires`.
+   * The kit's defaults when the app never seeded the runtime.
+   */
+  getRuntimeConfig(id) {
+    const rt = runtimeOf(id);
+    if (!rt?.defaults) throw new ValueError(`no kit runtime "${id}" with build rows`);
+    const h = db.session();
+    const rows = h.all("select * from runtime_binary where runtime = ? order by position, platform, gpu", [id], "runtime_binary");
+    const pin = h.get("runner_setting", pinKey(id))?.value || rt.defaults.pinnedBuild;
+    const asset = (r) => ({
+      platform: r.platform,
+      gpu: r.gpu,
+      source: r.source || "github",
+      assetUrl: r.asset_url ?? r.assetUrl ?? null,
+      assetBytes: Number(r.asset_bytes ?? 0),
+      sha256: r.sha256 ?? null,
+      runtimeUrl: r.runtime_url ?? null,
+      runtimeBytes: Number(r.runtime_bytes ?? 0),
+      runtimeSha256: r.runtime_sha256 ?? null,
+      serverExe: r.server_exe,
+      requires: typeof r.requires === "string" ? JSON.parse(r.requires || "{}") : (r.requires ?? {}),
+    });
+    return { id, pinnedBuild: pin, binaries: (rows.length ? rows : rt.defaults.binaries).map(asset) };
+  }
+
+  /** Add or change one build row of a kit runtime (the engine panel's edit) — a user row, never built in. */
+  upsertRuntimeBinary(id, row) {
+    if (!runtimeOf(id)?.defaults) throw new ValueError(`no kit runtime "${id}" with build rows`);
+    const h = db.session();
+    const key = { runtime: id, platform: strip(row.platform), gpu: strip(row.gpu) };
+    const vals = {
+      source: strip(row.source || "github"),
+      asset_url: row.assetUrl || null,
+      asset_bytes: Number(row.assetBytes || 0),
+      sha256: row.sha256 || null,
+      runtime_url: row.runtimeUrl || null,
+      runtime_bytes: Number(row.runtimeBytes || 0),
+      runtime_sha256: row.runtimeSha256 || null,
+      server_exe: strip(row.serverExe || ""),
+      requires: JSON.stringify(row.requires ?? {}),
+    };
+    h.tx(() => {
+      if (h.get("runtime_binary", key)) {
+        h.update("runtime_binary", vals, key);
+        return;
+      }
+      const positions = h.all("select position from runtime_binary where runtime = ?", [id]).map((r) => r.position);
+      h.insert("runtime_binary", { ...key, ...vals, built_in: false, position: (positions.length ? Math.max(...positions) : 0) + 1 });
+    });
+  }
+
+  /** A kit runtime's shipped rows and pin back to the kit's defaults; rows the user added stay. */
+  resetRuntimeToDefaults(id) {
+    const rt = runtimeOf(id);
+    if (!rt?.defaults) throw new ValueError(`no kit runtime "${id}" with build rows`);
+    const h = db.session();
+    h.tx(() => {
+      for (const b of rt.defaults.binaries) h.delete("runtime_binary", { runtime: id, platform: b.platform, gpu: b.gpu });
+      h.delete("runner_setting", { key: pinKey(id) });
+      seed.seedRuntimeBinaries(h, [id]);
+    });
   }
 
   upsertBinary(row) {

@@ -25,6 +25,7 @@ import { pyFloat, pyIntOf, pyJson, pyStrScalar, unwrap } from "../platform/pyjso
 import { getLogger } from "../platform/log.js";
 import { pyFloatParse, pyOr, pySorted, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
+import { pinKey, runtimeOf } from "../runner/runtimes.js";
 import * as db from "./db.js";
 import * as modelListRules from "./model_list_rules.js";
 import { DEFAULT_PRICING } from "./pricing.js";
@@ -97,6 +98,7 @@ export function configureAppSeed({
   defaultPresetId = null,
   modelCatalogExtra = null,
   modelTunesSeed = null,
+  runtimes = null,
   hwKeyFn = null,
   testSamples = null,
   featurePromptHeals = null,
@@ -114,6 +116,9 @@ export function configureAppSeed({
   // so `seedLlm` carries them on BOTH paths — boot AND the data-reset endpoint (found
   // 2026-07-06: install-time-only seeding meant a data reset silently LOST them).
   if (modelCatalogExtra != null) app.model_catalog_extra = [...modelCatalogExtra];
+  // The kit runtimes the app turns on besides llama.cpp (["sdcpp"]): their build rows and pins are seeded on
+  // both paths too (boot and a data reset), like the catalog rows.
+  if (runtimes != null) app.runtimes = [...runtimes];
   if (modelTunesSeed != null) app.model_tunes_seed = [...modelTunesSeed];
   if (hwKeyFn != null) app.hw_key_fn = hwKeyFn;
   // §7.3 Lab test samples — synthesized rows for the Lab's Sample button.
@@ -1052,6 +1057,48 @@ export function resetPresetToFactory(presetId) {
  * no longer exists in the defaults is removed at seed time, so existing DBs converge on
  * boot; user-ADDED rows (built_in=false) are never touched.
  */
+/**
+ * Insert-if-missing build rows and pin for each named kit runtime (`runtime_binary`, `pinned_build:<id>`) — the
+ * same rule as llama.cpp's (seedDefaultRunnerBinaries): a row the user edited stays, a built-in row the kit no
+ * longer ships goes, an existing pin stays (bump it in the engine panel; the constant fixes fresh installs).
+ */
+export function seedRuntimeBinaries(h, ids) {
+  let added = 0;
+  for (const id of ids || []) {
+    const rt = runtimeOf(id);
+    if (!rt?.defaults) throw new ValueError(`no kit runtime "${id}" with build rows`);
+    const bins = rt.defaults.binaries;
+    const wanted = new Set(bins.map((b) => `${b.platform}\u0000${b.gpu}`));
+    const rows = h.all("select platform, gpu, built_in from runtime_binary where runtime = ?", [id]);
+    const existing = new Set(rows.map((r) => `${r.platform}\u0000${r.gpu}`));
+    bins.forEach((b, i) => {
+      if (existing.has(`${b.platform}\u0000${b.gpu}`)) return;
+      h.insert("runtime_binary", {
+        runtime: id,
+        platform: b.platform,
+        gpu: b.gpu,
+        source: strOr(b, "source", "github"),
+        asset_url: get(b, "asset_url"),
+        asset_bytes: b.asset_bytes ?? 0,
+        sha256: get(b, "sha256"),
+        runtime_url: get(b, "runtime_url"),
+        runtime_bytes: b.runtime_bytes ?? 0,
+        runtime_sha256: get(b, "runtime_sha256"),
+        server_exe: strOr(b, "server_exe", ""),
+        requires: JSON.stringify(b.requires ?? {}),
+        built_in: true,
+        position: i,
+      });
+      added += 1;
+    });
+    for (const r of rows) {
+      if (truthy(r.built_in) && !wanted.has(`${r.platform}\u0000${r.gpu}`)) h.delete("runtime_binary", { runtime: id, platform: r.platform, gpu: r.gpu });
+    }
+    if (!h.get("runner_setting", pinKey(id))) h.insert("runner_setting", { key: pinKey(id), value: rt.defaults.pinnedBuild, built_in: true });
+  }
+  return added;
+}
+
 export function seedDefaultRunnerBinaries(h) {
   const bins = rconfig.DEFAULT_BINARIES;
   const wanted = new Set(bins.map((b) => `${b.platform}\u0000${b.gpu}`));
@@ -1291,6 +1338,7 @@ export function seedLlm(h = null) {
     seedDefaultFeaturePresets(h);
     seedDefaultRunnerBinaries(h);
     seedDefaultRunnerSettings(h);
+    if (truthy(app.runtimes)) seedRuntimeBinaries(h, app.runtimes);
     seedModelListRules(h);
     seedDefaultKnobs(h);
     seedDefaultHardwareClasses(h); // before class-tunes: the config's class must exist

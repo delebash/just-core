@@ -70,14 +70,14 @@ const tablesOf = (metadata) => {
 
 /** The runner's own table of this computer's engine builds (their download URLs): a restore keeps it
  *  (makeDataRouter `keepTables`). */
-export const RUNNER_MACHINE_TABLES = Object.freeze(["runner_binary"]);
+export const RUNNER_MACHINE_TABLES = Object.freeze(["runner_binary", "runtime_binary"]);
 
 /** The runner settings that are this computer's, not the user's choices: the pinned engine build, the
  *  calibration model it downloads (URL, hash, size) and where the models are kept — a restore keeps these rows
  *  (`keepRows`) and restores the rest of the table (the default preset, the model-list rules, the update
  *  policy: a backup moved to a new computer brings them — 2026-10-20). */
 export const RUNNER_MACHINE_ROWS = Object.freeze({
-  runner_setting: Object.freeze({ column: "key", values: Object.freeze(["pinned_build", "calib_model_url", "calib_model_sha256", "calib_model_size_bytes", "cache_root"]) }),
+  runner_setting: Object.freeze({ column: "key", values: Object.freeze(["pinned_build", "pinned_build:sdcpp", "calib_model_url", "calib_model_sha256", "calib_model_size_bytes", "cache_root"]) }),
 });
 
 /** A backup's or a restore's work folder, beside the database — on the data's own drive, not the system's

@@ -205,6 +205,8 @@ export async function installLlm(
     defaultPresetId = "",
     modelCatalogExtra = [],
     modelTunesSeed = [],
+    // the kit runtimes this app turns on besides llama.cpp (["sdcpp"] — runner/runtimes.js): their builds are seeded
+    runtimes = [],
     classTunesSeed = [],
     classTuneIdentity = {},
     embedTemplates = [],
@@ -241,6 +243,7 @@ export async function installLlm(
     defaultPresetId,
     modelCatalogExtra,
     modelTunesSeed,
+    runtimes,
     classTunesSeed,
     classTuneIdentity,
     embedTemplates,
