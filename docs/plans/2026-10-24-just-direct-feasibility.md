@@ -93,6 +93,14 @@ below is a proxy from another card.
   (43 GB demand). HunyuanVideo 1.5: 14 GB minimum with offload (official).
 - **RAM is the limit for 14B video**: Wan A14B Q4_K_M 9.65 GB × 2 experts + umt5 Q8 6.04 GB ≈ 25.3 GB resident (≈ 6 GB
   left on 32 GB, no LLM beside it); Q3_K_M × 2 + umt5 Q4 ≈ 18 GB; LTX-2.5 Q4 + Gemma 4 Q4 ≈ 24 GB.
+- **The Wan family** (*web, this session, 2026-10-24*): open weights stop at **Wan 2.2** (2025-07-28, Apache-2.0);
+  Wan 2.5 (2025-09), 2.6 (2025-12), 2.7 and a 3.0 beta (2026-08) are API-only — no Hugging Face weights
+  (howaiworks.ai/blog/alibaba-wan-open-weights-stopped-at-2-2; flowjam.com/blog/wan-ai-review-2026; a 2025-12
+  "Wan 2.6 open source" item rests on one tweet). Open text-to-video: Wan2.1 T2V 1.3B and 14B, Wan2.1 VACE 1.3B/14B,
+  Wan2.2 T2V A14B (two 14B experts), Wan2.2 TI2V-5B. **Wan2.1 T2V 14B has a 4-step, no-CFG distill** from lightx2v
+  (`lightx2v/Wan2.1-T2V-14B-StepDistill-CfgDistill`, Apache-2.0, a full model or a rank-64 LoRA, "~20–24×" fewer
+  steps' time — lightx2v-en.readthedocs.io/en/latest/method_tutorials/step_distill.html). One 14B file is half the
+  2.2 A14B's two (≈ 9.65 GB at Q4_K_M + umt5 ≈ 16 GB RAM — an estimate from §B's per-expert size, not measured).
 - **Images**: FLUX.2 klein 4B (Apache) measured here 15.3 s warm (§ sd.cpp in RESEARCH.md); Z-Image Turbo 6B
   (Apache) — sd.cpp k-quants gave black images on an RTX 2070 until PR #1020 (2025-12-01); Qwen-Image-Edit
   2509/2511 20B (Apache) Q4_K_M 13.1 GB + a 7B VL encoder, takes 1–3 images and keypoint/depth/edge maps; FLUX.2
