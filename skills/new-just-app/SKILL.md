@@ -35,6 +35,27 @@ chrome, settings, help, logs, backups and tests.
 If the user says "your rec" or doesn't want an interview, write the PRD from what they did say and
 mark every assumption "(assumed)" for them to correct.
 
+## Before planning or building any piece
+
+- **The kit and template first.** Anything they have — AI engines (llama.cpp today; stable-diffusion.cpp,
+  audio.cpp and the onnx runtime as the engines plan lands), feature routing, jobs, looks, controls — is used
+  from there. Anything they lack is a kit gap: it goes into the kit first (or the user signs it off as NOT
+  STANDARD), and the app is built on the kit after. Never inside the app.
+- **The areas with no standard yet** (the kit's `docs/dev/RESEARCH.md`, the template research's **N** list):
+  accessibility, client-side form validation, performance budgets, signing — and image/vision models until
+  the engines plan's round B lands (`docs/plans/2026-10-24-engines-the-llama-way.md`). A piece in one of them
+  is not planned until the kit has it or the user signs it off by name.
+- **Every plan carries a standards table** with a "Kit code" column: each row names the kit file or export it
+  uses (`acquireRuntime`, `packages/core/src/runner/binary.js`), or says "app — why" for the app's own logic,
+  or "NOT STANDARD — the standard option and the trade-off" (it waits for the user's word on that row).
+  `node ../just-core/scripts/check-plan.js docs/plans/<plan>.md` checks it; the guard runs it on every new
+  plan. "Follows the family's pattern" is not a kit file — the AI photo was built inside house-paint behind
+  exactly that line.
+- **Reports name the repo** of every engine, stack or shared piece: "in the kit: `packages/core/src/…`" or
+  "in the app: `server/src/…`".
+- **ES modules everywhere** — `.js` with standard `import`; no `require`, `createRequire`, `.mjs`, `.cjs`
+  (the family rules; the guard's check 20).
+
 ## The steps
 
 1. Read the kit's `docs/dev/TASKS.md` item above and app-structure §1, §12, §13.

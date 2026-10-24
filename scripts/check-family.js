@@ -35,6 +35,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkPlanText, kitExports as planKitExports } from "./check-plan.js";
 import { installedSkillDrift } from "./install-skills.js";
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -1602,7 +1603,24 @@ checkI18nKit();
 checkResearchRegister("kit", KIT);
 checkEsModules("kit", KIT, ["packages", "scripts", "skills"]);
 // The /new-just-app skill runs from ~/.claude/skills — advisory when that copy differs from the kit's.
-for (const d of installedSkillDrift()) info("kit", `the installed skill ${d.name}/${d.file} differs from the kit's skills/ — run node scripts/install-skills.js`);
+// A stale installed skill makes apps from old rules (2026-10-24): a failure, not a note.
+for (const d of installedSkillDrift()) fail("kit", `the installed skill ${d.name}/${d.file} differs from the kit's skills/ — run node scripts/install-skills.js`);
+
+// ── check 22 · a plan names the kit code it uses (the family rules, 2026-10-24; scripts/check-plan.js) ──
+// Every plan dated from PLAN_CHECK_SINCE in the kit or an app carries a standards table (a "Kit code" column)
+// whose rows name kit code that exists, or say "app — why" or "NOT STANDARD — …".
+const PLAN_CHECK_SINCE = "2026-10-25";
+const planExports = planKitExports();
+for (const [name, dir] of [["kit", KIT], ...[...APPS, TEMPLATE].map((a) => [a.name, a.dir])]) {
+  const plans = join(dir, "docs", "plans");
+  for (const f of existsSync(plans) ? readdirSync(plans) : []) {
+    const m = /^(\d{4}-\d{2}-\d{2})-.+\.md$/.exec(f);
+    if (!m || m[1] < PLAN_CHECK_SINCE) continue;
+    const rows = checkPlanText(readFileSync(join(plans, f), "utf8"), planExports);
+    if (!rows.length) fail(name, `docs/plans/${f} has no standards table (a "Kit code" column) — node scripts/check-plan.js`);
+    for (const r of rows.filter((x) => x.verdict === "fail")) fail(name, `docs/plans/${f}: "${r.piece}" ${r.why}`);
+  }
+}
 
 const showInfo = process.argv.includes("--info");
 console.log(`\nfamily check — ${APPS.length} apps + the template against the kit (${exports_.size} kit exports)`);
