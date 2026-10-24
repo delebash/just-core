@@ -34,7 +34,7 @@ import { applyPreview, currentDefaultId, currentDefaultProviderId, modelHasTunes
 import { confirmDialog } from "../common/services/dialog.js";
 import { fmtTps } from "../common/services/runStats.js";
 import { createDownloadTask, engineInstallChannel, modelDownloadChannel, modelLoadChannel } from "../composables/useDownloadTask.js";
-import { refresh as refreshRunnerModels } from "../composables/useRunnerModels.js";
+import { refresh as refreshRunnerModels, useRunnerModels } from "../composables/useRunnerModels.js";
 import { recordMeasurement } from "../measurements.js";
 import { quickSetupApplied } from "../services/quickSetupApplied.js";
 import { llmUiCapabilities } from "../installLlmUi.js";
@@ -77,8 +77,14 @@ const embedsOn = llmUiCapabilities().embeddings !== false;
 // wizard opens on an "Already set up" screen offering only change-model or close.
 // The manual door stays — it just tells the truth about the state.
 const configured = computed(() => !!currentDefaultProviderId.value);
+// A model's NAME in the words, its id only while no list has it yet: the wizard's list (loaded when it
+// opens), else the shared runner list (one GET on first use; it polls only while a model loads).
+const runner = useRunnerModels();
+function modelName(id) {
+  return modelById.value[id]?.name || runner.models.value.find((m) => m.id === id)?.name || id;
+}
 const configuredBandLine = computed(() =>
-  t("kit.quickSetup.configuredBand", { model: currentDefaultId.value || t("kit.quickSetup.aModel") }));
+  t("kit.quickSetup.configuredBand", { model: currentDefaultId.value ? modelName(currentDefaultId.value) : t("kit.quickSetup.aModel") }));
 onMounted(() => { refreshApplied().catch(() => {}); });
 
 // ── THE CACHE QUESTION (family behavior, ported from the docgen fork 2026-08-04 —
@@ -952,7 +958,7 @@ defineExpose({ openWizard });
            is the QC-42 canon line with the feature named (ruling 2026-08-04: this
            screen's words must carry the built-in-only scope too). -->
       <template v-else-if="step === 'configured'">
-        <i18n-t keypath="kit.quickSetup.configured.line" tag="p" style="margin: 0" scope="global"><template #model><b>{{ currentDefaultId || pick.default }}</b></template></i18n-t>
+        <i18n-t keypath="kit.quickSetup.configured.line" tag="p" style="margin: 0" scope="global"><template #model><b>{{ modelName(currentDefaultId || pick.default) }}</b></template></i18n-t>
         <p class="lu-muted lu-qs-hint">{{ t('kit.quickSetup.configured.hint') }}</p>
       </template>
 

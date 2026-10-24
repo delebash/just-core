@@ -334,7 +334,9 @@ function fitTitle(m) {
   // have gone permanently false here and silently dropped this sentence.
   const untested = !embeddingOf(m) && isUntunedHere(tuneBadgeIdOf(tuneState.value, m.id, otherClassCount(m.id)))
     ? t("kit.modelCatalog.fit.untested") : "";
-  return [t("kit.modelCatalog.fit.estimated", { gb: gb(m.minVramMb) }), have, untested].filter(Boolean).join(" · ");
+  // the facts end as a sentence (the locale's own punctuation), so the speed sentence after it reads as its own
+  const facts = [t("kit.modelCatalog.fit.estimated", { gb: gb(m.minVramMb) }), have, untested].filter(Boolean).join(" · ");
+  return t("kit.modelCatalog.fit.estimatedLine", { facts });
 }
 // Grid TYPE tags (Plan B — the Params column is REPLACED: the params count already
 // rides the name/description, the user wants the space for architecture/role).

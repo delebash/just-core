@@ -170,8 +170,8 @@ export const removePrefix = (s, p) => (p && s.startsWith(p) ? s.slice(p.length) 
 export function abortError(signal = null) {
   return Object.assign(new Error("the AI run was cancelled"), { name: "AbortError", code: "ABORT_ERR", cause: signal?.reason });
 }
-/** An abort — the kit's own (abortError), fetch's DOMException, an SDK's user abort. */
-export const isAbortError = (e) => e?.name === "AbortError" || e?.code === "ABORT_ERR" || e?.constructor?.name === "APIUserAbortError";
+// isAbortError lives with the error handlers (a client that left is a 499 there); llm's callers keep importing it here
+export { isAbortError } from "../platform/errors.js";
 
 export class TransportError extends Error {
   constructor(message, options) {

@@ -142,6 +142,20 @@ function logError(c, status, detail) {
   else log.warn(line);
 }
 
+/** An abort — the kit's own (llm's abortError), fetch's DOMException, an SDK's user abort. */
+export const isAbortError = (e) => e?.name === "AbortError" || e?.code === "ABORT_ERR" || e?.constructor?.name === "APIUserAbortError";
+
+// The client is gone — it closed the connection or pressed Cancel — and the route's work stopped with it
+// (the route passed `c.req.raw.signal` on). Nothing failed and nobody is there to read an answer: a line at
+// info and nginx's 499 "client closed request", never the 500 (JustVoice, 2026-10-21: every Cancel was an
+// error line). An abort while the client is still there is the server's own failure and stays a 500.
+function clientGone(err, c) {
+  if (!(c.req.raw?.signal?.aborted && isAbortError(err))) return null;
+  const id = requestIdOf(c);
+  log.info(`${c.req.method} ${requestPath(c)} -> 499: the client left${id ? ` [${id}]` : ""}`);
+  return c.body(null, 499);
+}
+
 // `ctx` (the limit a constraint set — `{min_length: 3}`) rides along when there is one, so a
 // client can word the message in its own language (app-structure §15).
 function jsonableErrors(errors) {
@@ -355,6 +369,8 @@ const refusalStatus = (err) => err.statusCode ?? (typeof err.getResponse === "fu
  */
 export function installErrorHandlers(app, { typeBase, onUnhandled = null }) {
   app.onError((err, c) => {
+    const gone = clientGone(err, c);
+    if (gone) return gone;
     const instance = requestPath(c);
     if (err instanceof ApiError) {
       logError(c, err.statusCode, err.detail);
@@ -484,6 +500,8 @@ function pyJsonErrorText(message) {
 /** Register FastAPI's default handlers (no problem+json) on `app`. */
 export function installFastapiErrorHandlers(app, { onUnhandled = null } = {}) {
   app.onError((err, c) => {
+    const gone = clientGone(err, c);
+    if (gone) return gone;
     if (err instanceof HttpError) {
       return c.json({ detail: err.detail }, err.statusCode, err.headers || undefined);
     }

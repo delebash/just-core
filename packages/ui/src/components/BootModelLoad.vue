@@ -35,8 +35,10 @@ const warmTask = computed(() => (warmModelId.value ? rm.taskFor(warmModelId.valu
 const engineTask = computed(() =>
   rm.engineGateTask?.value && rm.engineGateTask.value.state === "running" ? rm.engineGateTask.value : null);
 const shownTask = computed(() => engineTask.value || warmTask.value);
-const warmRowStatus = computed(() =>
-  warmModelId.value ? (rm.models.value.find((m) => m.id === warmModelId.value)?.status || "") : "");
+const warmRow = computed(() => (warmModelId.value ? rm.models.value.find((m) => m.id === warmModelId.value) : null));
+const warmRowStatus = computed(() => warmRow.value?.status || "");
+// the bar's title is the model's NAME (the header's shared behavior); its id only while the list hasn't come
+const warmTitle = computed(() => warmRow.value?.name || warmModelId.value);
 // `immediate` (2026-10-05): when the list ALREADY says loaded as the splash
 // mounts, nothing changes, so a plain watch never fired — and retryLoad of a
 // resident model starts no task, so there was no Continue either. JustVoice's
@@ -59,7 +61,7 @@ function openTroubleshooting() {
 <template>
   <div v-if="engineTask || (warmTask && warmTask.state)" class="lu-bootload">
     <DownloadBar v-if="engineTask" class="lu-bootload__bar" :task="engineTask" :title="engineTitle || t('kit.bootLoad.engineTitle')" />
-    <DownloadBar v-else class="lu-bootload__bar" :task="warmTask" :title="warmModelId" />
+    <DownloadBar v-else class="lu-bootload__bar" :task="warmTask" :title="warmTitle" />
     <slot v-if="shownTask?.state === 'error'" name="failed" :task="shownTask" :model-id="warmModelId">
       <button v-if="hasHelp" type="button" class="lu-bootload__help" @click="openTroubleshooting">{{ t('kit.bootLoad.help') }}</button>
     </slot>

@@ -402,7 +402,8 @@
         "vramUnknown": "Requisito de VRAM desconocido para este modelo.",
         "estimated": "Estimado — requiere ~{gb} GB de VRAM",
         "youHave": "tienes {gb} GB",
-        "untested": "aún no probado en tu clase de PC"
+        "untested": "aún no probado en tu clase de PC",
+        "estimatedLine": "{facts}."
       },
       "runsOn": {
         "computed": "Calculado a partir del archivo del modelo: {vram} MB de VRAM · {ram} MB de RAM.",

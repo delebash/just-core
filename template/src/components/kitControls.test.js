@@ -57,10 +57,13 @@ import {
   UiSegmented,
   UiSelect,
   UiTextarea,
+  QuickSetup,
   useAiTasksStore,
+  useRunnerModels,
   warmModelId,
   withAiTask,
 } from "@delebash/ui";
+import LuModelCatalog from "@delebash/ui/components/LuModelCatalog.vue";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
 import { computeAccessibleDescription, computeAccessibleName } from "dom-accessibility-api";
@@ -827,6 +830,56 @@ test("a model that failed to load at start offers the app's Troubleshooting page
   await flushPromises();
   expect(warmModelId.value).toBe(""); // the splash goes, so the help shows over the app
   expect(helpState.slug).toBe("troubleshooting");
+});
+
+// ── A model is named by its name, not its id (JustWrite's box checks, 2026-10-24) ─────────────────────
+
+const ID = "gemma-4-26b-a4b-qat";
+const NAME = "Gemma 4 26B A4B";
+function serve(routes) {
+  vi.stubGlobal("fetch", vi.fn(async (url) => {
+    const hit = Object.entries(routes).find(([path]) => String(url).includes(path));
+    return new Response(JSON.stringify(hit ? hit[1] : {}), { status: 200, headers: { "content-type": "application/json" } });
+  }));
+}
+const withPinia = () => [[quasar.Quasar, { ...QUASAR_TEST_OPTIONS, components: QUASAR_COMPONENTS }], i18n, createPinia()];
+
+test("the boot splash's load bar is titled with the model's name", async () => {
+  serve({ "/v1/llm-runner/models": { models: [{ id: ID, name: NAME, status: "error", error: "Not enough graphics memory" }] } });
+  await useRunnerModels().refresh(); // the shared list (a singleton) reads this test's catalog
+  configureHelp({ hasDoc: () => false });
+  warmModelId.value = ID;
+  wrapper = mount(BootModelLoad, { attachTo: document.body, global: { plugins: withPinia() } });
+  for (let i = 0; i < 5; i++) await flushPromises();
+  expect(document.body.textContent).toContain(NAME);
+  expect(document.body.textContent).not.toContain(ID);
+});
+
+test("Quick Setup's set-up line names the default model, before the wizard ever opens", async () => {
+  serve({
+    "/v1/llm-runner/models": { models: [{ id: ID, name: NAME, status: "disk", fit: "gpu" }] },
+    "/v1/ai/preset-assignments": { defaultPresetId: "chat" },
+    "/v1/ai/engine-presets": { presets: [{ id: "chat", model: ID, providerId: "local-llamacpp", position: 0 }] },
+  });
+  await useRunnerModels().refresh();
+  wrapper = mount(QuickSetup, { props: { inline: true }, attachTo: document.body, global: { plugins: withPinia() } });
+  for (let i = 0; i < 5; i++) await flushPromises();
+  expect(document.body.textContent).toContain(`Local AI is set up — ${NAME} is the default`);
+  expect(document.body.textContent).not.toContain(ID);
+});
+
+test("the catalog's fit chip says its facts as a sentence, then the speed as its own", async () => {
+  serve({
+    "/v1/llm-runner/models": { vramMb: 8192, models: [{ id: ID, name: NAME, status: "disk", fit: "gpu", minVramMb: 3174, predTokS: 7.9 }] },
+  });
+  await useRunnerModels().refresh();
+  wrapper = mount(LuModelCatalog, { attachTo: document.body, global: { plugins: withPinia() } });
+  for (let i = 0; i < 8; i++) await flushPromises();
+  const chip = document.body.querySelector(".lu-fit[title]");
+  expect(chip, document.body.textContent.slice(0, 400)).not.toBeNull();
+  expect(chip.getAttribute("title")).toMatch(
+    /^Estimated — needs ~3\.1 GB VRAM · you have 8 GB( · not yet tested on your PC class)?\. Estimated speed: ~7\.9 tok\/s — a real run replaces this estimate\.$/,
+  );
 });
 
 // ── The twentieth review (2026-10-20): a field in error ─────────────────────────────────────────────────
