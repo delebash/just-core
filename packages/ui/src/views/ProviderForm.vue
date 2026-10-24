@@ -14,7 +14,9 @@ import AppModal from "../common/components/AppModal.vue";
 import UiButton from "../common/components/UiButton.vue";
 import LuCombobox from "../components/LuCombobox.vue";
 import UiInput from "../common/components/UiInput.vue";
+import UiNumber from "../common/components/UiNumber.vue";
 import UiSecretInput from "../common/components/UiSecretInput.vue";
+import UiSelect from "../common/components/UiSelect.vue";
 import LuClassTunes from "../components/LuClassTunes.vue";
 import LuGlobalSwitches from "../components/LuGlobalSwitches.vue";
 import LuRunnerEngine from "../components/LuRunnerEngine.vue";
@@ -339,6 +341,14 @@ async function putReasoningRow(row) {
       <span class="lu-fl">{{ t('kit.provider.baseUrl') }}</span>
       <UiInput v-model="draft.baseUrl" :placeholder="BASE_URL_EXAMPLE" />
 
+      <!-- The provider's timeout was saved but never shown (family rule 1: a value a user might change is
+           editable) — a local model thinking at High answered after the old 60 s (JustWrite, 2026-10-24). -->
+      <span class="lu-fl">{{ t('kit.provider.timeout') }}</span>
+      <div>
+        <UiNumber v-model="draft.timeoutSeconds" :min="1" :max="86400" width="token" />
+        <div class="lu-fh">{{ t('kit.provider.timeoutHint') }}</div>
+      </div>
+
       <template v-if="!isLocal">
         <span class="lu-fl">{{ t('kit.provider.apiKey') }}</span>
         <div>
@@ -361,9 +371,7 @@ async function putReasoningRow(row) {
 
       <span class="lu-fl">{{ t('kit.provider.typeLabel') }}</span>
       <div v-if="isBuiltin"><span class="lu-locked">{{ t('kit.provider.builtinType') }}</span></div>
-      <select v-else class="lu-input" :value="draft.providerType" @change="draft.providerType = $event.target.value">
-        <option v-for="pt in PROVIDER_TYPES" :key="pt.value" :value="pt.value">{{ pt.label }}</option>
-      </select>
+      <UiSelect v-else v-model="draft.providerType" :options="PROVIDER_TYPES" width="name" />
 
       <!-- Model slots are REMOTE-provider-only (user, 2026-07-06: "no default chat model
            like gpt-4o-mini, we pull model from provider once connected"). The local

@@ -63,7 +63,11 @@ import {
   warmModelId,
   withAiTask,
 } from "@delebash/ui";
+import { fmtBytes, fmtSpeed } from "@delebash/ui/common/services/downloadRate.js";
 import LuModelCatalog from "@delebash/ui/components/LuModelCatalog.vue";
+import TuneMeasureModal from "@delebash/ui/components/TuneMeasureModal.vue";
+import PricingEditor from "@delebash/ui/views/PricingEditor.vue";
+import ProviderForm from "@delebash/ui/views/ProviderForm.vue";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
 import { computeAccessibleDescription, computeAccessibleName } from "dom-accessibility-api";
@@ -880,6 +884,73 @@ test("the catalog's fit chip says its facts as a sentence, then the speed as its
   expect(chip.getAttribute("title")).toMatch(
     /^Estimated — needs ~3\.1 GB VRAM · you have 8 GB( · not yet tested on your PC class)?\. Estimated speed: ~7\.9 tok\/s — a real run replaces this estimate\.$/,
   );
+});
+
+// ── JustWrite's box checks, round two (2026-10-24) ─────────────────────────────────────────────────
+
+const flushAll = async (n = 8) => {
+  for (let i = 0; i < n; i++) await flushPromises();
+};
+const typeInto = async (input, text) => {
+  input.value = text;
+  input.dispatchEvent(new Event("input"));
+  await flushAll(2);
+};
+
+test("the Tune dialog's header says the catalog row's state — a class-configured model isn't 'Not tuned'", async () => {
+  serve({ "/v1/ai/model-tunes/state": { classKey: "vram8|ram32", tuned: {}, classConfigured: [ID] } });
+  wrapper = mount(TuneMeasureModal, { props: { model: { id: ID, name: NAME } }, attachTo: document.body, global: { plugins: withPinia() } });
+  await flushAll();
+  expect(document.body.querySelector(".lu-tune-savedtag")?.textContent.trim()).toBe("Tuned by PC class config — using the layered defaults");
+});
+
+test("the price table: Save only on an edited row, one row's save keeps another's edit, the buttons inside their cell", async () => {
+  let rows = [
+    { modelId: "gpt-a", inputPerM: 1, outputPerM: 2 },
+    { modelId: "gpt-b", inputPerM: 3, outputPerM: 4 },
+  ];
+  const puts = [];
+  vi.stubGlobal("fetch", vi.fn(async (_url, init = {}) => {
+    if (init.method === "PUT") {
+      const b = JSON.parse(init.body);
+      puts.push(b);
+      rows = rows.map((r) => (r.modelId === b.modelId ? b : r));
+    }
+    return new Response(JSON.stringify({ rows }), { status: 200, headers: { "content-type": "application/json" } });
+  }));
+  wrapper = mount(PricingEditor, { attachTo: document.body, global: { plugins: withPinia() } });
+  await flushAll();
+  const saves = () => [...document.body.querySelectorAll("button")].filter((b) => b.textContent.trim() === "Save");
+  const boxes = () => [...document.body.querySelectorAll(".lu-price-tbl tbody tr")].slice(0, 2).map((tr) => tr.querySelectorAll("input"));
+  expect(saves()).toHaveLength(0); // nothing edited, no primary button on every row
+  // a <td> set to flex stops being a table cell: the buttons' row is a div inside it
+  expect(document.body.querySelector("td > .lu-price-act")).not.toBeNull();
+  expect(document.body.querySelector("td.lu-price-act")).toBeNull();
+  await typeInto(boxes()[0][0], "1.5");
+  await typeInto(boxes()[1][1], "9");
+  expect(saves()).toHaveLength(2);
+  saves()[0].click();
+  await flushAll();
+  expect(puts).toEqual([{ modelId: "gpt-a", inputPerM: 1.5, outputPerM: 2 }]);
+  expect(saves()).toHaveLength(1); // gpt-a saved; gpt-b's edit is still there, still unsaved
+  expect(boxes()[1][1].value).toBe("9");
+});
+
+test("the provider form shows the timeout it saves, and picks the provider type with the kit's select", async () => {
+  serve({});
+  const provider = { id: "p1", name: "My server", providerType: "openai-compat", baseUrl: "http://127.0.0.1:9/v1", timeoutSeconds: 120, local: true };
+  wrapper = mount(ProviderForm, { props: { provider }, attachTo: document.body, global: { plugins: withPinia() } });
+  await flushAll();
+  const text = document.body.textContent;
+  expect(text).toContain("Timeout (seconds)");
+  expect([...document.body.querySelectorAll("input")].some((i) => i.value === "120")).toBe(true);
+  expect(document.body.querySelector("select.lu-input")).toBeNull(); // the hand-rolled <select> is gone
+});
+
+test("a size and its unit never part: a no-break space between them", () => {
+  expect(fmtBytes(5.0 * 1024 ** 3)).toBe("5.0 GB");
+  expect(fmtBytes(300 * 1024 ** 2)).toBe("300 MB");
+  expect(fmtSpeed(12 * 1024 ** 2)).toBe("12 MB/s");
 });
 
 // ── The twentieth review (2026-10-20): a field in error ─────────────────────────────────────────────────

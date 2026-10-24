@@ -1292,6 +1292,8 @@
       "name": "Name",
       "namePh": "My provider",
       "baseUrl": "Base URL",
+      "timeout": "Timeout (seconds)",
+      "timeoutHint": "How long to wait for an answer. A local model thinking at High can take several minutes; the built-in provider's default is 900.",
       "apiKey": "API key",
       "keySavedPh": "••••••••  (a key is saved)",
       "keySaved": "🔒 An API key is saved (never shown). Leave blank to keep it — typing replaces it.",

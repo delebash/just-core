@@ -55,6 +55,20 @@ test("reseed_refreshes_old_seeded_provider_name_only", () => {
   expect(h.get("llm_providers", "local-llamacpp").name).toBe("My box's engine");
 });
 
+test("reseed_refreshes_an_old_seeded_timeout_only", () => {
+  // JustWrite, 2026-10-24: a database made before f9f6268 kept the built-in provider's old 60 s, and a
+  // non-streamed local run thinking at High failed at 61 s. Reseed gives it today's 900 — only while it
+  // still holds exactly the old seeded value; a timeout the user set is never touched.
+  expect(h.get("llm_providers", "local-llamacpp").timeout_seconds).toBe(900); // fresh seed
+  h.update("llm_providers", { timeout_seconds: 60 }, { id: "local-llamacpp" }); // a pre-f9f6268 database
+  h.tx(() => seed.seedDefaultProviders(h));
+  expect(h.get("llm_providers", "local-llamacpp").timeout_seconds).toBe(900);
+
+  h.update("llm_providers", { timeout_seconds: 300 }, { id: "local-llamacpp" }); // the user's own value
+  h.tx(() => seed.seedDefaultProviders(h));
+  expect(h.get("llm_providers", "local-llamacpp").timeout_seconds).toBe(300);
+});
+
 test("seed_routing_ships_no_selections", () => {
   const d = stores.getRoutingStore().getRouting().default;
   expect(d.embeddingId).toBe("");

@@ -1590,7 +1590,7 @@ refreshApplied();
 
     <!-- Tune & measure (#20) — shared modal, opened per model; closing refetches
          the badge state (an Apply/Remove inside changes exactly that). -->
-    <TuneMeasureModal v-if="tuning" :model="tuning" @close="closeTuneModal" />
+    <TuneMeasureModal v-if="tuning" :model="tuning" :tune-badge-id="tuneBadgeIdOf(tuneState, tuning.id, otherClassCount(tuning.id)) || ''" @close="closeTuneModal" />
   </div>
 </template>
 

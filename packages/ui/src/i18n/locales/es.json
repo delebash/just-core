@@ -1292,6 +1292,8 @@
       "name": "Nombre",
       "namePh": "Mi proveedor",
       "baseUrl": "URL base",
+      "timeout": "Tiempo de espera (segundos)",
+      "timeoutHint": "Cuánto esperar una respuesta. Un modelo local que razona en Alto puede tardar varios minutos; el proveedor integrado usa 900.",
       "apiKey": "Clave de API",
       "keySavedPh": "••••••••  (se guardó una clave)",
       "keySaved": "🔒 Se guardó una clave de API (nunca se muestra). Déjala en blanco para mantenerla; escribir una nueva la reemplazará.",

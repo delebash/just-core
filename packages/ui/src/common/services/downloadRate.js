@@ -44,25 +44,29 @@ export function createRateTracker({ windowMs = 6000, now = () => Date.now() } = 
   };
 }
 
+// A number and its unit never part across lines: a no-break space between them (the SI style; a narrow
+// splash wrapped "5.0 GB / 15.7" with "GB" alone on the next line — JustWrite, 2026-10-24).
+const NBSP = " ";
+
 // The ONE byte formatter (moved here from useEngine/useRunnerModels, which carried
 // two identical copies — same thresholds, same output).
 export function fmtBytes(n) {
   if (!n) return "";
   const mb = n / (1024 * 1024);
-  if (mb >= 1024) return `${size(mb / 1024, 1)} GB`;
-  if (mb >= 1) return `${size(Math.round(mb), 0)} MB`;
+  if (mb >= 1024) return `${size(mb / 1024, 1)}${NBSP}GB`;
+  if (mb >= 1) return `${size(Math.round(mb), 0)}${NBSP}MB`;
   // Sub-MB never rounds to a lying "0 MB" (a 490 KB database is not
   // nothing — JV's Disk-usage panel showed all-zero rows over real bytes).
-  return `${size(Math.max(1, Math.round(n / 1024)), 0)} KB`;
+  return `${size(Math.max(1, Math.round(n / 1024)), 0)}${NBSP}KB`;
 }
 
 export function fmtSpeed(bytesPerSec) {
   if (!bytesPerSec || bytesPerSec <= 0) return "";
   const mbps = bytesPerSec / (1024 * 1024);
-  if (mbps >= 1024) return `${size(mbps / 1024, 1)} GB/s`;
-  if (mbps >= 10) return `${size(Math.round(mbps), 0)} MB/s`;
-  if (mbps >= 1) return `${size(mbps, 1)} MB/s`;
-  return `${size(Math.max(1, Math.round(bytesPerSec / 1024)), 0)} KB/s`;
+  if (mbps >= 1024) return `${size(mbps / 1024, 1)}${NBSP}GB/s`;
+  if (mbps >= 10) return `${size(Math.round(mbps), 0)}${NBSP}MB/s`;
+  if (mbps >= 1) return `${size(mbps, 1)}${NBSP}MB/s`;
+  return `${size(Math.max(1, Math.round(bytesPerSec / 1024)), 0)}${NBSP}KB/s`;
 }
 
 export function fmtEta(seconds) {

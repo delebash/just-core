@@ -575,6 +575,11 @@ export const DEFAULT_KNOBS = [
 // of these old seeded strings — a user's own rename is a different fact and is never
 // touched.
 const RENAMED_PROVIDER_NAMES = { "local-llamacpp": ["Built-in server — llama.cpp"] };
+// Prior seeded timeouts, per provider id, the same way: the built-in provider's was 60 s until f9f6268
+// (2026-10-07) made it 900 — a database made before kept 60, and a non-streamed local run thinking at High
+// failed at 61 s while llama-server answered at 82 s (JustWrite, 2026-10-24). A row still holding exactly
+// an old seeded value gets today's; a user's own timeout is never touched.
+const PRIOR_PROVIDER_TIMEOUTS = { "local-llamacpp": [60] };
 
 // ── seeders (operate on the passed handle; the caller's tx is the commit) ────
 export function seedDefaultProviders(h) {
@@ -586,6 +591,9 @@ export function seedDefaultProviders(h) {
       const row = existing.get(p.id);
       if ((RENAMED_PROVIDER_NAMES[p.id] || []).includes(row.name)) {
         h.update("llm_providers", { name: strOr(p, "name", "") }, { id: p.id });
+      }
+      if ((PRIOR_PROVIDER_TIMEOUTS[p.id] || []).includes(Number(row.timeout_seconds))) {
+        h.update("llm_providers", { timeout_seconds: intOr(p, "timeout_seconds", 60) }, { id: p.id });
       }
       continue;
     }

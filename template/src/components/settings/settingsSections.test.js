@@ -169,7 +169,7 @@ describe("Storage", () => {
     expect(text()).toContain("D:/hp-data");
     expect(text()).toContain("your notes"); // what this app saves, in the kit's sentence
     expect(button("Change folder")).toBeUndefined();
-    expect(text()).toMatch(/\d(\.\d)? GB/); // the models cache, 2e9 bytes
+    expect(text()).toMatch(/\d(\.\d)? GB/); // the models cache, 2e9 bytes (the kit's fmtBytes: a no-break space)
   });
 
   test("Change folder asks first, then hands the folder to the shell; No moves nothing", async () => {

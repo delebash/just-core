@@ -36,7 +36,7 @@ import { classKeyLabel, listClassTunes, putClassTune } from "../classTunes.js";
 import { fetchKnobCatalog, plane1SwitchCatalog } from "../knobCatalog.js";
 import { recordMeasurement } from "../measurements.js";
 import { resolveModelDefaults } from "../modelDefaults.js";
-import { classLayerLabel, TUNE_BADGES } from "../tuneState.js";
+import { classLayerLabel, fetchTuneState, TUNE_BADGES, tuneBadgeIdOf } from "../tuneState.js";
 import { confirmDialog } from "../common/services/dialog.js";
 import { pushToast } from "../common/services/toastBridge.js";
 import { fmtSeconds, fmtTokens, fmtTps } from "../common/services/runStats.js";
@@ -51,6 +51,9 @@ import { presetDisplayName } from "../services/seededWords.js";
 
 const props = defineProps({
   model: { type: Object, required: true }, // { id, name } — the model being tuned
+  // The catalog row's tune state for this model on this PC (tuneBadgeIdOf — the catalog knows the other
+  // classes' count); "" when the opener doesn't, and the modal reads the state itself.
+  tuneBadgeId: { type: String, default: "" },
 });
 const emit = defineEmits(["close"]);
 
@@ -117,6 +120,7 @@ const savedTune = ref(null);
 const saveState = ref(""); // "" | saving | removing
 const saveErr = ref("");
 const applyMsg = ref(""); // transient "Applied ✓ …" note after a completed Apply
+const rowState = ref(props.tuneBadgeId || null); // the catalog row's tune state (tuneBadgeIdOf) for the header
 
 // ── the §7.6 header badge (B3-4) — Auto-tuned / Hand-tuned / Untuned. QC-3
 // (2026-07-08, the user: "this just has one class defaults andt that is not true,
@@ -135,8 +139,12 @@ const headerBadge = computed(() => {
   }
   // Same five-state vocabulary as the catalog row (2026-07-26, the user: "should be
   // consistent") — the label comes from the shared family, never a local literal, so
-  // the two surfaces cannot drift into two words for one state.
-  return { intent: TUNE_BADGES.untuned.intent, label: t("kit.tuneModal.badge.untuned", { label: t(TUNE_BADGES.untuned.labelKey) }) };
+  // the two surfaces cannot drift into two words for one state. The header names the
+  // ROW's state (a class-configured model said "Not tuned" here while its row said
+  // "Tuned by PC class config" — JustWrite, 2026-10-24) and keeps QC-3's truth in the
+  // same line: "— using the layered defaults" (the config is still a mix of layers).
+  const id = TUNE_BADGES[rowState.value] ? rowState.value : "untuned";
+  return { intent: TUNE_BADGES[id].intent, label: t("kit.tuneModal.badge.untuned", { label: t(TUNE_BADGES[id].labelKey) }) };
 });
 const driftCount = computed(() => savedTune.value?.driftCount || 0);
 
@@ -494,6 +502,8 @@ onMounted(() => {
   startTune();
   loadSavedTune();
   loadMyClassKey();
+  // the row's state, when the opener didn't hand it (the class count isn't known here: "elsewhere" reads untuned)
+  if (!props.tuneBadgeId) fetchTuneState().then((s) => { rowState.value = tuneBadgeIdOf(s, props.model.id); });
 });
 onBeforeUnmount(stopAutoPoll);
 </script>

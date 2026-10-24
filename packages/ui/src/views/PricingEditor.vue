@@ -21,7 +21,18 @@ const error = ref("");
 const draft = ref({ modelId: "", inputPerM: "", outputPerM: "" });
 const busy = ref(""); // the modelId (or "__add") currently saving/deleting
 
-function _apply(d) { rows.value = (d.rows || []).map((r) => ({ ...r })); }
+// Each row keeps the prices the server has (`base`), so Save shows only on a row edited here — one primary
+// button per change, not one on every row. A save or a remove answers the whole list: a row edited here and
+// not yet saved keeps its edits (it used to lose them to another row's save).
+const pricesOf = (r) => ({ inputPerM: String(r.inputPerM), outputPerM: String(r.outputPerM) });
+const isEdited = (r) => !!r.base && (String(r.inputPerM) !== r.base.inputPerM || String(r.outputPerM) !== r.base.outputPerM);
+function _apply(d, savedId = null) {
+  const edited = new Map(rows.value.filter((r) => r.modelId !== savedId && isEdited(r)).map((r) => [r.modelId, r]));
+  rows.value = (d.rows || []).map((r) => {
+    const mine = edited.get(r.modelId);
+    return { ...r, ...(mine ? { inputPerM: mine.inputPerM, outputPerM: mine.outputPerM } : {}), base: pricesOf(r) };
+  });
+}
 
 async function load() {
   loading.value = true; error.value = "";
@@ -32,7 +43,7 @@ async function load() {
 
 async function put(body, key) {
   busy.value = key; error.value = "";
-  try { _apply(await request("/v1/ai/pricing", { method: "PUT", body })); return true; }
+  try { _apply(await request("/v1/ai/pricing", { method: "PUT", body }), body.modelId); return true; }
   catch (e) { error.value = e.message || t("kit.pricing.err.save"); return false; }
   finally { busy.value = ""; }
 }
@@ -76,16 +87,18 @@ onMounted(load);
           <td class="lu-price-id">{{ r.modelId }}</td>
           <td><UiInput v-model="r.inputPerM" type="number" width="token" /></td>
           <td><UiInput v-model="r.outputPerM" type="number" width="token" /></td>
-          <td class="lu-price-act">
-            <UiButton intent="primary" size="small" :loading="busy === r.modelId" @click="saveRow(r)">{{ t('kit.common.save') }}</UiButton>
-            <UiButton intent="ghost" size="small" :title="t('kit.common.remove')" @click="delRow(r)">✕</UiButton>
+          <td>
+            <div class="lu-price-act">
+              <UiButton v-if="isEdited(r)" intent="primary" size="small" :loading="busy === r.modelId" @click="saveRow(r)">{{ t('kit.common.save') }}</UiButton>
+              <UiButton intent="ghost" size="small" :title="t('kit.common.remove')" :aria-label="t('kit.common.remove')" @click="delRow(r)">✕</UiButton>
+            </div>
           </td>
         </tr>
         <tr class="ui-formgrid-add lu-price-add">
           <td><UiInput v-model="draft.modelId" :placeholder="t('kit.pricing.idExample', { id: MODEL_ID_EXAMPLE })" /></td>
           <td><UiInput v-model="draft.inputPerM" type="number" placeholder="0" width="token" /></td>
           <td><UiInput v-model="draft.outputPerM" type="number" placeholder="0" width="token" /></td>
-          <td class="lu-price-act"><UiButton intent="secondary" size="small" :loading="busy === '__add'" @click="addRow">{{ t('kit.pricing.add') }}</UiButton></td>
+          <td><div class="lu-price-act"><UiButton intent="secondary" size="small" :loading="busy === '__add'" @click="addRow">{{ t('kit.pricing.add') }}</UiButton></div></td>
         </tr>
       </tbody>
     </table>
@@ -98,5 +111,7 @@ onMounted(load);
 /* Table mechanics come from the shared .ui-formgrid; only the width cap is this editor's. */
 .lu-price-tbl { max-width: 620px; }
 .lu-price-id { font-family: var(--font-mono, monospace); color: var(--ink); }
-.lu-price-act { display: flex; gap: 6px; justify-content: flex-end; }
+/* The buttons' row is a div INSIDE the cell: a <td> set to flex stops being a table cell and no longer
+   takes its row's height (its rule sat 14 px above the row's — JustWrite, 2026-10-24). */
+.lu-price-act { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
 </style>
