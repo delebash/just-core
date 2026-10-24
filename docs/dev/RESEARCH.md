@@ -2401,3 +2401,6 @@ touches the subject. History in [`../plans/archive/`](../plans/archive/) is not 
 target tree are in [`../plans/archive/`](../plans/archive/).
 
 **Installing the stack** — [`install-runbook.md`](install-runbook.md).
+
+**just-direct — ArtCraft, and video/3D/voice/music models on an 8 GB card** (no repo yet; moves to the app's
+register when it exists) — [`2026-10-24-just-direct-feasibility.md`](../plans/2026-10-24-just-direct-feasibility.md).
