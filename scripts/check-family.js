@@ -1580,6 +1580,13 @@ function checkKitLooks(app) {
   const sheet = join(app.dir, "src", "css", "app.scss");
   const copies = existsSync(sheet) ? [...bareClasses(readFileSync(sheet, "utf8"))].filter((c) => kit.has(c)).sort() : [];
   if (listed && copies.length) fail(app.name, `src/css/app.scss defines the kit's ${copies.map((c) => `.${c}`).join(", ")} again — it lists the kit's common/app.css; keep only the app's own looks`);
+  if (listed) {
+    // the page tokens the sheet reads with a fallback (tokens.contract.css, "Page tokens"): named when the app has none
+    const tokens = existsSync(join(app.dir, "src", "css", "tokens.css")) ? readFileSync(join(app.dir, "src", "css", "tokens.css"), "utf8") : "";
+    const sheetTokens = [...new Set([...readFileSync(KIT_LOOKS, "utf8").matchAll(/var\((--[\w-]+),/g)].map((m) => m[1]))];
+    const missing = sheetTokens.filter((tk) => !new RegExp(`${tk}\\s*:`).test(tokens));
+    if (missing.length) info(app.name, `src/css/tokens.css doesn't define ${missing.join(", ")} — the kit's common/app.css uses the template's values for them (tokens.contract.css, "Page tokens")`);
+  }
   else if (!listed && app === TEMPLATE) fail(app.name, "quasar.config.js doesn't list ~@delebash/ui/common/app.css — the family's page looks");
   else if (!listed && copies.length) info(app.name, `src/css/app.scss copies ${copies.length} of the kit's page looks (${copies.slice(0, 6).map((c) => `.${c}`).join(", ")}${copies.length > 6 ? "…" : ""}) — list ~@delebash/ui/common/app.css before it and keep only the app's own (the engines plan, F6)`);
 }

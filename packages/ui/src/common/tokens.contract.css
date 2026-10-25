@@ -75,6 +75,15 @@
  *   --tag-border-width  0 = borderless soft-tint tags (JustWrite);
  *                       1px = outlined pills (JustVoice)
  *
+ * ── Page tokens (the family's page looks, common/app.css — 2026-10-24) ─────
+ *   --bg               the window's ground, under the shell and the cards (fallback: --surface-2)
+ *   --font-ui          the UI's font stack; --font-mono the code and number font stack
+ *   --fs-body          body text (14px); --fs-h2 a card's heading (15px); --fs-small hints, nav, mono (12.5px)
+ *   --r-card           a card's corner radius (10px)
+ *   --sp-1 … --sp-5    the spacing steps: 4, 8, 12, 16, 24px
+ *   common/app.css reads each with that value as its fallback; the family guard names the ones an app
+ *   listing the sheet leaves undefined. The template's tokens.css defines them all, both themes.
+ *
  * Reference defaults (copy + retune; do NOT import this file):
  *
  *   :root {
