@@ -80,6 +80,8 @@
  *   --font-ui          the UI's font stack; --font-mono the code and number font stack
  *   --fs-body          body text (14px); --fs-h2 a card's heading (15px); --fs-small hints, nav, mono (12.5px)
  *   --r-card           a card's corner radius (10px)
+ *   --card-pad         a card's padding (--sp-4); --card-gap the space under a card (--sp-4 — 0 where a grid's gap
+ *                      spaces the cards)
  *   --sp-1 … --sp-5    the spacing steps: 4, 8, 12, 16, 24px
  *   common/app.css reads each with that value as its fallback; the family guard names the ones an app
  *   listing the sheet leaves undefined. The template's tokens.css defines them all, both themes.

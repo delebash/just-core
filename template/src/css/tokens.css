@@ -64,6 +64,8 @@
   /* type and space — every page reads these, never a literal */
   --fs-small: 12.5px; --fs-body: 14px; --fs-h2: 15px;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px;
+  /* a card's padding and the space under it (the kit's common/app.css) — 0 gap where a grid spaces the cards */
+  --card-pad: var(--sp-4); --card-gap: var(--sp-4);
 
   /* content-typed width caps (.ui-w-*): a field is as wide as what it holds */
   --w-num: 84px; --w-token: 110px; --w-id: 180px; --w-name: 280px; --w-url: 360px;
