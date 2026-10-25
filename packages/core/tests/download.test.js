@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { sleep } from "../src/platform/asyncutil.js";
+import * as http from "../src/platform/http.js";
 import { RuntimeError } from "../src/platform/py.js";
 import * as dl from "../src/runner/download.js";
 import { CONNECTIONS, DownloadCancelled, RETRIES, streamDownload } from "../src/runner/download.js";
@@ -24,7 +25,8 @@ import { CONNECTIONS, DownloadCancelled, RETRIES, streamDownload } from "../src/
 // A file another program holds a moment (an antivirus reading what was just written): the first rename of
 // a path armed in `held.ends` is refused with EBUSY, as Windows answers it; every other rename is the real one.
 const held = vi.hoisted(() => {
-  const state = { ends: new Set() };
+  // `fullDisk`: "truncate" or "write" — that file-handle call fails the way a full drive answers it.
+  const state = { ends: new Set(), fullDisk: "" };
   state.check = (from) => {
     for (const end of state.ends) {
       if (String(from).endsWith(end)) {
@@ -49,7 +51,14 @@ vi.mock("node:fs/promises", async (importOriginal) => {
     held.check(from);
     return real.rename(from, to);
   };
-  return { ...real, default: { ...real, rename }, rename };
+  const enospc = () => Object.assign(new Error("ENOSPC: no space left on device"), { code: "ENOSPC" });
+  const open = async (...a) => {
+    const fh = await real.open(...a);
+    if (held.fullDisk === "truncate") fh.truncate = async () => Promise.reject(enospc());
+    if (held.fullDisk === "write") fh.write = async () => Promise.reject(enospc());
+    return fh;
+  };
+  return { ...real, default: { ...real, rename, open }, rename, open };
 });
 
 // ~2 MB + an odd tail so segment splits don't land on round boundaries.
@@ -165,6 +174,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   held.ends.clear();
+  held.fullDisk = "";
   server.http.closeAllConnections?.();
   await new Promise((r) => server.http.close(r));
 });
@@ -401,6 +411,42 @@ test("chunk_count_is_bounded_by_request_discipline", async () => {
 });
 
 // ── the downloader's own connections and retries — not settings (2026-10-18) ─────────
+
+test("each_part_rides_its_own_connection", async () => {
+  // undici's HTTP/2 puts every request to one server on ONE connection, so 8 parts on the shared agent went at the
+  // speed of 1 against a server that caps each connection (GitHub's release files: 1.2 MB/s vs 6.7 MB/s, measured
+  // 2026-10-25). Each worker takes its own agent from http.newAgent and closes it when it ends.
+  const made = [];
+  const realNewAgent = http.newAgent;
+  vi.spyOn(http, "newAgent").mockImplementation(() => {
+    const a = realNewAgent();
+    vi.spyOn(a, "destroy");
+    made.push(a);
+    return a;
+  });
+  const fetchSpy = vi.spyOn(http, "fetch");
+  const dest = join(tmpPath, "own.bin");
+  await streamDownload(url(server), dest, { segments: 4, chunkSize: CHUNK, pollInterval: 0.02 });
+  expect(readFileSync(dest).equals(PAYLOAD)).toBe(true);
+  const chunkCalls = fetchSpy.mock.calls.filter(([, init]) => init?.headers?.Range && init.headers.Range !== "bytes=0-0");
+  expect(made).toHaveLength(4);
+  expect(new Set(chunkCalls.map(([, init]) => init.dispatcher))).toEqual(new Set(made)); // every chunk on an own agent, all 4 used
+  for (const a of made) expect(a.destroy).toHaveBeenCalled();
+});
+
+test("a_full_drive_says_so_in_words", async () => {
+  // The raw error was "ENOSPC: no space left on device, ftruncate" (2026-10-25). A chunked download reserves the whole
+  // file up front, so it fails at once; a single stream fails on its first write — neither retries, neither leaves a part.
+  for (const [mode, segments] of [["truncate", 4], ["write", 1]]) {
+    held.fullDisk = mode;
+    const dest = join(tmpPath, `full-${mode}.bin`);
+    const err = await streamDownload(url(server), dest, { segments, chunkSize: CHUNK, pollInterval: 0.02 }).catch((e) => e);
+    expect(err).toBeInstanceOf(dl.DiskFullError);
+    expect(err.code).toBe("ENOSPC");
+    expect(err.message).toMatch(/^Not enough disk space to download full-\w+\.bin — it needs 0\.0 GB and the drive has [\d.]+ GB free/);
+    expect(existsSync(`${dest}.part`)).toBe(false);
+  }
+});
 
 test("connections_and_retries_are_the_downloaders_own", async () => {
   expect([CONNECTIONS, RETRIES]).toEqual([8, 3]);

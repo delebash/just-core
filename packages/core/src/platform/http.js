@@ -25,15 +25,27 @@ const LONG_MS = 15 * 60 * 1000;
  */
 export const H2_WINDOWS = { connectionWindowSize: 15 * 1024 * 1024, initialWindowSize: 6 * 1024 * 1024 };
 
-const agent = new EnvHttpProxyAgent({
-  headersTimeout: LONG_MS,
-  bodyTimeout: LONG_MS,
-  connectTimeout: 30_000,
-  ...H2_WINDOWS,
-  noProxy: noProxyWithLoopback(),
-});
+/**
+ * A new agent with the kit's timeouts, windows and proxy rules — its own connections. Pass it as
+ * `fetch(url, { dispatcher })` to keep requests off the shared agent's connection: undici's HTTP/2
+ * puts every request to one server on ONE connection, so a download's parallel parts each take
+ * their own agent (runner/download.js) — against a server that caps each connection, 8 parts on one
+ * connection go at the speed of 1 (GitHub's release files 1.2 MB/s, 6.7 MB/s each on its own;
+ * measured 2026-10-25, the kit's RESEARCH, "Downloads"). Close it when done.
+ */
+export function newAgent() {
+  return new EnvHttpProxyAgent({
+    headersTimeout: LONG_MS,
+    bodyTimeout: LONG_MS,
+    connectTimeout: 30_000,
+    ...H2_WINDOWS,
+    noProxy: noProxyWithLoopback(),
+  });
+}
 
-/** fetch(url, init) on the kit's agent. `init.timeoutMs` aborts the whole request. */
+const agent = newAgent();
+
+/** fetch(url, init) on the kit's agent (or `init.dispatcher`, one from newAgent()). `init.timeoutMs` aborts the whole request. */
 export function fetch(url, init = {}) {
   const { timeoutMs, signal, ...rest } = init;
   let sig = signal;

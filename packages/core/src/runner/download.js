@@ -33,9 +33,9 @@
 // rename after a write is retried while another program holds the file a moment (an antivirus
 // reading a part just written — `platform/rename_held.js`; it used to fail the whole download).
 
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statfsSync, statSync, writeFileSync } from "node:fs";
 import * as fsp from "node:fs/promises";
-import { dirname } from "node:path";
+import { basename, dirname } from "node:path";
 import { AsyncEvent, sleep, TimeoutError } from "../platform/asyncutil.js";
 import * as http from "../platform/http.js";
 import { HttpStatusError } from "../platform/http.js";
@@ -83,6 +83,30 @@ export class DownloadCancelled extends Error {
 
 /** A download that kept hitting 429/503 past the shared strike cap — the loud terminal
  * failure, distinct from transport retry exhaustion. */
+/**
+ * The drive can't hold the file — said in words instead of "ENOSPC: no space left on device, ftruncate" (a chunked
+ * download reserves the whole file up front, so it fails at once rather than at 90 %). `needBytes`/`freeBytes` for
+ * a screen; `code` stays "ENOSPC".
+ */
+export class DiskFullError extends RuntimeError {
+  constructor(dest, needBytes = null) {
+    let freeBytes = null;
+    try {
+      const s = statfsSync(dirname(dest));
+      freeBytes = Number(s.bavail) * Number(s.bsize);
+    } catch {}
+    const gb = (n) => `${(n / 1e9).toFixed(1)} GB`;
+    super(
+      `Not enough disk space to download ${basename(dest)}${needBytes ? ` — it needs ${gb(needBytes)}` : ""}` +
+        `${freeBytes != null ? ` and the drive has ${gb(freeBytes)} free` : ""}. Free up space, then try again.`,
+    );
+    this.name = "DiskFullError";
+    this.code = "ENOSPC";
+    this.needBytes = needBytes;
+    this.freeBytes = freeBytes;
+  }
+}
+
 export class RateLimitExceeded extends RuntimeError {
   constructor(m) {
     super(m);
@@ -275,9 +299,9 @@ async function singleStream(url, dest, onProgress, cancelCheck, retries, gate, h
   let last = null;
   let attempt = 0;
   while (attempt <= retries) {
+    let total = null; // the catch words a full drive with it
     try {
       let done = 0;
-      let total = null;
       const rt = readTimeout();
       try {
         const r = await http.fetch(url, { headers, signal: rt.signal });
@@ -313,6 +337,10 @@ async function singleStream(url, dest, onProgress, cancelCheck, retries, gate, h
         throw e;
       }
       if (e instanceof RateLimitExceeded) throw e; // the loud strike-out — never swallowed by the retry loop
+      if (e?.code === "ENOSPC") {
+        rmSync(part, { force: true });
+        throw new DiskFullError(dest, total); // a full drive doesn't get better on a retry
+      }
       last = e; // every transport error retries, then surfaces below
       attempt += 1;
       await sleep(Math.min(2.0, 0.5 * attempt) * 1000);
@@ -362,9 +390,14 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
     partial = new Map();
     const fh = await fsp.open(part, "w");
     try {
-      await fh.truncate(total); // sparse preallocate — chunks land at their offsets
-    } finally {
+      await fh.truncate(total); // the whole file reserved up front — chunks land at their offsets
+    } catch (e) {
+      if (e?.code !== "ENOSPC") throw e;
       await fh.close();
+      rmSync(part, { force: true });
+      throw new DiskFullError(dest, total);
+    } finally {
+      await fh.close().catch(() => {});
     }
   }
 
@@ -387,7 +420,12 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
   };
   persist(); // record the validator up front — a cancel before any chunk still resumes cleanly
 
-  const fetchChunk = async (i) => {
+  // Each worker on its OWN connection (its own agent), as download accelerators do (aria2, IDM): undici's HTTP/2
+  // puts every request to one server on one connection, and against a server that caps each connection (GitHub's
+  // release files) 8 parts on one connection went at the speed of 1 — 1.2 MB/s vs 6.7 MB/s (measured 2026-10-25).
+  const agents = Array.from({ length: Math.min(workers, nchunks) }, () => http.newAgent());
+
+  const fetchChunk = async (i, agent) => {
     const start = i * chunkSize;
     const end = Math.min(total, start + chunkSize) - 1;
     const want = end - start + 1;
@@ -404,6 +442,7 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
           const r = await http.fetch(url, {
             headers: { ...headers, Range: `bytes=${start + got}-${end}` },
             signal: rt.signal,
+            dispatcher: agent,
           });
           rt.touch();
           if (RATE_LIMIT_STATUSES.includes(r.status)) {
@@ -441,6 +480,10 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
           break;
         }
         if (cancelEvt.isSet()) return false; // the cancel aborted this request
+        if (e?.code === "ENOSPC") {
+          last = new DiskFullError(dest, total); // a full drive doesn't get better on a retry
+          break;
+        }
         last = e; // any transport error retries this chunk from where it stopped
         attempt += 1;
         await sleep(Math.min(2.0, 0.5 * attempt) * 1000);
@@ -451,11 +494,11 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
     return false;
   };
 
-  const worker = async () => {
+  const worker = async (agent) => {
     while (!cancelEvt.isSet() && !failEvt.isSet()) {
       const i = todo.shift();
       if (i === undefined) return;
-      if (await fetchChunk(i)) {
+      if (await fetchChunk(i, agent)) {
         done.add(i);
         persist();
       }
@@ -464,9 +507,7 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
 
   // A worker that dies on an unexpected error ends (as a Python thread did); the count check
   // below then fails the download.
-  const tasks = Array.from({ length: Math.min(workers, nchunks) }, () =>
-    worker().catch((e) => log.warning(`download worker failed: ${errStr(e)}`, e)),
-  );
+  const tasks = agents.map((agent) => worker(agent).catch((e) => log.warning(`download worker failed: ${errStr(e)}`, e)));
   let running = true;
   const all = Promise.all(tasks).then(() => {
     running = false;
@@ -485,9 +526,11 @@ async function chunked(url, dest, onProgress, cancelCheck, workers, retries, chu
     }
     await Promise.race([sleep(pollInterval * 1000), all]);
   }
+  for (const a of agents) a.destroy().catch(() => {}); // every worker has ended — its connection goes
 
   if (cancelEvt.isSet() || failEvt.isSet()) persist(); // the last progress, for the next run
   if (cancelEvt.isSet()) throw new DownloadCancelled(); // part + json stay → the next run resumes past `done`
+  if (state.err instanceof DiskFullError) throw state.err;
   if (failEvt.isSet() || done.size !== nchunks) {
     throw new RuntimeError(`download failed for ${url} after ${retries} retries: ${errStr(state.err)}`);
   }

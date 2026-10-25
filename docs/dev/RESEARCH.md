@@ -2286,9 +2286,10 @@ English".
 ## 9 · Downloads
 
 - **Every file download in the family goes through one path:** the downloader
-  (`packages/core/src/runner/download.js`, a chunk queue — 8 connections, each pulling
-  fixed-size parts, resumable from `<file>.json`) on the kit's one HTTP client
-  (`packages/core/src/platform/http.js`). No app calls `fetch` for a download itself (a grep of
+  (`packages/core/src/runner/download.js`, a chunk queue — 8 workers, each on its OWN connection
+  (`http.newAgent()`), pulling fixed-size parts, resumable from `<file>.json`) on the kit's one HTTP
+  client (`packages/core/src/platform/http.js`) (was: "8 connections" — they were 8 parts on ONE
+  connection until 2026-10-25). No app calls `fetch` for a download itself (a grep of
   JustVoice, JustWrite and docgen's `server/src` finds only comments). The AI providers' calls use
   their own agent per timeout value (`llm/base.js` `agentFor`), for the stream timeouts, not for
   downloads. — *code, 2026-10-18*.
@@ -2306,6 +2307,45 @@ English".
 - **The fix:** every agent the kit builds takes Chrome's windows (`http.H2_WINDOWS`, `http.js` and
   `llm/base.js`) — undici's documented `connectionWindowSize` / `initialWindowSize` options
   (undici.nodejs.org, Client options). Nothing for a user to set. — *code, 2026-10-18*.
+- **That fix left the parts on one connection, and a server that caps each connection kept every
+  download slow** (*measured, 2026-10-25*): GitHub's release files (release-assets.githubusercontent.com)
+  give ~1 MB/s a connection — curl 0.7–1.1 MB/s — so the sd.cpp engine install took ~12 min for 0.9 GB.
+  The windows fix only made the ONE shared connection fast, which suits Hugging Face (no per-connection
+  cap) and nothing else. Download accelerators (aria2, IDM) open a connection per part. **Since
+  2026-10-25 each worker of `chunked` takes its own agent** (`http.newAgent()`, the shared agent's
+  options) and destroys it when it ends — `download.test.js` "each_part_rides_its_own_connection" (it
+  fails on the old code).
+- **Model downloads ran on ONE part from 2026-10-18 to 2026-10-25** (*git + code*): `f9148c6` ("No
+  download settings") removed `...downloadKwargs(...)` from lifecycle's two `acquireModel` calls;
+  `acquireModel` defaulted `segments = 1` (since the 2026-10-07 port) and passed it to `streamDownload`, and
+  the commit's own comment claimed the downloader's 8 applied "when not given". `acquireFileSet`
+  (2026-10-24) copied the default. Both now default to `download.CONNECTIONS` / `RETRIES` —
+  `models.test.js` "a_model_download_uses_the_downloaders_own_parts_and_retries" (fails on the old code).
+  The 113 MB/s above was the downloader called directly, not the model path — nothing measured the path
+  that broke.
+- **Measured after the 2026-10-25 fix** (this PC; 15 s each, one at a time; MB/s):
+
+  | server | curl, 1 connection | kit, 1 part | kit, 8 parts |
+  |---|---|---|---|
+  | Hugging Face (22.8 GB GGUF) | 99.3 | 81.6 | 100.6 |
+  | GitHub release, sd.cpp zip | 1.1 | 1.2 | 8.7 |
+  | GitHub release, llama.cpp zip | 1.0 | 2.3 | 5.7 |
+  | PyPI / Fastly (773 MB wheel) | 20.8 | 36.9 | 80.5 |
+  | kernel.org mirror (6.25 GB ISO) | 9.4 | 9.2 | 42.7 |
+
+  Whole files, each hash against its published one: npm tarball 4.2 MB (one chunk → the single stream),
+  aka.ms → Microsoft CDN redirect 25.6 MB, GitHub sd.cpp zip 343.5 MB in 57–59 s, PyPI wheel 772.7 MB in
+  9.4 s — all match. Cancel at 3 s then resume: carried on from ~310 MB, hash matches. Four Hugging Face
+  files at once (32 connections): 92.3 MB/s together, no 429. The kit's own entry points into a fresh cache:
+  `RuntimeService.install` (sd.cpp + CUDA runtime from GitHub) 172 s (was ~12 min), `downloadModel` →
+  `acquireFileSet` 995 MB in 11.1 s (89.9 MB/s, SHA-256 checked), `acquireModel` (the lifecycle's path)
+  639 MB in 7.8 s. The process exits by itself after (no connection left open). Script: the just-direct
+  session's scratchpad `video-test/dltest.js`; the feasibility plan §F.
+- **A full drive is said in words** (*code, 2026-10-25*): a chunked download reserves the whole file up
+  front (`truncate`), so on a full drive it fails at once — the raw error was "ENOSPC: no space left on
+  device, ftruncate". `DiskFullError` (code `ENOSPC`, a `RuntimeError`): "Not enough disk space to download
+  <file> — it needs N GB and the drive has M GB free. Free up space, then try again."; no retries, no part
+  left. `download.test.js` "a_full_drive_says_so_in_words".
 - **Resume kept only finished chunks:** the request-count discipline sizes a chunk at file / 32 —
   697 MB for the 22 GB model — and `<file>.json` recorded only completed chunks, so restarting
   the app mid-download threw away every unfinished chunk's bytes (the same 18 of 32 done before
@@ -2317,8 +2357,9 @@ English".
 - **No download settings since 2026-10-18:** the "Faster downloads" group (on/off, connections,
   split size, retries) left AI Settings' engine panel, the engine-config API, the stored settings
   and the seed in every app — the user: "realistically a user should never need to touch download
-  settings it should just work at the best possible speed". A download's connections (8) and
-  retries (3) are the downloader's own (`download.CONNECTIONS`, `RETRIES`); `downloadMaxConcurrent`
+  settings it should just work at the best possible speed". A download's connections (8 — each its
+  own since 2026-10-25) and retries (3) are the downloader's own (`download.CONNECTIONS`, `RETRIES`;
+  the model paths default to them since 2026-10-25); `downloadMaxConcurrent`
   (files at once, 4) stays. Rows already in a database are ignored until its next reset. — *code,
   2026-10-18*.
 

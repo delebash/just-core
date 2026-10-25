@@ -616,9 +616,10 @@ export function cachedGgufPath(repo, quant, { cacheRoot, mmproj = null } = {}) {
  * Writes the canonical HF cache layout (blobs + snapshot symlink/copy + refs). Idempotent: a
  * blob already on disk at the right size is skipped. `onProgress(cumulative, total)` receives
  * cumulative bytes across ALL selected files against the summed grand total (one smooth
- * bar); `cancelCheck` is polled per file and passed to the stream. `segments`/`retries` pass
- * through to `streamDownload` (its own CONNECTIONS / RETRIES when not given); the on-disk blob
- * size is the integrity check.
+ * bar); `cancelCheck` is polled per file and passed to the stream. `segments`/`retries` default
+ * to the downloader's own (download.CONNECTIONS / RETRIES) — until 2026-10-25 they defaulted to
+ * 1 part and passed it on, so every model download ran on one connection. The on-disk blob size
+ * is the integrity check.
  *
  * `acquireModel(repo, quant, mmproj, {revision, cacheRoot, onProgress, cancelCheck,
  * segments, retries})`.
@@ -653,7 +654,7 @@ export function snapshotFilePath(cacheRoot, repo, revision, path) {
  * layout: each file a blob named by its SHA-256, checked against it, its snapshot path linked to it (linkSnapshot).
  * A file already there with its size is kept. → the snapshot paths, in the same order.
  */
-export async function acquireFileSet(files, { cacheRoot, onProgress = null, cancelCheck = null, segments = 1, retries = 3, verify = null } = {}) {
+export async function acquireFileSet(files, { cacheRoot, onProgress = null, cancelCheck = null, segments = download.CONNECTIONS, retries = download.RETRIES, verify = null } = {}) {
   const total = files.reduce((a, f) => a + Number(f.bytes || 0), 0) || null;
   let done = 0;
   const out = [];
@@ -693,7 +694,7 @@ export async function acquireModel(
   repo,
   quant,
   mmproj = null,
-  { revision = "main", cacheRoot = null, onProgress = null, cancelCheck = null, segments = 1, retries = 3 } = {},
+  { revision = "main", cacheRoot = null, onProgress = null, cancelCheck = null, segments = download.CONNECTIONS, retries = download.RETRIES } = {},
 ) {
   const [commitSha, files] = await self.selectFiles(repo, quant, mmproj, revision);
   const grandTotal = files.reduce((a, e) => a + _entrySize(e), 0) || null;

@@ -123,6 +123,24 @@ test("acquire_model_writes_hf_cache_layout", async () => {
   expect(progress.at(-1)).toEqual([8, 8]);
 });
 
+test("a_model_download_uses_the_downloaders_own_parts_and_retries", async () => {
+  // f9148c6 (2026-10-18) removed the download settings, and acquireModel's own default of 1 part then went to every
+  // model download — one connection, in every app, until 2026-10-25. Both model paths now pass the downloader's own.
+  mockGet(TREE);
+  const opts = [];
+  vi.spyOn(download, "streamDownload").mockImplementation(async (url, dest, o = {}) => {
+    mkdirSync(dirname(dest), { recursive: true });
+    writeFileSync(dest, Buffer.from("GGUF"));
+    opts.push([o.segments, o.retries]);
+  });
+  await models.acquireModel("owner/repo", "UD-Q4_K_XL", null, { cacheRoot: tmpPath });
+  const file = { repo: "owner/set", revision: "abc1234", path: "w.gguf", sha256: "f1", bytes: 4 };
+  await models.acquireFileSet([file], { cacheRoot: join(tmpPath, "set") });
+  const own = [download.CONNECTIONS, download.RETRIES];
+  expect(opts).toEqual([own, own, own]);
+  expect(own).toEqual([8, 3]);
+});
+
 test("acquire_model_idempotent", async () => {
   mockGet(TREE);
   const calls = [];
