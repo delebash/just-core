@@ -23,7 +23,17 @@ export const SDCPP_PROBE_ARGVS = Object.freeze([
 ]);
 
 /** A catalog row's file slots → sd-server's model flags (the recipe's slots: diffusion_model, llm, vae, …). */
-const SLOT_FLAGS = Object.freeze({ diffusion_model: "--diffusion-model", llm: "--llm", vae: "--vae", clip_l: "--clip_l", t5xxl: "--t5xxl", tae: "--taesd" });
+const SLOT_FLAGS = Object.freeze({
+  diffusion_model: "--diffusion-model",
+  llm: "--llm",
+  vae: "--vae",
+  clip_l: "--clip_l",
+  t5xxl: "--t5xxl",
+  tae: "--taesd",
+  // LTX-2.x (docs/ltx2.md): its audio VAE and its text encoder's embeddings connectors
+  audio_vae: "--audio-vae",
+  embeddings_connectors: "--embeddings-connectors",
+});
 
 /** sd-server's argv for one model: `files` `{slot: path}`, `blankPage` the empty page served at / instead of its WebUI. */
 export function sdServerArgv({ port, files, blankPage, offloadToCpu = true }) {

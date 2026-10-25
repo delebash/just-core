@@ -129,6 +129,80 @@ below is a proxy from another card.
   Wan looks; TRELLIS.2 at 512 on 8 GB; audio.cpp speed for ACE-Step, LatentSync, LiveAvatar on 8 GB; licenses of
   FramePack, HunyuanVideo-Foley, LingBot, the ncnn tools.
 
+## E · The quick test, measured on this PC (*measured, 2026-10-25* — the user's go "your rec go when ready"; bar:
+"i would like a 5s clip to take a max of 5 mins")
+
+How: everything through the kit — `RuntimeService.install` (sd.cpp `master-1004-a85db96` cuda12, the pinned build),
+`downloadModel` (pinned file sets, SHA-256 verified, the kit's HF cache layout), `ensureServer` + `runJob` with the
+arbiter, and the kit's new video job (`runner/sdcpp.js` `videoGen` / `runVideoJob` / `videoJobBody` →
+`POST /sdcpp/v1/vid_gen`, kit 59e3d87). The cache root is the session scratchpad, not the shared family cache inside
+JustWrite's data folder (the user's rule: test output never in an app's real data folder). Driver scripts and logs:
+the session scratchpad `video-test/`. sd-server turns flash attention on itself (`--flash-attn` default `auto`), so
+the kit's argv needed no flag. Nothing else on the card (JustVoice's session confirmed).
+
+- **FastWan 2.2 TI2V 5B Q8_0** (Green-Sky GGUF of FastVideo's 3-step DMD distill) + umt5-xxl Q8_0 + wan2.2_vae;
+  T2V, 1280×704, 121 frames, 24 fps (5.0 s, VP8 webm 26.3 MB), euler, 3 steps, cfg 1, flow shift 5, VAE tiled
+  (spatial 256 default, temporal, `temporal_decode_frames=1`):
+  - cold: **1,003 s** total — load + 3 steps done at 122 s (sampling 103.6 s), then the **VAE decode ~14 min** (36
+    tiles at ~23–28 s each). Peak card 7,146 MB (whole card, ~700 MB is the desktop), sd-server RAM 14.0 GB.
+  - warm (second run): sampling **94.1 s**; its decode was stopped (same settings, same ~14 min).
+  - Look: a fox in a snowy forest at golden hour, clear motion, sharp at 720p; motion blur as it nears the camera
+    (frames 0/60/120 viewed).
+  - **The decode is the bottleneck, not the model**: during it the card held only 4.2 GB.
+  - **The user, 2026-10-25: "the quality of the video is bad" · "as you say the fox is blurry this is not
+    acceptable"** — a full-size crop of frame 40 shows the face smeared (eyes and muzzle melt), waxy fur, soft trees;
+    the file is 44 Mbit/s VP8, so not the encoding. Suspects: the 5B model itself, or the sampling — FastWan was
+    distilled on DMD timesteps 1000/757/522 at flow shift 5 (FastVideo's `distill_dmd_t2v_5B.sh`), and this run used
+    sd.cpp's default 3-step schedule. **FAILS the quality bar as run.**
+- **A kit finding — sd-server can't open a model path over 260 characters.** The 14B's file in the kit's HF cache
+  layout under the scratchpad cache root was 298 characters (`models--QuantStack--Wan2.1_T2V_14B_LightX2V_
+  StepCfgDistill_VACE-GGUF/snapshots/<40-hex>/<56-char file>`); sd-server exited at start: `[E] cannot inspect model
+  source …` → `get sd version from file failed` → `new_sd_ctx_t failed`. The same file through a 34-character
+  junction (215 characters) opens. An app whose data folder is deep (a user profile path) plus a long repo/file name
+  can hit it — the kit should hand sd-server a path under the limit (Windows' `\\?\` prefix if sd.cpp's open
+  honours it, or a short link), and the model download should warn. Not yet checked: llama-server and audio.cpp.
+- **Wan 2.1 T2V 14B LightX2V 4-step, the VACE GGUF (Q4_K_M) — does not run at 720p on 8 GB.** 1280×720, 81 frames,
+  euler, 4 steps, cfg 1, flow shift 5, VAE tiled: sd.cpp first ran a VAE **encode** of an empty control video
+  because the file carries VACE blocks (`encode_first_stage` 361.8 s — 36 tiles at ~5 s, plus "wan_vae does not
+  support temporal tiling for encode"), then sampling failed at once: "model manager cannot make enough memory
+  available on CUDA0: need 8028.43 MB device / 7516.43 MB budget, available 7031.00 MB" → "Wan2.x-VACE-14B segment
+  1/42 (wan.prelude) failed during weight preparation". 378 s, no clip; sd-server peak RAM 6.4 GB. Choosing the VACE
+  file for plain text-to-video was my mistake (it was the only 4-step 14B GGUF found); a non-VACE 14B (city96
+  Q4_K_M + the lightx2v LoRA) skips the encode, but at 720p its own working memory is unmeasured and its 4 steps
+  were estimated at ~15 min from the 5B's per-step time — past the 5-minute bar either way.
+- **Wan 2.2 T2V A14B — not run**: two 14B experts used in turn, each with the 14B's 720p working memory that already
+  didn't fit, and ~25 GB of RAM.
+- **LTX-2.3's fast pipeline is two-stage** (*code, 2026-10-25*: Lightricks/LTX-2 `ltx_pipelines/utils/constants.py`
+  and `distilled.py`): stage 1 at half the target size with `DISTILLED_SIGMA_VALUES = [1.0, 0.99375, 0.9875, 0.98125,
+  0.975, 0.909375, 0.725, 0.421875, 0.0]` (8 steps), a ×2 spatial upsampler, stage 2 at full size with
+  `[0.909375, 0.725, 0.421875, 0.0]` (3 steps); 121 frames at 24 fps by default. sd.cpp runs it with `--hires`
+  (docs/ltx2.md), but **sd-server's `vid_gen` takes no `hires` object — it is `img_gen`-only** (*web*,
+  examples/server/api.md; upscalers live flat in `--hires-upscalers-dir`). Through the kit's server LTX can only run
+  one stage (all 8 steps at 720p); the two-stage route needs sd-server to grow `hires` for video (upstream) or the
+  kit to run sd-cli for it.
+
+## F · The kit's downloader, measured again (*measured, 2026-10-25*, 20 s each, one at a time, this PC)
+
+The user: "check your damn nots … we spent time on this recently and it was supposed to be fixe" · "read your notes
+this is exact probmel that you said you fixed last thime".
+
+| | curl, 1 connection | kit `streamDownload` segments=1 | kit segments=8 | undici, 8 parts on ONE agent | undici, 8 parts each on ITS OWN agent | curl, 8 separate HTTP/1.1 connections |
+|---|---|---|---|---|---|---|
+| Hugging Face (LTX Q8_0, 22.8 GB) | 103.2 MB/s | 86.2 | 97.7 | 100.4 | 104.8 | — |
+| GitHub release asset (sd.cpp cuda12 zip, via release-assets.githubusercontent.com) | 0.7 MB/s | 0.9 | 0.8 | 1.2 | **6.7** | **7.3** |
+
+- **Why it came back:** GitHub caps each connection (~0.7–1.2 MB/s today). The kit's 8 parts ride on ONE connection
+  — RESEARCH §9 recorded it ("every parallel part of a download to one server shares one connection", undici's
+  HTTP/2) — and the 2026-10-18 fix widened that one connection's windows, which fixed Hugging Face, but never gave
+  each part its own connection, which is what aria2 and IDM do. So "8 connections" (`download.CONNECTIONS`) is 1
+  against any server that limits per connection. The sd.cpp engine install today: ~0.9 GB in ~12 min.
+- **Second bug:** `models.acquireModel` and `models.acquireFileSet` default `segments = 1` and pass it to
+  `streamDownload` (models.js:656, :696), and no caller passes one (lifecycle.js:2930, :3182; runtime_service.js:274)
+  — every model download since the 2026-10-18 settings removal runs on one part, against "a download's connections
+  (8) … are the downloader's own".
+- **The fix, proven above with the kit's own undici:** each worker of `chunked` on its own agent (5.6× on GitHub,
+  +4 % on Hugging Face), and the model downloads on `download.CONNECTIONS`.
+
 ## D · The answer (argued against)
 
 - **Buildable on the kit: yes.** sd.cpp (image + video through sd-server's `img_gen`/`vid_gen` jobs), audio.cpp

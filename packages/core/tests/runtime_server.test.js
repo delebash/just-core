@@ -223,6 +223,9 @@ test("sd-server's video body: frames, fps, the flow shift and the VAE's tiling, 
     sample_params: { sample_method: "euler", sample_steps: 3, flow_shift: 5, custom_sigmas: [1, 0.757, 0.522, 0], guidance: { txt_cfg: 1 } },
   });
   expect(videoJobBody({ prompt: "p", width: 8, height: 8, frames: 5 })).not.toHaveProperty("vae_tiling_params");
+  // LTX-2.x's extra parts reach sd-server as their own flags
+  const argv = sdServerArgv({ port: 1, files: { diffusion_model: "ltx.gguf", llm: "gemma.gguf", vae: "v.safetensors", audio_vae: "a.safetensors", embeddings_connectors: "c.safetensors" } });
+  expect(argv).toEqual(expect.arrayContaining(["--audio-vae", "a.safetensors", "--embeddings-connectors", "c.safetensors"]));
 });
 
 test("the video job: posted to vid_gen, step progress, then the whole encoded file and what it is", async () => {
