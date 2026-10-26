@@ -2265,9 +2265,9 @@ English".
   linter is `@biomejs/biome` (2.5.x); a passing check prints "Checked N files". Run it from a
   checkout that installs it, from `ui/` for the kit's files (from the kit's root it stops on the
   nested `ui/biome.json`). — *measured 2026-10-13*, the i18n worktree.
-- **Four other checkouts load the kit from source** (`JustVioce-round3`, `justvoice-quasar`,
-  `justwrite-quasar`, `docgen-quasar`): a change to the kit's API reaches them too. —
-  *code, 2026-10-12*.
+- **The four other checkouts that loaded the kit from source** (`JustVioce-round3`, `justvoice-quasar`,
+  `justwrite-quasar`, `docgen-quasar`) **were removed on 2026-10-26**; none is left. — *code, 2026-10-12; the
+  folders checked 2026-10-26*.
 - **What a Spanish screen still shows in English, once the catalogs are complete, is seeded data
   and code tables:** statuses, worldbuilding categories, provider and engine-preset names, the AI
   page's feature and action labels, knob help, measurement labels (JustWrite, the kit, docgen);

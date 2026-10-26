@@ -111,7 +111,7 @@ below is a proxy from another card.
 - **3D**: TRELLIS.2 4B (MIT; DINOv3 its own license) has ggml ports (github.com/localai-org/trellis2cpp): 1024
   cascade ~10 GB card + 14 GB RAM spike, 512 path ~110 s on a 16 GB card. Hunyuan3D 2.1 shape 10 GB, texture 21 GB;
   no C++ path.
-- **Speech** (*measured on this PC* by JustVoice, `justvoice-quasar/docs/engines.md`): Kokoro 11.9× real time on CUDA
+- **Speech** (*measured on this PC* by JustVoice, `JustVioce/docs/engines.md`): Kokoro 11.9× real time on CUDA
   (< 1 GB), 3.2× on CPU; Qwen3-TTS 1.7B 1.9×; Chatterbox Multilingual 2.1× (~3.2 GB); VoxCPM2 1.3–1.4×; Pocket TTS
   on CPU 3.9–4.1× with cloning.
 - **Lip-sync**: LatentSync 1.6 18 GB and its InsightFace weights non-commercial; LiveAvatar (Wan2.2-S2V-14B) "near
