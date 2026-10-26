@@ -444,7 +444,8 @@ The template is the reference.
   renamed — the official Quasar scaffold already made into the family shape, every change from
   Quasar's default listed in its README. Copy only its tracked files (`git ls-files template`)
   and regenerate the lockfiles. The `/new-just-app` skill does all of this (`skills/new-just-app/`;
-  its generator `scripts/new-app.js`; `node scripts/install-skills.js` puts it in `~/.claude/skills/`).
+  its generator `scripts/new-app.js`; `node scripts/install-skills.js` puts it in Claude Code's user skills folder,
+  `$CLAUDE_CONFIG_DIR/skills/` when that is set, else `~/.claude/skills/`).
 - **Names, one per layer** — every new app is `just-<name>` (the user, 2026-10-17; the existing
   apps keep their names): the repo `just-<name>` · the shell's `id` `just<name>` (the `app://`
   host; no hyphens, Q.2) and the identifier `com.<id>.app` · the server package

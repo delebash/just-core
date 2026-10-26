@@ -1177,6 +1177,9 @@ template's missing files and the biome.json difference re-checked by this sessio
   a CLAUDE.md containing `@AGENTS.md` plus Claude-only lines (on Windows, the import rather than a symlink).
   A user skill (`~/.claude/skills/<name>/SKILL.md`) works in every project on the machine but not in cloud
   sessions; a plugin marketplace shares skills across machines but namespaces them (`/<plugin>:<skill>`).
+  (*measured, 2026-10-26*) With `CLAUDE_CONFIG_DIR` set (code.claude.com/docs/en/env-vars), the user skills
+  folder is `$CLAUDE_CONFIG_DIR/skills`, not `~/.claude/skills`: this machine's config moved to
+  `F:\ClaudeCode\config` that day, `~/.claude` is gone, and a new session lists `new-just-app` from F:.
   Husky 9.1.7 + lint-staged 17.6.0 is the standard pre-commit pair; Biome's recipe runs `biome check
   --staged`. create-quasar 5.0.34, quasar 2.35.1, @quasar/app-vite 3.10.3, electron 44.9.0 (2026-10-15/17).
 

@@ -1646,7 +1646,8 @@ checkClipboard("kit", KIT, walk(join(KIT, "packages", "ui", "src")), true);
 checkI18nKit();
 checkResearchRegister("kit", KIT);
 checkEsModules("kit", KIT, ["packages", "scripts", "skills"]);
-// The /new-just-app skill runs from ~/.claude/skills — advisory when that copy differs from the kit's.
+// The /new-just-app skill runs from Claude Code's user skills folder (install-skills.js
+// `userSkillsDir`) — advisory when that copy differs from the kit's.
 // A stale installed skill makes apps from old rules (2026-10-24): a failure, not a note.
 for (const d of installedSkillDrift()) fail("kit", `the installed skill ${d.name}/${d.file} differs from the kit's skills/ — run node scripts/install-skills.js`);
 

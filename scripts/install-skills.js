@@ -4,7 +4,8 @@
 //
 //   node scripts/install-skills.js
 //
-// Copies skills/<name>/ → ~/.claude/skills/<name>/ (Claude Code's user-skill location). The
+// Copies skills/<name>/ → <config>/skills/<name>/ (Claude Code's user-skill location; its config
+// folder is CLAUDE_CONFIG_DIR when set, else ~/.claude — code.claude.com/docs/en/env-vars). The
 // guard warns when an installed copy differs from the kit's (`installedSkillDrift`).
 
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
@@ -15,7 +16,8 @@ import { fileURLToPath } from "node:url";
 const KIT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(KIT, "skills");
 
-export const userSkillsDir = () => path.join(os.homedir(), ".claude", "skills");
+export const userSkillsDir = () =>
+  path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude"), "skills");
 
 /** The kit's skills whose installed copy is missing or differs: [{ name, file }]. */
 export function installedSkillDrift(dest = userSkillsDir()) {
