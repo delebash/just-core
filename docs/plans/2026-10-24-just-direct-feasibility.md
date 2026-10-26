@@ -180,6 +180,36 @@ the kit's argv needed no flag. Nothing else on the card (JustVoice's session con
   examples/server/api.md; upscalers live flat in `--hires-upscalers-dir`). Through the kit's server LTX can only run
   one stage (all 8 steps at 720p); the two-stage route needs sd-server to grow `hires` for video (upstream) or the
   kit to run sd-cli for it.
+- **LTX-2.3 22B distilled 1.1 Q4_K_M, one stage through the kit's server** (Gemma 3 12B Q4_K_M, the distilled
+  connectors and VAEs; 1280×720 → sd.cpp aligns to 1280×736, 121 frames, 24 fps, euler, the 8 distilled sigmas,
+  cfg 1, VAE tiled, `--mmap` — a test-only server flag, the weights in the scratchpad on C:'s SATA SSD): text 7.8 s,
+  8 steps **413 s**, audio decode 5.6 s, video decode **79.6 s**, **520 s** in all; card peak 6,980 MB, RAM peak
+  22.8 GB. **Every frame was white.**
+- **Why white: Gemma 3 on this card** (*measured, 2026-10-25*, sd-cli at 512×288 × 25 frames, one change at a time):
+  default sigmas and no tiling — white; the VAE on the CPU (`--backend vae=cpu`) — white; **the text encoder on the
+  CPU (`--backend te=cpu`) — a proper clip** (a fox trotting through snowy pines at golden hour). Gemma's activations
+  overflow fp16 (the card has no bf16), the conditioning goes bad and the whole video with it. Text on the CPU: 41.8 s
+  per prompt (7.8 s on the card, broken). **A kit gap:** a catalog row (or the runtime, by the card's bf16 support)
+  must be able to place a model part on the CPU — sd-server takes `--backend te=cpu`.
+- **The disk, not the card, set the small run's pace:** 8 steps at 512×288 × 25 frames (~600 positions) took 137 s —
+  ~17 s a step for a few seconds of arithmetic — because `--mmap` read the 13 GB of weights off the SATA SSD each
+  step. The app's real cache is on E: (NVMe), so the two-stage measurement reads its weights from a scratch copy on
+  E: (`E:\Dev\Web\_spikes\ltx`, not an app's data folder; deleted after).
+- **LTX-2.3 two-stage at 1280×736 × 121 (sd-cli, weights mmapped from the NVMe copy, Gemma on the CPU) — stopped by
+  Claude Code for low system memory** after the text step (42.1 s), during stage 1 (2026-10-25). The set is ~25 GB
+  (13.2 diffusion + 6.8 Gemma held in RAM for the CPU + 2.2 connectors + 1.7 VAEs + 0.9 upscaler) against ~20 GB free
+  with the other sessions' processes running. Not restarted (the harness's rule: only on the user's word). **32 GB of
+  RAM is tight for LTX 22B + Gemma 12B: in an app nothing else could run beside it.**
+  On 2026-10-26 free RAM was 15.6 of 31.9 GB with normal desktop use, and no one program held much of it: Edge 2.9 GB,
+  Claude 2.4, ChatGPT 1.7, Windows services 1.6. The pinned sd-cli (`master-1004-a85db96`, its `--help`) can keep
+  weights on disk instead of in RAM: `--params-backend` takes `disk` per part (e.g. `diffusion=disk`).
+  `--auto-fit`, on by default, places weights on the card, then in RAM, then on disk, by free memory, but an explicit
+  `--params-backend` turns it off. Streaming the 13.2 GB diffusion weights from disk would bring the set under the
+  free RAM, at the cost of reading them from NVMe on every step. Not run yet.
+- **HunyuanVideo 1.5 — not run, by arithmetic**: its VAE compresses 16×16×4 against LTX's 32×32×8, so 5 s at 720p is
+  ~111,600 positions against LTX's ~14,700 (which already took ~48 s a step here); sd.cpp has none of its sparse
+  attention, attention grows with the square, and it runs at cfg 6 over many more steps. An estimate from the
+  published compression, not a run.
 
 ## F · The kit's downloader, measured again (*measured, 2026-10-25*, 20 s each, one at a time, this PC)
 
