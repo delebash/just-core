@@ -233,6 +233,59 @@ this is exact probmel that you said you fixed last thime".
 - **The fix, proven above with the kit's own undici:** each worker of `chunked` on its own agent (5.6× on GitHub,
   +4 % on Hugging Face), and the model downloads on `download.CONNECTIONS`.
 
+## G · The viability round (*measured, 2026-10-26*)
+
+The user, 2026-10-26: "your rec keep testing until we determine if the app is viable, think on antying else or other
+models or methods that could make this app viable, think adversiarly go". The bar, restated the same day: "it can be
+over the 5 minute a little even 6 i just dont wnat a 5s click takking a real long time so that it make it not worth it,
+if figure 5 min should be ok but if it is a few min more that can be ok".
+
+How: sd-cli `master-1004-a85db96` under a RAM guard (stops the run when available RAM stays under 1 GB), driver
+scripts in `E:\Dev\Web\test-just-direct\` (`cli.js`, `srv.js`), weights on E: (NVMe), nothing else on the card, the
+browser closed for the clean runs (with it open: 19.3 GB available, 0.9 GB of the card in use). Prompt: the fox of §E;
+seed 42; 121 frames at 24 fps (5.0 s).
+
+- **LTX-2.3 two-stage at 1280×704 runs on this PC: 410 s cold (6.8 min), and it looks right.** Stage 1 640×352 × 8
+  distilled sigmas, the ×2 spatial upscaler, stage 2 1280×704 × 3 sigmas, Gemma on the CPU, the VAE in 384-pixel
+  tiles at 1/8 overlap: load ~22 s, text 44.6 s, stage 1 ~152 s (18–19 s a step), upscale 1.6 s, stage 2 ~134 s
+  (44.5 s a step), audio decode 5 s, video decode 37.6 s. Card peak 7,231 MB, sd-cli private peak 23.3 GB, lowest
+  available RAM 5.6 GB. Frames 0/60/120: sharp trees and snow, a clean sun flare, the fox's head whole (eye, ear,
+  muzzle) — soft fur and motion-blurred legs; nothing melts as FastWan's face did (`frames/s4-*`, `frames/s3-*crop*`).
+  Same run with sd.cpp's default tiles (256, 1/2 overlap): decode 78.7 s, 450 s in all; no seams at 1/8 overlap.
+- **Stage 1 is bound by moving weights, not by arithmetic**: 18 s a step for 3,520 positions against 44.5 s for
+  14,080 at stage 2; a 512×288 × 25 clip still takes ~15 s a step. The link is PCIe 3.0 x16 (`nvidia-smi`), so the
+  ~0.9 GB/s is sd.cpp's staging, not the bus. Q4_0 (12.7 GB, 10 % fewer bytes) left stage 1 unchanged (18.4 s).
+- **Q4_0 instead of Q4_K_M: not worth it** — 398 s (stage 2 42.5 s a step, −5 %), but sd-cli's private memory rose
+  to 30.5 GB and available RAM fell to 1.49 GB. (sd.cpp #1818 reports K-quants ~2× slower on a 2080 Ti — not seen
+  here.)
+- **RAM: sd.cpp's auto-fit places the weights; `--mmap` doubles them.** Auto-fit (on by default) put the 13.5 GB
+  diffusion model in RAM and Gemma (9.2 GB with its connectors) on disk — read for the text step, then released. With
+  `--mmap` the mapped file pages and the pinned copies stack: a 512×288 run hit 0.55 GB available and the guard
+  stopped it. Without `--mmap`: 5.6 GB left at 720p. `--params-backend diffusion=disk` (weights read from the NVMe
+  each step) held 11.5 GB free and cost ~20 % at 512×288 (19.6 against ~15 s a step).
+- **Gemma on the card works with the overflow flags, but not beside a 720p run on 8 GB.** `--linear-scale 0.00390625
+  --attn-scale 0.00390625 --flash-attn auto,te=off` (docs/troubleshooting.md's fix, the smaller value) gave a proper
+  clip at 512×288 with the text step in 16.8 s against 44.6 s on the CPU; 0.0078125 with flash attention on was still
+  white (235). Which of the two flags does it is not isolated. At 1280×704 stage 2 then failed: ~3 GB of weights stayed
+  on the card ("need 3425.73 MB device … available 3407.00 MB") and pinned host allocations failed. Text stays on the
+  CPU until sd.cpp releases the encoder from the card first.
+- **`--sage-attn` is not for this card**: "SageAttention is unavailable on CUDA0; it requires … SM80 or newer kernels"
+  (sd.cpp's error; docs/sage_attention.md).
+- **sd-server's `vid_gen` runs the two-stage job** (*code*, the research agent, pinned `a85db96`: `from_json_str`
+  reads the `hires` object for both modes; only api.md leaves it out). *Measured*: through the kit's
+  `RuntimeService.ensureServer` + `runJob` and `sdcpp.runVideoJob` (`srv.js`; the kit's `videoJobBody` plus a `hires`
+  object and `vae_tiling_params`; server flags `--backend te=cpu --hires-upscalers-dir <the upscaler's snapshot>`, no
+  `--offload-to-cpu`) the job ran text 43.8 s, stage 1 170.3 s (19.7 s a step), then "LTX latent spatial upscale" —
+  and **Claude Code stopped it for critically low system memory** while the upscaler loaded (2026-10-26). In
+  sd-server auto-fit chose `--params-backend "diffusion=cpu,te=cpu,vae=disk"`: Gemma's 9.2 GB **kept in RAM** beside
+  the 13.5 GB diffusion model (~23 GB), where sd-cli's auto-fit read it from disk and released it. Not re-run (the
+  harness's rule: only on the user's word). The fix to measure: `--params-backend "diffusion=cpu,te=disk,vae=cpu"` on
+  the server.
+- **Kit gaps from this round** (none in TASKS.md): `videoJobBody` has no `hires`; `sdServerArgv` always adds
+  `--offload-to-cpu` and has no way to add `--backend te=cpu`, `--params-backend` or `--hires-upscalers-dir`; the
+  webm sd.cpp writes carries LTX's sound as PCM (48 kHz stereo, mean −19 dB — real audio), which browsers may not
+  play in webm.
+
 ## D · The answer (argued against)
 
 - **Buildable on the kit: yes.** sd.cpp (image + video through sd-server's `img_gen`/`vid_gen` jobs), audio.cpp
