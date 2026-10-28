@@ -35,11 +35,13 @@ import {
   utimesSync,
   writeFileSync,
 } from "node:fs";
+import { copyFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, relative, sep } from "node:path";
 import * as http from "../platform/http.js";
 import { HttpStatusError } from "../platform/http.js";
 import { getLogger } from "../platform/log.js";
+import { renameHeld } from "../platform/rename_held.js";
 import { FileNotFoundError, IS_WIN, KeyError, pyInt, pyMin, pySorted, reEscape } from "../platform/py.js";
 import { pyPath } from "./cache_registry.js";
 import * as download from "./download.js";
@@ -686,6 +688,74 @@ export async function acquireFileSet(files, { cacheRoot, onProgress = null, canc
     done += Number(f.bytes || 0);
     if (onProgress) onProgress(done, total);
     out.push(snapshotFile);
+  }
+  return out;
+}
+
+/**
+ * Bring files already on this computer into a pinned file set's HF cache layout instead of downloading them again
+ * (an app's own earlier downloads — the engines plan's H4: "nobody downloads twice"). `files` as acquireFileSet takes
+ * them; `sources` `{sha256: path}`, where each one is now. Each must have its pinned size and SHA-256 — `verify(path)`
+ * → hex, unless `vouched(file, path)` says the caller checked it before (the app's own manifest of what it downloaded
+ * and verified). Then a rename on the same drive (renameHeld: an antivirus may hold it a moment), else a copy beside
+ * the blob renamed in once whole, the original removed after. A file already in the cache whole is kept (its source
+ * left alone); one with no source, the wrong size or the wrong hash stays where it is (the download fetches it as
+ * usual). → `{adopted, kept, skipped: [{sha256, reason}]}` — `reason` "missing" · "size" · "checksum". `rename` is a
+ * test seam (another drive answers EXDEV).
+ */
+export async function adoptFileSet(files, sources, { cacheRoot, verify = null, vouched = () => false, rename = renameHeld }) {
+  const out = { adopted: [], kept: [], skipped: [] };
+  for (const f of files) {
+    const repoDir = join(String(cacheRoot), `models--${f.repo.replaceAll("/", "--")}`);
+    const blob = join(repoDir, "blobs", f.sha256);
+    const snapshotFile = join(repoDir, "snapshots", f.revision, f.path);
+    const whole = (p) => {
+      const st = statSync(p, { throwIfNoEntry: false });
+      return !!st?.isFile() && st.size === Number(f.bytes);
+    };
+    if (whole(blob)) {
+      mkdirSync(dirname(snapshotFile), { recursive: true });
+      if (!existsSync(snapshotFile)) linkSnapshot(blob, snapshotFile);
+      out.kept.push(f.sha256);
+      continue;
+    }
+    const src = sources?.[f.sha256];
+    const skip = (reason) => out.skipped.push({ sha256: f.sha256, reason });
+    if (!src || !existsSync(src)) {
+      skip("missing");
+      continue;
+    }
+    if (!whole(src)) {
+      skip("size");
+      continue;
+    }
+    if (!(await vouched(f, src))) {
+      if (!verify) throw new TypeError("adoptFileSet: a file nobody vouched for needs `verify`");
+      if ((await verify(src)) !== f.sha256) {
+        skip("checksum");
+        continue;
+      }
+    }
+    mkdirSync(dirname(blob), { recursive: true });
+    mkdirSync(dirname(snapshotFile), { recursive: true });
+    try {
+      await rename(src, blob);
+    } catch (e) {
+      if (e?.code !== "EXDEV") throw e;
+      // another drive: copied beside the blob and renamed in once whole — the original goes only then
+      const tmp = `${blob}.adopting`;
+      await copyFile(src, tmp);
+      if (!whole(tmp)) {
+        await rm(tmp, { force: true });
+        throw new Error(`${f.path}: its copy into the models cache isn't whole`);
+      }
+      await renameHeld(tmp, blob);
+      await rm(src, { force: true });
+    }
+    rmSync(snapshotFile, { force: true }); // a link left to a file that wasn't whole
+    linkSnapshot(blob, snapshotFile);
+    log.info(`adopted ${f.path} (${f.bytes} bytes) into ${repoDir}`);
+    out.adopted.push(f.sha256);
   }
   return out;
 }

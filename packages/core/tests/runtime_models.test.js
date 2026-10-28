@@ -21,7 +21,7 @@ import { binaryAsset, DEFAULT_SDCPP_BINARIES, DEFAULT_SDCPP_BUILD } from "../src
 import * as download from "../src/runner/download.js";
 import { RunnerService } from "../src/runner/lifecycle.js";
 import * as models from "../src/runner/models.js";
-import { configureRuntimeServices, RuntimeService } from "../src/runner/runtime_service.js";
+import { configureRuntimeServices, RuntimeService, stopRuntimeServers } from "../src/runner/runtime_service.js";
 import { sdServerArgv } from "../src/runner/sdcpp.js";
 import { freshDb } from "./helpers.js";
 
@@ -323,6 +323,86 @@ test("a model's memory note: less than it takes here — beside a card with its 
   expect(note(cpu, 15.8)).toBeNull(); // 16 GB as it is sold, less what the firmware keeps
   appSeed([FLUX]); // a model that doesn't say: no note
   expect(note(cpu, 4)).toBeNull();
+});
+
+// ── round B: files already on this computer move into the cache; every runtime's server stops ─────────────────────
+
+/** An app's own earlier downloads of FLUX's three files, in a folder of its own. */
+function oldDownloads(bodies = [DIFF, TEXT, VAE]) {
+  const dir = path.join(root, "app-models");
+  mkdirSync(dir, { recursive: true });
+  const sources = {};
+  FLUX.files.forEach((f, i) => {
+    const p = path.join(dir, path.basename(f.path));
+    writeFileSync(p, bodies[i]);
+    sources[f.sha256] = p;
+  });
+  return sources;
+}
+
+test("an app's own earlier downloads move into the cache instead of downloading again — each checked, or vouched for", async () => {
+  appSeed([FLUX]);
+  const urls = fakeHub();
+  const sources = oldDownloads();
+  const svc = service();
+  const r = await svc.adoptModel("flux2-klein-4b", sources);
+  expect(r).toEqual({ adopted: FLUX.files.map((f) => f.sha256), kept: [], skipped: [] });
+  for (const p of Object.values(sources)) expect(existsSync(p)).toBe(false); // moved, not copied
+  expect(svc.modelsStatus()[0].onDisk).toBe(true);
+  expect(readFileSync(svc.modelFor("flux2-klein-4b").files.diffusion_model).equals(DIFF)).toBe(true);
+  expect(urls).toEqual([]); // nothing downloaded
+  // a second run finds them in the cache: kept, nothing to move
+  expect((await svc.adoptModel("flux2-klein-4b", {})).kept).toHaveLength(3);
+});
+
+test("a file that isn't what its pin says stays where it is; one the app vouches for isn't hashed; another drive copies", async () => {
+  appSeed([FLUX]);
+  const sources = oldDownloads([DIFF, bytesOf("text encodeR"), VAE]); // the right size, the wrong bytes
+  rmSync(sources[FLUX.files[2].sha256]); // the VAE never downloaded
+  const r = await service().adoptModel("flux2-klein-4b", sources);
+  expect(r.adopted).toEqual([FLUX.files[0].sha256]);
+  expect(r.skipped).toEqual([
+    { sha256: FLUX.files[1].sha256, reason: "checksum" },
+    { sha256: FLUX.files[2].sha256, reason: "missing" },
+  ]);
+  expect(existsSync(sources[FLUX.files[1].sha256])).toBe(true); // left for the user, never deleted
+
+  // vouched for (the app's manifest): not hashed — its bytes are the app's word
+  const again = oldDownloads([DIFF, TEXT, VAE]);
+  const hashed = [];
+  const vouched = vi.fn(() => true);
+  const out = await models.adoptFileSet(FLUX.files.slice(1), again, { cacheRoot: path.join(root, "hf"), verify: async (p) => hashed.push(p), vouched });
+  expect(out.adopted).toHaveLength(2);
+  expect(hashed).toEqual([]);
+
+  // on another drive the rename answers EXDEV: copied in whole, the original removed after
+  const other = path.join(root, "other-hf");
+  const elsewhere = oldDownloads();
+  const exdev = async () => {
+    throw Object.assign(new Error("cross-device link not permitted"), { code: "EXDEV" });
+  };
+  let renamed = 0;
+  const res = await models.adoptFileSet([FLUX.files[0]], elsewhere, {
+    cacheRoot: other,
+    vouched: () => true,
+    rename: async (a, b) => (renamed++ === 0 ? exdev() : (await import("node:fs/promises")).rename(a, b)),
+  });
+  expect(res.adopted).toEqual([FLUX.files[0].sha256]);
+  expect(existsSync(elsewhere[FLUX.files[0].sha256])).toBe(false);
+  expect(readFileSync(path.join(other, "models--leejet--FLUX.2-klein-4B-GGUF", "blobs", FLUX.files[0].sha256)).equals(DIFF)).toBe(true);
+});
+
+test("a reset or restore stops every runtime's server (Windows keeps a running server's files locked)", async () => {
+  appSeed([FLUX]);
+  fakeHub();
+  const { svc, handles } = serving();
+  svc.downloadModel("flux2-klein-4b");
+  await until(() => svc.modelsStatus()[0].status === "downloaded");
+  const m = svc.modelFor("flux2-klein-4b");
+  await svc.ensureServer({ modelKey: m.key, files: m.files });
+  expect(handles[0].alive).toBe(true);
+  await stopRuntimeServers();
+  expect(handles[0].alive).toBe(false);
 });
 
 test("a database made before K10b gains the new columns at start-up — its rows kept, the new values 0", () => {

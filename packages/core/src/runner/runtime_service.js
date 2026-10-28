@@ -14,7 +14,7 @@
 // slow here (not one measured fast), the computer has less memory than the model takes. Removing the engine while a
 // job runs on it, or a model while it downloads or runs, is refused.
 // One service per runtime the app turned on (installLlm({ runtimes })).
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -133,6 +133,7 @@ export class RuntimeService {
     this._probeArgvs = probeArgvs;
     this._modelsFn = modelsFn;
     this._modelState = new Map(); // model id → { status, error, downloaded, total, cancel }
+    this._adopting = new Set(); // model ids whose files already on this computer are moving into the cache
     this._spec = server;
     this._logDir = logDir || cacheRoot;
     this._stateDir = stateDir || this._logDir;
@@ -258,10 +259,31 @@ export class RuntimeService {
         cancelCheck: () => this._cancel.isSet(),
       });
       this._state = { ...idle(), status: "installed" };
+      await this._sweepStaleBuilds(cfg.pinnedBuild);
     } catch (e) {
       const cancelled = this._cancel.isSet();
       this._state = { ...idle(), status: cancelled ? "cancelled" : "error", error: cancelled ? "" : String(e?.message || e) };
       if (!cancelled) log.warning(`${this.rt.id} engine install failed: ${e?.message || e}`);
+    }
+  }
+
+  /** After an install, every other build of this runtime goes — llama.cpp's rule (lifecycle.js: "An UPDATE replaces
+   *  the old build", the user's 2026-07-07), for a superseded pin or an app's own earlier build moved into the cache.
+   *  A server runs only from the pinned build, so none holds them. Best effort: a build still held stays, logged. */
+  async _sweepStaleBuilds(keep) {
+    let stale = [];
+    try {
+      stale = readdirSync(this.root, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== keep);
+    } catch {
+      return; // no runtime folder
+    }
+    for (const d of stale) {
+      try {
+        await rm(path.join(this.root, d.name), { recursive: true, force: true, maxRetries: os.platform() === "win32" ? 5 : 0, retryDelay: 200 });
+        log.info(`${this.rt.id}: removed the old build ${d.name}`);
+      } catch (e) {
+        log.warning(`${this.rt.id}: the old build ${d.name} is still there (files in use?): ${e?.message || e}`);
+      }
     }
   }
 
@@ -372,6 +394,7 @@ export class RuntimeService {
     const m = this._model(id);
     const st = this._modelState.get(id);
     if (st?.status === "downloading") return this.modelsStatus().find((x) => x.id === id);
+    if (this._adopting.has(id)) throw refusal(`${m.name} is being moved into the models cache — try again in a moment`, { busy: "model-busy" });
     const short = this._modelRoom(m);
     if (short) throw noRoom(m.name, short);
     const cancel = new AsyncEvent();
@@ -420,9 +443,29 @@ export class RuntimeService {
     return this.modelsStatus().find((x) => x.id === id);
   }
 
-  /** The models whose files are in use and must not be deleted: downloading, or running a job on the server. */
+  /**
+   * Model `id`'s files already on this computer — an app's own earlier downloads, `sources` `{sha256: path}` — moved
+   * into the kit's cache instead of downloaded again (models.adoptFileSet: a rename on the same drive, else a copy;
+   * each checked against its pinned SHA-256 unless `vouched(file, path)` says the app checked it before). Refused
+   * `{busy}` while it downloads. → adoptFileSet's `{adopted, kept, skipped}`.
+   */
+  async adoptModel(id, sources, { vouched } = {}) {
+    const m = this._model(id);
+    if (this.busyModels().includes(id)) throw refusal(`${m.name} is downloading or running a job — try again once that has finished`, { busy: "model-busy" });
+    this._adopting.add(id);
+    try {
+      return await models.adoptFileSet(m.files, sources, { cacheRoot: this.hfRoot, verify: (file) => binary._fileSha256(file), vouched });
+    } finally {
+      this._adopting.delete(id);
+      this._modelState.delete(id); // its last download's result is about files that may have just arrived
+    }
+  }
+
+  /** The models whose files are in use and must not be deleted: downloading, moving into the cache, or running a job
+   *  on the server. */
   busyModels() {
     const ids = [...this._modelState].filter(([, s]) => s.status === "downloading").map(([id]) => id);
+    for (const id of this._adopting) if (!ids.includes(id)) ids.push(id);
     if (this._jobs > 0 && this._server?.modelKey && !ids.includes(this._server.modelKey)) ids.push(this._server.modelKey);
     return ids;
   }
@@ -564,3 +607,9 @@ export function configureRuntimeServices(map) {
 }
 export const getRuntimeService = (id) => services.get(id) ?? null;
 export const runtimeServices = () => [...services.values()];
+
+/** Stop every runtime's server — before a reset or a restore replaces the data (Windows keeps a running server's
+ *  files locked), beside llama.cpp's own stop. Best effort: one already gone is fine. */
+export async function stopRuntimeServers() {
+  await Promise.all(runtimeServices().map((s) => s.stopServer().catch(() => {})));
+}

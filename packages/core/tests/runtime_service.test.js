@@ -187,6 +187,18 @@ test("while the engine is being removed nothing installs into it or starts from 
   expect(acq.calls).toHaveLength(1);
 });
 
+test("an install sweeps the runtime's other builds — an update replaces the old build, llama.cpp's rule", async () => {
+  const old = path.join(root, "sdcpp", "master-973-f0aac52", "cuda12");
+  mkdirSync(old, { recursive: true });
+  writeFileSync(path.join(old, "sd-cli.exe"), "an app's own earlier build, moved into the cache");
+  const svc = service({ acquire: fakeAcquire().fn });
+  svc.install();
+  await until(() => svc.status().installed);
+  await until(() => !existsSync(path.join(root, "sdcpp", "master-973-f0aac52")));
+  expect(existsSync(path.join(root, "sdcpp", "master-973-f0aac52"))).toBe(false);
+  expect(svc.status().serverExe).toContain(path.join("sdcpp", DEFAULT_SDCPP_BUILD, "cuda12"));
+});
+
 test("the routes: no room is a 507 with the sizes for the screen's words", async () => {
   const need = CUDA_ROOM + ROOM_MARGIN;
   configureRuntimeServices([["sdcpp", service({ acquire: fakeAcquire().fn, freeBytesFn: () => 1e9 })]]);

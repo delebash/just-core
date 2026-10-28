@@ -17,6 +17,7 @@ import { makeDataRouter } from "@delebash/core/platform";
 import { sortedTables } from "@delebash/core/platform/data_api";
 import { getLogger } from "@delebash/core/platform/log";
 import * as lifecycle from "@delebash/core/runner/lifecycle";
+import { stopRuntimeServers } from "@delebash/core/runner/runtime_service";
 import { getDb, getState } from "./app_state.js";
 import { dbPath, recreateAppTables } from "./database/index.js";
 import { APP_TABLES } from "./database/schema.js";
@@ -47,6 +48,8 @@ async function stopRunnerBestEffort() {
   } catch {
     // best-effort by design — a reset or restore never fails on the runner's teardown
   }
+  // and the kit's other runtimes' servers (an image app's sd-server): Windows keeps a running server's files locked
+  await stopRuntimeServers();
 }
 
 /** Back to the first-run state (POST /v1/data/reset). */

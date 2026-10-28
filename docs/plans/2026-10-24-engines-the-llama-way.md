@@ -220,6 +220,26 @@ house-paint (on the updated kit):
   pipeline on a fake image provider; the real tests (`HP_REAL_SD=1`, `HP_REAL_SAM3=1`) run on this
   machine; e2e; then the installed 0.1.3 updates itself and uses its moved files without a download.
 
+**Round B decisions (2026-10-27, building H1 + the image half of H3–H7; the finder's half is round C):**
+- *The engine can't move as-is.* House-paint pins sd.cpp master-973-f0aac52 (sd-cli); the kit pins
+  master-1004-a85db96 (D1: mid-render Cancel, unload). The old build is moved, untouched, into the kit's layout
+  (`<cache>/sdcpp/master-973-f0aac52/<gpu>/` — house-paint's `data/engines/sdcpp/<tag>/<backend>/` is the same
+  shape); the AI photo then needs the pinned build's one install (~907 MB on CUDA), and that install sweeps the
+  stale build — llama.cpp's rule ("an UPDATE replaces the old build", the user's 2026-07-07), which the kit's
+  runtimes lacked (KB3). The FLUX.2 klein files (8.7 GB) move without a download (KB1).
+- *Kit gaps filled first:* **KB1** adopt files already on disk into a runtime model's HF cache layout (a rename on
+  the same drive, else a copy; checked — a caller may vouch for a file it verified before, as house-paint's
+  manifest does — the old file kept until the new one checks); **KB2** stop every runtime's server (a reset or a
+  restore — Windows keeps a running server's files locked; the template's teardown calls it); **KB3** a runtime's
+  install sweeps its other builds.
+- *The GPU until round C:* the part finder isn't on the arbiter yet, so `assertGpuFree` (one GPU job at a time)
+  and `finder.releaseGpu()` before a render stay; `stopLocalModel` goes (the arbiter makes room, and refuses
+  while a chat runs).
+- *Kept as app settings:* `aiphoto.templates` (the prompt pieces the app fills per surface — not a feature
+  prompt row: the kit's prompt rows are whole prompts for runAction, these are fragments `renderPrompt` joins),
+  `aiphoto.compose`, `aiphoto.workingPixels`, `aiphoto.sharedGpuNoteMb`. The recipe (`DEFAULT_SD_RECIPE`, a code
+  constant until now) becomes the `aiphoto.render` preset's params — editable on the AI page.
+
 JustVoice (by its own session, with the user's go — this session never commits there):
 
 - **J1** audio.cpp into the kit like llama.cpp: its pins → the kit's rows (seeded); `speech-cache` → the
