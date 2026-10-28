@@ -1082,7 +1082,7 @@ export function seedRuntimeBinaries(h, ids) {
   for (const id of ids || []) {
     const rt = runtimeOf(id);
     if (!rt?.defaults) throw new ValueError(`no kit runtime "${id}" with build rows`);
-    const bins = rt.defaults.binaries;
+    const bins = rt.defaults.binaries ?? []; // an in-process runtime (ONNX Runtime) has no builds
     const wanted = new Set(bins.map((b) => `${b.platform}\u0000${b.gpu}`));
     const rows = h.all("select platform, gpu, built_in from runtime_binary where runtime = ?", [id]);
     const existing = new Set(rows.map((r) => `${r.platform}\u0000${r.gpu}`));
@@ -1111,7 +1111,7 @@ export function seedRuntimeBinaries(h, ids) {
     for (const r of rows) {
       if (truthy(r.built_in) && !wanted.has(`${r.platform}\u0000${r.gpu}`)) h.delete("runtime_binary", { runtime: id, platform: r.platform, gpu: r.gpu });
     }
-    if (!h.get("runner_setting", pinKey(id))) h.insert("runner_setting", { key: pinKey(id), value: rt.defaults.pinnedBuild, built_in: true });
+    if (rt.defaults.pinnedBuild && !h.get("runner_setting", pinKey(id))) h.insert("runner_setting", { key: pinKey(id), value: rt.defaults.pinnedBuild, built_in: true });
     // its built-in provider (`local-<id>`, of its kind): what an image preset routes to, like local-llamacpp for chat
     const providerId = `local-${id}`;
     if (!h.get("llm_providers", providerId)) {

@@ -218,6 +218,9 @@ export async function installLlm(
     runtimes = [],
     // their models — pinned file sets, e.g. FLUX.2 klein for sd.cpp (seed.seedRuntimeModels)
     runtimeModels = [],
+    // the in-process ONNX runtime's module, the APP's onnxruntime-node (the engines plan's D2): `{ load: () =>
+    // import("onnxruntime-node"), binDir }` — `binDir` where its native files are (the runtime check looks there)
+    onnx = null,
     classTunesSeed = [],
     classTuneIdentity = {},
     embedTemplates = [],
@@ -268,7 +271,7 @@ export async function installLlm(
   if (app) mountLlmRouters(app, { featurePrompts, config, allowKeyReveal, dataDir, product });
   // 6. point the bundled runner's catalog/switches at the shared DB.
   if (runnerCatalog) {
-    wireRunnerCatalog(dataDir, { cacheRoot, product, speechModelsFn, runtimes });
+    wireRunnerCatalog(dataDir, { cacheRoot, product, speechModelsFn, runtimes, onnx });
     // Seed-vs-file self-heal: re-derive catalog facts from ALREADY-DOWNLOADED GGUFs whose
     // rows never got the identify pass. A background task — boot never waits on file reads.
     background(
@@ -334,7 +337,7 @@ export function siblingCacheWithModels(dataDir) {
 }
 
 /** Point the bundled runner at the shared DB: catalog, switches, config, the cache. */
-export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = "", speechModelsFn = null, runtimes = [] } = {}) {
+export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = "", speechModelsFn = null, runtimes = [], onnx = null } = {}) {
   const catalogFn = () =>
     stores
       .getModelCatalogStore()
@@ -481,6 +484,8 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
         stateDir: generated,
         // the one measurement ledger every kind writes and reads (speed bands, measured beating predicted)
         measurements: stores.getModelMeasurementStore(),
+        // an in-process runtime's engine: the app's module
+        ort: id === "onnx" ? onnx : null,
       }),
     ]),
   );

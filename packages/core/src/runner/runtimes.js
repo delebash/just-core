@@ -24,13 +24,26 @@ export const RUNTIMES = Object.freeze({
       memory: Object.freeze({ idleMb: 128, peakMb: 6600 }),
     }),
   }),
+  // ONNX Runtime, in-process (the engines plan's K6, round C): no build to install — onnxruntime-node is the APP's
+  // package, handed to the kit (D2: installLlm({ onnx: { load } })). Its models are runtime_model rows like any
+  // runtime's; the kit owns their sessions' life — built lazily by the app's adapter, booked with the arbiter (kind
+  // vision), let go after its idle time (a seeded setting, idle_seconds:onnx: house-paint's 10 minutes) or when evicted.
+  onnx: Object.freeze({
+    id: "onnx",
+    kind: "vision",
+    label: "ONNX Runtime",
+    folder: "onnx",
+    license: "MIT",
+    inProcess: true,
+    defaults: Object.freeze({ idleSeconds: 600, memory: Object.freeze({ idleMb: 0, peakMb: 0 }) }),
+  }),
 });
 
 /** The runtime registered under `id`, or null. */
 export const runtimeOf = (id) => RUNTIMES[id] ?? null;
 
-/** The runtimes whose builds are `runtime_binary` rows (all but llama.cpp's router). */
-export const rowRuntimes = () => Object.values(RUNTIMES).filter((r) => r.defaults);
+/** The runtimes whose builds are `runtime_binary` rows (all but llama.cpp's router and an in-process one). */
+export const rowRuntimes = () => Object.values(RUNTIMES).filter((r) => r.defaults && !r.inProcess);
 
 /** The runner_setting key holding a runtime's pinned build. */
 export const pinKey = (id) => `pinned_build:${id}`;

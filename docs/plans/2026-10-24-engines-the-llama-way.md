@@ -256,6 +256,29 @@ house-paint (on the updated kit):
   `migrate.test.js` on the kit's real RuntimeService, `real.test.js` on the kit's runtime — its output in the temp
   folder, never the data folder). Open: the real render on this PC and the screens checked by eye.
 
+**Round C decisions (2026-10-27 — the user's "do it all go"; K6 + K8/K8b for vision, house-paint H2–H7 for the
+finder):**
+- *One service, two shapes.* ONNX Runtime is in-process: no build to install (the npm package is the app's — D2).
+  It is `RUNTIMES.onnx` (kind `vision`, `inProcess`, its idle time a seeded `idle_seconds:onnx`) served by the same
+  `RuntimeService` — its models (pinned file sets, downloads, room, adopt, delete, busy, rating, the ledger) are the
+  one way every runtime has; only the engine half differs: `status()` says whether ONNX Runtime loads here (the
+  Visual C++ runtime, the load, the loaded module — house-paint's check, moved), install/remove refuse ("part of the
+  app"), and `stopServer()` disposes the models in memory.
+- *The kit owns the sessions' life, the app its model's code.* Generic ONNX Runtime pieces move from house-paint's
+  `segment/segmenter.js` into the kit's `runner/onnx.js` (`resolveProviders`, `sessionOptions` — DirectML's
+  options —, `openSession` with CPU fallback, `runSession` falling back on a failed run, `serial`,
+  `bestDmlAdapter`). SAM 3's pre/post-processing stays the app's adapter (NOT STANDARD, the user's earlier word):
+  `registerVisionAdapter(modelId, { create({files, ort, executionProvider, dmlDeviceId, log}) → {…, dispose()} })`.
+  `RuntimeService.withModel(modelId, {adapter, params}, fn)` builds it once (lazily), books it with the arbiter
+  (kind `vision`: its `peakVramMb` on a GPU provider, 0 on the CPU), marks the kind busy while `fn` runs, and
+  disposes it when idle, evicted, deleted, reset or restored. `runVisionFeature(featureKey, fn)` resolves the
+  feature's preset (its model and params) the way `runImageFeature` does.
+- *Vision presets:* `PARAM_RULES.vision` = `executionProvider`: auto · cpu (auto = the GPU where the adapter
+  puts one). House-paint's `finder.useGpu` becomes the `parts.find` preset's param, `finder.idleMinutes` the kit's
+  `idle_seconds:onnx`; both settings leave house-paint with the settings upgrade.
+- *The GPU through the arbiter:* with SAM 3 booked, house-paint's `assertGpuFree`/`GPU_KINDS`/`hold("local-ai")`
+  go — the arbiter evicts an idle holder for room and refuses ("The graphics card is busy") while one is busy.
+
 JustVoice (by its own session, with the user's go — this session never commits there):
 
 - **J1** audio.cpp into the kit like llama.cpp: its pins → the kit's rows (seeded); `speech-cache` → the

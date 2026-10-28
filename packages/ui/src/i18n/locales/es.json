@@ -2039,6 +2039,7 @@
       "installedRunning": "Instalado: compilación {build}, ejecutando {model}.",
       "notInstalled": "No instalado: {size} por descargar.",
       "notInstalledNoSize": "No instalado.",
+      "inProcess": "Forma parte de esta aplicación: no hay nada que instalar.",
       "install": "Instalar ({size})",
       "installPlain": "Instalar",
       "remove": "Quitar",

@@ -27,6 +27,7 @@ import * as binary from "./binary.js";
 import * as fit from "./fit.js";
 import * as hardware from "./hardware.js";
 import * as models from "./models.js";
+import * as onnx from "./onnx.js";
 import * as processMod from "./process.js";
 import { runtimeOf } from "./runtimes.js";
 
@@ -125,9 +126,22 @@ export class RuntimeService {
     arbiter = getArbiter,
     freeBytesFn = freeBytes,
     measurements = null,
+    ort = null,
+    dmlDeviceIdFn = () => onnx.bestDmlAdapter(hardware.dxgiAdapters?.() ?? []),
+    ortCheck = onnx.ortRuntimeCheck,
   }) {
     const rt = runtimeOf(id);
     if (!rt?.defaults) throw new TypeError(`no kit runtime "${id}" with build rows`);
+    // an in-process runtime (ONNX Runtime — the engines plan's K6): `ort` `{load, binDir}` — the app's
+    // onnxruntime-node, handed in (D2); `dmlDeviceIdFn()` the DirectML adapter; `ortCheck` a seam
+    this._ort = ort;
+    this._dmlDeviceIdFn = dmlDeviceIdFn;
+    this._ortCheckFn = ortCheck;
+    this._ortAnswer = null; // whether ONNX Runtime loads here: onnx.ortRuntimeCheck's answer
+    this._ortCheck = null;
+    this._loaded = null; // the model in memory: { key, modelId, instance, ep, mb, jobs }
+    this._loading = null; // its build, while it runs (a second call waits for it)
+    this._drained = []; // releases waiting for its runs to end
     this.rt = rt;
     this.cacheRoot = cacheRoot;
     this._configFn = configFn;
@@ -165,13 +179,53 @@ export class RuntimeService {
   _pick() {
     const cfg = this._configFn();
     const hw = this._hardwareFn();
+    // in-process: no build — the "asset" is the execution provider its models ask for first (auto: DirectML on
+    // Windows), what a model's rating reads (its card memory, its reference speed per provider)
+    if (this.rt.inProcess) return { cfg, hw, asset: { gpu: onnx.resolveProvider("auto"), inProcess: true } };
     return { cfg, hw, asset: binary.selectRuntimeAsset(cfg.binaries, hw) };
   }
 
-  /** The installed server's path for this box, or null — never downloads. */
+  /** The installed server's path for this box, or null — never downloads (an in-process runtime has none). */
   installedExe() {
+    if (this.rt.inProcess) return null;
     const { cfg, asset } = this._pick();
     return asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null;
+  }
+
+  /** In-process: whether ONNX Runtime loads here — the app's onnxruntime-node (onnx.ortRuntimeCheck). The load is
+   *  tried once; a missing Visual C++ runtime is looked for again each time (installing it needs no restart). */
+  checkRuntime() {
+    if (!this.rt.inProcess) return Promise.resolve({ ok: true });
+    if (this._ortAnswer?.ok) return Promise.resolve(this._ortAnswer);
+    if (!this._ort?.load) return Promise.resolve((this._ortAnswer = { ok: false, detail: `${this.rt.label} isn't part of this app (installLlm's onnx.load)` }));
+    this._ortCheck ??= this._ortCheckFn({ load: this._ort.load, binDir: this._ort.binDir ?? null, log }).then((a) => {
+      this._ortAnswer = a;
+      if (!a.ok && a.reason === "vc-runtime") this._ortCheck = null;
+      return a;
+    });
+    return this._ortCheck;
+  }
+
+  /** In-process: what the screens show — part of the app, nothing to install; whether it loads here (`need`). */
+  _inProcessStatus() {
+    const { hw, asset } = this._pick();
+    if (!this._ortAnswer) this.checkRuntime().catch(() => {}); // answered at the next read
+    const a = this._ortAnswer;
+    return {
+      id: this.rt.id,
+      kind: this.rt.kind,
+      label: this.rt.label,
+      inProcess: true,
+      build: "",
+      platform: hw.platform,
+      gpu: asset.gpu,
+      installed: a?.ok !== false,
+      serverExe: "",
+      running: this._loaded?.modelId ?? "",
+      downloadBytes: 0,
+      need: a && !a.ok ? { reason: a.reason || "cant-load", missing: a.missing, files: a.files, url: a.url, detail: a.detail } : null,
+      ...idle(),
+    };
   }
 
   /** The build an install fetches: `gpu`'s for this platform when named, else the one this box picks (acquireRuntime's rule). */
@@ -198,6 +252,7 @@ export class RuntimeService {
   /** What the screen shows: the runtime, its build for this box, whether it's here and running, what it needs, the
    *  install's progress. (How fast and whether it fits is each model's: modelsStatus.) */
   status() {
+    if (this.rt.inProcess) return this._inProcessStatus();
     const { cfg, hw, asset } = this._pick();
     const exe = asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null;
     return {
@@ -221,6 +276,7 @@ export class RuntimeService {
   /** Start the install in the background (its progress in status()); throws `{need}` when this computer can't run the
    *  build, `{diskFull}` when it wouldn't fit the drive, `{busy}` while the engine is being removed. */
   install({ gpu = null, force = false } = {}) {
+    if (this.rt.inProcess) throw refusal(`${this.rt.label} is part of this app — there is nothing to install`, { nothingToInstall: true });
     if (this._state.status === "installing") return this.status();
     if (this._removing) throw refusal(`${this.rt.label} is being removed — try again when it's done`, { busy: "engine-busy" });
     const { cfg, asset } = this._pick();
@@ -292,6 +348,7 @@ export class RuntimeService {
   /** Remove every installed build of this runtime (its server stops first; an install in flight is cancelled, as
    *  llama.cpp's is). Refused `{busy}` while a job runs on it — a job takes minutes, and removal would lose it. */
   async uninstall() {
+    if (this.rt.inProcess) throw refusal(`${this.rt.label} is part of this app — it is removed with the app`, { nothingToInstall: true });
     if (this._jobs > 0) throw refusal(`${this.rt.label} is running a job — remove it once the job has finished`, { busy: "engine-busy" });
     this._removing = true;
     try {
@@ -432,7 +489,7 @@ export class RuntimeService {
         license: m.license,
         bytes: m.files.reduce((a, f) => a + Number(f.bytes || 0), 0),
         onDisk: this._here(m),
-        running: this._server?.handle.isAlive() && this._server.modelKey === m.id,
+        running: (this._server?.handle.isAlive() && this._server.modelKey === m.id) || this._loaded?.modelId === m.id,
         ...this._rating(m, cfg, hw, asset),
         ...state,
       };
@@ -483,7 +540,7 @@ export class RuntimeService {
   async deleteModel(id) {
     const m = this._model(id);
     if (this.busyModels().includes(id)) throw refusal(`${m.name} is downloading or running a job — delete it once that has finished`, { busy: "model-busy" });
-    if (this._server?.modelKey === id) await this.stopServer();
+    if (this._server?.modelKey === id || this._loaded?.modelId === id) await this.stopServer();
     const others = new Set(this._modelsFn().filter((x) => x.id !== id).flatMap((x) => x.files.map((f) => f.sha256)));
     for (const f of m.files) {
       if (others.has(f.sha256)) continue;
@@ -518,6 +575,7 @@ export class RuntimeService {
     const ids = [...this._modelState].filter(([, s]) => s.status === "downloading").map(([id]) => id);
     for (const id of this._adopting) if (!ids.includes(id)) ids.push(id);
     if (this._jobs > 0 && this._server?.modelKey && !ids.includes(this._server.modelKey)) ids.push(this._server.modelKey);
+    if (this._loaded?.jobs > 0 && !ids.includes(this._loaded.modelId)) ids.push(this._loaded.modelId);
     return ids;
   }
 
@@ -648,10 +706,86 @@ export class RuntimeService {
   /** Stop the server (idle, evicted, removed, the app quitting); its booking goes with it. */
   async stopServer() {
     clearTimeout(this._idleTimer);
+    if (this.rt.inProcess) return this._releaseLoaded();
     const s = this._server;
     this._server = null;
     this._arbiter().release(this._booking().key);
     if (s) s.handle.stop();
+  }
+
+  // ── in-process: a model in memory (ONNX Runtime — the engines plan's K6) ─────────────────────────────────────
+
+  /**
+   * Run `fn(instance)` on model `modelId` held in memory — the app's adapter (`{create({files, ort,
+   * executionProvider, dmlDeviceId, log}) → {…, dispose()}}`, its own pre/post-processing) built once, lazily, for
+   * these `params` (`executionProvider`: auto · cpu — the feature's preset); another model or other params let the
+   * last one go first (one in memory at a time). Before it is built: ONNX Runtime must load here, the model's files
+   * be here, and the card make room for its `peakVramMb` on a GPU provider (the arbiter evicts an idle holder; a busy
+   * one refuses — EngineBusyError). It is booked with the arbiter (kind vision) while held, the kind busy while `fn`
+   * runs, and let go after the runtime's idle time, when evicted, deleted, or on a reset or restore (stopServer).
+   */
+  async withModel(modelId, { adapter, params = {} }, fn) {
+    if (!this.rt.inProcess) throw new TypeError(`${this.rt.id} runs its models in a server, not in-process`);
+    const answer = await this.checkRuntime();
+    if (!answer.ok) {
+      throw new ApiError(503, "engine-cant-run-here", `${this.rt.label} can't run on this computer`, answer.detail, { need: { reason: answer.reason || "cant-load" } });
+    }
+    const m = this.modelFor(modelId); // its files here, or "isn't downloaded"
+    const executionProvider = params.executionProvider ?? "auto";
+    const key = `${modelId}\u0000${JSON.stringify({ executionProvider })}`;
+    if (this._loaded && this._loaded.key !== key) await this._releaseLoaded();
+    const arb = this._arbiter();
+    const bookingKey = `${this.rt.kind}:${this.rt.id}`;
+    if (!this._loaded) {
+      this._loading ??= (async () => {
+        const ep = onnx.resolveProvider(executionProvider);
+        const mb = ep === "cpu" ? 0 : Number(m.peakVramMb || 0);
+        if (mb && !(await arb.makeRoom(mb, { exclude: bookingKey, hardware: this._hardwareFn(), reason: `${this.rt.label} model` }))) {
+          throw new EngineBusyError(this.rt.label);
+        }
+        const ort = await this._ort.load();
+        const instance = await adapter.create({ files: m.files, ort: ort?.default ?? ort, executionProvider, dmlDeviceId: this._dmlDeviceIdFn?.(), log });
+        this._loaded = { key, modelId, instance, ep, mb, jobs: 0 };
+        arb.reserve(bookingKey, mb, { kind: this.rt.kind, evictFn: () => this._releaseLoaded(), source: "declared" });
+        log.info(`${this.rt.id}: ${modelId} in memory (${ep})`);
+      })().finally(() => {
+        this._loading = null;
+      });
+      await this._loading;
+    }
+    const held = this._loaded;
+    held.jobs++;
+    arb.busyBegin(this.rt.kind);
+    clearTimeout(this._idleTimer);
+    try {
+      return await fn(held.instance);
+    } finally {
+      held.jobs--;
+      arb.busyEnd(this.rt.kind);
+      if (!held.jobs) {
+        for (const done of this._drained.splice(0)) done();
+        if (this._loaded === held) this._armIdle();
+      }
+    }
+  }
+
+  /** Let the model in memory go — once the runs on it are done (one disposed mid-run fails the run) — and its
+   *  booking with it. */
+  async _releaseLoaded() {
+    clearTimeout(this._idleTimer);
+    if (this._loading) await this._loading.catch(() => {});
+    while (this._loaded?.jobs) await new Promise((done) => this._drained.push(done));
+    const held = this._loaded;
+    this._loaded = null;
+    this._arbiter().release(`${this.rt.kind}:${this.rt.id}`);
+    if (held) {
+      try {
+        await held.instance?.dispose?.();
+      } catch (e) {
+        log.warning(`${this.rt.id}: ${held.modelId} didn't let go cleanly: ${e?.message || e}`);
+      }
+      log.info(`${this.rt.id}: ${held.modelId} let go`);
+    }
   }
 
   /**

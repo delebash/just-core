@@ -7,7 +7,7 @@ import { ApiError, notFound } from "../platform/errors.js";
 import { opt, T } from "../platform/models.js";
 import { input } from "../platform/server.js";
 import { getRuntimeService, runtimeServices } from "../runner/runtime_service.js";
-import { imageFeatureReadiness } from "./image_dispatch.js";
+import { runtimeFeatureReadiness } from "./image_dispatch.js";
 import * as seed from "./seed.js";
 
 const IdParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }) });
@@ -22,6 +22,7 @@ function asProblem(e) {
   if (e?.need) return new ApiError(409, "engine-cant-run-here", "This computer can't run this engine yet", e.need.detail, { need: e.need });
   if (e?.diskFull) return new ApiError(507, "disk-full", "Not enough room on the drive", e.message, e.diskFull);
   if (e?.busy) return new ApiError(409, e.busy, e.busy === "model-busy" ? "The model is busy" : "The engine is busy", e.message);
+  if (e?.nothingToInstall) return new ApiError(409, "nothing-to-install", "This engine is part of the app", e.message);
   return e;
 }
 
@@ -42,8 +43,17 @@ function serviceOf(c) {
 
 export function makeRuntimesRouter() {
   const app = new Hono();
-  app.get("/v1/ai/runtimes", (c) => c.json({ runtimes: runtimeServices().map((s) => s.status()) }));
-  app.get("/v1/ai/runtimes/:id/engine/status", input({ params: IdParams }), (c) => c.json(serviceOf(c).status()));
+  // an in-process runtime's status says whether it loads here: that answer first (ONNX Runtime's load, once)
+  const checked = async (svc) => {
+    try {
+      await svc.checkRuntime?.();
+    } catch {
+      // its status says what it lacks
+    }
+    return svc.status();
+  };
+  app.get("/v1/ai/runtimes", async (c) => c.json({ runtimes: await Promise.all(runtimeServices().map(checked)) }));
+  app.get("/v1/ai/runtimes/:id/engine/status", input({ params: IdParams }), async (c) => c.json(await checked(serviceOf(c))));
   app.post("/v1/ai/runtimes/:id/engine/install", input({ params: IdParams, body: InstallIn }), async (c) => {
     const svc = serviceOf(c);
     const body = c.req.valid("json") ?? {};
@@ -70,12 +80,22 @@ export function makeRuntimesRouter() {
   });
   // what a feature needs before it can run (its engine installed, its model downloaded) — the screens' "this feature
   // needs its engine" banner (the plan's K10); a chat feature's model is the llama.cpp screens' business: ready here
-  app.get("/v1/ai/features/:key/readiness", input({ params: FeatureParams }), (c) => {
+  app.get("/v1/ai/features/:key/readiness", input({ params: FeatureParams }), async (c) => {
     const key = c.req.valid("param").key;
     const entry = seed.appFeatureCatalog().find((e) => e.key === key);
     if (!entry) throw notFound(`no AI feature ${key} in this app`);
     const kind = entry.kind || "llm";
-    if (kind === "image") return c.json(imageFeatureReadiness(key));
+    if (kind === "image" || kind === "vision") {
+      // an in-process runtime's answer says whether it loads here: checked first
+      for (const svc of runtimeServices()) {
+        try {
+          await svc.checkRuntime?.();
+        } catch {
+          // its readiness says what it lacks
+        }
+      }
+      return c.json(runtimeFeatureReadiness(key, kind));
+    }
     return c.json({ feature: key, kind, ready: true, need: "", detail: "", runtime: "", model: "", engine: null, modelState: null });
   });
   return app;

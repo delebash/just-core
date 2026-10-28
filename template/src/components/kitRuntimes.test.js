@@ -36,6 +36,9 @@ function fakeFetch(input, init = {}) {
     return Promise.resolve(json(server.engine, 202));
   }
   if (p === "/v1/ai/runtimes/sdcpp/models") return Promise.resolve(json({ models: server.models }));
+  // the in-process ONNX runtime (round C): part of the app
+  if (p === "/v1/ai/runtimes/onnx/engine/status") return Promise.resolve(json({ id: "onnx", kind: "vision", label: "ONNX Runtime", inProcess: true, installed: true, build: "", need: null, downloadBytes: 0, status: "" }));
+  if (p === "/v1/ai/runtimes/onnx/models") return Promise.resolve(json({ models: [{ id: "seg", name: "Segmenter", license: "MIT", bytes: 3e9, onDisk: true, running: false, status: "", fit: "ok", speedBand: "" }] }));
   if (p === "/v1/ai/runtimes/sdcpp/models/tiny/download") {
     server.models = server.models.map((m) => ({ ...m, status: "downloading", downloaded: 3, total: 10 }));
     return Promise.resolve(json(server.models[0], 202));
@@ -173,6 +176,17 @@ test("the banner shows the model's chip beside its next step — a speed not ban
   expect(text()).toContain("The AI photo runs on stable-diffusion.cpp, which isn't installed on this computer yet.");
   expect(text()).toContain("Tiny on this computer:");
   expect(document.body.querySelector(".lu-fit.lu-fit--ok").textContent).toBe("Fits · ~29 s an image"); // in the dead zone: the number
+});
+
+test("an in-process runtime (ONNX Runtime) is part of the app: nothing to install or remove, its models as any runtime's", async () => {
+  wrapper = mount(LuRuntimeTab, { props: { runtimeId: "onnx" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  expect(text()).toContain("Engine: ONNX Runtime");
+  expect(text()).toContain("Part of this app — nothing to install.");
+  expect(button("Install")).toBeUndefined();
+  expect(button("Remove")).toBeUndefined();
+  expect(text()).toContain("Segmenter");
+  expect(button("Delete")).toBeTruthy();
 });
 
 test("an image feature's preset pane: its settings from the server's rules, saved; a refused value said under its field", async () => {

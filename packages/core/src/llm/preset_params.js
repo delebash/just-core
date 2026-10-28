@@ -18,6 +18,11 @@ export const PARAM_RULES = Object.freeze({
     sampler: { values: IMAGE_SAMPLERS, default: "euler" },
     seed: { type: "int", min: -1, max: 2 ** 31 - 1, default: 42 },
   }),
+  // a vision model in-process (ONNX Runtime — the plan's K6): where it runs — "auto" puts what the app's adapter
+  // sends to a GPU on one (DirectML on Windows), "cpu" keeps all of it on the processor (runner/onnx.js)
+  vision: Object.freeze({
+    executionProvider: { values: Object.freeze(["auto", "cpu"]), default: "auto" },
+  }),
 });
 
 /** `params` for a preset of `kind`, checked against its rules and filled with the defaults; a chat preset's are `{}`. */

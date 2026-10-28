@@ -111,6 +111,7 @@ const words = computed(() => {
     case "model-not-downloaded":
       return { text: t("kit.runtimes.ready.modelNotDownloaded", { feature: n, model: s.modelState?.name || s.model }), action: "model", intent: "warning" };
     case "no-image-provider":
+    case "no-vision-provider":
       return { text: t("kit.runtimes.ready.noProvider", { feature: n }), intent: "danger" };
     case "model-unknown":
       return { text: t("kit.runtimes.ready.modelUnknown", { feature: n }), intent: "danger" };

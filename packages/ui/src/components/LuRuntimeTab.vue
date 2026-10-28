@@ -164,14 +164,16 @@ defineExpose({ refresh: load });
       <section class="lu-rt-part" :aria-label="t('kit.runtimes.engineTitle', { name: engine.label })">
         <h3 class="lu-rt-h">{{ t("kit.runtimes.engineTitle", { name: engine.label }) }}</h3>
         <p class="lu-rt-line">
-          <template v-if="engine.installed">{{ engine.running ? t("kit.runtimes.installedRunning", { build: engine.build, model: engine.running }) : t("kit.runtimes.installed", { build: engine.build }) }}</template>
+          <!-- in-process (ONNX Runtime): part of the app — nothing to install or remove -->
+          <template v-if="engine.inProcess">{{ t("kit.runtimes.inProcess") }}</template>
+          <template v-else-if="engine.installed">{{ engine.running ? t("kit.runtimes.installedRunning", { build: engine.build, model: engine.running }) : t("kit.runtimes.installed", { build: engine.build }) }}</template>
           <template v-else>{{ engine.downloadBytes ? t("kit.runtimes.notInstalled", { size: size(engine.downloadBytes) }) : t("kit.runtimes.notInstalledNoSize") }}</template>
         </p>
         <UiBanner v-if="need()" intent="danger" class="lu-rt-note">
           {{ t(need().key, need().values) }}
           <a v-if="need().link" :href="need().link" target="_blank" rel="noopener">{{ t("kit.runtimes.needs.vcRuntimeLink") }}</a>
         </UiBanner>
-        <div class="lu-rt-actions">
+        <div v-if="!engine.inProcess" class="lu-rt-actions">
           <UiButton
             v-if="!engine.installed" intent="primary" size="small" focusable-when-disabled
             :disabled="!!need() || engineTask.state === 'running'"

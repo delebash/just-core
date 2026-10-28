@@ -922,7 +922,7 @@ export class RunnerConfigStore {
     return {
       id,
       pinnedBuild: pin,
-      binaries: (rows.length ? rows : rt.defaults.binaries).map(asset),
+      binaries: (rows.length ? rows : (rt.defaults.binaries ?? [])).map(asset),
       idleSeconds,
       memory: rt.defaults.memory ?? null,
       bands,
@@ -984,7 +984,7 @@ export class RunnerConfigStore {
     if (!rt?.defaults) throw new ValueError(`no kit runtime "${id}" with build rows`);
     const h = db.session();
     h.tx(() => {
-      for (const b of rt.defaults.binaries) h.delete("runtime_binary", { runtime: id, platform: b.platform, gpu: b.gpu });
+      for (const b of rt.defaults.binaries ?? []) h.delete("runtime_binary", { runtime: id, platform: b.platform, gpu: b.gpu });
       h.delete("runner_setting", { key: pinKey(id) });
       seed.seedRuntimeBinaries(h, [id]);
     });
