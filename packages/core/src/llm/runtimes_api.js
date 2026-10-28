@@ -63,6 +63,16 @@ export function makeRuntimesRouter() {
     const body = c.req.valid("json") ?? {};
     return c.json(await call(() => svc.install({ gpu: body.gpu || null, force: !!body.force })), 202);
   });
+  // whether this runtime can run on this computer — an app's release start check asks it on every runner (an
+  // in-process runtime's load; a server runtime's build for this computer and what the system lacks): 200, or 503
+  // in words (just-house-paint's /v1/segment/runtime, for every runtime)
+  app.get("/v1/ai/runtimes/:id/engine/check", input({ params: IdParams }), async (c) => {
+    const svc = serviceOf(c);
+    const a = await svc.checkRuntime();
+    const need = a.ok ? svc.status().need : { reason: a.reason || "cant-load", detail: a.detail };
+    if (need) throw new ApiError(503, "engine-cant-run-here", `${svc.rt.label} can't run on this computer`, need.detail, { need });
+    return c.json({ ok: true });
+  });
   app.put("/v1/ai/runtimes/:id/settings", input({ params: IdParams, body: SettingsIn }), async (c) => {
     const svc = serviceOf(c);
     stores.getRunnerConfigStore().setSetting(idleKey(svc.rt.id), String(c.req.valid("json").idleSeconds));

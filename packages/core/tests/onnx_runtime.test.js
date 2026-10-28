@@ -239,6 +239,19 @@ test("a runtime's idle time is a setting its tab edits: PUT /v1/ai/runtimes/:id/
   expect((await put({ idleSeconds: 86401 })).status).toBe(422);
 });
 
+test("the start check: 200 when it can run here, 503 in words when it can't (a release asks it on every runner)", async () => {
+  const app = createServer({ typeBase: "t/" });
+  app.route("/", makeRuntimesRouter());
+  configureRuntimeServices([["onnx", service()]]);
+  const ok = await app.request("/v1/ai/runtimes/onnx/engine/check");
+  expect(ok.status).toBe(200);
+  expect(await ok.json()).toEqual({ ok: true });
+  configureRuntimeServices([["onnx", service({ ortCheck: async () => ({ ok: false, detail: "libonnxruntime.so.1: cannot open shared object file" }) })]]);
+  const no = await app.request("/v1/ai/runtimes/onnx/engine/check");
+  expect(no.status).toBe(503);
+  expect(await no.json()).toMatchObject({ type: "t/engine-cant-run-here", title: "ONNX Runtime can't run on this computer", detail: expect.stringMatching(/libonnxruntime/) });
+});
+
 test("a vision feature runs through its preset: the model, the params, the app's adapter", async () => {
   seed.configureAppSeed({
     featureCatalog: [FeatureCatalogEntry({ key: "parts.find", label: "Find the parts", kind: "vision" })],
