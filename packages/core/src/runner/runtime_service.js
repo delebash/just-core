@@ -208,7 +208,7 @@ export class RuntimeService {
 
   /** In-process: what the screens show — part of the app, nothing to install; whether it loads here (`need`). */
   _inProcessStatus() {
-    const { hw, asset } = this._pick();
+    const { cfg, hw, asset } = this._pick();
     if (!this._ortAnswer) this.checkRuntime().catch(() => {}); // answered at the next read
     const a = this._ortAnswer;
     return {
@@ -222,6 +222,7 @@ export class RuntimeService {
       installed: a?.ok !== false,
       serverExe: "",
       running: this._loaded?.modelId ?? "",
+      idleSeconds: Number(cfg.idleSeconds ?? this.rt.defaults.idleSeconds ?? 0),
       downloadBytes: 0,
       need: a && !a.ok ? { reason: a.reason || "cant-load", missing: a.missing, files: a.files, url: a.url, detail: a.detail } : null,
       ...idle(),
@@ -265,6 +266,8 @@ export class RuntimeService {
       installed: exe != null,
       serverExe: exe ? String(exe) : "",
       running: this._server?.handle.isAlive() ? this._server.modelKey : "",
+      // how long it waits idle before it lets go of its memory (a seeded setting; 0: never)
+      idleSeconds: Number(cfg.idleSeconds ?? this.rt.defaults.idleSeconds ?? 0),
       downloadBytes: (asset?.assetBytes || 0) + (asset?.runtimeBytes || 0),
       need: unmetNeed(asset, this._systemFn(), this.rt.label),
       ...this._state,

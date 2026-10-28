@@ -101,7 +101,11 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         restore (`stopRuntimeServers`), a runtime's install sweeping its other builds, a server Windows' loader
         couldn't start said in words (`process.js` `startFailure`, house-paint's table moved) — then house-paint's
         AI photo on the kit's sd.cpp runtime (its TASKS says what); the guard's ENGINE_KNOWN lost its two AI photo
-        files. Next: round C (the part finder on a kit ONNX runtime), round D (the kit's jobs, K9).
+        files. Round C, the kit's half BUILT 2026-10-27 (cd7c460 — the plan's "Round C decisions"): the
+        in-process ONNX runtime (`runner/onnx.js`, `RUNTIMES.onnx`, `RuntimeService.withModel`), vision features
+        (`runVisionFeature`, `registerVisionAdapter`, `PARAM_RULES.vision`), the tab's "part of this app". Next:
+        a runtime's idle time editable on its tab (house-paint's "finder.idleMinutes" moves there), then
+        house-paint's half of round C (H2–H7 for the finder), then round D (the kit's jobs, K9).
         OPEN: llama.cpp's own engine install and GGUF downloads have no room check before they start (the
         downloader's DiskFullError says so only once the drive is full) — put them on `disk_room.js`
         `lacksRoom` the way the runtimes are.

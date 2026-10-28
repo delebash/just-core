@@ -2101,6 +2101,10 @@
         "title": "{name} is busy",
         "engine": "It's running a job, or being removed — try again once that has finished.",
         "model": "It's downloading or running a job — delete it once that has finished."
+      },
+      "idle": {
+        "label": "Let go after idle (minutes)",
+        "hint": "How long it keeps a model in memory with no work before letting it go; 0 keeps it."
       }
     }
   }

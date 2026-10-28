@@ -2101,6 +2101,10 @@
         "title": "{name} está ocupado",
         "engine": "Está ejecutando un trabajo o se está quitando: vuelve a intentarlo cuando termine.",
         "model": "Se está descargando o ejecutando un trabajo: bórralo cuando termine."
+      },
+      "idle": {
+        "label": "Liberar tras inactividad (minutos)",
+        "hint": "Cuánto tiempo mantiene un modelo en memoria sin trabajo antes de liberarlo; 0 lo mantiene."
       }
     }
   }

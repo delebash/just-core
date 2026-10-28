@@ -36,6 +36,10 @@ function fakeFetch(input, init = {}) {
     return Promise.resolve(json(server.engine, 202));
   }
   if (p === "/v1/ai/runtimes/sdcpp/models") return Promise.resolve(json({ models: server.models }));
+  if (p === "/v1/ai/runtimes/sdcpp/settings" && method === "PUT") {
+    server.engine = { ...server.engine, idleSeconds: body.idleSeconds };
+    return Promise.resolve(json(server.engine));
+  }
   // the in-process ONNX runtime (round C): part of the app
   if (p === "/v1/ai/runtimes/onnx/engine/status") return Promise.resolve(json({ id: "onnx", kind: "vision", label: "ONNX Runtime", inProcess: true, installed: true, build: "", need: null, downloadBytes: 0, status: "" }));
   if (p === "/v1/ai/runtimes/onnx/models") return Promise.resolve(json({ models: [{ id: "seg", name: "Segmenter", license: "MIT", bytes: 3e9, onDisk: true, running: false, status: "", fit: "ok", speedBand: "" }] }));
@@ -63,7 +67,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   server = {
     calls: [],
-    engine: { id: "sdcpp", kind: "image", label: "stable-diffusion.cpp", build: "master-1004-a85db96", installed: false, running: "", downloadBytes: 907e6, need: null, status: "", downloaded: 0, total: 0 },
+    engine: { id: "sdcpp", kind: "image", label: "stable-diffusion.cpp", build: "master-1004-a85db96", installed: false, running: "", idleSeconds: 300, downloadBytes: 907e6, need: null, status: "", downloaded: 0, total: 0 },
     models: [{ id: "tiny", name: "Tiny", license: "MIT", bytes: 10, onDisk: false, running: false, status: "", downloaded: 0, total: 0 }],
     presets: [{ id: "photo", name: "Photo", model: "tiny", kind: "image", builtIn: true, params: { steps: 4, sampler: "euler" } }],
     readiness: () => {
@@ -176,6 +180,20 @@ test("the banner shows the model's chip beside its next step — a speed not ban
   expect(text()).toContain("The AI photo runs on stable-diffusion.cpp, which isn't installed on this computer yet.");
   expect(text()).toContain("Tiny on this computer:");
   expect(document.body.querySelector(".lu-fit.lu-fit--ok").textContent).toBe("Fits · ~29 s an image"); // in the dead zone: the number
+});
+
+test("a runtime's idle time: shown in minutes, saved in seconds", async () => {
+  wrapper = mount(LuRuntimeTab, { props: { runtimeId: "sdcpp" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  const field = document.body.querySelector("#lu-rt-sdcpp-idle");
+  expect(field.value).toBe("5");
+  expect(button("Save").getAttribute("aria-disabled") ?? String(button("Save").disabled)).toMatch(/true/); // nothing changed
+  field.value = "10";
+  field.dispatchEvent(new Event("input"));
+  await settle();
+  await click("Save");
+  await settle();
+  expect(server.calls.find(([m, u]) => m === "PUT" && u === "/v1/ai/runtimes/sdcpp/settings")[2]).toEqual({ idleSeconds: 600 });
 });
 
 test("an in-process runtime (ONNX Runtime) is part of the app: nothing to install or remove, its models as any runtime's", async () => {

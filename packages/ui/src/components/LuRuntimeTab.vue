@@ -8,12 +8,14 @@
 // the catalog's chip — whether it fits this computer and its speed band, measured beating predicted (modelPick.js
 // fitLabel, speedBandLabel, fitWarning: the one way, 2026-10-27). No room on the drive and removing what is busy are
 // said in words (K10b). `runtimeId` names the runtime (GET /v1/ai/runtimes).
-import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { request } from "../client.js";
 import DownloadBar from "../common/components/DownloadBar.vue";
 import UiBanner from "../common/components/UiBanner.vue";
 import UiButton from "../common/components/UiButton.vue";
+import UiField from "../common/components/UiField.vue";
+import UiInput from "../common/components/UiInput.vue";
 import { confirmDialog } from "../common/services/dialog.js";
 import { fmtBytes } from "../common/services/downloadRate.js";
 import { kitT } from "../common/services/kitI18n.js";
@@ -39,6 +41,7 @@ async function load() {
   try {
     const [e, m] = await Promise.all([request(`${base}/engine/status`), request(`${base}/models`)]);
     engine.value = e;
+    if (idleMinutes.value === null && e?.idleSeconds != null) idleMinutes.value = Math.round(e.idleSeconds / 60);
     models.value = m.models || [];
     loadFailed.value = false;
   } catch {
@@ -78,6 +81,18 @@ onBeforeUnmount(() => {
   gone = true;
   clearTimeout(timer);
 });
+
+// how long it keeps a model in memory with no work (its seeded idle_seconds:<id>), edited in minutes
+const idleMinutes = ref(null);
+const idleChanged = computed(() => engine.value?.idleSeconds != null && Math.max(0, Math.round(Number(idleMinutes.value) || 0)) * 60 !== Number(engine.value.idleSeconds));
+async function saveIdle() {
+  try {
+    engine.value = await request(`${base}/settings`, { method: "PUT", body: { idleSeconds: Math.max(0, Math.round(Number(idleMinutes.value) || 0)) * 60 } });
+    idleMinutes.value = Math.round(engine.value.idleSeconds / 60);
+  } catch (e) {
+    reportError(e);
+  }
+}
 
 const size = (n) => fmtBytes(n || 0);
 const need = () => engineNeedWords(engine.value?.need);
@@ -173,6 +188,12 @@ defineExpose({ refresh: load });
           {{ t(need().key, need().values) }}
           <a v-if="need().link" :href="need().link" target="_blank" rel="noopener">{{ t("kit.runtimes.needs.vcRuntimeLink") }}</a>
         </UiBanner>
+        <UiField v-if="engine.idleSeconds != null" :label="t('kit.runtimes.idle.label')" :hint="t('kit.runtimes.idle.hint')" :for="`lu-rt-${runtimeId}-idle`">
+          <div class="lu-rt-idle">
+            <UiInput :id="`lu-rt-${runtimeId}-idle`" v-model="idleMinutes" type="number" width="token" />
+            <UiButton intent="secondary" size="small" :disabled="!idleChanged" :label="t('kit.common.save')" @click="saveIdle" />
+          </div>
+        </UiField>
         <div v-if="!engine.inProcess" class="lu-rt-actions">
           <UiButton
             v-if="!engine.installed" intent="primary" size="small" focusable-when-disabled
@@ -218,6 +239,7 @@ defineExpose({ refresh: load });
 .lu-rt-line { margin: 0; font-size: 12.5px; color: var(--muted); }
 .lu-rt-note { margin: 0; }
 .lu-rt-actions { display: flex; gap: 8px; }
+.lu-rt-idle { display: flex; align-items: center; gap: 8px; }
 .lu-rt-model { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px solid var(--border); }
 .lu-rt-model-row { display: flex; align-items: center; gap: 12px; }
 .lu-rt-model-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }

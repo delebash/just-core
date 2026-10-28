@@ -10,6 +10,8 @@ import path from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { registerVisionAdapter, runVisionFeature, runtimeFeatureReadiness } from "../src/llm/image_dispatch.js";
 import { FeatureCatalogEntry } from "../src/llm/routing_api.js";
+import { makeRuntimesRouter } from "../src/llm/runtimes_api.js";
+import { createServer } from "../src/platform/server.js";
 import * as seed from "../src/llm/seed.js";
 import * as stores from "../src/llm/stores.js";
 import * as models from "../src/runner/models.js";
@@ -218,6 +220,23 @@ test("never let go mid-run: a reset waits for the run; a busy model isn't delete
   await run;
   await stopping;
   expect(a.disposed).toEqual([1]);
+});
+
+test("a runtime's idle time is a setting its tab edits: PUT /v1/ai/runtimes/:id/settings, a day at most", async () => {
+  seed.configureAppSeed({ featureCatalog: [], featurePrompts: {}, enginePresets: [], featurePresets: {}, defaultPresetId: "", runtimes: ["onnx"], runtimeModels: [] });
+  seed.seedLlm();
+  const svc = service({ configFn: () => stores.getRunnerConfigStore().getRuntimeConfig("onnx") });
+  configureRuntimeServices([["onnx", svc]]);
+  const app = createServer({ typeBase: "t/" });
+  app.route("/", makeRuntimesRouter());
+  expect((await (await app.request("/v1/ai/runtimes/onnx/engine/status")).json()).idleSeconds).toBe(600); // the seeded 10 minutes
+  const put = (body) => app.request("/v1/ai/runtimes/onnx/settings", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const r = await put({ idleSeconds: 300 });
+  expect(r.status).toBe(200);
+  expect((await r.json()).idleSeconds).toBe(300);
+  expect(svc.status().idleSeconds).toBe(300);
+  expect((await put({ idleSeconds: -1 })).status).toBe(422);
+  expect((await put({ idleSeconds: 86401 })).status).toBe(422);
 });
 
 test("a vision feature runs through its preset: the model, the params, the app's adapter", async () => {

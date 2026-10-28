@@ -7,11 +7,15 @@ import { ApiError, notFound } from "../platform/errors.js";
 import { opt, T } from "../platform/models.js";
 import { input } from "../platform/server.js";
 import { getRuntimeService, runtimeServices } from "../runner/runtime_service.js";
+import { idleKey } from "../runner/runtimes.js";
 import { runtimeFeatureReadiness } from "./image_dispatch.js";
 import * as seed from "./seed.js";
+import * as stores from "./stores.js";
 
 const IdParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }) });
 const InstallIn = T.Object({ gpu: opt(T.String({ maxLength: 32 })), force: opt(T.Boolean()) });
+// a runtime's own settings on its tab: how long it waits idle before it lets go of its memory (0: never; a day at most)
+const SettingsIn = T.Object({ idleSeconds: T.Integer({ minimum: 0, maximum: 86400 }) });
 const FeatureParams = T.Object({ key: T.String({ minLength: 1, maxLength: 128 }) });
 const ModelParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }), modelId: T.String({ minLength: 1, maxLength: 128 }) });
 
@@ -58,6 +62,11 @@ export function makeRuntimesRouter() {
     const svc = serviceOf(c);
     const body = c.req.valid("json") ?? {};
     return c.json(await call(() => svc.install({ gpu: body.gpu || null, force: !!body.force })), 202);
+  });
+  app.put("/v1/ai/runtimes/:id/settings", input({ params: IdParams, body: SettingsIn }), async (c) => {
+    const svc = serviceOf(c);
+    stores.getRunnerConfigStore().setSetting(idleKey(svc.rt.id), String(c.req.valid("json").idleSeconds));
+    return c.json(await checked(svc));
   });
   app.post("/v1/ai/runtimes/:id/engine/install/cancel", input({ params: IdParams }), (c) => c.json(serviceOf(c).cancelInstall()));
   app.delete("/v1/ai/runtimes/:id/engine", input({ params: IdParams }), async (c) => {
