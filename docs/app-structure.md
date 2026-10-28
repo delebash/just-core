@@ -1216,7 +1216,7 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | **Server** | | |
 | A refusal | `platform/errors.js` `ApiError`, `notFound` | hand-built JSON |
 | A route's input | `platform/server.js` `input` with `platform/models.js` `T` | checks by hand |
-| Settings that change between versions | `platform/settings_upgrade.js` `upgradeSettings`, `defaultsFingerprints` | — |
+| Settings that change between versions | `platform/settings_upgrade.js` `upgradeSettings`, `defaultsFingerprints`; a setting moved into the kit (a preset's param, a runner setting) `retireSettings` | a one-off copy at start |
 | Another window changed something | `platform/window_changes.js` `ChangeCounter`, `makeSyncRevRouter` · `ui/common/services/otherWindows.js` `watchOtherWindows` | — |
 | Names and text | `platform/text.js` `cleanName`, `nameProblem`, `cutToLength`, `visibleText` | — |
 | The log | `platform/log.js` `getLogger` | `console` |
@@ -1228,7 +1228,7 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | A toast · a confirm | `ui/common/services/toastBridge.js` `pushToast` · `ui/common/services/dialog.js` `confirmDialog` | — |
 | A size in bytes | `ui/common/services/downloadRate.js` `fmtBytes` | — |
 | A model's fit and speed, in words | `ui/common/services/modelPick.js` `fitLabel`, `speedBandLabel`, `fitWarning` + the `.lu-fit` chip (`ui/common/styles.css`) | notes of a screen's own |
-| A runtime's screens | `LuRuntimeTab` (the AI page), `LuEngineNeeded` (in place), `LuImagePresetPane` (Routing) | an app's install card |
+| A runtime's screens | `LuRuntimeTab` (the AI page), `LuEngineNeeded` (in place), `LuRuntimePresetPane` (Routing: an image or a vision feature's preset) | an app's install card |
 | Page looks | `ui/common/app.css` + the page tokens (`tokens.contract.css`) | a copy of a kit class |
 
 ## Open deviations

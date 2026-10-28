@@ -133,5 +133,9 @@ test("a card another kind's job holds: a 409 in the screens' words", async () =>
   IMAGE_ADAPTERS["local-sdcpp"] = async () => {
     throw new EngineBusyError("stable-diffusion.cpp");
   };
-  await expect(runImageFeature("aiphoto.render", { prompt: "p" })).rejects.toMatchObject({ statusCode: 409, slug: "gpu-busy" });
+  await expect(runImageFeature("aiphoto.render", { prompt: "p" })).rejects.toMatchObject({
+    statusCode: 409,
+    slug: "gpu-busy",
+    detail: "The graphics card is busy with another AI job — try again when it's done (stable-diffusion.cpp needs it)",
+  });
 });

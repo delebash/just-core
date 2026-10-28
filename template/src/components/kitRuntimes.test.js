@@ -3,10 +3,11 @@
 //
 // The kit's runtime screens mounted for real (the kit's engines plan, K10), over a stand-in server in the kit's
 // shapes: the AI page's runtime tab (the engine — what it needs, Install with its bar —, the models — Download with
-// its bar, Delete), the "this feature needs its engine" banner (its next step, gone once the feature can run), and an
-// image feature's preset pane on Routing (its settings from the server's rules, Save, a refused value under its field).
+// its bar, Delete), the "this feature needs its engine" banner (its next step, gone once the feature can run), and a
+// runtime feature's preset pane on Routing — an image one's (its settings from the server's rules, Save, a refused
+// value under its field), a vision one's (where it runs, in words).
 // K10b: no room on the drive said in words; each model's chip (fits here? how fast?) is the chat catalog's own.
-import { LuEngineNeeded, LuImagePresetPane, LuRuntimeTab } from "@delebash/ui";
+import { LuEngineNeeded, LuRuntimePresetPane, LuRuntimeTab, UiSelect } from "@delebash/ui";
 import { fmtBytes } from "@delebash/ui/common/services/downloadRate.js";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
@@ -49,7 +50,14 @@ function fakeFetch(input, init = {}) {
   }
   if (p === "/v1/ai/features/photo.render/readiness") return Promise.resolve(json(server.readiness()));
   if (p === "/v1/ai/engine-presets" && url.search === "?kind=image") return Promise.resolve(json({ presets: server.presets, paramRules: RULES }));
-  if (p === "/v1/ai/preset-assignments") return Promise.resolve(json({ defaultPresetId: "talk", features: { "photo.render": "photo" } }));
+  if (p === "/v1/ai/preset-assignments") return Promise.resolve(json({ defaultPresetId: "talk", features: { "photo.render": "photo", "parts.find": "parts" } }));
+  // a vision feature (round C): its presets, the kind's rules, its readiness
+  if (p === "/v1/ai/engine-presets" && url.search === "?kind=vision") return Promise.resolve(json({ presets: server.visionPresets, paramRules: VISION_RULES }));
+  if (p === "/v1/ai/features/parts.find/readiness") return Promise.resolve(json({ feature: "parts.find", kind: "vision", ready: true, need: "", runtime: "onnx", model: "seg" }));
+  if (p === "/v1/ai/engine-presets/parts" && method === "PUT") {
+    server.visionPresets = server.visionPresets.map((x) => (x.id === "parts" ? { ...x, params: body.params } : x));
+    return Promise.resolve(json({ presets: server.visionPresets, paramRules: VISION_RULES }));
+  }
   if (p === "/v1/ai/engine-presets/photo" && method === "PUT") {
     if (body.params.steps > 150) return Promise.resolve(json({ title: "Validation", status: 422, errors: [{ loc: ["body", "params", "steps"], msg: "Input should be less than or equal to 150", type: "less_than_equal", ctx: { le: 150 } }] }, 422));
     server.presets = server.presets.map((x) => (x.id === "photo" ? { ...x, params: body.params } : x));
@@ -61,6 +69,7 @@ const RULES = {
   steps: { type: "int", min: 1, max: 150, default: 4 },
   sampler: { values: ["euler", "lcm"], default: "euler" },
 };
+const VISION_RULES = { executionProvider: { values: ["auto", "cpu"], default: "auto" } };
 
 let wrapper;
 beforeEach(() => {
@@ -70,6 +79,7 @@ beforeEach(() => {
     engine: { id: "sdcpp", kind: "image", label: "stable-diffusion.cpp", build: "master-1004-a85db96", installed: false, running: "", idleSeconds: 300, downloadBytes: 907e6, need: null, status: "", downloaded: 0, total: 0 },
     models: [{ id: "tiny", name: "Tiny", license: "MIT", bytes: 10, onDisk: false, running: false, status: "", downloaded: 0, total: 0 }],
     presets: [{ id: "photo", name: "Photo", model: "tiny", kind: "image", builtIn: true, params: { steps: 4, sampler: "euler" } }],
+    visionPresets: [{ id: "parts", name: "Part finder", model: "seg", kind: "vision", builtIn: true, params: { executionProvider: "auto" } }],
     readiness: () => {
       const need = !server.engine.installed ? "engine-not-installed" : !server.models[0].onDisk ? "model-not-downloaded" : "";
       return { feature: "photo.render", kind: "image", ready: !need, need, runtime: "sdcpp", model: "tiny", engine: server.engine, modelState: server.models[0] };
@@ -210,7 +220,7 @@ test("an in-process runtime (ONNX Runtime) is part of the app: nothing to instal
 test("an image feature's preset pane: its settings from the server's rules, saved; a refused value said under its field", async () => {
   server.engine = { ...server.engine, installed: true };
   server.models = [{ ...server.models[0], onDisk: true }];
-  wrapper = mount(LuImagePresetPane, { props: { feature: "photo.render", label: "The AI photo" }, attachTo: document.body, global: { plugins: plugins() } });
+  wrapper = mount(LuRuntimePresetPane, { props: { feature: "photo.render", kind: "image", label: "The AI photo" }, attachTo: document.body, global: { plugins: plugins() } });
   await settle();
   const steps = document.body.querySelector("#lu-imgpane-photo\\.render-steps");
   expect(steps.value).toBe("4");
@@ -228,4 +238,25 @@ test("an image feature's preset pane: its settings from the server's rules, save
   await click("Save");
   await settle();
   expect(text()).toMatch(/150/); // the server's refusal, under Steps
+});
+
+test("a vision feature's preset pane: its kind's presets, where it runs in words, Save sends the choice", async () => {
+  wrapper = mount(LuRuntimePresetPane, { props: { feature: "parts.find", kind: "vision", label: "The part finder" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  expect(server.calls.some(([m, u]) => m === "GET" && u === "/v1/ai/engine-presets?kind=vision")).toBe(true);
+  expect(server.calls.some(([, u]) => u === "/v1/ai/engine-presets?kind=image")).toBe(false);
+  expect(text()).toContain("Vision model");
+  expect(text()).toContain("Runs on");
+  expect(text()).toContain("The graphics card, where it can");
+  expect(text()).not.toContain("seed"); // no seed here: no seed's hint
+  const where = wrapper.findAllComponents(UiSelect).find((c) => c.attributes("id") === "lu-imgpane-parts.find-executionProvider" || c.props("id") === "lu-imgpane-parts.find-executionProvider");
+  expect(where.props("options")).toEqual([
+    { value: "auto", label: "The graphics card, where it can" },
+    { value: "cpu", label: "The processor only" },
+  ]);
+  where.vm.$emit("update:modelValue", "cpu");
+  await settle();
+  await click("Save");
+  await settle();
+  expect(server.calls.find(([m, u]) => m === "PUT" && u === "/v1/ai/engine-presets/parts")[2].params).toEqual({ executionProvider: "cpu" });
 });

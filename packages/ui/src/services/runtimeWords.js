@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // What a kit runtime's engine needs from this computer, in the app's words — the server's `need` (runner/
-// runtime_service.js unmetNeed: { reason, missing?, url?, need?, have? }) as a key and its values. Shared by the AI
+// runtime_service.js unmetNeed: { reason, missing?, url?, need?, have? }; an in-process runtime's, runner/onnx.js
+// ortRuntimeCheck: { reason?, missing?, files?, url?, detail }) as a key and its values. Shared by the AI
 // page's runtime tab and the "this feature needs its engine" banner (the engines plan, K10; the words were
 // just-house-paint's EngineInstallCard's). K10b: the routes' refusals (no room on the drive, busy) in the app's words.
 // How fast a model runs here and whether it fits is the catalog's chip (common/services/modelPick.js) — one way.
@@ -16,6 +17,12 @@ export function engineNeedWords(need) {
       return need.have ? { key: "kit.runtimes.needs.macos", values: { need: need.need, have: need.have }, link: null } : { key: "kit.runtimes.needs.macosUnknown", values: { need: need.need }, link: null };
     case "glibc":
       return need.have ? { key: "kit.runtimes.needs.glibc", values: { need: need.need, have: need.have }, link: null } : { key: "kit.runtimes.needs.glibcNone", values: { need: need.need }, link: null };
+    case "files-missing":
+      return { key: "kit.runtimes.needs.filesMissing", values: { files: (need.files || []).join(", ") }, link: null };
+    case "dll-too-old":
+      return { key: "kit.runtimes.needs.dllTooOld", values: {}, link: need.url || null };
+    case "cant-load":
+      return { key: "kit.runtimes.needs.cantLoad", values: { error: need.detail || "" }, link: null };
     default:
       return { key: "kit.runtimes.needs.noBuild", values: {}, link: null };
   }

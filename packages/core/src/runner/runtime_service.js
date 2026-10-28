@@ -92,7 +92,8 @@ const noRoom = (label, short) =>
 /** The card is busy (another kind's job holds it): said in the words the screens already use. */
 export class EngineBusyError extends Error {
   constructor(label) {
-    super(`The graphics card is busy with another AI job — ${label} starts when it's free`);
+    // a refusal, never a queue: nothing starts by itself once the card is free
+    super(`The graphics card is busy with another AI job — try again when it's done (${label} needs it)`);
     this.name = "EngineBusyError";
   }
 }

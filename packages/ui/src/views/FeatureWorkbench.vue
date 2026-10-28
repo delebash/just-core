@@ -21,7 +21,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import FeatureLab from "../components/FeatureLab.vue";
-import LuImagePresetPane from "../components/LuImagePresetPane.vue";
+import LuRuntimePresetPane from "../components/LuRuntimePresetPane.vue";
 import Icon from "../common/components/Icon.vue";
 import UiButton from "../common/components/UiButton.vue";
 import { request } from "../client.js";
@@ -46,7 +46,8 @@ const routing = ref(null);
 const providers = ref([]);
 const enginePresets = ref([]);
 // the image presets, for an image feature's nav label (the engines plan, K10): an image feature runs its own preset only
-const imagePresets = ref([]);
+// each runtime kind's presets (image, vision — a feature of that kind runs one of them): kind → [preset]
+const runtimePresets = ref({});
 /** A feature's model kind (llm · image · vision — the routing answer's `kind`). */
 const kindOf = (key) => featMeta.value[key]?.kind || "llm";
 const presetAssign = ref({ defaultPresetId: "", features: {} });
@@ -185,10 +186,11 @@ async function load() {
     catch { knobCatalog.value = []; }
     try { enginePresets.value = (await request("/v1/ai/engine-presets")).presets || []; }
     catch { enginePresets.value = []; }
-    if ((routing.value?.features || []).some((f) => f.kind === "image")) {
-      try { imagePresets.value = (await request("/v1/ai/engine-presets?kind=image")).presets || []; }
-      catch { imagePresets.value = []; }
-    }
+    const kinds = [...new Set((routing.value?.features || []).map((f) => f.kind).filter((k) => k && k !== "llm"))];
+    runtimePresets.value = Object.fromEntries(await Promise.all(kinds.map(async (k) => {
+      try { return [k, (await request(`/v1/ai/engine-presets?kind=${encodeURIComponent(k)}`)).presets || []]; }
+      catch { return [k, []]; }
+    })));
     try { presetAssign.value = await request("/v1/ai/preset-assignments"); }
     catch { presetAssign.value = { defaultPresetId: "", features: {} }; }
     // Deep-link focus first; else the first card.
@@ -245,9 +247,9 @@ function featureOfAction(key) {
   return prompts.value.find((p) => p.key === key)?.feature || "";
 }
 function featurePresetLabel(key) {
-  // an image feature: its own image preset, or none — it never falls to the chat default
+  // a runtime feature (image, vision): its own preset of its kind, or none — it never falls to the chat default
   if (kindOf(key) !== "llm") {
-    const ip = imagePresets.value.find((p) => p.id === presetAssign.value.features?.[key]);
+    const ip = (runtimePresets.value[kindOf(key)] || []).find((p) => p.id === presetAssign.value.features?.[key]);
     return ip ? t("kit.workbench.presetAssigned", { name: presetDisplayName(ip) }) : t("kit.workbench.presetNone");
   }
   const pid = refPid(key);
@@ -492,9 +494,9 @@ onMounted(load);
           <!-- A labeled panel row's pane (the attribution "Auto"): the app's
                mechanism panel IS the whole pane — the feature's actions carry
                their own routing on their own cards, so no chooser renders here. -->
-          <!-- An image feature (the engines plan, K10): its image preset and that preset's settings, and what it still
-               needs on this computer — not the chat Lab. -->
-          <LuImagePresetPane v-if="kindOf(selFeature) === 'image'" :key="selFeature" :feature="selFeature" :label="featMeta[selFeature]?.label || selFeature" />
+          <!-- A runtime feature — image, vision (the engines plan, K10, round C): its preset of its kind and that
+               preset's settings, and what it still needs on this computer — not the chat Lab. -->
+          <LuRuntimePresetPane v-if="kindOf(selFeature) !== 'llm'" :key="selFeature" :feature="selFeature" :kind="kindOf(selFeature)" :label="featMeta[selFeature]?.label || selFeature" />
           <template v-else-if="selPanelPane">
             <p v-if="selPanelMeta.note" class="lu-muted" style="margin:0 0 12px">{{ selPanelMeta.note }}</p>
             <component :is="selPanelMeta.component" :feature="selFeature" />

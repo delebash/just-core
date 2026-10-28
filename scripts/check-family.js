@@ -1511,7 +1511,9 @@ function checkEsModules(name, dir, roots = ["."]) {
 // An app's server doing an engine's job itself fails: starting a native process (node:child_process, the kit's
 // spawnChild/closeJob), unpacking an engine's archive or acquiring a runtime (the kit's zip / tar / acquireRuntime),
 // opening ONNX Runtime, or pinning a model file by its SHA-256 outside its seed files (database/seed*.js,
-// seed_*.js). The kit's runtimes do these (docs/plans/2026-10-24-engines-the-llama-way.md). The files that did
+// seed_*.js). The kit's runtimes do these (docs/plans/2026-10-24-engines-the-llama-way.md). Handing the app's own
+// onnxruntime-node to the kit's ONNX runtime — installLlm's `onnx: { load: () => import("onnxruntime-node") }` (the
+// plan's D2: the package is the app's, the kit opens it) — is that way, not the app opening it. The files that did
 // it before the rule are listed by name (ENGINE_KNOWN) and printed until their round moves them into the kit;
 // any other file fails.
 const ENGINE_SIGNS = [
@@ -1521,12 +1523,8 @@ const ENGINE_SIGNS = [
   [/from\s+["']onnxruntime-(node|web)["']|import\(\s*["']onnxruntime-(node|web)["']\s*\)/, "opens ONNX Runtime itself"],
   [/["'`][0-9a-f]{64}["'`]/, "pins a file by its SHA-256 in code"],
 ];
+const ORT_HANDOFF = /\bonnx:\s*\{\s*load:\s*\(\)\s*=>\s*import\(\s*["']onnxruntime-node["']\s*\)/g;
 const ENGINE_KNOWN = new Map([
-  ["just-house-paint", new Set([
-    "server/src/finder.js",
-    "server/src/segment/models.js",
-    "server/src/segment/segmenter.js",
-  ])],
   ["JustVoice", new Set([
     "server/src/audio/dsp_client.js",
     "server/src/engines/audiocpp/catalog.json",
@@ -1542,7 +1540,7 @@ function checkEngines(app) {
   for (const f of notIgnored(app.dir, walk(root))) {
     if (!/\.(js|json)$/.test(f)) continue; // a catalog .json can pin files too
     const rel = relative(app.dir, f).replace(/\\/g, "/");
-    const code = readFileSync(f, "utf8").split(/\r?\n/).filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+    const code = readFileSync(f, "utf8").split(/\r?\n/).filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n").replace(ORT_HANDOFF, "onnx: { load: kitHandoff");
     const what = ENGINE_SIGNS.filter(([re, why]) => re.test(code) && !(why.includes("SHA-256") && isSeedFile(rel))).map(([, why]) => why);
     if (!what.length) continue;
     const msg = `${rel} ${what.join("; ")} — AI engines go through the kit's runtimes (family rules; the engines plan)`;

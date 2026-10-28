@@ -279,6 +279,15 @@ finder):**
 - *The GPU through the arbiter:* with SAM 3 booked, house-paint's `assertGpuFree`/`GPU_KINDS`/`hold("local-ai")`
   go — the arbiter evicts an idle holder for room and refuses ("The graphics card is busy") while one is busy.
 
+**Round C BUILT (2026-10-28):** the kit's half (cd7c460, 4e2c434, 905bed9) and house-paint's H2–H7 (its TASKS).
+Found on the way and filled in the kit: `retireSettings` (a setting an app retires into a kit preset or runner
+setting, carried over at every seed — house-paint's two finder settings; JustVoice's speech defaults are next);
+ONNX Runtime's needs in the screens' words (`runtimeWords.js` `engineNeedWords`: `files-missing`, `dll-too-old`,
+`cant-load`); `EngineBusyError`'s words (a refusal: "try again when it's done", not "starts when it's free");
+`LuRuntimePresetPane` (was `LuImagePresetPane`) for any runtime kind, and FeatureWorkbench loading each kind's
+presets — a vision feature had no preset pane; the guard's check 21 reads installLlm's `onnx: { load: () =>
+import("onnxruntime-node") }` as the D2 handoff.
+
 JustVoice (by its own session, with the user's go — this session never commits there):
 
 - **J1** audio.cpp into the kit like llama.cpp: its pins → the kit's rows (seeded); `speech-cache` → the

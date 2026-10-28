@@ -68,7 +68,6 @@ function withAuth(input, init) {
   const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
   // eslint-disable-next-line i18next/no-literal-string -- an HTTP header (RFC 6750), not words
   if (token && !headers.has("authorization")) headers.set("Authorization", `Bearer ${token}`);
-  // eslint-disable-next-line i18next/no-literal-string -- an HTTP header, not words
   if (sendClientId && !headers.has("x-client-id")) headers.set("X-Client-Id", CLIENT_ID);
   return { ...init, headers };
 }

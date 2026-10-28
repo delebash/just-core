@@ -140,7 +140,7 @@ export {
 // The kit runtimes besides llama.cpp (the engines plan, K10): a runtime's engine and models (the AI page's tab per
 // runtime), an image feature's preset pane (its Routing), and the in-context "this feature needs its engine" banner.
 export { default as LuRuntimeTab } from "./components/LuRuntimeTab.vue";
-export { default as LuImagePresetPane } from "./components/LuImagePresetPane.vue";
+export { default as LuRuntimePresetPane } from "./components/LuRuntimePresetPane.vue";
 export { default as LuEngineNeeded } from "./components/LuEngineNeeded.vue";
 
 // views

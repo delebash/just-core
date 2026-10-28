@@ -13,6 +13,41 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## No family app releases until the kit's work is done and checked — this session gives the go [2026-10-28]
+GO:     the user, 2026-10-28, verbatim: "fix it i dont know i know i instructed jw session to wait until kit work
+        is done and it went ahead and ran the build, if sync is not correct then stop build and do it right, work
+        with other session and do a profressional job not a half lazy job" — then: "wait until all work is done
+        and all bugs found then notify session to build do it right!"
+STATE:  JustWrite v2.0.0's release runs were stopped on 2026-10-28. 40783469420 had already been cancelled; it was on
+        sync 9836ed4, which lacks the hono fix 1e07053 (its release.yml runs the sync engine's `npm ci --omit=dev`).
+        This session cancelled 40785919910 at the user's word. Neither run reached publish, and no v2.0.0 release
+        exists; the tag v2.0.0 (1127df4) is JustWrite's own. JustWrite's session has been told to start no run,
+        dry runs included, until this session sends the go. It confirmed: no runs going.
+        JustWrite's fixes since b30c605, all pushed to master (its session's word):
+        - 3173052 — bump.js versions the workspaces too;
+        - 1127df4 — the sidebar shows the real version; the v2.0.0 tag points here;
+        - 84302c5 — the phone-bundle test.
+        Its screenshots (e2e/capture-direct.js, uncommitted) wait for the final build. JustWrite's session also
+        reports that 9836ed4's packaged server did start in dry run 40777984596: the installer carries real copies of
+        its packages, so the Hono gap only hit checkouts and the phone bundle.
+OPEN:   the go to JustWrite's session — only once the engines plan's rounds C and D and the kit's open items are
+        built, committed, pushed and the full cross-app run is green. It names the exact kit and sync commits to
+        build with.
+        JustWrite's blockers, found by the user (its code; its session fixes them, and the go waits for the commits):
+        - A scene opened from a link (a strand's beat chip, "Appears in scenes", a mention) highlights its chapter
+          in the left nav but leaves it collapsed, so the scene row is hidden. The links are a bare router.push;
+          only ui.setScrolledScene (scrolling) and adding a scene expand `chapter:<id>`. Sent to JustWrite's session
+          on 2026-10-28. Its fix, in progress: `ui.expandChapter(id)`, called from ChaptersPage's route watcher for
+          any valid scene, with a flow test (tests/flows/scene-link.spec.js) that fails on 1127df4.
+        JustWrite's other v2.0.0 fixes, uncommitted on 2026-10-28 (its session's word):
+        - the Strands header's "Planning" label;
+        - the kit's `width` props on Brainstorm, Settings → Project and Import;
+        - the Plot board's strand column wide enough for the names;
+        - the undo-cap test's time limit;
+        - README;
+        - the screenshot script working on a copy of the data.
+        Its full checks must run in the clean clone on the final kit and sync commits named in the go, not b30c605.
+
 ## One way per job: the kit's job table, K10b's speed and memory notes folded into the existing way [2026-10-27]
 WHY:    K10b (1394e5c) added a per-build `slow` flag (runtimes.js `fastGpus`, runtime_service.js `_slow`) and a
         model's `lowMemory` (runtime_model `ram_gb`/`ram_gb_shared`, `_memoryNote`) — second ways to do jobs the
@@ -103,9 +138,16 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         AI photo on the kit's sd.cpp runtime (its TASKS says what); the guard's ENGINE_KNOWN lost its two AI photo
         files. Round C, the kit's half BUILT 2026-10-27 (cd7c460 — the plan's "Round C decisions"): the
         in-process ONNX runtime (`runner/onnx.js`, `RUNTIMES.onnx`, `RuntimeService.withModel`), vision features
-        (`runVisionFeature`, `registerVisionAdapter`, `PARAM_RULES.vision`), the tab's "part of this app". Next:
-        a runtime's idle time editable on its tab (house-paint's "finder.idleMinutes" moves there), then
-        house-paint's half of round C (H2–H7 for the finder), then round D (the kit's jobs, K9).
+        (`runVisionFeature`, `registerVisionAdapter`, `PARAM_RULES.vision`), the tab's "part of this app"; a
+        runtime's idle time on its tab (4e2c434) and its start check (905bed9). Round C BUILT 2026-10-28 with
+        house-paint's half (H2–H7, its TASKS says what) and what it found missing in the kit: a setting an app
+        retires into the kit carried over at each seed (`platform/settings_upgrade.js` `retireSettings`, §19's
+        row); ONNX Runtime's needs in words on the banner and the tab (`runtimeWords.js`: a file missing, a DLL
+        too old, it didn't load — they read "no build for this computer"); the busy refusal no longer says the
+        job "starts when it's free" (nothing waits: try again); a vision feature's preset on Routing
+        (`LuImagePresetPane` → `LuRuntimePresetPane`, any runtime kind — a vision feature fell into the chat
+        Lab and its preset read "none"); the guard's check 21 takes the app's `onnx: { load }` handoff (D2) and
+        its ENGINE_KNOWN lost house-paint's three files. Next: round D (the kit's jobs, K9).
         OPEN: llama.cpp's own engine install and GGUF downloads have no room check before they start (the
         downloader's DiskFullError says so only once the drive is full) — put them on `disk_room.js`
         `lacksRoom` the way the runtimes are.

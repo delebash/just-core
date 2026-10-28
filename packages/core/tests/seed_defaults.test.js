@@ -6,7 +6,7 @@
 // touched. Today's kit defaults are held here: change one and this fails until its outgoing value is kept.
 import { afterEach, expect, test } from "vitest";
 import { DEFAULT_PROVIDERS, DEFAULT_RUNNER_SETTINGS, PRIOR_RUNNER_SETTINGS, seedDefaultRunnerSettings } from "../src/llm/seed.js";
-import { defaultsFingerprints, fingerprint, upgradeSettings } from "../src/platform/settings_upgrade.js";
+import { defaultsFingerprints, fingerprint, retireSettings, upgradeSettings } from "../src/platform/settings_upgrade.js";
 import { freshDb } from "./helpers.js";
 
 // Today's seeded defaults. A change here means a default changed: keep the OLD value in seed.js
@@ -88,4 +88,36 @@ test("an app's setting still at an earlier default takes today's; an edited one,
   expect(rows.get("finder.parts")).toEqual(defaults["finder.parts"]);
   expect(rows.get("finder.priority")).toEqual(["wall", "trim"]);
   expect(upgradeSettings(h, { defaults, previous, ...store })).toEqual([]); // nothing left to upgrade
+});
+
+test("a retired setting's value is carried where it lives now, once; a move that fails keeps its row", () => {
+  const rows = new Map([
+    ["finder.useGpu", false],
+    ["finder.idleMinutes", 15],
+    ["finder.parts", ["body"]],
+  ]);
+  const store = { getSetting: (_h, k) => (rows.has(k) ? rows.get(k) : undefined), deleteSetting: (_h, k) => rows.delete(k) };
+  const carried = {};
+  const moves = {
+    "finder.useGpu": (v) => {
+      carried.executionProvider = v ? "auto" : "cpu";
+    },
+    "finder.idleMinutes": () => {
+      throw new Error("the kit's store isn't open");
+    },
+    "notes.gone": () => {
+      throw new Error("never run: no row");
+    },
+  };
+  const out = retireSettings({}, moves, store);
+  expect(out.moved).toEqual(["finder.useGpu"]);
+  expect(out.kept.map((k) => [k.key, k.error.message])).toEqual([["finder.idleMinutes", "the kit's store isn't open"]]);
+  expect(carried).toEqual({ executionProvider: "cpu" });
+  expect([...rows.keys()]).toEqual(["finder.idleMinutes", "finder.parts"]); // the failed one kept, the others untouched
+  moves["finder.idleMinutes"] = (v) => {
+    carried.idleSeconds = v * 60;
+  };
+  expect(retireSettings({}, moves, store)).toEqual({ moved: ["finder.idleMinutes"], kept: [] }); // the next seed
+  expect(carried).toEqual({ executionProvider: "cpu", idleSeconds: 900 });
+  expect(retireSettings({}, moves, store)).toEqual({ moved: [], kept: [] }); // nothing left
 });
