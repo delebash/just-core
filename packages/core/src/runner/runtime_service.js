@@ -20,6 +20,7 @@ import os from "node:os";
 import path from "node:path";
 import { AsyncEvent, background } from "../platform/asyncutil.js";
 import { freeBytes, lacksRoom } from "../platform/disk_room.js";
+import { ApiError } from "../platform/errors.js";
 import { getLogger } from "../platform/log.js";
 import { getArbiter } from "./arbiter.js";
 import * as binary from "./binary.js";
@@ -66,7 +67,7 @@ export const thisSystem = () => ({
   platform: process.platform,
   arch: process.arch,
   versions: hardware.systemVersions(),
-  missingDlls: (names) => hardware.missingDlls(names),
+  missingDlls: (names, opts) => hardware.missingDlls(names, opts),
 });
 
 const idle = () => ({ status: "", detail: "", error: "", downloaded: 0, total: 0 });
@@ -597,18 +598,51 @@ export class RuntimeService {
     writeFileSync(blankPage, "<!doctype html><title>.</title>\n"); // its WebUI off: an empty page at / (no flag turns it off)
     const port = await this._findPort("127.0.0.1", 18900);
     const url = `http://127.0.0.1:${port}`;
-    const handle = await this._startServer(exe, this._spec.argv({ port, files, blankPage }), {
-      url,
-      health: (u) => this._spec.ready(u),
-      label: `${this.rt.label} server`,
-      note: modelKey,
-      logPath: path.join(this._logDir, `${this.rt.id}-server.log`),
-      probeTimeout: 60,
-    });
+    let handle;
+    try {
+      handle = await this._startServer(exe, this._spec.argv({ port, files, blankPage }), {
+        url,
+        health: (u) => this._spec.ready(u),
+        label: `${this.rt.label} server`,
+        note: modelKey,
+        logPath: path.join(this._logDir, `${this.rt.id}-server.log`),
+        probeTimeout: 60,
+      });
+    } catch (e) {
+      throw this._cantStart(e, exe) ?? e;
+    }
     this._server = { handle, modelKey, peakMb: Number(peakVramMb) || 0 };
     this._book(this._booking().idleMb);
     this._armIdle();
     return handle;
+  }
+
+  /** A server Windows' loader couldn't start (process.js startFailure: the exit code it gave), in words — why, and what
+   *  to do — as a 503 `engine-cant-start` with its `reason` (just-house-paint's sd-cli words, moved into the kit);
+   *  null for any other failure (its own message stands). */
+  _cantStart(e, exe) {
+    const failure = processMod.startFailure(e?.exitCode);
+    if (!failure) return null;
+    const label = this.rt.label;
+    const vc = hardware.VC_REDIST_URL;
+    let reason = failure.reason;
+    let detail;
+    if (reason === "dll-missing") {
+      const { asset } = this._pick();
+      const missing = asset?.requires?.dlls?.length ? this._systemFn().missingDlls(asset.requires.dlls, { appDir: path.dirname(String(exe)) }) : [];
+      if (missing.length) {
+        reason = "vc-runtime";
+        detail = `Microsoft's Visual C++ runtime (2015–2022) isn't on this computer (${missing.join(", ")} missing) — install it from ${vc}, then try again`;
+      } else {
+        detail = `a DLL it needs couldn't be found — an antivirus may have removed one of its files: install ${label} again; if it still fails, install Microsoft's Visual C++ runtime from ${vc}`;
+      }
+    } else if (reason === "dll-too-old") {
+      detail = `a DLL on this computer is older than ${label} needs — install the latest Microsoft Visual C++ runtime from ${vc}, then try again`;
+    } else {
+      detail = `a path is too long for ${label} — move the app's data folder to a shorter path`;
+    }
+    log.warning(`${this.rt.id} server couldn't start (${failure.status}): ${e?.message || e}`);
+    return new ApiError(503, "engine-cant-start", `${label} couldn't start`, detail, { reason });
   }
 
   /** Stop the server (idle, evicted, removed, the app quitting); its booking goes with it. */

@@ -245,6 +245,16 @@ house-paint (on the updated kit):
   prompt row: the kit's prompt rows are whole prompts for runAction, these are fragments `renderPrompt` joins),
   `aiphoto.compose`, `aiphoto.workingPixels`, `aiphoto.sharedGpuNoteMb`. The recipe (`DEFAULT_SD_RECIPE`, a code
   constant until now) becomes the `aiphoto.render` preset's params — editable on the AI page.
+- **BUILT 2026-10-27.** Kit: KB1–KB3 (08d2350), then sd-server start failures in words — house-paint's NTSTATUS
+  table (`process.js` `START_FAILURES`, `startFailure`; `RunnerStartError.exitCode`; `RuntimeService._cantStart`:
+  503 `engine-cant-start` with the Visual C++ runtime named when it's what's missing). House-paint: H1 (the feature,
+  its preset, the model row in `seed_presets.js` — the guard allows a pin there; `edit.js` on an injected
+  `generate`; `engine.js`/`sdcli.js` gone), the image half of H3 (`stopLocalModel` gone; `data_admin.js` stops the
+  runtimes), H4 for the AI photo (`aiphoto/migrate.js` at start, in the background), H5 (the dialog's
+  `LuEngineNeeded`, the engines store on the kit's readiness, Storage's row gone), H6 (ai-photo, ai-features,
+  ai-providers, getting-started, settings, troubleshooting, whats-new), H7 (`edit.test.js` on a fake image feature,
+  `migrate.test.js` on the kit's real RuntimeService, `real.test.js` on the kit's runtime — its output in the temp
+  folder, never the data folder). Open: the real render on this PC and the screens checked by eye.
 
 JustVoice (by its own session, with the user's go — this session never commits there):
 

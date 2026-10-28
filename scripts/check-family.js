@@ -1523,8 +1523,6 @@ const ENGINE_SIGNS = [
 ];
 const ENGINE_KNOWN = new Map([
   ["just-house-paint", new Set([
-    "server/src/aiphoto/engine.js",
-    "server/src/aiphoto/sdcli.js",
     "server/src/finder.js",
     "server/src/segment/models.js",
     "server/src/segment/segmenter.js",

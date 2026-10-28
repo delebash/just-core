@@ -39,8 +39,7 @@ STATE:  BUILT 2026-10-27 — CLAUDE.md (the user's global, merged into "Standard
         call), `speedBand` in a kind's own unit (`lowerIsFaster` for seconds per image), runtime models rated by
         `coarseFit` + `rateSpeed` with the ledger's `sec_per_image` and a model's `ref_speed`, the catalog's chip on
         the runtime screens; K10b's `fastGpus`, `slow`, `ram_gb`, `lowMemory` gone (the plan's K10b says what).
-        Next: house-paint's round B on it (paused mid-edit: `server/src/aiphoto/edit.js` takes an injected
-        `generate`, uncommitted).
+        House-paint's round B on it: done 2026-10-27 (house-paint's TASKS says what).
         OPEN: family tests that click a mounted button with a bare `element.click()` — the template's
         `kitControls`, `settingsSections`, `NotesPage` tests, house-paint's and JustWrite's (grep `\.click();` in
         `*.test.js`) — move to Vue Test Utils' `trigger` (app-structure §18: Vue drops a same-millisecond event;
@@ -96,7 +95,13 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         got a SHA-256 (JustWrite's find). K10b BUILT (the plan says what): room on the drive before an engine
         install or a model download (house-paint's check, moved to `platform/disk_room.js`; the builds' unpacked
         sizes measured), busy engines and models never removed, the "slow here" and "less memory" notes, all said
-        on the kit's screens. Next: house-paint's round B.
+        on the kit's screens (the two notes folded into the speed band and fit, "One way per job" above). Round B
+        BUILT 2026-10-27: the kit's pieces first — files already on this computer adopted into a runtime model's
+        cache (`models.adoptFileSet`, `RuntimeService.adoptModel`), every runtime's server stopped on a reset or
+        restore (`stopRuntimeServers`), a runtime's install sweeping its other builds, a server Windows' loader
+        couldn't start said in words (`process.js` `startFailure`, house-paint's table moved) — then house-paint's
+        AI photo on the kit's sd.cpp runtime (its TASKS says what); the guard's ENGINE_KNOWN lost its two AI photo
+        files. Next: round C (the part finder on a kit ONNX runtime), round D (the kit's jobs, K9).
         OPEN: llama.cpp's own engine install and GGUF downloads have no room check before they start (the
         downloader's DiskFullError says so only once the drive is full) — put them on `disk_room.js`
         `lacksRoom` the way the runtimes are.

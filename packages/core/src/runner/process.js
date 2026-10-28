@@ -77,12 +77,30 @@ const sleepS = (s) => sleep(s * 1000);
 
 /** llama-server never became healthy (and it wasn't a recoverable OOM). */
 export class RunnerStartError extends RuntimeError {
+  /** `options.exitCode`: the code the process exited with on its own, when it did (startFailure reads it). */
   constructor(message, options) {
     super(message);
     this.name = "RunnerStartError";
     if (options?.cause !== undefined) this.cause = options.cause;
+    if (options?.exitCode != null) this.exitCode = options.exitCode;
   }
 }
+
+/**
+ * The exit codes of a Windows program the loader couldn't start — NTSTATUS values (MS-ERREF §2.3.1,
+ * learn.microsoft.com/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55), which Node reports
+ * unsigned ("exit 3221225781"): a DLL not found (the Visual C++ runtime isn't installed, or an antivirus took one of
+ * the engine's own), an entry point not found (a DLL older than the engine needs), a name too long (a path past what
+ * the engine takes). just-house-paint's sd-cli table (2026-10-19), moved into the kit for every server it starts.
+ */
+export const START_FAILURES = Object.freeze({
+  [0xc0000135]: Object.freeze({ status: "STATUS_DLL_NOT_FOUND", reason: "dll-missing" }),
+  [0xc0000139]: Object.freeze({ status: "STATUS_ENTRYPOINT_NOT_FOUND", reason: "dll-too-old" }),
+  [0xc0000106]: Object.freeze({ status: "STATUS_NAME_TOO_LONG", reason: "path-too-long" }),
+});
+
+/** The start failure an exit code means (`{status, reason}`), or null. */
+export const startFailure = (code) => (Number.isInteger(code) ? (START_FAILURES[code >>> 0] ?? null) : null);
 
 /** Nothing in the scanned range could be bound — the box is genuinely full. */
 export class NoFreePortError extends RunnerStartError {
@@ -1516,5 +1534,5 @@ export async function startServerProcess(
   self._closeJob(job); // a failed spawn's job dies with its child
   const status = rc === null ? "still running, killed on timeout" : `exit ${rc}`;
   const where = logPath ? `  [log: ${logPath}]` : "";
-  throw new RunnerStartError(`${label} failed to become healthy (${status}): ${tailChars(output, 1000)}${where}`);
+  throw new RunnerStartError(`${label} failed to become healthy (${status}): ${tailChars(output, 1000)}${where}`, { exitCode: rc });
 }

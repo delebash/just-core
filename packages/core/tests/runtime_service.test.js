@@ -10,6 +10,7 @@ import path from "node:path";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { DEFAULT_SDCPP_BINARIES, DEFAULT_SDCPP_BUILD, binaryAsset } from "../src/runner/config.js";
 import { runtimeVariantDir } from "../src/runner/binary.js";
+import { RunnerStartError, startFailure } from "../src/runner/process.js";
 import { configureRuntimeServices, RuntimeService, unmetNeed } from "../src/runner/runtime_service.js";
 import { makeRuntimesRouter } from "../src/llm/runtimes_api.js";
 import { ROOM_MARGIN } from "../src/platform/disk_room.js";
@@ -191,6 +192,36 @@ test("an install sweeps the runtime's other builds — an update replaces the ol
   await until(() => !existsSync(path.join(root, "sdcpp", "master-973-f0aac52")));
   expect(existsSync(path.join(root, "sdcpp", "master-973-f0aac52"))).toBe(false);
   expect(svc.status().serverExe).toContain(path.join("sdcpp", DEFAULT_SDCPP_BUILD, "cuda12"));
+});
+
+test("a server Windows' loader couldn't start is said in words — the Visual C++ runtime, a file an antivirus took, a DLL too old, a path too long", async () => {
+  const dir = runtimeVariantDir(root, "sdcpp", DEFAULT_SDCPP_BUILD, "cuda12");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, "sd-server.exe"), "");
+  const failingWith = (exitCode, missing = []) =>
+    service({
+      systemFn: () => system(missing),
+      server: { argv: () => [], ready: async () => true },
+      findPort: async () => 18911,
+      arbiter: () => ({ reserve() {}, release() {} }),
+      startServer: async () => {
+        throw new RunnerStartError(`stable-diffusion.cpp server failed to become healthy (exit ${exitCode}): …`, { exitCode });
+      },
+    });
+  const start = (svc) => svc.ensureServer({ modelKey: "m", files: {} });
+  await expect(start(failingWith(3221225781, ["VCRUNTIME140.dll"]))).rejects.toMatchObject({
+    statusCode: 503,
+    slug: "engine-cant-start",
+    title: "stable-diffusion.cpp couldn't start",
+    extra: { reason: "vc-runtime" },
+    message: expect.stringMatching(/Visual C\+\+ runtime \(2015–2022\) isn't on this computer \(VCRUNTIME140\.dll missing\)/),
+  });
+  await expect(start(failingWith(3221225781))).rejects.toMatchObject({ extra: { reason: "dll-missing" }, message: expect.stringMatching(/an antivirus may have removed one of its files/) });
+  await expect(start(failingWith(0xc0000139))).rejects.toMatchObject({ extra: { reason: "dll-too-old" } });
+  await expect(start(failingWith(0xc0000106))).rejects.toMatchObject({ extra: { reason: "path-too-long" } });
+  // any other failure keeps its own words
+  await expect(start(failingWith(1))).rejects.toMatchObject({ name: "RunnerStartError", exitCode: 1 });
+  expect(startFailure(-1073741515)).toMatchObject({ status: "STATUS_DLL_NOT_FOUND" }); // signed, as some report it
 });
 
 test("the routes: no room is a 507 with the sizes for the screen's words", async () => {
