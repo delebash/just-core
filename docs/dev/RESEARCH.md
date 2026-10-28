@@ -2486,6 +2486,43 @@ From just-house-paint's fifteenth review (2026-10-20: the built app on fake data
 - **Dragging needs a single-pointer way** (WCAG 2.5.7): a box drawn on the photo by two clicks as well as a
   drag, pan buttons while zoomed; a freehand path (brush, eraser) is 2.1.1's exception. — *2026-10-20*.
 
+## 11 · Long server jobs (the engines plan's K9)
+
+What a kit job registry has to hold, from the apps that run long work. Not decided as kit tasks: facts for K9's
+design.
+
+- **just-direct (the film app's tests, no app yet) — record, from its session 2026-10-28, measured on the
+  family's 8 GB PC:**
+  - A video clip is one long job: 410–419 s for LTX-2.3 at 1280×704 × 121 frames. Its progress comes in two sampling
+    stages (8 steps, then 3 after an upscale), then a decode with no step progress.
+  - A second clip on the same sd-server crashed or ran out of memory, so the tests start a fresh server per clip.
+  - A take is a chain: clip N+1 starts from a frame of clip N's output, then an ffmpeg join runs. A job's input can
+    be an earlier job's output.
+  - The voice swap is a run of audio.cpp CLI processes in series (TTS, separation, voice conversion, remux), not a
+    server.
+  - A RAM guard stops a job itself when free system memory falls below a floor (1.5 GB in the tests, checked every
+    second). Without it Claude Code once killed the whole run.
+  - Sharing the graphics card between apps: JustWrite and the film tests agree on it by Claude messages today.
+    `EngineBusyError` covers one app only.
+  - Gaps it found in `runner/sdcpp.js` at c1b95b8:
+    - `SLOT_FLAGS` has no `llm_vision` slot (Qwen-Image-Edit), no LoRA directory and no hires upscalers directory.
+    - `sdServerArgv` can't pass `--backend` / `--params-backend`; LTX needs `--backend te=cpu` (Gemma 3 12B on the
+      CPU).
+    - `videoJobBody` has no two-stage (hires) fields, no `ref_images` and no `strength` (Lightricks' I2V: 0.7).
+    - `videoGen` doesn't call `recordSpeed`; `imageEdit` does.
+    - sd-server's .webm carries pcm_s16le audio; the tests remux it to AAC MP4.
+    - 720p picture-to-video on 8 GB needs a local sd.cpp patch (`src/model/diffusion/ltxv.hpp`, branch `jd`); the
+      official build runs out of memory. Whether an app ships a patched build isn't decided.
+- **house-paint — code, 2026-10-28:** `server/src/jobs.js` `JobRegistry`:
+  - one job per kind and key (a house); starting a running one answers it;
+  - a finished job kept 10 minutes, and its end remembered after (410 Gone);
+  - cancel through an AbortSignal; `onFinish` counts the end as the starting window's change;
+  - `/v1/jobs/:id` (GET, DELETE) and `/v1/houses/:id/jobs` (the running ones);
+  - the screen's side is `src/services/jobs.js` `runServerJob`, inside `withAiTask`.
+- **JustVoice — code (the plan's grep, 2026-10-24):** `/v1/jobs/:job_id` (GET, DELETE) in
+  `server/src/api/engines_models_api.js`; `src/services/ttsJobChannel.js` calls the same shape "the kit's channel
+  contract".
+
 ## Records not yet distilled
 
 Indexed by subject so they can be found; their facts move into a section above when work next

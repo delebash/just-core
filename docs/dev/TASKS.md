@@ -37,8 +37,10 @@ OPEN:   the go to JustWrite's session — only once the engines plan's rounds C 
         - A scene opened from a link (a strand's beat chip, "Appears in scenes", a mention) highlights its chapter
           in the left nav but leaves it collapsed, so the scene row is hidden. The links are a bare router.push;
           only ui.setScrolledScene (scrolling) and adding a scene expand `chapter:<id>`. Sent to JustWrite's session
-          on 2026-10-28. Its fix, in progress: `ui.expandChapter(id)`, called from ChaptersPage's route watcher for
-          any valid scene, with a flow test (tests/flows/scene-link.spec.js) that fails on 1127df4.
+          on 2026-10-28. FIXED in JustWrite 6fe6717 (pushed): `ui.expandChapter(id)` from ChaptersPage's route
+          watcher, held by tests/flows/scene-link.spec.js; with it the fixes below. Its session checked it in a clean
+          clone at kit b30c605 (unit 747, server 190, smoke, flows 24/24) — to run again on the go's commits. Next
+          there, at the user's word: Name ideas' text labels, Title ideas beside the book, chapter and scene titles.
         JustWrite's other v2.0.0 fixes, uncommitted on 2026-10-28 (its session's word):
         - the Strands header's "Planning" label;
         - the kit's `width` props on Brainstorm, Settings → Project and Import;
