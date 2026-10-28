@@ -40,7 +40,6 @@ import {
   readFileSync,
   renameSync,
   rmSync,
-  statfsSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -50,6 +49,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import Busboy from "@fastify/busboy";
 import { Hono } from "hono";
+import { freeBytes } from "./disk_room.js";
 import { ApiError, HttpError, RequestValidationError } from "./errors.js";
 import { getLogger } from "./log.js";
 import { MaintenanceGate } from "./maintenance.js";
@@ -140,10 +140,7 @@ const UNPACK_MARGIN = 256 * 1024 * 1024;
 /** How a drive's free room is read and an upload's file opened (a test's small or full drive replaces them, as
  *  dataRoot.js's `volume`). */
 export const drive = {
-  freeBytes(dir) {
-    const d = statfsSync(dir);
-    return d.bavail * d.bsize;
-  },
+  freeBytes: (dir) => freeBytes(dir) ?? Number.POSITIVE_INFINITY,
   openUpload: (file) => createWriteStream(file),
 };
 

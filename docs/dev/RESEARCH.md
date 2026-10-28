@@ -456,6 +456,14 @@ has its app-side facts):
   can't fill node:crypto's synchronous `createHash`; `@noble/hashes` (2.4.0, pure JS, audited, its `sha2.js`
   `sha256.create().update().digest()` synchronous — github.com/paulmillr/noble-hashes) does. Pinned to Node's
   output byte for byte by `tests/worker_crypto.test.js`. — *code + test*
+- **The phone's node:fs has no `statfsSync`; a named import of it stops the bundle** (2026-10-27, JustWrite's
+  session found it): esbuild-plugins-node-modules-polyfill's `node:fs` lacks it, and esbuild fails a named import a
+  module doesn't export ("No matching export … for import "statfsSync"") but only warns on a namespace member
+  ("Import … will always be undefined"). Kit 2a5cf14's `DiskFullError` imported it by name in download.js, which the
+  phone bundle reaches. The kit reads a drive's room in one place, `platform/disk_room.js` `freeBytes` (through
+  node:fs's namespace — null on the phone); download.js and data_api.js call it. Checked by bundling JustWrite's
+  `scripts/phone-worker.js` config in memory: before, the error; after, built with that one warning. No test run
+  builds a phone bundle — JustWrite's is the only one. — *code + build*
 - **A test build on a real iPhone, with no Mac and no money** (*web*, 2026-10-09 — JustWrite's
   TASKS, "The phone's cloud folder through the Files app", OPEN 1): Xcode with a free Apple ID
   installs on a device but needs a Mac (the app runs 7 days, then re-install); TestFlight needs

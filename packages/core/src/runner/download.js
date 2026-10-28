@@ -33,10 +33,11 @@
 // rename after a write is retried while another program holds the file a moment (an antivirus
 // reading a part just written — `platform/rename_held.js`; it used to fail the whole download).
 
-import { existsSync, mkdirSync, readFileSync, rmSync, statfsSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import * as fsp from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { AsyncEvent, sleep, TimeoutError } from "../platform/asyncutil.js";
+import { freeBytes as freeBytesAt } from "../platform/disk_room.js";
 import * as http from "../platform/http.js";
 import { HttpStatusError } from "../platform/http.js";
 import { getLogger } from "../platform/log.js";
@@ -90,11 +91,7 @@ export class DownloadCancelled extends Error {
  */
 export class DiskFullError extends RuntimeError {
   constructor(dest, needBytes = null) {
-    let freeBytes = null;
-    try {
-      const s = statfsSync(dirname(dest));
-      freeBytes = Number(s.bavail) * Number(s.bsize);
-    } catch {}
+    const freeBytes = freeBytesAt(dirname(dest));
     const gb = (n) => `${(n / 1e9).toFixed(1)} GB`;
     super(
       `Not enough disk space to download ${basename(dest)}${needBytes ? ` — it needs ${gb(needBytes)}` : ""}` +
