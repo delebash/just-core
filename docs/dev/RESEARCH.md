@@ -1281,6 +1281,34 @@ re-checked by the session that saved them; paths are from before the just-core r
   the zips until the swap), so the kit asks the drive for both plus 256 MB; a row without a measured size takes 5×
   its zip (the largest seen, 4.90). The rows carry them (`runner/config.js`, `runtime_binary.asset_unpacked_bytes`,
   `runtime_unpacked_bytes`).
+- **stable-diffusion.cpp video on this PC, `master-1004-a85db96`** (*measured unless marked, 2026-10-26/27*; RTX
+  2070 SUPER 8 GB Turing, 32 GB RAM; details and files in `../plans/2026-10-24-just-direct-feasibility.md` §G–§H):
+  - LTX-2.3 22B distilled 1.1 Q4_K_M two-stage (640×352 × 8 distilled sigmas → spatial upscaler ×2 → 1280×704 × 3,
+    121 frames at 24 fps, with sound): 410–419 s cold through sd-cli or sd-server; card peak 7.3 GB, private RAM
+    23.3 GB. Gemma 3 12B overflows fp16 on Turing — `--backend te=cpu` (45–53 s). `--vae-tiling --vae-tile-size 384
+    --vae-tile-overlap 0.125` halves the decode (38 s), no seams. `--mmap` doubles RAM; `--sage-attn` needs SM80.
+  - sd-server cannot make a second LTX clip in one process: auto-fit keeps Gemma in RAM (out of RAM), or with
+    `--params-backend te=disk` the second Gemma read fails and the server crashes. One server per clip.
+  - A list flag given twice (`--sigmas`, `--hires-sigmas`) is appended, not replaced.
+  - The ~12 s fixed cost of each step is not the weight copy (a 238 MB block stages in 0.03 s with
+    `--disable-prefetch`; `--max-vram 4` leaves the step time unchanged); cause open.
+  - Picture-to-video (`-i`, also FLF2V) at 1280×704 runs out of card memory: one timestep per token makes
+    `ltxv.hpp` build its AdaLN tables per token (~9.8 GB). A local patch (distinct timesteps, gathered per token;
+    branch `jd` of `E:\Dev\Web\stable-diffusion.cpp`) runs it in 407 s; equivalence check pending.
+  - LTX conditioning is first/last frame only — "LTXAV control_frames are not implemented" (*code*): no IC-LoRA,
+    no middle keyframes, no latent extend, no input audio (draft PR #1676). MiniMax-H3 Ref2VA (pictures, videos,
+    voice clips as references) is supported in sd-cli; sd-server's `vid_gen` takes `ref_images` only (PR #2194 adds
+    the rest, after `a85db96`). Wan VACE takes one reference through `-i` (*code*).
+  - The default `discrete` scheduler mis-places few-step distill ladders (4 steps at shift 5: 1/0.909/0.715/0.005);
+    `--scheduler simple` gives LightX2V's 1/0.9375/0.8333/0.625 and MiniMax-H3 turbo's ladder (*code*,
+    `src/runtime/denoiser.hpp`).
+  - Stills with references (`-r`): FLUX.2 klein 4B Q8 20 s at 1280×704; Qwen-Image-Edit 2511 Q4_K_M + Lightning 92 s
+    (29 GB private RAM; needs `--model-args qwen_image_zero_cond_t=true`, LoRAs via `--lora-model-dir` +
+    `<lora:name:w>`); Qwen-Image 2.1 Turbo int8 92 s; FLUX.3 klein Q8_0 planned as one 7.7 GB segment and failed on
+    8 GB without a `--max-vram` budget.
+  - Building it here: CUDA 12.4 rejects Visual Studio 18's default compiler — `vcvars64.bat -vcvars_ver=14.44`
+    works; this toolchain's output differs numerically from the official build (PSNR 28.7 dB on the same
+    text-to-video job) while official runs are bit-identical. A compile beside a model run ran the PC out of memory.
 - **ES modules everywhere — each `require` case and its documented ES-module form** (*web + measured,
   2026-10-24*; the family rule of that day, checked by the guard's check 20):
   - Electron's sandboxed preload must be CommonJS (electronjs.org/docs/latest/tutorial/esm) — the one

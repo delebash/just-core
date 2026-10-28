@@ -286,6 +286,61 @@ seed 42; 121 frames at 24 fps (5.0 s).
   webm sd.cpp writes carries LTX's sound as PCM (48 kHz stereo, mean −19 dB — real audio), which browsers may not
   play in webm.
 
+## H · The consistency round (*measured unless marked, 2026-10-27*)
+
+The user, 2026-10-27, after seeing the 720p clips: quality and time pass ("that is much better quality"); "we just
+need to figure out how to fix consistancy" — the same actors and sets across shots, longer takes from 5 s clips, voices.
+The app's direction: "i just want to make films easily via ai without having to do much of my own manual work i want ai
+to do it all fix lighting do camer ect" (the app is the AI director). No second engine: "i dont wna to run confyui and
+python, you can build the lypsc cant you". Before building: "lets make sure we get the correct models and methods
+before we build so run whatever tests you need to"; licences aside for now.
+
+- **The kit's server path makes one clip per server, at the sd-cli time.** `srv.js` with `--params-backend
+  "diffusion=cpu,te=disk,vae=cpu"` (sd-cli's own auto-fit choice): fox 419 s, the woman 417 s, lowest available RAM
+  5.6 GB. A **second clip in the same server fails** both ways: with Gemma kept in RAM the RAM runs out (0.03 GB
+  available, guard stop); with Gemma read from disk the second read fails ("read tensor data failed" → GGML_ASSERT
+  crash). The conditioning cache (sd-server's default 4) did not spare the re-read for the same prompt. So: a fresh
+  server per clip; warm costs ~13 s more than nothing, since the weights load lazily inside the job anyway.
+- **Speed variants of the 410 s clip:** 12 fps × 65 frames 316 s (needs interpolation to 24); refine in 2 steps 364 s;
+  `--cache-mode easycache` 414 s (no gain); Gemma on the card: text 17 s but stage 2 out of card memory again. A list
+  flag given twice (`--hires-sigmas`) is appended, not replaced (6 refine steps, a white clip) — the test script now
+  drops a preset flag the run gives again.
+- **The ~12 s of every step is not the copying**: with `--disable-prefetch` each 238 MB block stages in 0.03 s, and
+  `--max-vram 4` (more blocks streamed) left the step time unchanged (12.1 against 11.9 s at 512×288×25). The cause is
+  still open.
+- **Keyframes from a reference picture (the method AI Movie Studio 2 and LTX Studio use):** FLUX.2 klein 4B Q8 with
+  `-r` makes a 1280×704 shot in 20 s; at face size the woman's freckles, curls, eyes, bag strap and necklaces hold
+  across a train, a bookshop and a streetlamp (`out/id-sheet.png`). Qwen-Image-Edit 2511 Q4_K_M + Lightning 4-step:
+  92 s, 29 GB private RAM, closer to the reference face but it reused the reference's street for "streetlamp" and
+  stamped a text mark. Qwen-Image 2.1 Turbo: 92 s. FLUX.3 klein Q8_0: sd.cpp planned one 7.7 GB segment against a
+  6.6 GB budget and failed (re-run with `--max-vram 5` pending).
+- **Picture-to-video at 1280×704 ran out of card memory in `a85db96`** ("need 9806.96 MB device"): with a picture
+  the clip carries one timestep per video token, and every block built its AdaLN tables per token ([dim × 9 × 14,080]
+  f32, ~2 GB each, several per block; `ltxv.hpp` `get_ada_values`). **A local sd.cpp patch** (branch `jd` in
+  `E:\Dev\Web\stable-diffusion.cpp`, NOT STANDARD until upstream takes it) runs the tables on the distinct timesteps and
+  gathers them per token where applied: **720p picture-to-video 407 s** (the text-to-video time), stage buffers 511 /
+  1,831 MB like text-to-video; she sips and smiles with freckles, curls, necklaces and jacket intact
+  (`out/i2v-720p-cafe.mp4`). At 640×352×49 the patch is also faster (187 s against 235 s; buffer 245 against
+  1,038 MB). Equivalence is not proven yet: builds from this PC's toolchain (CUDA 12.4, MSVC 14.44) differ from the
+  official ones even on the untouched text-to-video path (PSNR 28.7 dB) while official runs are bit-identical; a clean
+  same-toolchain build decides it.
+- **FastWan 2.2 5B picture-to-video at 1280×704: out** — ~49 VAE rounds of 23 s each, ~25 min a clip.
+- **What sd.cpp `a85db96` lacks for consistency** (*code*, research agents): LTX takes a first and a last frame only
+  (`"LTXAV control_frames are not implemented"`) — no IC-LoRA guide (Lightricks' "Ingredients" reference sheet), no
+  middle keyframes, no latent extend, no input audio (draft PR #1676 `--init-audio`, unmerged); no Phantom/Stand-In.
+  MiniMax-H3 Ref2VA (up to 9 pictures + voice clips → video with sound) is in; sd-server takes its `ref_images` only.
+  Wan VACE takes one reference, through `-i`. sd.cpp's default `discrete` scheduler mis-places few-step distill
+  ladders; `--scheduler simple` matches LightX2V/H3-turbo.
+- **Lightricks' own consistency tools** (*web/code*): Ingredients IC-LoRA (one sheet: faces + turnarounds + props +
+  location → the cast and set in the video), ID-LoRA (face + a 2–8 s voice → LTX speaks in that voice), A2V (input
+  voice frozen), Extend (latent overlap, no re-encode seams); official I2V settings: picture strength 0.7, the picture
+  pre-compressed like a video frame (H.264 CRF 18). All ComfyUI today; each is an sd.cpp addition for us.
+- **Voices** (*docs*): audio.cpp clones voices (Qwen3-TTS Base from ~3 s, Chatterbox, IndexTTS-2, MOSS-TTSD dialogue)
+  and converts them (Chatterbox VC, MeanVC2, Vevo2, Seed-VC), splits stems (BS-RoFormer), makes Foley from video
+  (ControlFoley) and music (ACE-Step 1.5, Stable Audio 3).
+- **Open (running):** the stills sheet with FLUX.3 klein and Qwen-Image 2.1, MiniMax-H3 (fit check, then 5 s at 480p),
+  the clean-build equivalence; then voice and long-take tests.
+
 ## D · The answer (argued against)
 
 - **Buildable on the kit: yes.** sd.cpp (image + video through sd-server's `img_gen`/`vid_gen` jobs), audio.cpp
