@@ -279,6 +279,12 @@ finder):**
 - *The GPU through the arbiter:* with SAM 3 booked, house-paint's `assertGpuFree`/`GPU_KINDS`/`hold("local-ai")`
   go — the arbiter evicts an idle holder for room and refuses ("The graphics card is busy") while one is busy.
 
+**Round D BUILT (2026-10-28):** K9 — house-paint's job registry, route and screen helper moved into the kit as they
+were (`platform/jobs.js` `JobRegistry`, `platform/jobs_api.js` `makeJobsRouter`, `ui/services/serverJob.js`
+`runServerJob`, the words `kit.jobs.*` in English and Spanish), their tests with them; house-paint on them (its
+own `/v1/houses/:id/jobs` stays). JustVoice's channel joins in round E. docgen's single-run job with its event
+stream is a different shape: the kit's TASKS asks the user which way it goes.
+
 **Round C BUILT (2026-10-28):** the kit's half (cd7c460, 4e2c434, 905bed9) and house-paint's H2–H7 (its TASKS).
 Found on the way and filled in the kit: `retireSettings` (a setting an app retires into a kit preset or runner
 setting, carried over at every seed — house-paint's two finder settings; JustVoice's speech defaults are next);

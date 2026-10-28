@@ -2519,6 +2519,11 @@ design.
   - cancel through an AbortSignal; `onFinish` counts the end as the starting window's change;
   - `/v1/jobs/:id` (GET, DELETE) and `/v1/houses/:id/jobs` (the running ones);
   - the screen's side is `src/services/jobs.js` `runServerJob`, inside `withAiTask`.
+- **docgen — code, 2026-10-28:** `server/src/jobs.js` (a workspace's single run: `busy`, `start`, `status()`,
+  `cancel()`, `subscribe`) behind `/v1/jobs` (POST, 409 while one runs), `/v1/jobs/current`, `/v1/jobs/cancel` and
+  `/v1/jobs/stream` (server-sent events with a 15 s keepalive; the screen falls back to polling), states including
+  "confirming", and a run history (`/v1/runs`); the screen (`src/stores/jobs.js`) holds one `withAiTask` per
+  language, open until the stream reports the outcome.
 - **JustVoice — code (the plan's grep, 2026-10-24):** `/v1/jobs/:job_id` (GET, DELETE) in
   `server/src/api/engines_models_api.js`; `src/services/ttsJobChannel.js` calls the same shape "the kit's channel
   contract".

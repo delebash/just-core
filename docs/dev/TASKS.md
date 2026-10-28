@@ -149,7 +149,16 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         job "starts when it's free" (nothing waits: try again); a vision feature's preset on Routing
         (`LuImagePresetPane` → `LuRuntimePresetPane`, any runtime kind — a vision feature fell into the chat
         Lab and its preset read "none"); the guard's check 21 takes the app's `onnx: { load }` handoff (D2) and
-        its ENGINE_KNOWN lost house-paint's three files. Next: round D (the kit's jobs, K9).
+        its ENGINE_KNOWN lost house-paint's three files. Round D BUILT 2026-10-28 (K9): a long server job is the
+        kit's — `platform/jobs.js` `JobRegistry`, `platform/jobs_api.js` `makeJobsRouter`, `ui/services/serverJob.js`
+        `runServerJob` and its words (`kit.jobs.*`), moved from house-paint with their tests; house-paint on them
+        (its TASKS); §19's row. JustVoice moves its `/v1/jobs` (its own snake_case shape) onto it in round E, by its
+        session.
+        OPEN, for the user's word: docgen's jobs are a third way — one run at a time with a server-sent event
+        stream, a "confirming" state and a run history (`/v1/jobs`, `/current`, `/cancel`, `/stream`, RESEARCH §11).
+        Either the kit's registry grows what docgen needs (an event stream beside the poll, a history), and docgen
+        moves onto it; or docgen's single run stays its own, named in §19 as an exception. Its `/v1/jobs/current`
+        would also be read as a job id by the kit's `/v1/jobs/:id` if both were mounted.
         OPEN: llama.cpp's own engine install and GGUF downloads have no room check before they start (the
         downloader's DiskFullError says so only once the drive is full) — put them on `disk_room.js`
         `lacksRoom` the way the runtimes are.

@@ -2125,6 +2125,13 @@
         "label": "Liberar tras inactividad (minutos)",
         "hint": "Cuánto tiempo mantiene un modelo en memoria sin trabajo antes de liberarlo; 0 lo mantiene."
       }
+    },
+    "jobs": {
+      "failed": "El trabajo se detuvo con un error.",
+      "gone": "El servidor de la aplicación se reinició y este trabajo se detuvo. Vuelve a empezarlo.",
+      "endedAway": "Este trabajo terminó sin acabar mientras la aplicación no miraba. Vuelve a empezarlo.",
+      "cancelledAway": "Este trabajo se canceló mientras la aplicación no miraba.",
+      "percent": "{n}%"
     }
   }
 }

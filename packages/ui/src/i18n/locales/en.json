@@ -2125,6 +2125,13 @@
         "label": "Let go after idle (minutes)",
         "hint": "How long it keeps a model in memory with no work before letting it go; 0 keeps it."
       }
+    },
+    "jobs": {
+      "failed": "The work stopped with an error.",
+      "gone": "The app's server started again, and this work stopped. Start it again.",
+      "endedAway": "This work ended while the app wasn't looking, without finishing. Start it again.",
+      "cancelledAway": "This work was cancelled while the app wasn't looking.",
+      "percent": "{n}%"
     }
   }
 }

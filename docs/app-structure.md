@@ -1224,6 +1224,7 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | **Screens** | | |
 | Controls | the `Ui*` controls (`ui/common/index.js`), Quasar's under them | a hand-made control |
 | A long job's bar (download, install) | `ui/composables/useDownloadTask.js` `createDownloadTask` + `DownloadBar` | a bar of the screen's own |
+| A long server job (202, polled, Cancel) | `platform/jobs.js` `JobRegistry` + `platform/jobs_api.js` `makeJobsRouter` (`/v1/jobs/:id`, GET and DELETE; 410 once ended and forgotten) · `ui/services/serverJob.js` `runServerJob` inside `withAiTask` (the screen) | an app's own registry or poll loop |
 | A failure, a field's refusal | `ui/common/services/reportError.js` `reportError` · `ui/common/services/forms.js` `fieldErrors` | `alert`, hand-made words |
 | A toast · a confirm | `ui/common/services/toastBridge.js` `pushToast` · `ui/common/services/dialog.js` `confirmDialog` | — |
 | A size in bytes | `ui/common/services/downloadRate.js` `fmtBytes` | — |

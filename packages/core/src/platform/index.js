@@ -10,6 +10,8 @@ export { fromDataRelative, installDir, resolveDataDir, toDataRelative } from "./
 export { dirSize, makeDiskRouter } from "./disk_api.js";
 export { ApiError, HttpError, installErrorHandlers, requestIdOf, unhandledEnvelope } from "./errors.js";
 export { makeHealthRouter } from "./health_api.js";
+export { JobRegistry } from "./jobs.js";
+export { makeJobsRouter } from "./jobs_api.js";
 export { installFileLog, installLogRing, makeLogsRouter } from "./logs_api.js";
 export { MaintenanceGate } from "./maintenance.js";
 export { migrate, schemaVersion } from "./migrate.js";

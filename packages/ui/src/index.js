@@ -71,6 +71,7 @@ export { runAiFeature, runAiFeatureStream } from "./services/aiFeature.js";
 // endpoints, TTS/long work and batch owners run through these — app code never
 // owns a task lifecycle directly (check-family check 11).
 export { runAiEndpoint, runAiEndpointStream, toTaskUsage, withAiTask } from "./services/appTask.js";
+export { JOB_POLL_MS, jobEnded, jobEndedAway, jobError, jobGone, runServerJob } from "./services/serverJob.js";
 export { friendlyAiError } from "./services/aiErrors.js";
 export { keyedText, presetDisplayName, providerDisplayName } from "./services/seededWords.js";
 export { default as AiTaskStack } from "./components/AiTaskStack.vue";
