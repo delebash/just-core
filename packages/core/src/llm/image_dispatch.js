@@ -39,6 +39,35 @@ export function resolveImageFeature(featureKey) {
 }
 
 /**
+ * What image feature `featureKey` needs before it can run — the screens' "this feature needs its engine" banner (the
+ * plan's K10). `need` is the first thing missing, a slug the screen words: "no-image-model", "no-image-provider",
+ * "engine-not-on", "engine-cant-run-here", "engine-not-installed", "model-unknown", "model-not-downloaded" — or "" when
+ * it can run. `runtime` and `model` name what to install or download; `engine` is the runtime's status() (its
+ * install's progress, what this computer lacks), `modelState` the model's row of modelsStatus(). A provider that isn't
+ * a kit runtime (a cloud one, later) has nothing to install.
+ */
+export function imageFeatureReadiness(featureKey) {
+  const out = { feature: featureKey, kind: "image", ready: false, need: "", detail: "", runtime: "", model: "", engine: null, modelState: null };
+  let found;
+  try {
+    found = resolveImageFeature(featureKey);
+  } catch (e) {
+    if (e instanceof ApiError) return { ...out, need: e.slug, detail: e.detail || "" };
+    throw e;
+  }
+  const { preset, provider } = found;
+  const runtime = String(provider.providerType || "").startsWith("local-") ? provider.providerType.slice("local-".length) : "";
+  if (!runtime) return { ...out, ready: true, model: preset.model };
+  const svc = getRuntimeService(runtime);
+  const at = { ...out, runtime, model: preset.model };
+  if (!svc) return { ...at, need: "engine-not-on" };
+  const engine = svc.status();
+  const modelState = svc.modelsStatus().find((m) => m.id === preset.model) ?? null;
+  const need = engine.need ? "engine-cant-run-here" : !engine.installed ? "engine-not-installed" : !modelState ? "model-unknown" : !modelState.onDisk ? "model-not-downloaded" : "";
+  return { ...at, engine, modelState, need, ready: !need };
+}
+
+/**
  * Run image feature `featureKey` on `request` (`{prompt, width, height, init, refs, mask}` — PNG Buffers; the preset's
  * params fill the rest). `onProgress({step, steps, fraction})`; `signal` cancels. → a PNG Buffer.
  */

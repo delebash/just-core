@@ -7,9 +7,12 @@ import { ApiError, notFound } from "../platform/errors.js";
 import { opt, T } from "../platform/models.js";
 import { input } from "../platform/server.js";
 import { getRuntimeService, runtimeServices } from "../runner/runtime_service.js";
+import { imageFeatureReadiness } from "./image_dispatch.js";
+import * as seed from "./seed.js";
 
 const IdParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }) });
 const InstallIn = T.Object({ gpu: opt(T.String({ maxLength: 32 })), force: opt(T.Boolean()) });
+const FeatureParams = T.Object({ key: T.String({ minLength: 1, maxLength: 128 }) });
 const ModelParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }), modelId: T.String({ minLength: 1, maxLength: 128 }) });
 
 /** A model call, its "no such model" as a 404. */
@@ -57,6 +60,16 @@ export function makeRuntimesRouter() {
     const modelId = c.req.valid("param").modelId;
     modelCall(() => svc._model(modelId));
     return c.json(await svc.deleteModel(modelId));
+  });
+  // what a feature needs before it can run (its engine installed, its model downloaded) — the screens' "this feature
+  // needs its engine" banner (the plan's K10); a chat feature's model is the llama.cpp screens' business: ready here
+  app.get("/v1/ai/features/:key/readiness", input({ params: FeatureParams }), (c) => {
+    const key = c.req.valid("param").key;
+    const entry = seed.appFeatureCatalog().find((e) => e.key === key);
+    if (!entry) throw notFound(`no AI feature ${key} in this app`);
+    const kind = entry.kind || "llm";
+    if (kind === "image") return c.json(imageFeatureReadiness(key));
+    return c.json({ feature: key, kind, ready: true, need: "", detail: "", runtime: "", model: "", engine: null, modelState: null });
   });
   return app;
 }

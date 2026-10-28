@@ -51,6 +51,7 @@ import { getLogger } from "./log.js";
 import { opt, T } from "./models.js";
 import { IS_WIN } from "./py.js";
 import { dirSize } from "./dir_size.js";
+import { RUNTIMES } from "../runner/runtimes.js";
 
 export { dirSize };
 
@@ -175,7 +176,9 @@ export function makeDiskRouter(dataDir, extraBuckets = null) {
     const modelsCache = await dirSize(path.join(aiCache, "hf"), null, true);
     // Everything under llamacpp/ (build dirs + the generated models.ini) EXCEPT the
     // per-spawn logs/, which is its own bucket below.
-    const engineBuilds = await dirSize(llamacpp, [spawnLogsDir]);
+    let engineBuilds = await dirSize(llamacpp, [spawnLogsDir]);
+    // and every other kit runtime's builds (runner/runtimes.js — sd.cpp's sd-server; K10): engines, as llama.cpp's
+    for (const rt of Object.values(RUNTIMES)) if (rt.folder && rt.id !== "llamacpp") engineBuilds += await dirSize(path.join(aiCache, rt.folder));
     const spawnLogs = await dirSize(spawnLogsDir);
     const extras = {};
     for (const [name, paths] of extraRoots) {

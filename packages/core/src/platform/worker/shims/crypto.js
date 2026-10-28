@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 // node:crypto for a worker, from Web Crypto: what the in-app server's routes use (random ids,
-// random bytes). Node's full crypto polyfill is 3.8 MB of JavaScript for these few calls.
+// random bytes). Node's full crypto polyfill is 3.8 MB of JavaScript for these few calls. And a
+// synchronous SHA-256 (createHash) from @noble/hashes — Web Crypto's digest is async, and the
+// settings upgrade fingerprints a value inside the seed's synchronous pass (platform/settings_upgrade.js;
+// JustWrite's session found it would throw on the phone the first time an app kept an earlier default,
+// 2026-10-24).
+import { sha256 } from "@noble/hashes/sha2.js";
+
 const web = globalThis.crypto;
 
 export const webcrypto = web;
@@ -34,8 +40,22 @@ export function timingSafeEqual(a, b) {
   return diff === 0;
 }
 
+/** node:crypto's createHash for SHA-256 — `update(data, encoding?)` (a string's encoding, utf8 by default), then
+ *  `digest(encoding?)` (a Buffer, or a string in that encoding). Any other algorithm isn't here. */
 export function createHash(algorithm) {
-  throw new Error(`crypto.createHash(${algorithm}) isn't available in the in-app server`);
+  if (String(algorithm).toLowerCase() !== "sha256") throw new Error(`crypto.createHash(${algorithm}) isn't available in the in-app server — only sha256`);
+  const h = sha256.create();
+  const hash = {
+    update(data, encoding) {
+      h.update(typeof data === "string" ? Buffer.from(data, encoding || "utf8") : data);
+      return hash;
+    },
+    digest(encoding) {
+      const out = Buffer.from(h.digest());
+      return encoding ? out.toString(encoding) : out;
+    },
+  };
+  return hash;
 }
 
 export default { webcrypto, randomUUID, getRandomValues, randomBytes, randomInt, timingSafeEqual, createHash };

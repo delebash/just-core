@@ -1054,6 +1054,8 @@ export function resetPresetToFactory(presetId) {
         reasoning_effort: strOr(p, "reasoning_effort", ""),
         think: truthy(pyOr(get(p, "think"), false)),
         recipe: strOr(p, "recipe", ""),
+        // an image preset's own settings back to the app's (its kind's defaults filling the rest)
+        params: JSON.stringify(presetParams(strOr(p, "kind", "llm"), get(p, "params") || {})),
       },
       { id: presetId },
     );

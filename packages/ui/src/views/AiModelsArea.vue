@@ -30,6 +30,7 @@ import PricingEditor from "./PricingEditor.vue";
 import ConsolePanel from "../components/ConsolePanel.vue";
 import LuBookSearchSetup from "../components/LuBookSearchSetup.vue";
 import LuModelCatalog from "../components/LuModelCatalog.vue";
+import LuRuntimeTab from "../components/LuRuntimeTab.vue";
 import LuEngineInstallButton from "../components/LuEngineInstallButton.vue";
 import LuEngineUpdateButton from "../components/LuEngineUpdateButton.vue";
 import LuWarmStartupToggle from "../components/LuWarmStartupToggle.vue";
@@ -125,6 +126,20 @@ const emit = defineEmits(["quick-setup-closed"]);
 // existed only for the Tune→Tasks switch-carry handoff, removed with §7.1: engine
 // switches live on the model, so there is nothing to hand to the Lab anymore.)
 const tab = ref("providers");
+// The kit runtimes this app turned on besides llama.cpp (GET /v1/ai/runtimes — the engines plan, K10): each gets its
+// tab beside the chat models, its engine and models (LuRuntimeTab). None in most apps: no tab.
+const runtimes = ref([]);
+const RUNTIME_KINDS = new Set(["image", "vision", "tts", "stt"]);
+const runtimeTabLabel = (r) => (RUNTIME_KINDS.has(r.kind) ? t(`kit.aiTabs.kinds.${r.kind}`) : r.label || r.id);
+async function loadRuntimes() {
+  try {
+    runtimes.value = (await request("/v1/ai/runtimes")).runtimes || [];
+    // a ?tab= deep link to a runtime's tab (its tab exists only now)
+    if (props.initialTab && runtimes.value.some((r) => `runtime-${r.id}` === props.initialTab)) tab.value = props.initialTab;
+  } catch {
+    runtimes.value = []; // a server without the kit's runtimes routes (an older kit): no tabs
+  }
+}
 // The strip is the kit's UiTabStrip (role tablist / tab, its keys) and each section its tab's
 // tabpanel (APG Tabs — until 2026-10-20 the tabs were <a>s with no href: links a keyboard never
 // reached; the screens-and-keyboard review).
@@ -147,6 +162,8 @@ watch(tab, () => {
 const tabDefs = computed(() => {
   const defs = [{ id: "providers", label: t('kit.aiTabs.providers'), kit: true }];
   if (props.modelsTab) defs.push({ id: "models", label: t('kit.aiTabs.models'), kit: true });
+  // the kit runtimes this app turned on (sd.cpp's images…): a tab each, named by the kind of model it runs (K10)
+  for (const r of runtimes.value) defs.push({ id: `runtime-${r.id}`, label: runtimeTabLabel(r), kit: true });
   defs.push({ id: "features", label: t('kit.aiTabs.routing'), kit: true });
   const legacy = props.appTabLabel ? [{ id: "app", label: props.appTabLabel, slot: "app-tab" }] : [];
   const anchored = [];
@@ -170,7 +187,7 @@ const tabDefs = computed(() => {
 const appTabDefs = computed(() => tabDefs.value.filter((t) => !t.kit));
 // the tabs whose panels are in the page (each is v-show, Models once visited) — the only ones whose
 // tab names its panel (aria-controls)
-const panelsInPage = computed(() => tabDefs.value.filter((d) => d.id !== "models" || visitedTabs.value.has("models")).map((d) => d.id));
+const panelsInPage = computed(() => tabDefs.value.filter((d) => !(d.id === "models" || d.id.startsWith("runtime-")) || visitedTabs.value.has(d.id)).map((d) => d.id));
 
 // Lazy mount: a host tab's content mounts on FIRST activation and stays mounted
 // after (v-show), so switching away keeps its state — same reason the provider
@@ -614,6 +631,7 @@ onMounted(() => {
   // nextTick first: the QuickSetup mount (qsRef) sits inside
   // the providers tab's template, so the ref is only populated on the render
   // that follows the resolve — it is still null on the resolve tick itself.
+  loadRuntimes();
   loadAll().then(async () => {
     if (!props.autoOpenQuickSetup || !localOn) return;
     await nextTick();
@@ -880,6 +898,14 @@ onMounted(() => {
     <section v-if="props.modelsTab && visitedTabs.has('models')" v-show="tab === 'models'" class="lu-tab" v-bind="tabPanelAttrs(tabPrefix, 'models')">
       <LuModelCatalog />
     </section>
+
+    <!-- ── A kit runtime's engine and models (Images, …) — lazy (first visit), then kept mounted so a running
+         install or download keeps its bar across a tab switch. ── -->
+    <template v-for="r in runtimes" :key="r.id">
+      <section v-if="visitedTabs.has(`runtime-${r.id}`)" v-show="tab === `runtime-${r.id}`" class="lu-tab" v-bind="tabPanelAttrs(tabPrefix, `runtime-${r.id}`)">
+        <LuRuntimeTab :runtime-id="r.id" />
+      </section>
+    </template>
 
     <!-- ── Routing by feature — the Feature Workbench: per-feature preset (model +
          ask-params/samplers live in the preset; launch switches live on the MODEL —

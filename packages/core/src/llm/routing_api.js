@@ -40,6 +40,8 @@ export const FeatureRow = T.Object({
   labelKey: opt(T.String(), ""),
   hintKey: opt(T.String(), ""),
   groupKey: opt(T.String(), ""),
+  // the model kind the feature runs on (llm · image · vision): the screens route it among that kind's presets only
+  kind: opt(T.String(), "llm"),
 });
 
 export const RoutingResponse = T.Object({
@@ -70,6 +72,7 @@ export function makeRoutingRouter(getStore, getCatalog) {
     const rows = getCatalog().map((e) => ({
       key: e.key, label: e.label, hint: e.hint, group: e.group,
       labelKey: e.labelKey || "", hintKey: e.hintKey || "", groupKey: e.groupKey || "",
+      kind: e.kind || "llm",
     }));
     return model(RoutingResponse, { default: cfg.default, features: rows });
   };

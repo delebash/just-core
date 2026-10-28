@@ -449,6 +449,13 @@ has its app-side facts):
   only as Android prebuilds; iOS runs it without JIT. The kit needs Node ≥ 24
   (`server/package.json` `engines`). — *web + code, 2026-10-08* ·
   github.com/nodejs-mobile/nodejs-mobile/releases, capawesome.io/docs/sdks/capacitor/nodejs/.
+- **The phone's in-app server hashes with @noble/hashes, not Web Crypto** (2026-10-24, JustWrite's session found
+  it): its worker swaps node:crypto for the kit's stand-in (`platform/worker/shims/crypto.js`), whose
+  `createHash` threw — and the settings upgrade fingerprints a value with SHA-256 inside the seed's synchronous pass
+  (`platform/settings_upgrade.js`). Web Crypto's `subtle.digest` returns a Promise (MDN, SubtleCrypto.digest), so it
+  can't fill node:crypto's synchronous `createHash`; `@noble/hashes` (2.4.0, pure JS, audited, its `sha2.js`
+  `sha256.create().update().digest()` synchronous — github.com/paulmillr/noble-hashes) does. Pinned to Node's
+  output byte for byte by `tests/worker_crypto.test.js`. — *code + test*
 - **A test build on a real iPhone, with no Mac and no money** (*web*, 2026-10-09 — JustWrite's
   TASKS, "The phone's cloud folder through the Files app", OPEN 1): Xcode with a free Apple ID
   installs on a device but needs a Mac (the app runs 7 days, then re-install); TestFlight needs

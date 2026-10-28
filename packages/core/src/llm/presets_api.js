@@ -23,6 +23,7 @@ import { model, nullable, opt, T } from "../platform/models.js";
 import { pyOr, strip, strRepr, truthy, ValueError } from "../platform/py.js";
 import { pyStrScalar } from "../platform/pyjson.js";
 import { input } from "../platform/server.js";
+import { PARAM_RULES } from "./preset_params.js";
 import * as seed from "./seed.js";
 import * as stores from "./stores.js";
 
@@ -86,6 +87,9 @@ export const DefaultAssignment = T.Object({
 
 export const PresetsResponse = T.Object({
   presets: T.Array(EnginePresetRow),
+  // the kind's own settings and their bounds (preset_params.js PARAM_RULES) — what the screen's preset editor shows for
+  // an image preset; empty for chat presets, whose fields are the row's own
+  paramRules: opt(T.Record(T.String(), T.Any()), {}),
 });
 
 export const AssignmentsResponse = T.Object({
@@ -112,9 +116,15 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
   // An assignment names a preset that exists and an action the app has (the twentieth review: a feature assigned to a
   // missing preset answered 500 — FOREIGN KEY failed —, the default stored any id, any key was taken).
   const refuse = (field, msg) => new RequestValidationError([{ type: "value_error", loc: ["body", field], msg }]);
-  const checkPreset = (presetId) => {
-    if (presetId && !getPresets().list().some((p) => p.id === presetId)) throw refuse("presetId", `No preset with the id ${strRepr(presetId)}`);
+  // …and of the kind the feature runs (the engines plan, K8): an image feature takes an image preset, the chat default
+  // and a chat feature a chat one — a preset of another kind would hand its model to the wrong engine
+  const checkPreset = (presetId, kind = "llm") => {
+    if (!presetId) return;
+    const p = getPresets().get(presetId);
+    if (!p) throw refuse("presetId", `No preset with the id ${strRepr(presetId)}`);
+    if ((p.kind || "llm") !== kind) throw refuse("presetId", `The preset ${strRepr(presetId)} runs ${p.kind} models; this needs a ${kind} one`);
   };
+  const featureKind = (key) => seed.appFeatureCatalog().find((e) => e.key === key)?.kind || "llm";
   // the app's actions: its feature catalog's keys, the actions its seed routes, its prompts' keys — and the ones already
   // assigned (a ref an earlier version made). An app that registered none takes any key, as before.
   const knownActions = () =>
@@ -138,7 +148,7 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
     );
     for (const r of rows) r.factoryModel = factory.get(r.id) ?? "";
     for (const r of rows) r.nameKey = seed.seededPresetNameKey(r);
-    return model(PresetsResponse, { presets: rows });
+    return model(PresetsResponse, { presets: rows, paramRules: PARAM_RULES[kind] ?? {} });
   };
 
   const assignments = () => model(AssignmentsResponse, { defaultPresetId: getDefault(), features: getRefs().list() });
@@ -152,23 +162,26 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
     if (!strip(body.name)) throw new HttpError(400, "name is required");
     body.id = randomUUID().replaceAll("-", "").slice(0, 12);
     getPresets().save(body);
-    return c.json(presets());
+    return c.json(presets(body.kind || "llm"));
   });
 
+  // (looked up by id, any kind: the list is one kind's — an image preset's edit answered 404 when it was the chat list)
   app.put("/v1/ai/engine-presets/:preset_id", input({ params: PARAMS, body: EnginePresetRow }), async (c) => {
     const presetId = c.req.valid("param").preset_id;
-    if (!getPresets().list().some((p) => p.id === presetId)) {
-      throw new HttpError(404, `preset ${strRepr(presetId)} not found`);
-    }
+    const was = getPresets().get(presetId);
+    if (!was) throw new HttpError(404, `preset ${strRepr(presetId)} not found`);
     const body = c.req.valid("json");
     body.id = presetId;
+    // a preset keeps its kind: its model is that kind's, and the features pointing at it run that kind
+    body.kind = was.kind || "llm";
     getPresets().save(body);
-    return c.json(presets());
+    return c.json(presets(body.kind));
   });
 
   app.delete("/v1/ai/engine-presets/:preset_id", input({ params: PARAMS }), async (c) => {
+    const kind = getPresets().get(c.req.valid("param").preset_id)?.kind || "llm";
     getPresets().delete(c.req.valid("param").preset_id);
-    return c.json(presets());
+    return c.json(presets(kind));
   });
 
   // ── factory resets (Presets page: Reset all · per-preset Reset) ────────────
@@ -190,7 +203,7 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
         throw e;
       }
     }
-    return c.json(presets());
+    return c.json(presets(getPresets().get(c.req.valid("param").preset_id)?.kind || "llm"));
   });
 
   // ── assignments (default · per-action ref) ─────────────────────────────────
@@ -208,7 +221,7 @@ export function makePresetsRouter(getPresets, getDefault, setDefault, getRefs, r
     const body = c.req.valid("json");
     if (!strip(body.featureKey)) throw new HttpError(400, "featureKey is required");
     checkAction(body.featureKey);
-    checkPreset(body.presetId);
+    checkPreset(body.presetId, featureKind(body.featureKey));
     getRefs().set(body.featureKey, body.presetId);
     return c.json(assignments());
   });

@@ -464,7 +464,9 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
     fitRelevantFlagsFn: stores.listFitRelevantFlags,
     speechModelsFn,
   });
-  // One engine service per kit runtime the app turned on (runner/runtime_service.js), in the same engine cache.
+  // One engine service per kit runtime the app turned on (runner/runtime_service.js), in the same engine cache; its
+  // server's log beside llama-server's spawn logs (Storage's one bucket), its generated files in this app's own root.
+  const generated = runtimeRoot ? String(runtimeRoot) : nodePath.join(String(resolvedCache), "llamacpp");
   configureRuntimeServices(
     (runtimes || []).map((id) => [
       id,
@@ -475,7 +477,8 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
         probeArgvs: RUNTIME_PROBES[id] ?? null,
         modelsFn: () => stores.getRunnerConfigStore().listRuntimeModels(id),
         server: RUNTIME_SERVERS[id] ?? null,
-        logDir: runtimeRoot ? String(runtimeRoot) : String(resolvedCache),
+        logDir: nodePath.join(generated, "logs"),
+        stateDir: generated,
       }),
     ]),
   );

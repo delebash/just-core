@@ -268,6 +268,41 @@ export function readDownloadStatus(st) {
   return { detail: st.detail, done: st.downloaded, total: st.total, status: st.status };
 }
 
+/** A kit runtime model's row (GET /v1/ai/runtimes/:id/models) as a task reading: downloaded = on disk, done. */
+export function readRuntimeModelStatus(m) {
+  if (!m) return { terminal: "error", error: kitT("kit.runtimes.modelGone") };
+  if (m.status === "error") return { terminal: "error", error: m.error };
+  if (m.status === "downloaded" || (m.onDisk && m.status !== "downloading")) return { terminal: "done" };
+  return { detail: "", done: m.downloaded, total: m.total, status: m.status };
+}
+
+/** A kit runtime's engine install (/v1/ai/runtimes/:id/engine — sd.cpp's sd-server…; the engines plan, K3), as
+ *  llama.cpp's engineInstallChannel. */
+export function runtimeEngineChannel(id) {
+  const base = `/v1/ai/runtimes/${encodeURIComponent(id)}/engine`;
+  return {
+    start: () => request(`${base}/install`, { method: "POST", body: {} }),
+    statusUrl: `${base}/status`,
+    read: readEngineStatus,
+    cancel: () => request(`${base}/install/cancel`, { method: "POST" }),
+    friendly: () => kitT("kit.engine.phase.downloading"),
+  };
+}
+
+/** A kit runtime's model download — its pinned files into the kit's cache (the engines plan, K4); `getModelId()`
+ *  names the model. */
+export function runtimeModelChannel(id, getModelId) {
+  const base = `/v1/ai/runtimes/${encodeURIComponent(id)}/models`;
+  const one = () => `${base}/${encodeURIComponent(getModelId())}`;
+  return {
+    start: () => request(`${one()}/download`, { method: "POST" }),
+    statusUrl: base,
+    read: (st) => readRuntimeModelStatus((st.models || []).find((m) => m.id === getModelId())),
+    cancel: () => request(`${one()}/download/cancel`, { method: "POST" }),
+    friendly: friendlyPhase,
+  };
+}
+
 export function engineInstallChannel() {
   return {
     start: () => request("/v1/llm-runner/engine/install", { method: "POST" }),

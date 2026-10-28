@@ -57,8 +57,10 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         and what changed while building): the multi-window counter and watcher, the settings upgrade (the kit's
         own runner settings too), the text helpers, the held renames, the family's page looks as the kit's
         `common/app.css` with the guard's check 23 — the template and house-paint on all of them; JustWrite,
-        JustVoice and docgen told to adopt `common/app.css` (their copies printed by the guard). Next: K10 + K13,
-        then house-paint's round B.
+        JustVoice and docgen told to adopt `common/app.css` (their copies printed by the guard). K10 + K13 BUILT
+        (the plan says what): the AI page's runtime tab, the "needs its engine" banner, an image feature's preset
+        pane, routing by kind enforced at assignment, the template wired and tested; the phone's crypto stand-in
+        got a SHA-256 (JustWrite's find). Next: house-paint's round B.
 
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning

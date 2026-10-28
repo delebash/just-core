@@ -115,6 +115,12 @@ const llmArgs = (db, dataDir) => ({
   modelCatalogExtra: MODEL_CATALOG,
   classTunesSeed: CLASS_TUNES,
   classTuneIdentity: CLASS_TUNE_IDENTITY,
+  // The kit runtimes this app turns on besides llama.cpp, and the models it brings for them (the kit's
+  // docs/plans/2026-10-24-engines-the-llama-way.md): an image app names "sdcpp" and its image models' pinned files
+  // here, a feature of kind "image" in its catalog with its own preset — the kit's engine, models, routing and the
+  // AI page's tab do the rest. The template runs no image model: none (server/tests/runtimes.test.js shows the wiring).
+  runtimes: [],
+  runtimeModels: [],
 });
 
 /** The Hono app, not yet listening. `dataDir` defaults to the family data-folder ladder. */

@@ -16,7 +16,13 @@
       "models": "Modelos",
       "routing": "Enrutamiento por función",
       "usage": "Uso",
-      "console": "Consola del motor de IA"
+      "console": "Consola del motor de IA",
+      "kinds": {
+        "image": "Imágenes",
+        "vision": "Visión",
+        "tts": "Voz",
+        "stt": "Transcripción"
+      }
     },
     "lab": {
       "generatedPrompt": "Prompt generado",
@@ -2024,6 +2030,65 @@
       "detail": "Los cambios de esta página aún no están guardados: se pierden si sales ahora.",
       "leave": "Salir",
       "stay": "Quedarse"
+    },
+    "runtimes": {
+      "loadFailed": "No se pudo leer el estado de este motor desde el servidor.",
+      "engineTitle": "Motor: {name}",
+      "installed": "Instalado: compilación {build}.",
+      "installedRunning": "Instalado: compilación {build}, ejecutando {model}.",
+      "notInstalled": "No instalado: {size} por descargar.",
+      "notInstalledNoSize": "No instalado.",
+      "install": "Instalar ({size})",
+      "installPlain": "Instalar",
+      "remove": "Quitar",
+      "removeTitle": "¿Quitar {name}?",
+      "removeMessage": "Esto quita el motor de este equipo. Sus modelos se quedan; vuelve a instalarlo para usarlos.",
+      "modelsTitle": "Modelos",
+      "noModels": "Esta aplicación no trae modelos para este motor.",
+      "modelGone": "Este modelo ya no está en la aplicación.",
+      "model": {
+        "running": "en ejecución",
+        "onDisk": "en este equipo",
+        "notDownloaded": "sin descargar",
+        "download": "Descargar ({size})",
+        "delete": "Borrar",
+        "deleteTitle": "¿Borrar {name}?",
+        "deleteMessage": "Esto libera {size}. El modelo sigue en la lista y se descarga de nuevo cuando lo necesites."
+      },
+      "needs": {
+        "vcRuntime": "El entorno de ejecución de Visual C++ de Microsoft no está en este equipo (faltan {files}): instálalo y vuelve a intentarlo.",
+        "vcRuntimeLink": "Descarga de Microsoft",
+        "macos": "Este motor necesita macOS {need} o posterior; este Mac tiene macOS {have}.",
+        "macosUnknown": "Este motor necesita macOS {need} o posterior.",
+        "glibc": "Este motor necesita un Linux con glibc {need} o posterior; este tiene glibc {have}.",
+        "glibcNone": "Este motor necesita un Linux con glibc {need} o posterior.",
+        "noBuild": "Este motor no tiene una compilación para este equipo."
+      },
+      "ready": {
+        "thisFeature": "Esta función",
+        "engineNotInstalled": "{feature} funciona con {engine}, que aún no está instalado en este equipo.",
+        "modelNotDownloaded": "{feature} necesita su modelo, {model}, que aún no está en este equipo.",
+        "noModel": "No hay un modelo para {feature}: elige uno en la página de IA, en Enrutamiento por función.",
+        "noProvider": "El modelo de {feature} ya no tiene proveedor: elige otro en la página de IA, en Enrutamiento por función.",
+        "modelUnknown": "El modelo de {feature} no es de esta aplicación: elige otro en la página de IA, en Enrutamiento por función.",
+        "engineNotOn": "{feature} necesita un motor que esta aplicación no incluye.",
+        "installEngine": "Instalar el motor ({size})",
+        "downloadModel": "Descargar el modelo ({size})"
+      },
+      "preset": {
+        "none": "Esta aplicación no tiene ajustes de imagen.",
+        "model": "Modelo de imagen",
+        "choose": "Elige un modelo de imagen",
+        "seedHint": "Una semilla de −1 elige una nueva cada vez; cualquier otro número vuelve a dibujar la misma imagen.",
+        "reset": "Restablecer los ajustes de la aplicación",
+        "fields": {
+          "steps": "Pasos",
+          "cfg": "Guía (CFG)",
+          "strength": "Intensidad",
+          "sampler": "Muestreador",
+          "seed": "Semilla"
+        }
+      }
     }
   }
 }

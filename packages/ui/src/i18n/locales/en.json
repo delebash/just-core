@@ -16,7 +16,13 @@
       "models": "Models",
       "routing": "Routing by feature",
       "usage": "Usage",
-      "console": "AI engine console"
+      "console": "AI engine console",
+      "kinds": {
+        "image": "Images",
+        "vision": "Vision",
+        "tts": "Speech",
+        "stt": "Transcription"
+      }
     },
     "lab": {
       "generatedPrompt": "Generated prompt",
@@ -2024,6 +2030,65 @@
       "detail": "Your changes on this page aren't saved yet — they're lost if you leave now.",
       "leave": "Leave",
       "stay": "Stay"
+    },
+    "runtimes": {
+      "loadFailed": "Couldn't read this engine's state from the server.",
+      "engineTitle": "Engine: {name}",
+      "installed": "Installed — build {build}.",
+      "installedRunning": "Installed — build {build}, running {model}.",
+      "notInstalled": "Not installed — {size} to download.",
+      "notInstalledNoSize": "Not installed.",
+      "install": "Install ({size})",
+      "installPlain": "Install",
+      "remove": "Remove",
+      "removeTitle": "Remove {name}?",
+      "removeMessage": "This removes the engine from this computer. Its models stay; install it again to use them.",
+      "modelsTitle": "Models",
+      "noModels": "This app brings no models for this engine.",
+      "modelGone": "This model isn't in the app any more.",
+      "model": {
+        "running": "running",
+        "onDisk": "on this computer",
+        "notDownloaded": "not downloaded",
+        "download": "Download ({size})",
+        "delete": "Delete",
+        "deleteTitle": "Delete {name}?",
+        "deleteMessage": "This frees {size}. The model stays in the list and downloads again when you need it."
+      },
+      "needs": {
+        "vcRuntime": "Microsoft's Visual C++ runtime isn't on this computer ({files} missing) — install it, then try again.",
+        "vcRuntimeLink": "Microsoft's download",
+        "macos": "This engine needs macOS {need} or later; this Mac has macOS {have}.",
+        "macosUnknown": "This engine needs macOS {need} or later.",
+        "glibc": "This engine needs a Linux with glibc {need} or later; this one has glibc {have}.",
+        "glibcNone": "This engine needs a Linux with glibc {need} or later.",
+        "noBuild": "This engine has no build for this computer."
+      },
+      "ready": {
+        "thisFeature": "This feature",
+        "engineNotInstalled": "{feature} runs on {engine}, which isn't installed on this computer yet.",
+        "modelNotDownloaded": "{feature} needs its model, {model}, which isn't on this computer yet.",
+        "noModel": "No model is set for {feature} — choose one on the AI page, under Routing by feature.",
+        "noProvider": "The model set for {feature} has no provider any more — choose another on the AI page, under Routing by feature.",
+        "modelUnknown": "The model set for {feature} isn't one this app has — choose another on the AI page, under Routing by feature.",
+        "engineNotOn": "{feature} needs an engine this app doesn't include.",
+        "installEngine": "Install the engine ({size})",
+        "downloadModel": "Download the model ({size})"
+      },
+      "preset": {
+        "none": "This app has no image presets.",
+        "model": "Image model",
+        "choose": "Choose an image model",
+        "seedHint": "A seed of −1 picks a new one each time; any other number draws the same picture again.",
+        "reset": "Reset to the app's settings",
+        "fields": {
+          "steps": "Steps",
+          "cfg": "Guidance (CFG)",
+          "strength": "Strength",
+          "sampler": "Sampler",
+          "seed": "Seed"
+        }
+      }
     }
   }
 }

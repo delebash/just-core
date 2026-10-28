@@ -62,6 +62,16 @@ test("usage_sums_each_bucket", async () => {
   expect(body.diskFree).toBeGreaterThan(0);
 });
 
+test("every kit runtime's builds are engine builds — sd.cpp's beside llama.cpp's (the engines plan, K10)", async () => {
+  write(join(tmp, "ai-cache", "llamacpp", "b9999", "llama-server"), 4000);
+  write(join(tmp, "ai-cache", "sdcpp", "master-1004-a85db96", "cuda12", "sd-server.exe"), 3000);
+  // its server log sits with llama-server's spawn logs (install.js logDir): that bucket, not the builds
+  write(join(tmp, "ai-cache", "llamacpp", "logs", "sdcpp-server.log"), 70);
+  const body = await usage(tmp);
+  expect(body.engineBuilds).toBe(7000);
+  expect(body.spawnLogs).toBe(70);
+});
+
 test("missing_dirs_are_zero_not_error", async () => {
   // A bare data dir (nothing created) → every bucket 0, still 200 + real free/total.
   const body = await usage(tmp);

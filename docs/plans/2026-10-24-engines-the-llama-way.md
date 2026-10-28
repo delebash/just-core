@@ -127,6 +127,18 @@ kit ships no models, as today.
   `SpeechEnginesTab`, house-paint's `EngineInstallCard`). A kit "this feature needs its engine" banner
   for in-context installs (house-paint's house page, JustVoice's capture readiness). `StoragePanel`
   counts every kind from the catalog — the app's extra buckets go.
+  **BUILT 2026-10-24 (kit):** `LuRuntimeTab` (a tab per runtime the app turned on, named by its kind — "Images"
+  for sd.cpp: the engine with what this computer lacks, Install/Remove with the `DownloadBar`; the models with
+  Download/Delete; a page opened mid-install picks it up through the tasks' arm/apply, the catalog's way; channels
+  `runtimeEngineChannel`/`runtimeModelChannel`); `LuEngineNeeded` (the banner, on
+  `GET /v1/ai/features/:key/readiness` — `need`: engine-cant-run-here · engine-not-installed · model-not-downloaded ·
+  no-image-model …, the next step in place, `ready` emitted); `LuImagePresetPane` (an image feature on Routing: its
+  image presets only, the settings from the server's `paramRules`, Save, Reset to the app's). Found and fixed on the
+  way: the preset routes looked presets up in the chat-only list (an image preset's edit was a 404, assigning it to
+  its feature refused) — now by id, and a feature takes only a preset of its own kind (the chat default only a chat
+  one); a factory Reset now resets an image preset's settings; `/v1/ai/routing` carries each feature's `kind`.
+  Storage: sd.cpp's builds count as engine builds, its server log sits with the spawn logs. House-paint's
+  `EngineInstallCard` and its extra Storage buckets go in its round B (H5).
 - **K11 · Clear models cache is kind- and busy-aware (S7).** It never deletes a file a loaded or busy
   runtime holds (the arbiter's bookings + open ONNX sessions) and it knows every kind's rows — the two
   reasons house-paint kept its own folders (its TASKS:1706-1712). In a shared cache it removes only this
@@ -154,6 +166,9 @@ kit ships no models, as today.
   `RESEARCH.md` moves image/vision from N to covered.
 - **K13 · the template** wires runtimes through `installLlm` (no engine of its own — the template is not an
   image app) and tests the wiring with fakes; the guard runs on it like on every app.
+  **BUILT 2026-10-24:** `runtimes: []`, `runtimeModels: []` in its `llmArgs` with the how-to; its
+  `server/tests/runtimes.test.js` turns sd.cpp on through `installLlm` (a model row, an image feature and its
+  preset) and reads every route the screens use; `src/components/kitRuntimes.test.js` mounts the three screens.
 
 house-paint (on the updated kit):
 
@@ -275,7 +290,11 @@ Quasar controls where the kit has one; the family guard's full advisory list rea
   app that lists it and defines one of its classes again, fails a template without it, and tells the others
   (JustWrite 5 copies, JustVoice 6, docgen 23) until their sessions move. `quasar.variables.scss` was already a
   one-line import of the kit's in all five (the hashes differed by line endings) — Quasar reads it from the app's
-  path — so check 6 no longer asks to share it.
+  path — so check 6 no longer asks to share it. Then, from the other apps' sessions: the sheet's page tokens
+  (--fs-*, --sp-*, --r-card, --bg, the fonts — the template's alone) are read with the template's values as
+  fallbacks (ede523c), and the card's padding and margin are tokens (--card-pad, --card-gap — 0e50f34: JustWrite
+  measured its 33 screens, the 16px margin was the one visible change). just-sqlite-sync's `rev` takes the app's
+  `windows` (the counter on its one route) and `flush()` answers its count (JustWrite's asks).
 - **F7 · the skill that makes an app may be stale.** The guard: "the installed skill new-just-app/SKILL.md
   differs from the kit's skills/". Fix: reinstall (`node scripts/install-skills.js`); the guard FAILS on a
   stale skill instead of advising; K12's N list and plan check go into the kit's copy.

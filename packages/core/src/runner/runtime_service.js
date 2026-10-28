@@ -78,8 +78,9 @@ export class RuntimeService {
    * `id` a runtime with build rows (runner/runtimes.js); `cacheRoot` the kit's engine cache; `configFn()` →
    * `{pinnedBuild, binaries, idleSeconds}` (stores getRuntimeConfig); `hardwareFn()` → the kit's detection;
    * `systemFn()` → thisSystem(); `probeArgvs` the launch flags a staged build must accept; `server` the runtime's
-   * `{argv({port, files, blankPage}), ready(url)}` (runner/sdcpp.js SDCPP_SERVER); `logDir` where its server log and
-   * blank page go (the app's runtime root). The rest are seams for tests.
+   * `{argv({port, files, blankPage}), ready(url)}` (runner/sdcpp.js SDCPP_SERVER); `logDir` where its server log goes
+   * (the spawn logs folder llama-server's logs share — Storage counts and clears them together); `stateDir` where the
+   * app's own generated files go (its blank page — the app's runtime root). The rest are seams for tests.
    */
   constructor({
     id,
@@ -91,6 +92,7 @@ export class RuntimeService {
     modelsFn = () => [],
     server = null,
     logDir = null,
+    stateDir = null,
     beforeRemove = null,
     acquire = binary.acquireRuntime,
     startServer = processMod.startServerProcess,
@@ -109,6 +111,7 @@ export class RuntimeService {
     this._modelState = new Map(); // model id → { status, error, downloaded, total, cancel }
     this._spec = server;
     this._logDir = logDir || cacheRoot;
+    this._stateDir = stateDir || this._logDir;
     this._beforeRemove = beforeRemove ?? (() => this.stopServer());
     this._acquire = acquire;
     this._startServer = startServer;
@@ -385,7 +388,8 @@ export class RuntimeService {
     const exe = this.installedExe();
     if (!exe) throw Object.assign(new Error(`${this.rt.label} isn't installed`), { notInstalled: true });
     mkdirSync(this._logDir, { recursive: true });
-    const blankPage = path.join(this._logDir, `${this.rt.id}-blank.html`);
+    mkdirSync(this._stateDir, { recursive: true });
+    const blankPage = path.join(this._stateDir, `${this.rt.id}-blank.html`);
     writeFileSync(blankPage, "<!doctype html><title>.</title>\n"); // its WebUI off: an empty page at / (no flag turns it off)
     const port = await this._findPort("127.0.0.1", 18900);
     const url = `http://127.0.0.1:${port}`;
