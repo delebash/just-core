@@ -230,6 +230,16 @@ sheet `docs/plans/2026-10-07-kit-in-javascript.md`):
 - `vi.spyOn(namespace, "fn")` (vitest 4.1.11) reaches calls made through a module namespace —
   from other modules, and from inside the module through `import * as self` — but not a direct
   call inside the module. That is the port's monkeypatch rule.
+- **A bare `element.click()` in a mounted test can vanish** (*code + measured, 2026-10-27*): Vue's
+  runtime-dom `createInvoker` stamps an event `e._vts = Date.now()` and skips a listener when
+  `e._vts <= invoker.attached` (the stale-event guard, vuejs/core #2513; `attached` is a cached
+  `Date.now()`), so a click dispatched in the same millisecond as the re-render that swapped the
+  listener does nothing — at random, and any probe added shifts it. The kit's runtime-screen test
+  (an Install button that turns into Download on one mount) failed 3 runs in 4 on it. Vue Test Utils'
+  `trigger()` sets `_vts = Date.now() + 1` for exactly this (vuejs/test-utils#1854) — 6 runs in 6.
+  The rule: app-structure §18. Quasar's QBtn (2.18) adds no timer of its own on a click.
+- `Quasar.install` sets `Notify.create` on every mount, so a test spying on it spies after the
+  mount (2026-10-27).
 - TypeBox 1.3 keeps its markers as non-enumerable properties; spreading a schema
   (`{...schema}`) turns `~optional` into a real key, which ajv's strict mode rejects.
 - FastAPI 0.139 keeps included routers behind a lazy `_IncludedRouter`, so `app.routes` does

@@ -171,11 +171,15 @@ export const SDCPP_SERVER = Object.freeze({ argv: sdServerArgv, ready: sdReady }
 /**
  * One image edit through the kit's sd.cpp runtime: its server started on `model` (`{key, files: {slot: path}, peakVramMb}`
  * — RuntimeService.modelFor(id)) if it
- * isn't already, room made on the card, the job run — `request` as imageJobBody takes it. → a PNG Buffer.
+ * isn't already, room made on the card, the job run — `request` as imageJobBody takes it. → a PNG Buffer. Its seconds go
+ * into the kit's measurement ledger (RuntimeService.recordSpeed): the model's speed band on this box from then on.
  */
 export async function imageEdit(service, { model, request, onProgress = null, signal = null }) {
   await service.ensureServer({ modelKey: model.key, files: model.files, peakVramMb: model.peakVramMb ?? 0 });
-  return service.runJob((url) => runImageJob(url, imageJobBody(request), { onProgress, signal }));
+  const t0 = Date.now();
+  const png = await service.runJob((url) => runImageJob(url, imageJobBody(request), { onProgress, signal }));
+  service.recordSpeed?.(model.key, { secPerImage: (Date.now() - t0) / 1000 });
+  return png;
 }
 
 /** One video through the kit's sd.cpp runtime, as imageEdit — `request` as videoJobBody takes it. → runVideoJob's result. */

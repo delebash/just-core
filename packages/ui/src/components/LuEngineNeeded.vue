@@ -5,9 +5,10 @@
 // feature needs (GET /v1/ai/features/:key/readiness) and offers the next step in place: install the engine, then
 // download the model — each with progress and Cancel (the kit's DownloadBar), picked up when the page opens while one
 // runs. What this computer lacks is said before anything downloads; a feature with no model set is pointed to the AI
-// page. Beside the next step, what to know before the download (K10b): the build is slow here, the computer has less
-// memory than the model takes; no room on the drive is said in words. Nothing shows once the feature can run; `ready`
-// is emitted when it becomes so. `label` names the feature in the sentence (the app's own words); `feature` is its key.
+// page. Beside the next step, before the download: the model's chip — whether it fits this computer and its speed
+// band, the catalog's (modelPick.js: the one way, 2026-10-27); no room on the drive is said in words (K10b). Nothing
+// shows once the feature can run; `ready` is emitted when it becomes so. `label` names the feature in the sentence (the
+// app's own words); `feature` is its key.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { request } from "../client.js";
@@ -16,9 +17,10 @@ import UiBanner from "../common/components/UiBanner.vue";
 import UiButton from "../common/components/UiButton.vue";
 import { fmtBytes } from "../common/services/downloadRate.js";
 import { kitT } from "../common/services/kitI18n.js";
+import { fitLabel, fitWarning, speedBandLabel } from "../common/services/modelPick.js";
 import { reportError } from "../common/services/reportError.js";
 import { createDownloadTask, readEngineStatus, readRuntimeModelStatus, runtimeEngineChannel, runtimeModelChannel } from "../composables/useDownloadTask.js";
-import { engineNeedWords, lowMemoryWords, refusalProblem, slowWords } from "../services/runtimeWords.js";
+import { engineNeedWords, refusalProblem } from "../services/runtimeWords.js";
 
 const props = defineProps({
   feature: { type: String, required: true },
@@ -118,12 +120,8 @@ const words = computed(() => {
       return { text: t("kit.runtimes.ready.noModel", { feature: n }), intent: "danger" };
   }
 });
-// beside the next step, before its download: slow here, less memory than the model takes
-const notes = computed(() => {
-  if (!words.value?.action) return [];
-  const s = state.value;
-  return [slowWords(s.engine), lowMemoryWords(s.modelState)].filter(Boolean).map((w) => t(w.key, w.values));
-});
+// beside the next step, before its download: the model's chip (fits here? how fast?), as the catalog shows it
+const chipOf = computed(() => (words.value?.action && state.value?.modelState?.fit ? state.value.modelState : null));
 defineExpose({ refresh: load });
 </script>
 
@@ -146,7 +144,11 @@ defineExpose({ refresh: load });
         />
       </template>
     </UiBanner>
-    <UiBanner v-for="note in notes" :key="note" intent="warning">{{ note }}</UiBanner>
+    <p v-if="chipOf" class="lu-needed-outlook">
+      {{ t("kit.runtimes.ready.outlook", { model: chipOf.name || state.model }) }}
+      <span class="lu-fit" :class="`lu-fit--${chipOf.fit}`">{{ fitLabel(chipOf.fit) }}<template v-if="speedBandLabel(chipOf)"> · {{ speedBandLabel(chipOf) }}</template></span>
+    </p>
+    <UiBanner v-if="chipOf && fitWarning(chipOf)" intent="warning">{{ fitWarning(chipOf) }}</UiBanner>
     <DownloadBar v-if="words.action === 'engine' && engineTask?.state" :task="engineTask" :title="state.engine?.label || state.runtime" />
     <DownloadBar v-if="words.action === 'model' && modelTask?.state" :task="modelTask" :title="state.modelState?.name || state.model" />
   </div>
@@ -154,4 +156,5 @@ defineExpose({ refresh: load });
 
 <style scoped>
 .lu-needed { display: flex; flex-direction: column; gap: 8px; max-width: 720px; }
+.lu-needed-outlook { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
 </style>

@@ -401,14 +401,31 @@ export function predictDecodeTokS({ deviceMb, hostMb, deviceBwGbps, hostBwGbps }
   return 1.0 / totalS;
 }
 
-/** tok/s → band label (§8.14: fast/fine/slow/painful; the ~`fine` line is reading speed).
+/** A speed → band label (§8.14: fast/fine/slow/painful; for chat the ~`fine` line is reading speed). Each kind keeps
+ * its own unit: tok/s and the real-time factors are faster the higher; seconds per image the lower
+ * (`lowerIsFaster` — an image runtime's models, the one-way-per-job fold 2026-10-27).
  * null/non-positive → "" — never a fabricated band. */
-export function speedBand(tokS, { fast, fine, slow }) {
+export function speedBand(tokS, { fast, fine, slow, lowerIsFaster = false }) {
   if (!tokS || tokS <= 0) return "";
+  if (lowerIsFaster) {
+    if (tokS <= fast) return "fast";
+    if (tokS <= fine) return "fine";
+    if (tokS <= slow) return "slow";
+    return "painful";
+  }
   if (tokS >= fast) return "fast";
   if (tokS >= fine) return "fine";
   if (tokS >= slow) return "slow";
   return "painful";
+}
+
+/** One model's band on this box — the one way every kind takes (a chat row, a runtime's model): a MEASURED speed
+ * outranks the prediction and always keeps its word; a PREDICTION in a threshold's dead zone ships "" (the chip
+ * shows its number instead — speed-truth plan 2026-09-19 §5). `bands`: `{fast, fine, slow, frac, lowerIsFaster}`. */
+export function rateSpeed({ measured = null, predicted = null }, { fast, fine, slow, frac = 0, lowerIsFaster = false }) {
+  const band = speedBand(measured || predicted, { fast, fine, slow, lowerIsFaster });
+  if (!measured && inBandDeadzone(predicted, { fast, fine, slow, frac })) return "";
+  return band;
 }
 
 /** true when a PREDICTED tok/s sits within `frac` of any band threshold (speed-truth plan

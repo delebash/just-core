@@ -701,7 +701,7 @@ export const TABLES = [
   },
   {
     "name": "model_measurements",
-    "ddl": "CREATE TABLE model_measurements (\n\tid INTEGER NOT NULL, \n\tmodel_id VARCHAR NOT NULL, \n\tmachine_key VARCHAR NOT NULL, \n\tsource VARCHAR NOT NULL, \n\tlabel VARCHAR NOT NULL, \n\ttokens_per_sec FLOAT NOT NULL, \n\tvram_total_mb INTEGER NOT NULL, \n\tat INTEGER NOT NULL, \n\tbackend VARCHAR NOT NULL, \n\tvram_model_mb INTEGER NOT NULL, \n\tkind VARCHAR NOT NULL, \n\trealtime_x FLOAT NOT NULL, \n\tram_model_mb INTEGER NOT NULL, \n\tPRIMARY KEY (id)\n)",
+    "ddl": "CREATE TABLE model_measurements (\n\tid INTEGER NOT NULL, \n\tmodel_id VARCHAR NOT NULL, \n\tmachine_key VARCHAR NOT NULL, \n\tsource VARCHAR NOT NULL, \n\tlabel VARCHAR NOT NULL, \n\ttokens_per_sec FLOAT NOT NULL, \n\tvram_total_mb INTEGER NOT NULL, \n\tat INTEGER NOT NULL, \n\tbackend VARCHAR NOT NULL, \n\tvram_model_mb INTEGER NOT NULL, \n\tkind VARCHAR NOT NULL, \n\trealtime_x FLOAT NOT NULL, \n\tram_model_mb INTEGER NOT NULL, \n\tsec_per_image FLOAT NOT NULL, \n\tPRIMARY KEY (id)\n)",
     "indexes": [],
     "columns": {
       "id": {
@@ -765,6 +765,11 @@ export const TABLES = [
       },
       "ram_model_mb": {
         "kind": "int",
+        "notNull": true,
+        "default": 0
+      },
+      "sec_per_image": {
+        "kind": "float",
         "notNull": true,
         "default": 0
       }
@@ -922,7 +927,7 @@ export const TABLES = [
   },
   {
     "name": "runtime_model",
-    "ddl": "CREATE TABLE runtime_model (\n\truntime VARCHAR NOT NULL, \n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tkind VARCHAR NOT NULL, \n\tlicense VARCHAR NOT NULL, \n\tfiles VARCHAR NOT NULL, \n\tpeak_vram_mb INTEGER NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tram_gb INTEGER NOT NULL, \n\tram_gb_shared INTEGER NOT NULL, \n\tPRIMARY KEY (runtime, id)\n)",
+    "ddl": "CREATE TABLE runtime_model (\n\truntime VARCHAR NOT NULL, \n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tkind VARCHAR NOT NULL, \n\tlicense VARCHAR NOT NULL, \n\tfiles VARCHAR NOT NULL, \n\tpeak_vram_mb INTEGER NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tmin_ram_mb INTEGER NOT NULL, \n\tref_speed VARCHAR NOT NULL, \n\tPRIMARY KEY (runtime, id)\n)",
     "indexes": [],
     "columns": {
       "runtime": {
@@ -970,15 +975,15 @@ export const TABLES = [
         "notNull": true,
         "default": 0
       },
-      "ram_gb": {
+      "min_ram_mb": {
         "kind": "int",
         "notNull": true,
         "default": 0
       },
-      "ram_gb_shared": {
-        "kind": "int",
+      "ref_speed": {
+        "kind": "text",
         "notNull": true,
-        "default": 0
+        "default": "{}"
       }
     }
   },

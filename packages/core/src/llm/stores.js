@@ -23,7 +23,7 @@ import { model } from "../platform/models.js";
 import { pyFloat, pyIntOf, pyJson, pyStrScalar, unwrap } from "../platform/pyjson.js";
 import { pyFloatParse, pyInt, pyOr, pySorted, pyStr, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
-import { idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
+import { bandKey, idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
 import { presetParams } from "./preset_params.js";
 import { RunnerConfig } from "../runner/schema.js";
 import * as db from "./db.js";
@@ -878,7 +878,8 @@ export class RunnerConfigStore {
    * A kit runtime's builds (runner/runtimes.js) — `{pinnedBuild, binaries}` from `runtime_binary` and
    * `pinned_build:<id>`, each row as a BinaryAsset (camelCase) plus `assetBytes`, `runtimeBytes`, what each unpacks to
    * (`assetUnpackedBytes`, `runtimeUnpackedBytes` — 0: not measured) and `requires`. The kit's defaults when the app
-   * never seeded the runtime; `memory` and `fastGpus` are the runtime's own.
+   * never seeded the runtime; `memory` is the runtime's own. `bands`: its kind's speed-band thresholds as fit.rateSpeed
+   * takes them (seeded `band_*:<kind>` rows, the chat bands' dead zone) or null; `safetyMarginMb` the fit's margin.
    */
   getRuntimeConfig(id) {
     const rt = runtimeOf(id);
@@ -903,18 +904,34 @@ export class RunnerConfigStore {
     });
     const idleRow = h.get("runner_setting", idleKey(id))?.value;
     const idleSeconds = idleRow != null && idleRow !== "" ? Number(idleRow) : (rt.defaults.idleSeconds ?? 0);
+    const setting = (key, dflt) => {
+      const v = Number(h.get("runner_setting", key)?.value);
+      return Number.isFinite(v) && v > 0 ? v : dflt;
+    };
+    const kindBands = rconfig.DEFAULT_RUNTIME_BANDS[rt.kind];
+    const bands = kindBands
+      ? {
+          fast: setting(bandKey(rt.kind, "fast"), kindBands.fast),
+          fine: setting(bandKey(rt.kind, "fine"), kindBands.fine),
+          slow: setting(bandKey(rt.kind, "slow"), kindBands.slow),
+          frac: setting("band_deadzone_frac", rconfig.DEFAULT_BAND_DEADZONE_FRAC),
+          lowerIsFaster: !!kindBands.lowerIsFaster,
+          unit: kindBands.unit,
+        }
+      : null;
     return {
       id,
       pinnedBuild: pin,
       binaries: (rows.length ? rows : rt.defaults.binaries).map(asset),
       idleSeconds,
       memory: rt.defaults.memory ?? null,
-      fastGpus: rt.defaults.fastGpus ?? null,
+      bands,
+      safetyMarginMb: setting("safety_margin_mb", rconfig.DEFAULT_SAFETY_MARGIN_MB),
     };
   }
 
   /** A kit runtime's models (`runtime_model`), in their order: `{runtime, id, name, kind, license, files, peakVramMb,
-   *  ramGb, ramGbShared, builtIn}`. */
+   *  minRamMb, refSpeed, builtIn}`. */
   listRuntimeModels(runtime) {
     return db
       .session()
@@ -927,8 +944,8 @@ export class RunnerConfigStore {
         license: r.license,
         files: JSON.parse(r.files || "[]"),
         peakVramMb: Number(r.peak_vram_mb || 0),
-        ramGb: Number(r.ram_gb || 0),
-        ramGbShared: Number(r.ram_gb_shared || 0),
+        minRamMb: Number(r.min_ram_mb || 0),
+        refSpeed: JSON.parse(r.ref_speed || "{}"),
         builtIn: truthy(r.built_in),
       }));
   }
@@ -1429,6 +1446,7 @@ export class ModelMeasurementStore {
       realtimeX = 0.0,
       backend = null,
       ramModelMb = 0,
+      secPerImage = 0.0,
     },
   ) {
     const h = db.session();
@@ -1449,6 +1467,8 @@ export class ModelMeasurementStore {
           realtime_x: pyFloatParse(pyOr(realtimeX, 0)),
           // The system memory a load took, where the host measures it (a speech model's RAM).
           ram_model_mb: pyIntOf(pyOr(ramModelMb, 0)),
+          // An image runtime's speed, in its own unit (fit.speedBand: lower is faster).
+          sec_per_image: pyFloatParse(pyOr(secPerImage, 0)),
         }).lastInsertRowid,
       );
       const seen = new Set();
@@ -1492,6 +1512,7 @@ export class ModelMeasurementStore {
       kind: m.kind || "llm",
       realtimeX: Number(m.realtime_x || 0),
       ramModelMb: m.ram_model_mb || 0,
+      secPerImage: Number(m.sec_per_image || 0),
       switches: flags.get(m.id) || [],
     }));
   }

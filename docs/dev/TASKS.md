@@ -13,6 +13,39 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## One way per job: the kit's job table, K10b's speed and memory notes folded into the existing way [2026-10-27]
+WHY:    K10b (1394e5c) added a per-build `slow` flag (runtimes.js `fastGpus`, runtime_service.js `_slow`) and a
+        model's `lowMemory` (runtime_model `ram_gb`/`ram_gb_shared`, `_memoryNote`) — second ways to do jobs the
+        kit already does: the speed band (runner/fit.js `speedBand`, fast/fine/slow/painful; runner/api.js
+        692-739, measured beats predicted), the measurement ledger (llm/stores.js `ModelMeasurementStore.record`,
+        already multi-kind: `kind`, `realtime_x`, `ram_model_mb`) and the LLM rows' memory fit (`minRamMb`, the
+        fit band). Found by the just-direct session; the user's plan came through it (their words there: "have
+        the kit session do this, we are doing the film app").
+GO:     the user, 2026-10-27, answering in this session — on "Go on all three, and in which order?" (1. a job →
+        file:function table as §19 of `docs/app-structure.md`; 2. fold slow/lowMemory into the existing speed
+        band, ledger and fit, each kind keeping its unit — tok/s, s per image, the video and speech real-time
+        factors; 3. a CLAUDE.md rule): **"Fold first, then round B (Recommended)"** — "Do the §19 table and the
+        fold now, then finish round B on them." On the CLAUDE.md rule: **"Yes, exact wording"** — merged into
+        the "Standard first" bullet of the user's global CLAUDE.md (done 2026-10-27):
+        "**One way per job** (2026-10-27). Before designing anything, find its job in the kit's table
+        (`just-core/docs/app-structure.md` §19) and use what it names; the plan names the row. Not there →
+        search the kit by what it does, not its name; still nothing → it's new, and its row goes into the
+        table in the same change. A second way to do a job the kit already has is a bug."
+        The plan as the just-direct session passed it on: one module per shared job, called by both the LLM
+        stack and runtime_service, so a new engine plugs into the existing way; the same words fast / fine /
+        slow / painful; measured beats predicted; each kind keeps its own unit.
+STATE:  BUILT 2026-10-27 — CLAUDE.md (the user's global, merged into "Standard first"); `docs/app-structure.md`
+        §19, the job table; the fold: `fit.rateSpeed` (the chat rows' band and dead zone, now one function both
+        call), `speedBand` in a kind's own unit (`lowerIsFaster` for seconds per image), runtime models rated by
+        `coarseFit` + `rateSpeed` with the ledger's `sec_per_image` and a model's `ref_speed`, the catalog's chip on
+        the runtime screens; K10b's `fastGpus`, `slow`, `ram_gb`, `lowMemory` gone (the plan's K10b says what).
+        Next: house-paint's round B on it (paused mid-edit: `server/src/aiphoto/edit.js` takes an injected
+        `generate`, uncommitted).
+        OPEN: family tests that click a mounted button with a bare `element.click()` — the template's
+        `kitControls`, `settingsSections`, `NotesPage` tests, house-paint's and JustWrite's (grep `\.click();` in
+        `*.test.js`) — move to Vue Test Utils' `trigger` (app-structure §18: Vue drops a same-millisecond event;
+        the kit's runtime-screen test failed 3 runs in 4 on it). The template first; each app by its session.
+
 ## Every engine the llama.cpp way, the standards check, JustWrite's findings [2026-10-24]
 GO:     the user, verbatim: "the speech engine audio cpp and the stable diffusion cpp should be integratet eh
         same way as the lamma cpp, we started off with lamma added audio now we add stable diffusion, you

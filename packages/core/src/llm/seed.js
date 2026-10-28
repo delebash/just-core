@@ -25,7 +25,7 @@ import { pyFloat, pyIntOf, pyJson, pyStrScalar, unwrap } from "../platform/pyjso
 import { getLogger } from "../platform/log.js";
 import { pyFloatParse, pyOr, pySorted, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
-import { idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
+import { bandKey, idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
 import { presetParams } from "./preset_params.js";
 import * as db from "./db.js";
 import * as modelListRules from "./model_list_rules.js";
@@ -1133,15 +1133,22 @@ export function seedRuntimeBinaries(h, ids) {
     if (rt.defaults.idleSeconds != null && !h.get("runner_setting", idleKey(id))) {
       h.insert("runner_setting", { key: idleKey(id), value: String(rt.defaults.idleSeconds), built_in: true });
     }
+    // its kind's speed bands, in the kind's unit (the chat rows' band_*_toks for the other kinds)
+    const bands = rconfig.DEFAULT_RUNTIME_BANDS[rt.kind];
+    for (const which of bands ? ["fast", "fine", "slow"] : []) {
+      if (!h.get("runner_setting", bandKey(rt.kind, which))) h.insert("runner_setting", { key: bandKey(rt.kind, which), value: String(bands[which]), built_in: true });
+    }
   }
   return added;
 }
 
 /**
  * The app's models for its kit runtimes (`runtime_model`): each a pinned file set — `{runtime, id, name, license,
- * files: [{slot, repo, revision, path, sha256, bytes}], peakVramMb, ramGb, ramGbShared}` (`ramGb` the computer's memory
- * one job takes beside a graphics card with its own, `ramGbShared` where the card's memory is the computer's — the CPU
- * build, an integrated GPU, a Mac; under it the screens say so before the download). Unlike a chat catalog row, a built-in row follows
+ * files: [{slot, repo, revision, path, sha256, bytes}], peakVramMb, minRamMb, refSpeed}` — rated the way a chat row is
+ * (fit.coarseFit, fit.rateSpeed): `peakVramMb` its need on the card, `minRamMb` the computer's memory a job takes beside
+ * a card with its own (where the card's memory is the computer's, both come out of it), `refSpeed` its reference speed
+ * per build (`{cuda12: 20}`, in its kind's unit — config.js DEFAULT_RUNTIME_BANDS) until this computer measures one.
+ * Unlike a chat catalog row, a built-in row follows
  * the app's definition on every seed (its files are the app's pins, not the user's edits — a new revision has to
  * reach an install made before it); a built-in row the app no longer lists goes; a row the user added stays.
  */
@@ -1166,8 +1173,8 @@ export function seedRuntimeModels(h, rows, runtimes = []) {
         peak_vram_mb: Number(r.peakVramMb ?? 0),
         built_in: true,
         position: i,
-        ram_gb: Number(r.ramGb ?? 0),
-        ram_gb_shared: Number(r.ramGbShared ?? 0),
+        min_ram_mb: Number(r.minRamMb ?? 0),
+        ref_speed: JSON.stringify(r.refSpeed ?? {}),
       };
       const key = { runtime, id: String(r.id) };
       const have = h.get("runtime_model", key);

@@ -16,14 +16,12 @@ export const RUNTIMES = Object.freeze({
     license: "MIT",
     // idleSeconds: the server stops after this long with no job (a seeded setting, idle_seconds:sdcpp). memory: what it
     // holds on the card — idle with --offload-to-cpu ~90 MB, a FLUX.2 klein render's peak 6.41 GB (RTX 2070, measured).
-    // fastGpus: the builds measured fast — CUDA 12 (~20 s an AI photo); the CPU build took ~10 minutes and the others
-    // are unmeasured, so the screens say "slow here" for them before anything downloads (house-paint's note, K10b).
+    // How fast a model runs here is its speed band (fit.rateSpeed, config.js DEFAULT_RUNTIME_BANDS), never a per-build flag.
     defaults: Object.freeze({
       pinnedBuild: DEFAULT_SDCPP_BUILD,
       binaries: DEFAULT_SDCPP_BINARIES,
       idleSeconds: 300,
       memory: Object.freeze({ idleMb: 128, peakMb: 6600 }),
-      fastGpus: Object.freeze(["cuda12"]),
     }),
   }),
 });
@@ -39,3 +37,7 @@ export const pinKey = (id) => `pinned_build:${id}`;
 
 /** The runner_setting key holding how long a runtime's server waits idle before it stops (seconds). */
 export const idleKey = (id) => `idle_seconds:${id}`;
+
+/** The runner_setting key holding one speed-band threshold (`which`: fast · fine · slow) for a runtime kind's models,
+ *  in the kind's unit (config.js DEFAULT_RUNTIME_BANDS) — the chat bands' `band_*_toks` for the other kinds. */
+export const bandKey = (kind, which) => `band_${which}:${kind}`;

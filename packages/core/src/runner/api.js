@@ -720,21 +720,14 @@ async function modelsView(vramMb) {
       tok = fit.predictDecodeTokS({ deviceMb: devMb, hostMb, deviceBwGbps: devBw, hostBwGbps: hostBw });
     }
     const meas = measuredById.get(m.id) ?? null;
-    let band = fit.speedBand(meas || tok, { fast: cfg.bandFastToks, fine: cfg.bandFineToks, slow: cfg.bandSlowToks });
     // A PREDICTION within the dead zone of a threshold ships no word — the chip shows
     // "~7.9 tok/s" (predTokS still ships) instead of a band the next probe reading could flip
-    // (speed-truth plan 2026-09-19 §5). A measured speed always keeps its word.
-    if (
-      !meas &&
-      fit.inBandDeadzone(tok, {
-        fast: cfg.bandFastToks,
-        fine: cfg.bandFineToks,
-        slow: cfg.bandSlowToks,
-        frac: cfg.bandDeadzoneFrac,
-      })
-    ) {
-      band = "";
-    }
+    // (speed-truth plan 2026-09-19 §5). A measured speed always keeps its word. (fit.rateSpeed:
+    // the one way a runtime's models are rated too.)
+    const band = fit.rateSpeed(
+      { measured: meas, predicted: tok },
+      { fast: cfg.bandFastToks, fine: cfg.bandFineToks, slow: cfg.bandSlowToks, frac: cfg.bandDeadzoneFrac },
+    );
     return [band, tok ? pyRound(tok, 1) : null, meas ? pyRound(meas, 1) : null];
   };
 

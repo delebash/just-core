@@ -310,19 +310,26 @@ test("busy is never removed — a model while it downloads or runs a job, the en
   expect(svc.installedExe()).toBeNull();
 });
 
-test("a model's memory note: less than it takes here — beside a card with its own memory, or where the card's is the computer's", () => {
-  appSeed([{ ...FLUX, ramGb: 12, ramGbShared: 16 }]);
-  expect(stores.getRunnerConfigStore().listRuntimeModels("sdcpp")[0]).toMatchObject({ ramGb: 12, ramGbShared: 16 });
-  const GiB = 1024 ** 3;
-  const note = (hw, gib) => service({ hardwareFn: () => hw, totalMemFn: () => gib * GiB }).modelsStatus()[0].lowMemory;
-  const nvidia = { platform: "windows", runtimes: { cuda: true }, gpus: [] };
-  expect(note(nvidia, 8)).toEqual({ needGb: 12, haveGb: 8 });
-  expect(note(nvidia, 16)).toBeNull();
-  const cpu = { platform: "windows", runtimes: {}, gpus: [] }; // the CPU build: the computer's memory holds both
-  expect(note(cpu, 12)).toEqual({ needGb: 16, haveGb: 12 });
-  expect(note(cpu, 15.8)).toBeNull(); // 16 GB as it is sold, less what the firmware keeps
-  appSeed([FLUX]); // a model that doesn't say: no note
-  expect(note(cpu, 4)).toBeNull();
+test("a runtime's model is rated the way a chat row is — its fit from its needs, its speed band, measured beating predicted", () => {
+  appSeed([{ ...FLUX, minRamMb: 12288, refSpeed: { cuda12: 20, cpu: 600 } }]);
+  expect(stores.getRunnerConfigStore().listRuntimeModels("sdcpp")[0]).toMatchObject({ minRamMb: 12288, refSpeed: { cuda12: 20, cpu: 600 }, peakVramMb: 6600 });
+  const rated = (hw) =>
+    service({ hardwareFn: () => hw, configFn: () => stores.getRunnerConfigStore().getRuntimeConfig("sdcpp"), measurements: stores.getModelMeasurementStore() });
+  const nvidia = { platform: "windows", runtimes: { cuda: true }, gpus: [{ name: "RTX 2070", vramMb: 8192 }], ramMb: 32768, cpuCores: 8 };
+  const svc = rated(nvidia);
+  // the reference figure for this build, in seconds per image (lower is faster): predicted, so a "~" on the chip
+  expect(svc.modelsStatus()[0]).toMatchObject({ fit: "ok", minVramMb: 6600, minRamMb: 12288, speedBand: "fast", predSpeed: 20, measuredSpeed: null, speedUnit: "s/image", ranHere: false });
+  // a job on this box and build goes into the ledger: the measurement outranks the reference
+  svc.recordSpeed("flux2-klein-4b", { secPerImage: 150 });
+  expect(svc.modelsStatus()[0]).toMatchObject({ speedBand: "slow", measuredSpeed: 150, ranHere: true });
+  expect(stores.getModelMeasurementStore().list("image:sdcpp:flux2-klein-4b")[0]).toMatchObject({ kind: "image", backend: "cuda12", source: "speed", secPerImage: 150 });
+  // the CPU build: nothing on a card — the computer's memory holds both (12 + 6.6 GB > 16 GB); its reference: painful
+  const cpu = { platform: "windows", runtimes: {}, gpus: [], ramMb: 16384, cpuCores: 8 };
+  expect(rated(cpu).modelsStatus()[0]).toMatchObject({ fit: "no", speedBand: "painful", predSpeed: 600 });
+  // no RAM need or reference declared: the fit reads its card need alone, no prediction — never a guess; this box's
+  // measurement still stands
+  appSeed([FLUX]);
+  expect(rated(nvidia).modelsStatus()[0]).toMatchObject({ fit: "ok", minRamMb: null, predSpeed: null, measuredSpeed: 150, speedBand: "slow" });
 });
 
 // ── round B: files already on this computer move into the cache; every runtime's server stops ─────────────────────
@@ -416,7 +423,8 @@ test("a database made before K10b gains the new columns at start-up — its rows
   old.exec("INSERT INTO runtime_model VALUES ('sdcpp', 'old', 'Old', 'image', '', '[]', 0, 1, 0)");
   createAll(old);
   expect(old.columnNames("runtime_binary")).toEqual(expect.arrayContaining(["asset_unpacked_bytes", "runtime_unpacked_bytes"]));
-  expect(old.columnNames("runtime_model")).toEqual(expect.arrayContaining(["ram_gb", "ram_gb_shared"]));
-  expect(old.all("select id, ram_gb, ram_gb_shared from runtime_model")).toEqual([{ id: "old", ram_gb: 0, ram_gb_shared: 0 }]);
+  expect(old.columnNames("runtime_model")).toEqual(expect.arrayContaining(["min_ram_mb", "ref_speed"]));
+  expect(old.columnNames("model_measurements")).toContain("sec_per_image");
+  expect(old.all("select id, min_ram_mb, ref_speed from runtime_model")).toEqual([{ id: "old", min_ram_mb: 0, ref_speed: "{}" }]);
   old.close();
 });

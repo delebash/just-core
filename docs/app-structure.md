@@ -1171,6 +1171,66 @@ npm run test:server && npm run test:unit` and the guard; the pre-commit hook (Hu
 runs Biome on the staged files. `npm run test:coverage` (Vitest's v8) reports coverage, with no gate.
 A bug fix lands with the test that would have caught it.
 
+A mounted test clicks the way Vue Test Utils does — `await wrapper.find(…).trigger("click")` — not with
+a bare `element.click()`: Vue drops an event whose `Date.now()` stamp is no later than its listener's
+attachment (vuejs/core runtime-dom `createInvoker`), so a bare click right after a re-render that
+swapped the listener can land in that millisecond and vanish at random; `trigger` stamps the event a
+millisecond on (vuejs/test-utils#1854). (Found 2026-10-27 in the kit's own runtime-screen test.)
+
+## 19 · One way per job — the kit's table (2026-10-27)
+
+Before designing anything, find its job here and use what it names; a plan names the row. Not here →
+search the kit by what the job does, not by a name; still nothing → it is new, and its row goes into
+this table in the same change. **A second way to do a job the kit already does is a bug** (the user's
+rule, 2026-10-27: K10b's per-build "slow" flag and RAM columns were a second speed rating and memory
+fit — folded back into the rows below). Paths are under `packages/core/src/` unless they say `ui/`
+(`packages/ui/src/`).
+
+| Job | Use | Never |
+|---|---|---|
+| **AI engines and models** | | |
+| Run a chat feature | `llm/prompts.js` `runAction` (server) · `ui/services/aiFeature.js` `runAiFeature` inside `ui/services/appTask.js` `withAiTask` (screen) | the task store directly |
+| Run an image feature, and what it needs first | `llm/image_dispatch.js` `runImageFeature`, `imageFeatureReadiness` | spawning an engine in the app |
+| A feature's model and settings | the feature catalog + an engine preset of its kind (`installLlm` `featureCatalog`/`enginePresets`/`featurePresets`); a kind's settings `llm/preset_params.js` `PARAM_RULES`, `presetParams` | a constant, an app setting |
+| llama.cpp's engine | `runner/lifecycle.js` `RunnerService.installEngine`, its rows `runner_binary` (`llm/seed.js` `seedDefaultRunnerBinaries`) | — |
+| Another engine (sd.cpp, …) | `runner/runtimes.js` `RUNTIMES` + `runner/runtime_service.js` `RuntimeService` (install, removal, its server, jobs); its rows `runtime_binary` (`llm/seed.js` `seedRuntimeBinaries`); the app turns it on with `installLlm({ runtimes, runtimeModels })` | an app's own engine code |
+| What a build needs from this computer | `runner/runtime_service.js` `unmetNeed` (`runner/hardware.js` `missingDlls`, `versionAtLeast`) | — |
+| A runtime's model files | `runner/models.js` `acquireFileSet` (HF cache: blob by SHA-256, `linkSnapshot`); a chat GGUF `acquireModel` | a folder of the app's own |
+| Files already on this computer, into the cache | `runner/models.js` `adoptFileSet` · `RuntimeService.adoptModel` | copying beside the cache |
+| An update replaces the old build | llama.cpp: `RunnerService.installEngine`'s sweep; a runtime: `RuntimeService._sweepStaleBuilds` (after its install) | — |
+| Start a server process, find a port | `runner/process.js` `startServerProcess`, `findFreePort` | `child_process` in the app |
+| The graphics card's memory | `runner/arbiter.js` `getArbiter` (reserve, release, makeRoom, busyBegin/End) — a runtime books through `RuntimeService.runJob` | stopping another engine by hand |
+| What this computer has | `runner/hardware.js` `detected`, `memArch`, `maxVramMb`, `machineKey`, `snapRamGb` | — |
+| **Whether a model fits** | `runner/fit.js` `coarseFit` on its declared needs (chat rows `runner/api.js` `modelFit`: `minRamMb`, `recommendedFor.minVramMb`; a runtime's model `RuntimeService._rating`: `peakVramMb`, `minRamMb`) → ok · tight · cpu · no | a "low memory" flag |
+| **How fast a model runs here** | `runner/fit.js` `rateSpeed` (`speedBand`, `inBandDeadzone`) → fast · fine · slow · painful, measured beating predicted; each kind in its own unit — tok/s (`runner/config.js` `DEFAULT_BAND_*_TOKS`), seconds per image (`DEFAULT_RUNTIME_BANDS`, rows `band_*:<kind>`), the speech and video real-time factors | a per-build "slow" flag |
+| **What was measured on this computer** | `llm/stores.js` `ModelMeasurementStore.record`, `list` (`kind`, `tokens_per_sec`, `realtime_x`, `sec_per_image`, `ram_model_mb`, `vram_model_mb`); a runtime's jobs record through `RuntimeService.recordSpeed` | a table of the app's own |
+| Clear the models cache | `runner/lifecycle.js` `RunnerService.clearModelsCache` (never a busy file) | deleting folders |
+| Stop the engines (reset, restore) | `lifecycle.getService().stop()` + `runner/runtime_service.js` `stopRuntimeServers` | — |
+| A cache shared by the family's apps | `runner/cache_registry.js` `register`, `summarize`; `llm/install.js` `resolveCacheRoots` | — |
+| **Files and drives** | | |
+| Download a file | `runner/download.js` `streamDownload` (resumable, several connections; `DiskFullError`) | `fetch` to a file |
+| Room on the drive before a download | `platform/disk_room.js` `lacksRoom`, `freeBytes`, `partBytes` | `statfs` in the app |
+| A rename another program holds a moment | `platform/rename_held.js` `renameHeld` | a bare `rename` |
+| Backup, restore, reset | `platform/data_api.js` `makeDataRouter` | — |
+| What the data folder holds (Storage) | `platform/disk_api.js` `makeDiskRouter` | — |
+| **Server** | | |
+| A refusal | `platform/errors.js` `ApiError`, `notFound` | hand-built JSON |
+| A route's input | `platform/server.js` `input` with `platform/models.js` `T` | checks by hand |
+| Settings that change between versions | `platform/settings_upgrade.js` `upgradeSettings`, `defaultsFingerprints` | — |
+| Another window changed something | `platform/window_changes.js` `ChangeCounter`, `makeSyncRevRouter` · `ui/common/services/otherWindows.js` `watchOtherWindows` | — |
+| Names and text | `platform/text.js` `cleanName`, `nameProblem`, `cutToLength`, `visibleText` | — |
+| The log | `platform/log.js` `getLogger` | `console` |
+| HTTP out (proxies honoured) | `platform/http.js` `fetch` | Node's own `fetch` |
+| **Screens** | | |
+| Controls | the `Ui*` controls (`ui/common/index.js`), Quasar's under them | a hand-made control |
+| A long job's bar (download, install) | `ui/composables/useDownloadTask.js` `createDownloadTask` + `DownloadBar` | a bar of the screen's own |
+| A failure, a field's refusal | `ui/common/services/reportError.js` `reportError` · `ui/common/services/forms.js` `fieldErrors` | `alert`, hand-made words |
+| A toast · a confirm | `ui/common/services/toastBridge.js` `pushToast` · `ui/common/services/dialog.js` `confirmDialog` | — |
+| A size in bytes | `ui/common/services/downloadRate.js` `fmtBytes` | — |
+| A model's fit and speed, in words | `ui/common/services/modelPick.js` `fitLabel`, `speedBandLabel`, `fitWarning` + the `.lu-fit` chip (`ui/common/styles.css`) | notes of a screen's own |
+| A runtime's screens | `LuRuntimeTab` (the AI page), `LuEngineNeeded` (in place), `LuImagePresetPane` (Routing) | an app's install card |
+| Page looks | `ui/common/app.css` + the page tokens (`tokens.contract.css`) | a copy of a kit class |
+
 ## Open deviations
 
 - **JustWrite's `/v1/settings`** still mixes operator rows with the renderer document behind the

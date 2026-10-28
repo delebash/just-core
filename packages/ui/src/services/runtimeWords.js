@@ -2,8 +2,8 @@
 // What a kit runtime's engine needs from this computer, in the app's words — the server's `need` (runner/
 // runtime_service.js unmetNeed: { reason, missing?, url?, need?, have? }) as a key and its values. Shared by the AI
 // page's runtime tab and the "this feature needs its engine" banner (the engines plan, K10; the words were
-// just-house-paint's EngineInstallCard's). K10b: the notes said before anything downloads (slow here, less memory than
-// the model takes) and the routes' refusals (no room on the drive, busy) in the app's words.
+// just-house-paint's EngineInstallCard's). K10b: the routes' refusals (no room on the drive, busy) in the app's words.
+// How fast a model runs here and whether it fits is the catalog's chip (common/services/modelPick.js) — one way.
 import { fmtBytes } from "../common/services/downloadRate.js";
 
 /** `need` → `{ key, values, link }` (`link`: Microsoft's download, for the Visual C++ runtime), or null. */
@@ -19,19 +19,6 @@ export function engineNeedWords(need) {
     default:
       return { key: "kit.runtimes.needs.noBuild", values: {}, link: null };
   }
-}
-
-/** The engine's "slow here" note — its build for this computer isn't one measured fast (the server's `slow`):
- *  `{ key, values }`, or null. */
-export function slowWords(engine) {
-  if (!engine?.slow) return null;
-  return { key: engine.gpu === "cpu" ? "kit.runtimes.notes.slowCpu" : "kit.runtimes.notes.slow", values: { engine: engine.label } };
-}
-
-/** A model's "less memory than it takes" note (the server's `lowMemory`: `{needGb, haveGb}`): `{ key, values }`, or null. */
-export function lowMemoryWords(model) {
-  const m = model?.lowMemory;
-  return m ? { key: "kit.runtimes.notes.lowMemory", values: { model: model.name, need: m.needGb, have: m.haveGb } } : null;
 }
 
 /**

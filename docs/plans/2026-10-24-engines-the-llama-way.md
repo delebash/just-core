@@ -152,13 +152,19 @@ kit ships no models, as today.
     install in flight is still cancelled, llama.cpp's); a model downloading or running a job isn't deleted (as Clear
     models cache refuses); nothing installs into or starts from an engine being removed. 409 "engine-busy" ·
     "model-busy".
-  - *Slow here* — the runtime's `fastGpus` (sd.cpp: cuda12, the one measured fast); status `slow`.
-  - *Less memory than the model takes* — `runtime_model.ram_gb` / `ram_gb_shared` (house-paint's 12 / 16 GB move
-    with its model row in round B), against the computer's memory as sold (snapRamGb) and the kit's memArch;
-    models status `lowMemory: {needGb, haveGb}`.
-  - Screens: `LuRuntimeTab` and `LuEngineNeeded` say the notes before the download and the refusals in words
-    (`runtimeWords.js` `slowWords`, `lowMemoryWords`, `refusalProblem`); template test mounted.
-  - Existing databases gain the four columns at start-up (`llm/db.js` ADDED_COLUMNS — JustWrite's check).
+  - *Slow here* and *less memory* — built as a per-build `fastGpus`/`slow` flag and `runtime_model.ram_gb` /
+    `ram_gb_shared` with a `lowMemory` note (1394e5c): a second way to do jobs the kit already does. **Folded
+    2026-10-27** (the user's go, kit TASKS "One way per job"): each runtime model is rated the way a chat row is —
+    `fit` from `fit.coarseFit` on `peakVramMb` + `minRamMb` (on the CPU build both come out of the computer's
+    memory), `speedBand` from `fit.rateSpeed` in its kind's unit (an image: seconds per image, lower is faster;
+    `config.js` `DEFAULT_RUNTIME_BANDS`, seeded `band_*:image` rows), this box's measurement in the ledger
+    (`model_measurements.sec_per_image`, recorded by `sdcpp.js` `imageEdit` through `RuntimeService.recordSpeed`)
+    beating the model's reference figure for the build (`runtime_model.ref_speed` — the speech manifest's
+    `cpu_realtime` precedent). The screens show the catalog's own chip (`modelPick.js`). A database made in
+    between keeps the two K10b columns, unused.
+  - Screens: `LuRuntimeTab` and `LuEngineNeeded` show each model's fit-and-speed chip and say the refusals in words
+    (`runtimeWords.js` `refusalProblem`); template test mounted.
+  - Existing databases gain the new columns at start-up (`llm/db.js` ADDED_COLUMNS — JustWrite's check).
   - Standard: existing code in our repos (house-paint's checks, moved as-is) and the kit's own patterns
     (`ApiError` problems, ADDED_COLUMNS, the download tasks). Not built: llama.cpp's own engine install and GGUF
     downloads have no room check yet (kit TASKS, open).

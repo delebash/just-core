@@ -9,10 +9,10 @@
 //    evicts it, and booked with the arbiter by its kind — while idle what it holds, for a job its peak, after room is
 //    made on the card (the arbiter evicts another holder — the chat model) and with its kind busy so nothing evicts it
 //    mid-job.
-// Before anything downloads, what the screens say there (K10b, house-paint's checks moved into the kit): the room
-// on the drive (an install or a download that wouldn't fit is refused, never cut off at a full disk), the build is
-// slow here (not one measured fast), the computer has less memory than the model takes. Removing the engine while a
-// job runs on it, or a model while it downloads or runs, is refused.
+// Before anything downloads (K10b, house-paint's checks moved into the kit): the room on the drive — an install or a
+// download that wouldn't fit is refused, never cut off at a full disk. Each model is rated the way the chat rows are —
+// its fit and its speed band, measured beating predicted (the one-way-per-job fold, 2026-10-27). Removing the engine
+// while a job runs on it, or a model while it downloads or runs, is refused.
 // One service per runtime the app turned on (installLlm({ runtimes })).
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
@@ -23,6 +23,7 @@ import { freeBytes, lacksRoom } from "../platform/disk_room.js";
 import { getLogger } from "../platform/log.js";
 import { getArbiter } from "./arbiter.js";
 import * as binary from "./binary.js";
+import * as fit from "./fit.js";
 import * as hardware from "./hardware.js";
 import * as models from "./models.js";
 import * as processMod from "./process.js";
@@ -101,8 +102,9 @@ export class RuntimeService {
    * `systemFn()` → thisSystem(); `probeArgvs` the launch flags a staged build must accept; `server` the runtime's
    * `{argv({port, files, blankPage}), ready(url)}` (runner/sdcpp.js SDCPP_SERVER); `logDir` where its server log goes
    * (the spawn logs folder llama-server's logs share — Storage counts and clears them together); `stateDir` where the
-   * app's own generated files go (its blank page — the app's runtime root). The rest are seams for tests
-   * (`freeBytesFn(dir)` a drive's free room, `totalMemFn()` the computer's memory in bytes).
+   * app's own generated files go (its blank page — the app's runtime root); `measurements` the kit's measurement
+   * ledger (`{list(modelId), record(modelId, row)}` — llm/stores.js ModelMeasurementStore; null: nothing recorded,
+   * nothing measured). The rest are seams for tests (`freeBytesFn(dir)` a drive's free room).
    */
   constructor({
     id,
@@ -121,7 +123,7 @@ export class RuntimeService {
     findPort = processMod.findFreePort,
     arbiter = getArbiter,
     freeBytesFn = freeBytes,
-    totalMemFn = () => os.totalmem(),
+    measurements = null,
   }) {
     const rt = runtimeOf(id);
     if (!rt?.defaults) throw new TypeError(`no kit runtime "${id}" with build rows`);
@@ -143,7 +145,7 @@ export class RuntimeService {
     this._findPort = findPort;
     this._arbiter = arbiter;
     this._freeBytesFn = freeBytesFn;
-    this._totalMemFn = totalMemFn;
+    this._measurements = measurements;
     this._removing = false; // the engine's folder is going: nothing installs into it or starts from it
     this._state = idle();
     this._cancel = new AsyncEvent();
@@ -178,12 +180,6 @@ export class RuntimeService {
     return (cfg.binaries || []).find((b) => b.platform === hw.platform && b.gpu === gpu) ?? null;
   }
 
-  /** Not one of the builds measured fast (the runtime's `fastGpus`): a job here takes many minutes. */
-  _slow(asset) {
-    const fast = this._configFn().fastGpus ?? this.rt.defaults.fastGpus;
-    return !!(asset && fast?.length && !fast.includes(asset.gpu));
-  }
-
   /** What installing `asset` lacks on the drive: null, or `{needBytes, freeBytes}`. At most it holds its archives and
    *  what they unpack to at once (the archives go once it's installed); its own unfinished downloads hold theirs. */
   _engineRoom(asset, build) {
@@ -198,8 +194,8 @@ export class RuntimeService {
     return lacksRoom({ dir: this.root, bytes, files, free: this._freeBytesFn });
   }
 
-  /** What the screen shows: the runtime, its build for this box, whether it's here and running, what it needs, whether
-   *  it's slow here, the install's progress. */
+  /** What the screen shows: the runtime, its build for this box, whether it's here and running, what it needs, the
+   *  install's progress. (How fast and whether it fits is each model's: modelsStatus.) */
   status() {
     const { cfg, hw, asset } = this._pick();
     const exe = asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null;
@@ -215,7 +211,6 @@ export class RuntimeService {
       running: this._server?.handle.isAlive() ? this._server.modelKey : "",
       downloadBytes: (asset?.assetBytes || 0) + (asset?.runtimeBytes || 0),
       need: unmetNeed(asset, this._systemFn(), this.rt.label),
-      slow: this._slow(asset),
       ...this._state,
     };
   }
@@ -327,21 +322,76 @@ export class RuntimeService {
     return path.join(this.hfRoot, `models--${f.repo.replaceAll("/", "--")}`, "blobs", f.sha256);
   }
 
-  /** Less memory than `m` takes here: `{needGb, haveGb}` or null — `ramGb` beside a graphics card with its own memory,
-   *  `ramGbShared` where the card's memory is the computer's (this box's CPU or Metal build, an integrated GPU — the
-   *  kit's memArch); the computer's memory as it is sold (snapRamGb: 8, 12, 16 GB …). */
-  _memoryNote(m, asset) {
-    let shared = !asset || asset.gpu === "cpu" || asset.gpu === "metal";
+  /** The ledger's id for one of this runtime's models (JustVoice's speech rows' `<kind>:<engine>:<variant>` shape). */
+  _ledgerId(modelId) {
+    return `${this.rt.kind}:${this.rt.id}:${modelId}`;
+  }
+
+  /**
+   * How `m` runs on this box, rated the one way the chat rows are (runner/api.js — the one-way-per-job fold,
+   * 2026-10-27): `fit` from fit.coarseFit on its declared needs (`peakVramMb` on the card, `minRamMb` beside it; on
+   * the CPU build nothing goes to a card, so both come out of the computer's memory), and `speedBand` from
+   * fit.rateSpeed — this box's newest measurement on this build (the ledger) outranks the model's reference figure
+   * for the build (`refSpeed`), in its kind's unit (`speedUnit`, config.js DEFAULT_RUNTIME_BANDS).
+   */
+  _rating(m, cfg, hw, asset) {
+    const onCard = !!asset && asset.gpu !== "cpu";
+    const peak = Number(m.peakVramMb || 0);
+    const ram = Number(m.minRamMb || 0);
+    const fitWord = fit.coarseFit({
+      totalParams: null,
+      quant: "",
+      vramMb: onCard ? hardware.maxVramMb(hw) : 0,
+      ramMb: hw.ramMb,
+      marginMb: cfg.safetyMarginMb ?? 0,
+      minVramOverride: peak || null,
+      minRamOverride: (onCard ? ram : ram + peak) || null,
+    });
+    const bands = cfg.bands;
+    const field = bands?.unit === "s/image" ? "secPerImage" : "realtimeX";
+    let rows = [];
     try {
-      shared ||= hardware.memArch(this._hardwareFn() || {}) !== "discrete";
+      rows = this._measurements?.list(this._ledgerId(m.id)) ?? [];
     } catch {
-      shared = true;
+      rows = []; // no ledger wired (a bare test)
     }
-    const needGb = Number((shared ? m.ramGbShared : m.ramGb) || 0);
-    const total = Number(this._totalMemFn() || 0);
-    if (!needGb || !total) return null;
-    const haveGb = hardware.snapRamGb(total / 1024 ** 2);
-    return haveGb < needGb ? { needGb, haveGb } : null;
+    const mkey = hardware.machineKey(hw);
+    const row = rows.find((r) => r.machineKey === mkey && (r.backend || "") === (asset?.gpu || "") && Number(r[field]) > 0);
+    const measured = row ? Number(row[field]) : null;
+    const predicted = asset ? Number(m.refSpeed?.[asset.gpu]) || null : null;
+    return {
+      fit: fitWord,
+      minRamMb: ram || null,
+      minVramMb: peak || null,
+      speedBand: bands ? fit.rateSpeed({ measured, predicted }, bands) : "",
+      predSpeed: predicted,
+      measuredSpeed: measured != null ? Math.round(measured * 10) / 10 : null,
+      speedUnit: bands?.unit ?? "",
+      ranHere: rows.some((r) => r.machineKey === mkey),
+    };
+  }
+
+  /** One job's speed on this box and build into the kit's measurement ledger — what the band reads from then on.
+   *  `fields` in the kind's unit (`{secPerImage}` for an image). Best effort: never fails the job. */
+  recordSpeed(modelId, fields) {
+    if (!this._measurements) return;
+    try {
+      const { hw, asset } = this._pick();
+      this._measurements.record(this._ledgerId(modelId), {
+        machineKey: hardware.machineKey(hw),
+        source: "speed",
+        label: `${this.rt.label} (${asset?.gpu || "no build"})`,
+        tokensPerSec: 0,
+        vramTotalMb: 0,
+        at: Date.now(),
+        rows: [],
+        kind: this.rt.kind,
+        backend: asset?.gpu ?? "",
+        ...fields,
+      });
+    } catch (e) {
+      log.warning(`${this.rt.id}: couldn't record ${modelId}'s speed: ${e?.message || e}`);
+    }
   }
 
   /** What downloading `m` lacks on the drive: null, or `{needBytes, freeBytes}` — its files not here whole, less what
@@ -368,10 +418,10 @@ export class RuntimeService {
     return m;
   }
 
-  /** Each model: its size, whether all its files are here (`onDisk`), whether the server runs it, whether this computer
-   *  has less memory than it takes (`lowMemory`), its download's progress (`status`, `downloaded` bytes of `total`). */
+  /** Each model: its size, whether all its files are here (`onDisk`), whether the server runs it, how it runs here (its
+   *  `fit` and `speedBand` — `_rating`), its download's progress (`status`, `downloaded` bytes of `total`). */
   modelsStatus() {
-    const { asset } = this._pick();
+    const { cfg, hw, asset } = this._pick();
     return this._modelsFn().map((m) => {
       const { cancel, ...state } = this._modelState.get(m.id) ?? { status: "", error: "", downloaded: 0, total: 0 };
       return {
@@ -382,7 +432,7 @@ export class RuntimeService {
         bytes: m.files.reduce((a, f) => a + Number(f.bytes || 0), 0),
         onDisk: this._here(m),
         running: this._server?.handle.isAlive() && this._server.modelKey === m.id,
-        lowMemory: this._memoryNote(m, asset),
+        ...this._rating(m, cfg, hw, asset),
         ...state,
       };
     });

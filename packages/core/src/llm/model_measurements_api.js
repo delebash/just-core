@@ -48,6 +48,9 @@ export const MeasurementRow = T.Object({
   // The system memory a load took (a speech model's RAM, 2026-10-12); 0 where not measured.
   // Declared so the wire never strips it.
   ramModelMb: opt(T.Integer(), 0),
+  // An image runtime's measured seconds per image (its kind's unit, 2026-10-27); 0 on every other row. Declared so
+  // the wire never strips it.
+  secPerImage: opt(T.Number(), 0.0),
   switches: opt(T.Array(MeasurementFlag), []),
 });
 

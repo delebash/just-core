@@ -441,6 +441,25 @@ test("band_deadzone_brackets_every_threshold", () => {
   expect(fit.inBandDeadzone(0.05, { fast: 20.0, fine: 8.0, slow: 0.0, frac: 0.1 })).toBe(false);
 });
 
+// The one-way-per-job fold (2026-10-27): every kind is banded by the same words, each in its own unit
+test("band_in_a_kinds_own_unit_and_measured_beats_predicted", () => {
+  const image = { fast: 30, fine: 120, slow: 300, frac: 0.1, lowerIsFaster: true }; // seconds per image
+  expect(fit.speedBand(18, image)).toBe("fast");
+  expect(fit.speedBand(90, image)).toBe("fine");
+  expect(fit.speedBand(200, image)).toBe("slow");
+  expect(fit.speedBand(600, image)).toBe("painful");
+  expect(fit.speedBand(0, image)).toBe(""); // never a fabricated band
+  // a prediction on a line ships no word; a measurement always keeps its word
+  expect(fit.rateSpeed({ predicted: 29 }, image)).toBe("");
+  expect(fit.rateSpeed({ predicted: 29, measured: 29 }, image)).toBe("fast");
+  expect(fit.rateSpeed({ predicted: 18, measured: 150 }, image)).toBe("slow");
+  // the chat rows' tok/s, faster the higher — unchanged
+  const chat = { fast: 20.0, fine: 8.0, slow: 2.0, frac: 0.1 };
+  expect(fit.rateSpeed({ predicted: 7.9 }, chat)).toBe("");
+  expect(fit.rateSpeed({ predicted: 12 }, chat)).toBe("fine");
+  expect(fit.rateSpeed({ predicted: 12, measured: 25 }, chat)).toBe("fast");
+});
+
 // ── vram-truth plan 2026-09-19 §6.3: exact placement, pinned to the ENGINE ────────────
 // Fixture = the real files' per-block bytes (Appendix A reader) + llama.cpp b10437's own
 // `llama-fit-params -fitp on` model-MiB per (ngl flag, n-cpu-moe) (plan §10.2). These pins

@@ -4,9 +4,10 @@
 // row and catalog are: the build for this computer and what it needs (said before anything downloads), Install with
 // progress and Cancel (the kit's DownloadBar), Remove; each model the app brings (its runtime_model rows) with its
 // size and licence, on this computer or not, running or not, Download with progress and Cancel, Delete. A page
-// opened while an install or a download runs picks it up (the tasks' arm/apply — the catalog's way). Said before
-// anything downloads (K10b): the build is slow here, the computer has less memory than a model takes, no room on the
-// drive; removing what is busy is refused in words. `runtimeId` names the runtime (GET /v1/ai/runtimes).
+// opened while an install or a download runs picks it up (the tasks' arm/apply — the catalog's way). Each model shows
+// the catalog's chip — whether it fits this computer and its speed band, measured beating predicted (modelPick.js
+// fitLabel, speedBandLabel, fitWarning: the one way, 2026-10-27). No room on the drive and removing what is busy are
+// said in words (K10b). `runtimeId` names the runtime (GET /v1/ai/runtimes).
 import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { request } from "../client.js";
@@ -16,9 +17,10 @@ import UiButton from "../common/components/UiButton.vue";
 import { confirmDialog } from "../common/services/dialog.js";
 import { fmtBytes } from "../common/services/downloadRate.js";
 import { kitT } from "../common/services/kitI18n.js";
+import { fitLabel, fitWarning, speedBandLabel } from "../common/services/modelPick.js";
 import { reportError } from "../common/services/reportError.js";
 import { createDownloadTask, readEngineStatus, readRuntimeModelStatus, runtimeEngineChannel, runtimeModelChannel } from "../composables/useDownloadTask.js";
-import { engineNeedWords, lowMemoryWords, refusalProblem, slowWords } from "../services/runtimeWords.js";
+import { engineNeedWords, refusalProblem } from "../services/runtimeWords.js";
 
 const props = defineProps({
   runtimeId: { type: String, required: true },
@@ -79,7 +81,6 @@ onBeforeUnmount(() => {
 
 const size = (n) => fmtBytes(n || 0);
 const need = () => engineNeedWords(engine.value?.need);
-const slow = () => (need() ? null : slowWords(engine.value));
 const engineName = () => engine.value?.label || props.runtimeId;
 
 /** A start the server refused before anything downloaded (no room, busy): said in words, no bar left behind; any
@@ -170,7 +171,6 @@ defineExpose({ refresh: load });
           {{ t(need().key, need().values) }}
           <a v-if="need().link" :href="need().link" target="_blank" rel="noopener">{{ t("kit.runtimes.needs.vcRuntimeLink") }}</a>
         </UiBanner>
-        <UiBanner v-if="slow()" intent="warning" class="lu-rt-note">{{ t(slow().key, slow().values) }}</UiBanner>
         <div class="lu-rt-actions">
           <UiButton
             v-if="!engine.installed" intent="primary" size="small" focusable-when-disabled
@@ -189,7 +189,10 @@ defineExpose({ refresh: load });
         <div v-for="m in models" :key="m.id" class="lu-rt-model">
           <div class="lu-rt-model-row">
             <div class="lu-rt-model-main">
-              <b>{{ m.name }}</b>
+              <span class="lu-rt-model-name">
+                <b>{{ m.name }}</b>
+                <span v-if="m.fit" class="lu-fit" :class="`lu-fit--${m.fit}`">{{ fitLabel(m.fit) }}<template v-if="speedBandLabel(m)"> · {{ speedBandLabel(m) }}</template></span>
+              </span>
               <span class="lu-rt-line">{{ [size(m.bytes), m.license].filter(Boolean).join(" · ") }} — {{ modelState(m) }}</span>
             </div>
             <UiButton
@@ -198,7 +201,7 @@ defineExpose({ refresh: load });
             />
             <UiButton v-else intent="secondary" size="small" :label="t('kit.runtimes.model.delete')" @click="removeModel(m)" />
           </div>
-          <UiBanner v-if="lowMemoryWords(m)" intent="warning" class="lu-rt-note">{{ t(lowMemoryWords(m).key, lowMemoryWords(m).values) }}</UiBanner>
+          <UiBanner v-if="fitWarning(m)" intent="warning" class="lu-rt-note">{{ fitWarning(m) }}</UiBanner>
           <DownloadBar v-if="taskFor(m.id).state" :task="taskFor(m.id)" :title="m.name" />
         </div>
       </section>
@@ -216,4 +219,5 @@ defineExpose({ refresh: load });
 .lu-rt-model { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px solid var(--border); }
 .lu-rt-model-row { display: flex; align-items: center; gap: 12px; }
 .lu-rt-model-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.lu-rt-model-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 </style>

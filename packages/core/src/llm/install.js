@@ -479,6 +479,8 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
         server: RUNTIME_SERVERS[id] ?? null,
         logDir: nodePath.join(generated, "logs"),
         stateDir: generated,
+        // the one measurement ledger every kind writes and reads (speed bands, measured beating predicted)
+        measurements: stores.getModelMeasurementStore(),
       }),
     ]),
   );

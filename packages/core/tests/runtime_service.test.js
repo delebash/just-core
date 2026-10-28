@@ -166,12 +166,6 @@ test("a resumed install counts what its own unfinished zips hold; a build row th
   expect(e.diskFull.needBytes).toBe(guess - 2000); // its .part still counts
 });
 
-test("slow here: a build not measured fast is said before the install — the CPU build, Vulkan", () => {
-  expect(service().status()).toMatchObject({ gpu: "cuda12", slow: false });
-  expect(service({ hardwareFn: () => ({ platform: "windows", runtimes: {}, gpus: [] }) }).status()).toMatchObject({ gpu: "cpu", slow: true });
-  expect(service({ hardwareFn: () => ({ platform: "windows", runtimes: { vulkan: true }, gpus: [] }) }).status()).toMatchObject({ gpu: "vulkan", slow: true });
-});
-
 test("while the engine is being removed nothing installs into it or starts from it; once gone, it installs again", async () => {
   let release;
   const gate = new Promise((r) => (release = r));

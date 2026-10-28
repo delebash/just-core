@@ -5,7 +5,7 @@
 // shapes: the AI page's runtime tab (the engine — what it needs, Install with its bar —, the models — Download with
 // its bar, Delete), the "this feature needs its engine" banner (its next step, gone once the feature can run), and an
 // image feature's preset pane on Routing (its settings from the server's rules, Save, a refused value under its field).
-// K10b: the notes said before anything downloads (slow here, less memory), no room on the drive said in words.
+// K10b: no room on the drive said in words; each model's chip (fits here? how fast?) is the chat catalog's own.
 import { LuEngineNeeded, LuImagePresetPane, LuRuntimeTab } from "@delebash/ui";
 import { fmtBytes } from "@delebash/ui/common/services/downloadRate.js";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
@@ -79,6 +79,9 @@ afterEach(() => {
 });
 const text = () => document.body.textContent;
 const button = (words) => [...document.body.querySelectorAll("button")].find((b) => b.textContent.includes(words));
+// a click the way Vue Test Utils makes one (trigger stamps the event a millisecond on: Vue drops an event no later than its
+// listener's attachment — vuejs/test-utils#1854 — and a bare .click() right after a re-render can land in that millisecond)
+const click = (words) => wrapper.findAll("button").find((b) => b.text().includes(words)).trigger("click");
 const settle = async () => {
   for (let i = 0; i < 4; i++) await flushPromises();
 };
@@ -95,7 +98,7 @@ test("the runtime tab: the engine's install with its bar, then the model's downl
   expect(text()).toContain("Tiny");
   expect(text()).toContain("not downloaded");
 
-  button(`Install (${fmtBytes(907e6)})`).click();
+  await click(`Install (${fmtBytes(907e6)})`);
   await settle();
   expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/sdcpp/engine/install")).toBe(true);
   await later(1300);
@@ -104,7 +107,7 @@ test("the runtime tab: the engine's install with its bar, then the model's downl
   await later(1300);
   expect(text()).toContain("Installed — build master-1004-a85db96.");
 
-  button(`Download (${fmtBytes(10)})`).click();
+  await click(`Download (${fmtBytes(10)})`);
   await settle();
   expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/sdcpp/models/tiny/download")).toBe(true);
   server.models = [{ ...server.models[0], status: "downloaded", onDisk: true }];
@@ -127,30 +130,31 @@ test("the banner: the next step in place — the engine, then the model — and 
   wrapper = mount(LuEngineNeeded, { props: { feature: "photo.render", label: "The AI photo", onReady: ready }, attachTo: document.body, global: { plugins: plugins() } });
   await settle();
   expect(text()).toContain("The AI photo runs on stable-diffusion.cpp, which isn't installed on this computer yet.");
-  button("Install the engine").click();
+  await click("Install the engine");
   await settle();
   server.engine = { ...server.engine, installed: true, status: "installed" };
   await later(1300);
   expect(text()).toContain("The AI photo needs its model, Tiny, which isn't on this computer yet.");
-  button("Download the model").click();
+  await click("Download the model");
   await settle();
+  expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/sdcpp/models/tiny/download")).toBe(true);
   server.models = [{ ...server.models[0], status: "downloaded", onDisk: true }];
   await later(1300);
   expect(text()).not.toContain("The AI photo");
   expect(ready).toHaveBeenCalledTimes(1);
 });
 
-test("said before anything downloads: slow here, less memory than the model takes; no room on the drive in the app's words, no bar left", async () => {
-  server.engine = { ...server.engine, gpu: "cpu", slow: true };
-  server.models = [{ ...server.models[0], lowMemory: { needGb: 16, haveGb: 8 } }];
+test("each model shows the catalog's chip — won't fit, its predicted speed; no room on the drive in the app's words, no bar left", async () => {
+  server.models = [{ ...server.models[0], fit: "no", speedBand: "painful", predSpeed: 600, measuredSpeed: null, speedUnit: "s/image" }];
   server.full = { needBytes: 2.4e9, freeBytes: 1e9 };
   wrapper = mount(LuRuntimeTab, { props: { runtimeId: "sdcpp" }, attachTo: document.body, global: { plugins: plugins() } });
   // after the mount: installing Quasar's Notify sets its create; the toast is read off its options
   const create = vi.spyOn(quasar.Notify, "create");
   await settle();
-  expect(text()).toContain("This computer has no graphics card stable-diffusion.cpp can use: each run here goes on the processor and may take ten minutes or more.");
-  expect(text()).toContain("This computer has 8 GB of memory, and Tiny takes about 16 GB: here it may be very slow, or not finish.");
-  button(`Install (${fmtBytes(907e6)})`).click();
+  // the same chip and words as the chat models' catalog (modelPick.js): a predicted band carries the "~"
+  expect(document.body.querySelector(".lu-fit.lu-fit--no").textContent).toBe("Won't fit · ~very slow");
+  expect(text()).toContain("The estimate says this PC doesn't have the memory for it.");
+  await click(`Install (${fmtBytes(907e6)})`);
   await settle();
   const toast = create.mock.calls.at(-1)?.[0];
   expect(toast.message).toBe("Not enough room on the drive");
@@ -162,14 +166,13 @@ test("said before anything downloads: slow here, less memory than the model take
   create.mockRestore();
 });
 
-test("the banner says the same notes beside its next step", async () => {
-  server.engine = { ...server.engine, gpu: "vulkan", slow: true };
-  server.models = [{ ...server.models[0], lowMemory: { needGb: 12, haveGb: 8 } }];
+test("the banner shows the model's chip beside its next step — a speed not banded yet says its number", async () => {
+  server.models = [{ ...server.models[0], fit: "ok", speedBand: "", predSpeed: 29, measuredSpeed: null, speedUnit: "s/image" }];
   wrapper = mount(LuEngineNeeded, { props: { feature: "photo.render", label: "The AI photo" }, attachTo: document.body, global: { plugins: plugins() } });
   await settle();
   expect(text()).toContain("The AI photo runs on stable-diffusion.cpp, which isn't installed on this computer yet.");
-  expect(text()).toContain("stable-diffusion.cpp has no build measured fast for this computer's graphics card: each run here may take several minutes.");
-  expect(text()).toContain("Tiny takes about 12 GB");
+  expect(text()).toContain("Tiny on this computer:");
+  expect(document.body.querySelector(".lu-fit.lu-fit--ok").textContent).toBe("Fits · ~29 s an image"); // in the dead zone: the number
 });
 
 test("an image feature's preset pane: its settings from the server's rules, saved; a refused value said under its field", async () => {
@@ -182,7 +185,7 @@ test("an image feature's preset pane: its settings from the server's rules, save
   steps.value = "8";
   steps.dispatchEvent(new Event("input"));
   await settle();
-  button("Save").click();
+  await click("Save");
   await settle();
   const put = server.calls.find(([m, u]) => m === "PUT" && u === "/v1/ai/engine-presets/photo");
   expect(put[2].params).toEqual({ steps: 8, sampler: "euler" });
@@ -190,7 +193,7 @@ test("an image feature's preset pane: its settings from the server's rules, save
   steps.value = "500";
   steps.dispatchEvent(new Event("input"));
   await settle();
-  button("Save").click();
+  await click("Save");
   await settle();
   expect(text()).toMatch(/150/); // the server's refusal, under Steps
 });

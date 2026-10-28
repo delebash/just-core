@@ -66,6 +66,15 @@ export const DEFAULT_BAND_FAST_TOKS = 20.0;
 export const DEFAULT_BAND_FINE_TOKS = 8.0;
 export const DEFAULT_BAND_SLOW_TOKS = 2.0;
 
+// The same bands for a kit runtime's models (the one-way-per-job fold, 2026-10-27), each kind in its own unit
+// (fit.speedBand): an image runtime in seconds per image, lower is faster — fast ≤ 30 (FLUX.2 klein on an RTX
+// 2070: 15–20 s, measured) · fine ≤ 120 · slow ≤ 300 · beyond = painful (the CPU build: ~10 minutes, house-paint's
+// RESEARCH §9). Seeded runner_setting rows `band_<fast|fine|slow>:<kind>` for an app that turns the runtime on
+// (seed.seedRuntimeBinaries); the dead zone is the chat bands' own `band_deadzone_frac`. Start values, not law.
+export const DEFAULT_RUNTIME_BANDS = Object.freeze({
+  image: Object.freeze({ fast: 30, fine: 120, slow: 300, lowerIsFaster: true, unit: "s/image" }),
+});
+
 // Speed-truth plan 2026-09-19 §5 — the band DEAD ZONE. A PREDICTED tok/s within this
 // fraction of any band threshold ships band "" so the chip shows the number ("~7.9 tok/s")
 // instead of a word the next probe reading may flip: on the author's box the flagship

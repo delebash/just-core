@@ -647,7 +647,8 @@
       "fine": "aceptable",
       "slow": "lento",
       "painful": "muy lento",
-      "predicted": "~{n} tok/s"
+      "predicted": "~{n} tok/s",
+      "predictedSecImage": "~{n} s por imagen"
     },
     "tune": {
       "classLayer": "configuración de clase de PC",
@@ -2073,7 +2074,8 @@
         "modelUnknown": "El modelo de {feature} no es de esta aplicación: elige otro en la página de IA, en Enrutamiento por función.",
         "engineNotOn": "{feature} necesita un motor que esta aplicación no incluye.",
         "installEngine": "Instalar el motor ({size})",
-        "downloadModel": "Descargar el modelo ({size})"
+        "downloadModel": "Descargar el modelo ({size})",
+        "outlook": "{model} en este equipo:"
       },
       "preset": {
         "none": "Esta aplicación no tiene ajustes de imagen.",
@@ -2088,11 +2090,6 @@
           "sampler": "Muestreador",
           "seed": "Semilla"
         }
-      },
-      "notes": {
-        "slow": "{engine} no tiene una compilación medida como rápida para la tarjeta gráfica de este equipo: aquí cada ejecución puede tardar varios minutos.",
-        "slowCpu": "Este equipo no tiene una tarjeta gráfica que {engine} pueda usar: aquí cada ejecución va en el procesador y puede tardar diez minutos o más.",
-        "lowMemory": "Este equipo tiene {have} GB de memoria y {model} necesita unos {need} GB: aquí puede ir muy lento o no terminar."
       },
       "noRoom": {
         "title": "No hay espacio suficiente en la unidad",

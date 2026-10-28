@@ -43,11 +43,15 @@ export const ADDED_COLUMNS = [
   // a preset's kind (llm · image · vision · …) and its kind's own settings — the engines plan, K8 + K8b (2026-10-24)
   ["engine_presets", "kind", "VARCHAR NOT NULL DEFAULT 'llm'"],
   ["engine_presets", "params", "VARCHAR NOT NULL DEFAULT '{}'"],
-  // what a kit runtime's build unpacks to, and the memory its model takes — the engines plan, K10b (2026-10-27)
+  // what a kit runtime's build unpacks to — the engines plan, K10b (2026-10-27)
   ["runtime_binary", "asset_unpacked_bytes", "INTEGER NOT NULL DEFAULT 0"],
   ["runtime_binary", "runtime_unpacked_bytes", "INTEGER NOT NULL DEFAULT 0"],
-  ["runtime_model", "ram_gb", "INTEGER NOT NULL DEFAULT 0"],
-  ["runtime_model", "ram_gb_shared", "INTEGER NOT NULL DEFAULT 0"],
+  // a runtime model's memory need and reference speeds, and an image's measured seconds — rated the one way the
+  // chat rows are (fit.coarseFit, fit.rateSpeed; the one-way-per-job fold, 2026-10-27). K10b's ram_gb /
+  // ram_gb_shared (1394e5c) were a second way: a database made in between keeps them, unused.
+  ["runtime_model", "min_ram_mb", "INTEGER NOT NULL DEFAULT 0"],
+  ["runtime_model", "ref_speed", "VARCHAR NOT NULL DEFAULT '{}'"],
+  ["model_measurements", "sec_per_image", "FLOAT NOT NULL DEFAULT 0"],
 ];
 
 let handle = null;

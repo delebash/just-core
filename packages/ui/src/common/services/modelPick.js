@@ -53,13 +53,18 @@ const SPEED_BANDS = new Set(["fast", "fine", "slow", "painful"]);
  * 2026-09-19 §5): the prediction sits too close to a band line for a word to be
  * honest, so the chip shows the number — "~7.9 tok/s". No band and no
  * prediction (facts or bandwidth unknown) → "" — the chip shows plain
- * feasibility, never a guess.
+ * feasibility, never a guess. A kit runtime's model (runtime_service.js) carries
+ * the same band in its kind's unit: `predSpeed`/`measuredSpeed` with `speedUnit`
+ * ("s/image") — the one-way-per-job fold, 2026-10-27.
  */
+const PREDICTED_WORDS = { "s/image": "kit.speedBand.predictedSecImage" };
 export function speedBandLabel(m) {
   if (!m) return "";
-  if (!m.speedBand) return !m.measuredTokS && m.predTokS > 0 ? kitT("kit.speedBand.predicted", { n: m.predTokS }) : "";
+  const measured = m.measuredTokS ?? m.measuredSpeed;
+  const predicted = m.predTokS ?? m.predSpeed;
+  if (!m.speedBand) return !measured && predicted > 0 ? kitT(PREDICTED_WORDS[m.speedUnit] ?? "kit.speedBand.predicted", { n: predicted }) : "";
   const label = SPEED_BANDS.has(m.speedBand) ? kitT(`kit.speedBand.${m.speedBand}`) : m.speedBand;
-  return m.measuredTokS ? label : `~${label}`;
+  return measured ? label : `~${label}`;
 }
 
 /**

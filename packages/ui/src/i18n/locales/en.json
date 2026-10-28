@@ -647,7 +647,8 @@
       "fine": "fine",
       "slow": "slow",
       "painful": "very slow",
-      "predicted": "~{n} tok/s"
+      "predicted": "~{n} tok/s",
+      "predictedSecImage": "~{n} s an image"
     },
     "tune": {
       "classLayer": "PC class config",
@@ -2073,7 +2074,8 @@
         "modelUnknown": "The model set for {feature} isn't one this app has — choose another on the AI page, under Routing by feature.",
         "engineNotOn": "{feature} needs an engine this app doesn't include.",
         "installEngine": "Install the engine ({size})",
-        "downloadModel": "Download the model ({size})"
+        "downloadModel": "Download the model ({size})",
+        "outlook": "{model} on this computer:"
       },
       "preset": {
         "none": "This app has no image presets.",
@@ -2088,11 +2090,6 @@
           "sampler": "Sampler",
           "seed": "Seed"
         }
-      },
-      "notes": {
-        "slow": "{engine} has no build measured fast for this computer's graphics card: each run here may take several minutes.",
-        "slowCpu": "This computer has no graphics card {engine} can use: each run here goes on the processor and may take ten minutes or more.",
-        "lowMemory": "This computer has {have} GB of memory, and {model} takes about {need} GB: here it may be very slow, or not finish."
       },
       "noRoom": {
         "title": "Not enough room on the drive",
