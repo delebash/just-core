@@ -2088,6 +2088,21 @@
           "sampler": "Sampler",
           "seed": "Seed"
         }
+      },
+      "notes": {
+        "slow": "{engine} has no build measured fast for this computer's graphics card: each run here may take several minutes.",
+        "slowCpu": "This computer has no graphics card {engine} can use: each run here goes on the processor and may take ten minutes or more.",
+        "lowMemory": "This computer has {have} GB of memory, and {model} takes about {need} GB: here it may be very slow, or not finish."
+      },
+      "noRoom": {
+        "title": "Not enough room on the drive",
+        "detail": "This needs {need} on the drive that holds the app's AI engines and models, which has {free} free — make room, or move the app's data folder to a bigger drive.",
+        "nothing": "nothing"
+      },
+      "busy": {
+        "title": "{name} is busy",
+        "engine": "It's running a job, or being removed — try again once that has finished.",
+        "model": "It's downloading or running a job — delete it once that has finished."
       }
     }
   }

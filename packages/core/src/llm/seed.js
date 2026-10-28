@@ -1103,6 +1103,8 @@ export function seedRuntimeBinaries(h, ids) {
         requires: JSON.stringify(b.requires ?? {}),
         built_in: true,
         position: i,
+        asset_unpacked_bytes: b.asset_unpacked_bytes ?? 0,
+        runtime_unpacked_bytes: b.runtime_unpacked_bytes ?? 0,
       });
       added += 1;
     });
@@ -1137,7 +1139,9 @@ export function seedRuntimeBinaries(h, ids) {
 
 /**
  * The app's models for its kit runtimes (`runtime_model`): each a pinned file set — `{runtime, id, name, license,
- * files: [{slot, repo, revision, path, sha256, bytes}], peakVramMb}`. Unlike a chat catalog row, a built-in row follows
+ * files: [{slot, repo, revision, path, sha256, bytes}], peakVramMb, ramGb, ramGbShared}` (`ramGb` the computer's memory
+ * one job takes beside a graphics card with its own, `ramGbShared` where the card's memory is the computer's — the CPU
+ * build, an integrated GPU, a Mac; under it the screens say so before the download). Unlike a chat catalog row, a built-in row follows
  * the app's definition on every seed (its files are the app's pins, not the user's edits — a new revision has to
  * reach an install made before it); a built-in row the app no longer lists goes; a row the user added stays.
  */
@@ -1162,6 +1166,8 @@ export function seedRuntimeModels(h, rows, runtimes = []) {
         peak_vram_mb: Number(r.peakVramMb ?? 0),
         built_in: true,
         position: i,
+        ram_gb: Number(r.ramGb ?? 0),
+        ram_gb_shared: Number(r.ramGbShared ?? 0),
       };
       const key = { runtime, id: String(r.id) };
       const have = h.get("runtime_model", key);

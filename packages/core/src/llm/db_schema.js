@@ -843,7 +843,7 @@ export const TABLES = [
   },
   {
     "name": "runtime_binary",
-    "ddl": "CREATE TABLE runtime_binary (\n\truntime VARCHAR NOT NULL, \n\tplatform VARCHAR NOT NULL, \n\tgpu VARCHAR NOT NULL, \n\tsource VARCHAR NOT NULL, \n\tasset_url VARCHAR, \n\tasset_bytes INTEGER NOT NULL, \n\tsha256 VARCHAR, \n\truntime_url VARCHAR, \n\truntime_bytes INTEGER NOT NULL, \n\truntime_sha256 VARCHAR, \n\tserver_exe VARCHAR NOT NULL, \n\trequires VARCHAR NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tPRIMARY KEY (runtime, platform, gpu)\n)",
+    "ddl": "CREATE TABLE runtime_binary (\n\truntime VARCHAR NOT NULL, \n\tplatform VARCHAR NOT NULL, \n\tgpu VARCHAR NOT NULL, \n\tsource VARCHAR NOT NULL, \n\tasset_url VARCHAR, \n\tasset_bytes INTEGER NOT NULL, \n\tsha256 VARCHAR, \n\truntime_url VARCHAR, \n\truntime_bytes INTEGER NOT NULL, \n\truntime_sha256 VARCHAR, \n\tserver_exe VARCHAR NOT NULL, \n\trequires VARCHAR NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tasset_unpacked_bytes INTEGER NOT NULL, \n\truntime_unpacked_bytes INTEGER NOT NULL, \n\tPRIMARY KEY (runtime, platform, gpu)\n)",
     "indexes": [],
     "columns": {
       "runtime": {
@@ -907,12 +907,22 @@ export const TABLES = [
         "kind": "int",
         "notNull": true,
         "default": 0
+      },
+      "asset_unpacked_bytes": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      },
+      "runtime_unpacked_bytes": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
       }
     }
   },
   {
     "name": "runtime_model",
-    "ddl": "CREATE TABLE runtime_model (\n\truntime VARCHAR NOT NULL, \n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tkind VARCHAR NOT NULL, \n\tlicense VARCHAR NOT NULL, \n\tfiles VARCHAR NOT NULL, \n\tpeak_vram_mb INTEGER NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tPRIMARY KEY (runtime, id)\n)",
+    "ddl": "CREATE TABLE runtime_model (\n\truntime VARCHAR NOT NULL, \n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tkind VARCHAR NOT NULL, \n\tlicense VARCHAR NOT NULL, \n\tfiles VARCHAR NOT NULL, \n\tpeak_vram_mb INTEGER NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tram_gb INTEGER NOT NULL, \n\tram_gb_shared INTEGER NOT NULL, \n\tPRIMARY KEY (runtime, id)\n)",
     "indexes": [],
     "columns": {
       "runtime": {
@@ -956,6 +966,16 @@ export const TABLES = [
         "default": false
       },
       "position": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      },
+      "ram_gb": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      },
+      "ram_gb_shared": {
         "kind": "int",
         "notNull": true,
         "default": 0

@@ -5,6 +5,7 @@
 // shapes: the AI page's runtime tab (the engine — what it needs, Install with its bar —, the models — Download with
 // its bar, Delete), the "this feature needs its engine" banner (its next step, gone once the feature can run), and an
 // image feature's preset pane on Routing (its settings from the server's rules, Save, a refused value under its field).
+// K10b: the notes said before anything downloads (slow here, less memory), no room on the drive said in words.
 import { LuEngineNeeded, LuImagePresetPane, LuRuntimeTab } from "@delebash/ui";
 import { fmtBytes } from "@delebash/ui/common/services/downloadRate.js";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
@@ -27,6 +28,10 @@ function fakeFetch(input, init = {}) {
   const p = url.pathname;
   if (p === "/v1/ai/runtimes/sdcpp/engine/status") return Promise.resolve(json(server.engine));
   if (p === "/v1/ai/runtimes/sdcpp/engine/install") {
+    if (server.full) {
+      const detail = "stable-diffusion.cpp needs 2.4 GB on the drive that holds the app's AI engines and models; it has 1.0 GB free";
+      return Promise.resolve(json({ type: "https://example.test/errors/disk-full", title: "Not enough room on the drive", status: 507, detail, ...server.full }, 507));
+    }
     server.engine = { ...server.engine, status: "installing", downloaded: 100e6, total: server.engine.downloadBytes };
     return Promise.resolve(json(server.engine, 202));
   }
@@ -133,6 +138,38 @@ test("the banner: the next step in place — the engine, then the model — and 
   await later(1300);
   expect(text()).not.toContain("The AI photo");
   expect(ready).toHaveBeenCalledTimes(1);
+});
+
+test("said before anything downloads: slow here, less memory than the model takes; no room on the drive in the app's words, no bar left", async () => {
+  server.engine = { ...server.engine, gpu: "cpu", slow: true };
+  server.models = [{ ...server.models[0], lowMemory: { needGb: 16, haveGb: 8 } }];
+  server.full = { needBytes: 2.4e9, freeBytes: 1e9 };
+  wrapper = mount(LuRuntimeTab, { props: { runtimeId: "sdcpp" }, attachTo: document.body, global: { plugins: plugins() } });
+  // after the mount: installing Quasar's Notify sets its create; the toast is read off its options
+  const create = vi.spyOn(quasar.Notify, "create");
+  await settle();
+  expect(text()).toContain("This computer has no graphics card stable-diffusion.cpp can use: each run here goes on the processor and may take ten minutes or more.");
+  expect(text()).toContain("This computer has 8 GB of memory, and Tiny takes about 16 GB: here it may be very slow, or not finish.");
+  button(`Install (${fmtBytes(907e6)})`).click();
+  await settle();
+  const toast = create.mock.calls.at(-1)?.[0];
+  expect(toast.message).toBe("Not enough room on the drive");
+  // the sizes in the kit's one byte formatter, the Install button's
+  expect(toast.caption).toMatch(
+    new RegExp(`^This needs ${fmtBytes(2.4e9)} on the drive that holds the app's AI engines and models, which has ${fmtBytes(1e9)} free — make room`),
+  );
+  expect(document.body.querySelector(".ui-progress, [role='progressbar']")).toBeNull(); // refused before it started: no bar
+  create.mockRestore();
+});
+
+test("the banner says the same notes beside its next step", async () => {
+  server.engine = { ...server.engine, gpu: "vulkan", slow: true };
+  server.models = [{ ...server.models[0], lowMemory: { needGb: 12, haveGb: 8 } }];
+  wrapper = mount(LuEngineNeeded, { props: { feature: "photo.render", label: "The AI photo" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  expect(text()).toContain("The AI photo runs on stable-diffusion.cpp, which isn't installed on this computer yet.");
+  expect(text()).toContain("stable-diffusion.cpp has no build measured fast for this computer's graphics card: each run here may take several minutes.");
+  expect(text()).toContain("Tiny takes about 12 GB");
 });
 
 test("an image feature's preset pane: its settings from the server's rules, saved; a refused value said under its field", async () => {

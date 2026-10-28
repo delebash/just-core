@@ -2088,6 +2088,21 @@
           "sampler": "Muestreador",
           "seed": "Semilla"
         }
+      },
+      "notes": {
+        "slow": "{engine} no tiene una compilación medida como rápida para la tarjeta gráfica de este equipo: aquí cada ejecución puede tardar varios minutos.",
+        "slowCpu": "Este equipo no tiene una tarjeta gráfica que {engine} pueda usar: aquí cada ejecución va en el procesador y puede tardar diez minutos o más.",
+        "lowMemory": "Este equipo tiene {have} GB de memoria y {model} necesita unos {need} GB: aquí puede ir muy lento o no terminar."
+      },
+      "noRoom": {
+        "title": "No hay espacio suficiente en la unidad",
+        "detail": "Hacen falta {need} en la unidad que guarda los motores y modelos de IA de la aplicación, que tiene {free} libres: libera espacio o mueve la carpeta de datos de la aplicación a una unidad más grande.",
+        "nothing": "nada"
+      },
+      "busy": {
+        "title": "{name} está ocupado",
+        "engine": "Está ejecutando un trabajo o se está quitando: vuelve a intentarlo cuando termine.",
+        "model": "Se está descargando o ejecutando un trabajo: bórralo cuando termine."
       }
     }
   }

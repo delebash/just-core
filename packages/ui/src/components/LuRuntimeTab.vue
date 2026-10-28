@@ -4,8 +4,9 @@
 // row and catalog are: the build for this computer and what it needs (said before anything downloads), Install with
 // progress and Cancel (the kit's DownloadBar), Remove; each model the app brings (its runtime_model rows) with its
 // size and licence, on this computer or not, running or not, Download with progress and Cancel, Delete. A page
-// opened while an install or a download runs picks it up (the tasks' arm/apply — the catalog's way). `runtimeId`
-// names the runtime (GET /v1/ai/runtimes).
+// opened while an install or a download runs picks it up (the tasks' arm/apply — the catalog's way). Said before
+// anything downloads (K10b): the build is slow here, the computer has less memory than a model takes, no room on the
+// drive; removing what is busy is refused in words. `runtimeId` names the runtime (GET /v1/ai/runtimes).
 import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { request } from "../client.js";
@@ -17,7 +18,7 @@ import { fmtBytes } from "../common/services/downloadRate.js";
 import { kitT } from "../common/services/kitI18n.js";
 import { reportError } from "../common/services/reportError.js";
 import { createDownloadTask, readEngineStatus, readRuntimeModelStatus, runtimeEngineChannel, runtimeModelChannel } from "../composables/useDownloadTask.js";
-import { engineNeedWords } from "../services/runtimeWords.js";
+import { engineNeedWords, lowMemoryWords, refusalProblem, slowWords } from "../services/runtimeWords.js";
 
 const props = defineProps({
   runtimeId: { type: String, required: true },
@@ -78,13 +79,25 @@ onBeforeUnmount(() => {
 
 const size = (n) => fmtBytes(n || 0);
 const need = () => engineNeedWords(engine.value?.need);
+const slow = () => (need() ? null : slowWords(engine.value));
+const engineName = () => engine.value?.label || props.runtimeId;
+
+/** A start the server refused before anything downloaded (no room, busy): said in words, no bar left behind; any
+ *  other failure on the task's bar. */
+function startFailed(task, e, name) {
+  const refused = refusalProblem(e, name, t);
+  if (refused) {
+    task.reset();
+    reportError(refused);
+  } else task.fail(e?.message || kitT("kit.phase.couldntStart"));
+}
 
 async function install() {
   engineTask.arm(kitT("kit.phase.gettingReady"));
   try {
     await request(`${base}/engine/install`, { method: "POST", body: {} });
   } catch (e) {
-    engineTask.fail(e?.message || kitT("kit.phase.couldntStart"));
+    startFailed(engineTask, e, engineName());
     return;
   }
   schedule();
@@ -102,7 +115,7 @@ async function removeEngine() {
     await request(`${base}/engine`, { method: "DELETE" });
     engineTask.reset(); // its last install's bar goes with it
   } catch (e) {
-    reportError(e);
+    reportError(refusalProblem(e, engineName(), t) || e);
   }
   await load();
 }
@@ -113,7 +126,7 @@ async function download(m) {
   try {
     await request(`${base}/models/${encodeURIComponent(m.id)}/download`, { method: "POST" });
   } catch (e) {
-    task.fail(e?.message || kitT("kit.phase.couldntStart"));
+    startFailed(task, e, m.name);
     return;
   }
   schedule();
@@ -130,7 +143,7 @@ async function removeModel(m) {
   try {
     await request(`${base}/models/${encodeURIComponent(m.id)}`, { method: "DELETE" });
   } catch (e) {
-    reportError(e);
+    reportError(refusalProblem(e, m.name, t) || e);
   }
   await load();
 }
@@ -157,6 +170,7 @@ defineExpose({ refresh: load });
           {{ t(need().key, need().values) }}
           <a v-if="need().link" :href="need().link" target="_blank" rel="noopener">{{ t("kit.runtimes.needs.vcRuntimeLink") }}</a>
         </UiBanner>
+        <UiBanner v-if="slow()" intent="warning" class="lu-rt-note">{{ t(slow().key, slow().values) }}</UiBanner>
         <div class="lu-rt-actions">
           <UiButton
             v-if="!engine.installed" intent="primary" size="small" focusable-when-disabled
@@ -184,6 +198,7 @@ defineExpose({ refresh: load });
             />
             <UiButton v-else intent="secondary" size="small" :label="t('kit.runtimes.model.delete')" @click="removeModel(m)" />
           </div>
+          <UiBanner v-if="lowMemoryWords(m)" intent="warning" class="lu-rt-note">{{ t(lowMemoryWords(m).key, lowMemoryWords(m).values) }}</UiBanner>
           <DownloadBar v-if="taskFor(m.id).state" :task="taskFor(m.id)" :title="m.name" />
         </div>
       </section>

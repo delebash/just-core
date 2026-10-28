@@ -5,8 +5,9 @@
 // feature needs (GET /v1/ai/features/:key/readiness) and offers the next step in place: install the engine, then
 // download the model — each with progress and Cancel (the kit's DownloadBar), picked up when the page opens while one
 // runs. What this computer lacks is said before anything downloads; a feature with no model set is pointed to the AI
-// page. Nothing shows once the feature can run; `ready` is emitted when it becomes so. `label` names the feature in
-// the sentence (the app's own words); `feature` is its key.
+// page. Beside the next step, what to know before the download (K10b): the build is slow here, the computer has less
+// memory than the model takes; no room on the drive is said in words. Nothing shows once the feature can run; `ready`
+// is emitted when it becomes so. `label` names the feature in the sentence (the app's own words); `feature` is its key.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { request } from "../client.js";
@@ -15,8 +16,9 @@ import UiBanner from "../common/components/UiBanner.vue";
 import UiButton from "../common/components/UiButton.vue";
 import { fmtBytes } from "../common/services/downloadRate.js";
 import { kitT } from "../common/services/kitI18n.js";
+import { reportError } from "../common/services/reportError.js";
 import { createDownloadTask, readEngineStatus, readRuntimeModelStatus, runtimeEngineChannel, runtimeModelChannel } from "../composables/useDownloadTask.js";
-import { engineNeedWords } from "../services/runtimeWords.js";
+import { engineNeedWords, lowMemoryWords, refusalProblem, slowWords } from "../services/runtimeWords.js";
 
 const props = defineProps({
   feature: { type: String, required: true },
@@ -73,19 +75,24 @@ onBeforeUnmount(() => {
   clearTimeout(timer);
 });
 
-async function start(task, url) {
+async function start(task, url, name) {
   task.arm(kitT("kit.phase.gettingReady"));
   try {
     await request(url, { method: "POST", body: {} });
   } catch (e) {
-    task.fail(e?.message || kitT("kit.phase.couldntStart"));
+    // refused before anything downloaded (no room, busy): said in words, no bar left behind
+    const refused = refusalProblem(e, name, t);
+    if (refused) {
+      task.reset();
+      reportError(refused);
+    } else task.fail(e?.message || kitT("kit.phase.couldntStart"));
     return;
   }
   schedule();
 }
 const base = () => `/v1/ai/runtimes/${encodeURIComponent(state.value.runtime)}`;
-const installEngine = () => start(engineTask.value, `${base()}/engine/install`);
-const downloadModel = () => start(modelTask.value, `${base()}/models/${encodeURIComponent(state.value.model)}/download`);
+const installEngine = () => start(engineTask.value, `${base()}/engine/install`, state.value.engine?.label || state.value.runtime);
+const downloadModel = () => start(modelTask.value, `${base()}/models/${encodeURIComponent(state.value.model)}/download`, state.value.modelState?.name || state.value.model);
 
 // the sentence and the one action for what is missing first
 const words = computed(() => {
@@ -111,6 +118,12 @@ const words = computed(() => {
       return { text: t("kit.runtimes.ready.noModel", { feature: n }), intent: "danger" };
   }
 });
+// beside the next step, before its download: slow here, less memory than the model takes
+const notes = computed(() => {
+  if (!words.value?.action) return [];
+  const s = state.value;
+  return [slowWords(s.engine), lowMemoryWords(s.modelState)].filter(Boolean).map((w) => t(w.key, w.values));
+});
 defineExpose({ refresh: load });
 </script>
 
@@ -133,6 +146,7 @@ defineExpose({ refresh: load });
         />
       </template>
     </UiBanner>
+    <UiBanner v-for="note in notes" :key="note" intent="warning">{{ note }}</UiBanner>
     <DownloadBar v-if="words.action === 'engine' && engineTask?.state" :task="engineTask" :title="state.engine?.label || state.runtime" />
     <DownloadBar v-if="words.action === 'model' && modelTask?.state" :task="modelTask" :title="state.modelState?.name || state.model" />
   </div>

@@ -1269,6 +1269,18 @@ re-checked by the session that saved them; paths are from before the just-core r
     folders (diffusion_models/, text_encoders/, vae/); a flat folder lists none (`model-files: []`). Its 108
     built-in recipes include flux2-klein-4b and flux3-klein. Command-line preload works
     (`origin: command_line`).
+- **stable-diffusion.cpp's builds unpacked** (*measured, 2026-10-27* — the engines plan's K10b: the room an
+  install needs beside its zips): each pinned master-1004-a85db96 zip's entries summed from its central directory,
+  read by HTTP range requests (no archive downloaded; GitHub's release CDN answers 501 to a suffix range
+  `bytes=-N`, so the range is computed from the size). Archive → unpacked bytes: win cuda12 343,489,328 →
+  388,709,969 (×1.13) and its cudart zip 563,452,046 → 788,957,696 (×1.40) — together 1,177,667,665, the size an
+  install measured on this PC; win rocm 264,507,284 → 1,220,654,028 (×4.61); win vulkan 29,697,425 → 88,658,513
+  (×2.99); win cpu 18,033,865 → 48,624,721 (×2.70); macOS 37,444,741 → 101,637,472 (×2.71); Linux rocm
+  296,363,307 → 1,453,342,350 (×4.90); Linux vulkan 37,564,039 → 103,381,544 (×2.75); Linux cpu 27,239,917 →
+  70,427,608 (×2.59). An install holds its zips and what they unpack to at once (binary.js `_stageAndSwap` keeps
+  the zips until the swap), so the kit asks the drive for both plus 256 MB; a row without a measured size takes 5×
+  its zip (the largest seen, 4.90). The rows carry them (`runner/config.js`, `runtime_binary.asset_unpacked_bytes`,
+  `runtime_unpacked_bytes`).
 - **ES modules everywhere — each `require` case and its documented ES-module form** (*web + measured,
   2026-10-24*; the family rule of that day, checked by the guard's check 20):
   - Electron's sandboxed preload must be CommonJS (electronjs.org/docs/latest/tutorial/esm) — the one

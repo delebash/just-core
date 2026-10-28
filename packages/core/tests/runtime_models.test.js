@@ -9,8 +9,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, sym
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { createAll } from "../src/llm/db.js";
+import { makeRuntimesRouter } from "../src/llm/runtimes_api.js";
 import * as seed from "../src/llm/seed.js";
 import * as stores from "../src/llm/stores.js";
+import { ROOM_MARGIN } from "../src/platform/disk_room.js";
+import { createServer } from "../src/platform/server.js";
+import { openDatabase } from "../src/platform/sql.js";
 import { runtimeVariantDir } from "../src/runner/binary.js";
 import { binaryAsset, DEFAULT_SDCPP_BINARIES, DEFAULT_SDCPP_BUILD } from "../src/runner/config.js";
 import * as download from "../src/runner/download.js";
@@ -64,7 +69,7 @@ function fakeHub() {
   });
   return urls;
 }
-const service = () =>
+const service = (extra = {}) =>
   new RuntimeService({
     id: "sdcpp",
     cacheRoot: root,
@@ -72,6 +77,7 @@ const service = () =>
     hardwareFn: () => ({ platform: "windows", runtimes: {}, gpus: [] }),
     systemFn: () => ({ platform: "win32", arch: "x64", versions: {}, missingDlls: () => [] }),
     modelsFn: () => stores.getRunnerConfigStore().listRuntimeModels("sdcpp"),
+    ...extra,
   });
 const until = async (check) => {
   for (let i = 0; i < 400 && !check(); i++) await new Promise((r) => setTimeout(r, 5));
@@ -238,4 +244,99 @@ test("linkSnapshot: a symlink, else a hard link, else a copy — the bytes the s
   mkdirSync(path.dirname(snap), { recursive: true });
   expect(["symlink", "hardlink", "copy"]).toContain(models.linkSnapshot(blob, snap));
   expect(readFileSync(snap, "utf8")).toBe("bytes");
+});
+
+// ── K10b: the room on the drive, busy, memory ─────────────────────────────────────────────────────────────────────
+
+test("a model download that wouldn't fit the drive is refused before anything downloads; what its unfinished files hold counts", async () => {
+  appSeed([FLUX]);
+  const urls = fakeHub();
+  const all = DIFF.length + TEXT.length + VAE.length;
+  const svc = service({ freeBytesFn: () => ROOM_MARGIN + all - 1 });
+  let e = null;
+  try {
+    svc.downloadModel("flux2-klein-4b");
+  } catch (x) {
+    e = x;
+  }
+  expect(e.diskFull).toEqual({ needBytes: ROOM_MARGIN + all, freeBytes: ROOM_MARGIN + all - 1 });
+  expect(e.message).toMatch(/^FLUX\.2 \[klein\] 4B needs 0\.3 GB on the drive that holds the app's AI engines and models/);
+  expect(urls).toEqual([]);
+  expect(svc.modelsStatus()[0].status).toBe("");
+  // a file part-downloaded already holds its room
+  const blob = path.join(root, "hf", "models--bfl--klein", "blobs", FLUX.files[2].sha256);
+  mkdirSync(path.dirname(blob), { recursive: true });
+  writeFileSync(`${blob}.part`, VAE);
+  expect(svc.downloadModel("flux2-klein-4b").status).toBe("downloading");
+  await until(() => svc.modelsStatus()[0].status === "downloaded");
+});
+
+test("busy is never removed — a model while it downloads or runs a job, the engine while a job runs, the routes' 409; idle, they go", async () => {
+  appSeed([FLUX]);
+  let open;
+  const gate = new Promise((r) => (open = r));
+  fakeHub();
+  const real = download.streamDownload.getMockImplementation();
+  download.streamDownload.mockImplementation(async (...a) => {
+    await gate;
+    return real(...a);
+  });
+  const { svc } = serving();
+  const app = createServer({ typeBase: "t/" });
+  app.route("/", makeRuntimesRouter());
+  svc.downloadModel("flux2-klein-4b");
+  await expect(svc.deleteModel("flux2-klein-4b")).rejects.toMatchObject({ busy: "model-busy" });
+  open();
+  await until(() => svc.modelsStatus()[0].status === "downloaded");
+
+  const m = svc.modelFor("flux2-klein-4b");
+  await svc.ensureServer({ modelKey: m.key, files: m.files });
+  let finish;
+  const job = svc.runJob(() => new Promise((r) => (finish = r)));
+  const model = await app.request("/v1/ai/runtimes/sdcpp/models/flux2-klein-4b", { method: "DELETE" });
+  expect(model.status).toBe(409);
+  expect(await model.json()).toMatchObject({ type: "t/model-busy", detail: "FLUX.2 [klein] 4B is downloading or running a job — delete it once that has finished" });
+  const engine = await app.request("/v1/ai/runtimes/sdcpp/engine", { method: "DELETE" });
+  expect(engine.status).toBe(409);
+  expect(await engine.json()).toMatchObject({ type: "t/engine-busy", title: "The engine is busy" });
+  expect(existsSync(m.files.diffusion_model)).toBe(true);
+  expect(svc.installedExe()).not.toBeNull();
+  finish();
+  await job;
+
+  expect((await app.request("/v1/ai/runtimes/sdcpp/models/flux2-klein-4b", { method: "DELETE" })).status).toBe(200);
+  expect(existsSync(m.files.diffusion_model)).toBe(false);
+  expect((await app.request("/v1/ai/runtimes/sdcpp/engine", { method: "DELETE" })).status).toBe(200);
+  expect(svc.installedExe()).toBeNull();
+});
+
+test("a model's memory note: less than it takes here — beside a card with its own memory, or where the card's is the computer's", () => {
+  appSeed([{ ...FLUX, ramGb: 12, ramGbShared: 16 }]);
+  expect(stores.getRunnerConfigStore().listRuntimeModels("sdcpp")[0]).toMatchObject({ ramGb: 12, ramGbShared: 16 });
+  const GiB = 1024 ** 3;
+  const note = (hw, gib) => service({ hardwareFn: () => hw, totalMemFn: () => gib * GiB }).modelsStatus()[0].lowMemory;
+  const nvidia = { platform: "windows", runtimes: { cuda: true }, gpus: [] };
+  expect(note(nvidia, 8)).toEqual({ needGb: 12, haveGb: 8 });
+  expect(note(nvidia, 16)).toBeNull();
+  const cpu = { platform: "windows", runtimes: {}, gpus: [] }; // the CPU build: the computer's memory holds both
+  expect(note(cpu, 12)).toEqual({ needGb: 16, haveGb: 12 });
+  expect(note(cpu, 15.8)).toBeNull(); // 16 GB as it is sold, less what the firmware keeps
+  appSeed([FLUX]); // a model that doesn't say: no note
+  expect(note(cpu, 4)).toBeNull();
+});
+
+test("a database made before K10b gains the new columns at start-up — its rows kept, the new values 0", () => {
+  const old = openDatabase(":memory:", { foreignKeys: true });
+  old.exec(
+    "CREATE TABLE runtime_binary (runtime VARCHAR NOT NULL, platform VARCHAR NOT NULL, gpu VARCHAR NOT NULL, source VARCHAR NOT NULL, asset_url VARCHAR, asset_bytes INTEGER NOT NULL, sha256 VARCHAR, runtime_url VARCHAR, runtime_bytes INTEGER NOT NULL, runtime_sha256 VARCHAR, server_exe VARCHAR NOT NULL, requires VARCHAR NOT NULL, built_in BOOLEAN NOT NULL, position INTEGER NOT NULL, PRIMARY KEY (runtime, platform, gpu))",
+  );
+  old.exec(
+    "CREATE TABLE runtime_model (runtime VARCHAR NOT NULL, id VARCHAR NOT NULL, name VARCHAR NOT NULL, kind VARCHAR NOT NULL, license VARCHAR NOT NULL, files VARCHAR NOT NULL, peak_vram_mb INTEGER NOT NULL, built_in BOOLEAN NOT NULL, position INTEGER NOT NULL, PRIMARY KEY (runtime, id))",
+  );
+  old.exec("INSERT INTO runtime_model VALUES ('sdcpp', 'old', 'Old', 'image', '', '[]', 0, 1, 0)");
+  createAll(old);
+  expect(old.columnNames("runtime_binary")).toEqual(expect.arrayContaining(["asset_unpacked_bytes", "runtime_unpacked_bytes"]));
+  expect(old.columnNames("runtime_model")).toEqual(expect.arrayContaining(["ram_gb", "ram_gb_shared"]));
+  expect(old.all("select id, ram_gb, ram_gb_shared from runtime_model")).toEqual([{ id: "old", ram_gb: 0, ram_gb_shared: 0 }]);
+  old.close();
 });

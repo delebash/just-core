@@ -2,7 +2,9 @@
 // What a kit runtime's engine needs from this computer, in the app's words — the server's `need` (runner/
 // runtime_service.js unmetNeed: { reason, missing?, url?, need?, have? }) as a key and its values. Shared by the AI
 // page's runtime tab and the "this feature needs its engine" banner (the engines plan, K10; the words were
-// just-house-paint's EngineInstallCard's).
+// just-house-paint's EngineInstallCard's). K10b: the notes said before anything downloads (slow here, less memory than
+// the model takes) and the routes' refusals (no room on the drive, busy) in the app's words.
+import { fmtBytes } from "../common/services/downloadRate.js";
 
 /** `need` → `{ key, values, link }` (`link`: Microsoft's download, for the Visual C++ runtime), or null. */
 export function engineNeedWords(need) {
@@ -17,4 +19,36 @@ export function engineNeedWords(need) {
     default:
       return { key: "kit.runtimes.needs.noBuild", values: {}, link: null };
   }
+}
+
+/** The engine's "slow here" note — its build for this computer isn't one measured fast (the server's `slow`):
+ *  `{ key, values }`, or null. */
+export function slowWords(engine) {
+  if (!engine?.slow) return null;
+  return { key: engine.gpu === "cpu" ? "kit.runtimes.notes.slowCpu" : "kit.runtimes.notes.slow", values: { engine: engine.label } };
+}
+
+/** A model's "less memory than it takes" note (the server's `lowMemory`: `{needGb, haveGb}`): `{ key, values }`, or null. */
+export function lowMemoryWords(model) {
+  const m = model?.lowMemory;
+  return m ? { key: "kit.runtimes.notes.lowMemory", values: { model: model.name, need: m.needGb, have: m.haveGb } } : null;
+}
+
+/**
+ * A refusal of the runtime routes in the app's words, as reportError takes it — the server's problem with its title and
+ * detail said here, the sizes in the kit's one byte formatter (the Install button's: the server's decimal GB beside it
+ * read as two units — house-paint's finding): no room on the drive (507 "disk-full", `needBytes`/`freeBytes`), busy
+ * (409 "engine-busy" · "model-busy"). Null for any other failure. `name` the engine's or the model's; `t` the app's i18n.
+ */
+export function refusalProblem(e, name, t) {
+  const p = e?.problem;
+  const code = /([^/]+)$/.exec(p?.type || "")?.[1];
+  let words = null;
+  if (code === "disk-full" && Number.isFinite(p.needBytes)) {
+    const free = p.freeBytes > 0 ? fmtBytes(p.freeBytes) : t("kit.runtimes.noRoom.nothing");
+    words = { title: t("kit.runtimes.noRoom.title"), detail: t("kit.runtimes.noRoom.detail", { need: fmtBytes(p.needBytes), free }) };
+  } else if (code === "engine-busy" || code === "model-busy") {
+    words = { title: t("kit.runtimes.busy.title", { name }), detail: t(code === "engine-busy" ? "kit.runtimes.busy.engine" : "kit.runtimes.busy.model") };
+  }
+  return words && { status: e.status, requestId: e.requestId, problem: { ...p, ...words } };
 }

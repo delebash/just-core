@@ -60,7 +60,13 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         JustVoice and docgen told to adopt `common/app.css` (their copies printed by the guard). K10 + K13 BUILT
         (the plan says what): the AI page's runtime tab, the "needs its engine" banner, an image feature's preset
         pane, routing by kind enforced at assignment, the template wired and tested; the phone's crypto stand-in
-        got a SHA-256 (JustWrite's find). Next: house-paint's round B.
+        got a SHA-256 (JustWrite's find). K10b BUILT (the plan says what): room on the drive before an engine
+        install or a model download (house-paint's check, moved to `platform/disk_room.js`; the builds' unpacked
+        sizes measured), busy engines and models never removed, the "slow here" and "less memory" notes, all said
+        on the kit's screens. Next: house-paint's round B.
+        OPEN: llama.cpp's own engine install and GGUF downloads have no room check before they start (the
+        downloader's DiskFullError says so only once the drive is full) — put them on `disk_room.js`
+        `lacksRoom` the way the runtimes are.
 
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning

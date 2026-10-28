@@ -9,12 +9,17 @@
 //    evicts it, and booked with the arbiter by its kind — while idle what it holds, for a job its peak, after room is
 //    made on the card (the arbiter evicts another holder — the chat model) and with its kind busy so nothing evicts it
 //    mid-job.
+// Before anything downloads, what the screens say there (K10b, house-paint's checks moved into the kit): the room
+// on the drive (an install or a download that wouldn't fit is refused, never cut off at a full disk), the build is
+// slow here (not one measured fast), the computer has less memory than the model takes. Removing the engine while a
+// job runs on it, or a model while it downloads or runs, is refused.
 // One service per runtime the app turned on (installLlm({ runtimes })).
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { AsyncEvent, background } from "../platform/asyncutil.js";
+import { freeBytes, lacksRoom } from "../platform/disk_room.js";
 import { getLogger } from "../platform/log.js";
 import { getArbiter } from "./arbiter.js";
 import * as binary from "./binary.js";
@@ -65,6 +70,22 @@ export const thisSystem = () => ({
 
 const idle = () => ({ status: "", detail: "", error: "", downloaded: 0, total: 0 });
 
+/** A build row that doesn't say what its archive unpacks to: room for this many times its size (the pinned sd.cpp
+ *  zips unpack to 1.1–4.9 times theirs — Linux ROCm the most; runner/config.js). */
+const UNPACK_ROOM = 5;
+
+const gb = (n) => `${(n / 1e9).toFixed(1)} GB`;
+
+/** A refusal the routes answer in their shape: `fields` one of `{diskFull: {needBytes, freeBytes}}`, `{busy: code}`. */
+const refusal = (message, fields) => Object.assign(new Error(message), fields);
+
+/** No room for `label`'s download: the error the routes answer 507 "disk-full" with the sizes. */
+const noRoom = (label, short) =>
+  refusal(
+    `${label} needs ${gb(short.needBytes)} on the drive that holds the app's AI engines and models; it has ${gb(short.freeBytes)} free — make room, or move the app's data folder to a bigger drive`,
+    { diskFull: short },
+  );
+
 /** The card is busy (another kind's job holds it): said in the words the screens already use. */
 export class EngineBusyError extends Error {
   constructor(label) {
@@ -80,7 +101,8 @@ export class RuntimeService {
    * `systemFn()` → thisSystem(); `probeArgvs` the launch flags a staged build must accept; `server` the runtime's
    * `{argv({port, files, blankPage}), ready(url)}` (runner/sdcpp.js SDCPP_SERVER); `logDir` where its server log goes
    * (the spawn logs folder llama-server's logs share — Storage counts and clears them together); `stateDir` where the
-   * app's own generated files go (its blank page — the app's runtime root). The rest are seams for tests.
+   * app's own generated files go (its blank page — the app's runtime root). The rest are seams for tests
+   * (`freeBytesFn(dir)` a drive's free room, `totalMemFn()` the computer's memory in bytes).
    */
   constructor({
     id,
@@ -98,6 +120,8 @@ export class RuntimeService {
     startServer = processMod.startServerProcess,
     findPort = processMod.findFreePort,
     arbiter = getArbiter,
+    freeBytesFn = freeBytes,
+    totalMemFn = () => os.totalmem(),
   }) {
     const rt = runtimeOf(id);
     if (!rt?.defaults) throw new TypeError(`no kit runtime "${id}" with build rows`);
@@ -117,6 +141,9 @@ export class RuntimeService {
     this._startServer = startServer;
     this._findPort = findPort;
     this._arbiter = arbiter;
+    this._freeBytesFn = freeBytesFn;
+    this._totalMemFn = totalMemFn;
+    this._removing = false; // the engine's folder is going: nothing installs into it or starts from it
     this._state = idle();
     this._cancel = new AsyncEvent();
     this._task = null;
@@ -143,7 +170,35 @@ export class RuntimeService {
     return asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null;
   }
 
-  /** What the screen shows: the runtime, its build for this box, whether it's here and running, what it needs, the install's progress. */
+  /** The build an install fetches: `gpu`'s for this platform when named, else the one this box picks (acquireRuntime's rule). */
+  _assetFor(gpu) {
+    const { cfg, hw, asset } = this._pick();
+    if (gpu == null) return asset;
+    return (cfg.binaries || []).find((b) => b.platform === hw.platform && b.gpu === gpu) ?? null;
+  }
+
+  /** Not one of the builds measured fast (the runtime's `fastGpus`): a job here takes many minutes. */
+  _slow(asset) {
+    const fast = this._configFn().fastGpus ?? this.rt.defaults.fastGpus;
+    return !!(asset && fast?.length && !fast.includes(asset.gpu));
+  }
+
+  /** What installing `asset` lacks on the drive: null, or `{needBytes, freeBytes}`. At most it holds its archives and
+   *  what they unpack to at once (the archives go once it's installed); its own unfinished downloads hold theirs. */
+  _engineRoom(asset, build) {
+    const parts = [
+      [asset.assetUrl, asset.assetBytes, asset.assetUnpackedBytes],
+      [asset.runtimeUrl, asset.runtimeBytes, asset.runtimeUnpackedBytes],
+    ].filter(([url]) => url);
+    const bytes = parts.reduce((n, [, size, unpacked]) => n + Number(size || 0) + (Number(unpacked) || Number(size || 0) * UNPACK_ROOM), 0);
+    // binary._stageAndSwap's archives: `<root>/<build>/.downloads/<the URL's file name>`
+    const downloads = path.join(this.root, build, ".downloads");
+    const files = parts.map(([url]) => path.join(downloads, url.replace(/\/+$/, "").split("/").pop()));
+    return lacksRoom({ dir: this.root, bytes, files, free: this._freeBytesFn });
+  }
+
+  /** What the screen shows: the runtime, its build for this box, whether it's here and running, what it needs, whether
+   *  it's slow here, the install's progress. */
   status() {
     const { cfg, hw, asset } = this._pick();
     const exe = asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null;
@@ -159,18 +214,26 @@ export class RuntimeService {
       running: this._server?.handle.isAlive() ? this._server.modelKey : "",
       downloadBytes: (asset?.assetBytes || 0) + (asset?.runtimeBytes || 0),
       need: unmetNeed(asset, this._systemFn(), this.rt.label),
+      slow: this._slow(asset),
       ...this._state,
     };
   }
 
   // ── the engine ─────────────────────────────────────────────────────────────────────────────────
 
-  /** Start the install in the background (its progress in status()); throws `{need}` when this computer can't run the build. */
+  /** Start the install in the background (its progress in status()); throws `{need}` when this computer can't run the
+   *  build, `{diskFull}` when it wouldn't fit the drive, `{busy}` while the engine is being removed. */
   install({ gpu = null, force = false } = {}) {
     if (this._state.status === "installing") return this.status();
-    const { asset } = this._pick();
+    if (this._removing) throw refusal(`${this.rt.label} is being removed — try again when it's done`, { busy: "engine-busy" });
+    const { cfg, asset } = this._pick();
     const need = unmetNeed(asset, this._systemFn(), this.rt.label);
     if (need) throw Object.assign(new Error(need.detail), { need });
+    // nothing downloads that wouldn't fit (a build already here downloads nothing)
+    const target = this._assetFor(gpu);
+    const here = target && binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, target);
+    const short = target && (force || !here) ? this._engineRoom(target, cfg.pinnedBuild) : null;
+    if (short) throw noRoom(this.rt.label, short);
     this._cancel.clear();
     this._state = { status: "installing", detail: this.rt.label, error: "", downloaded: 0, total: 0 };
     let done = false;
@@ -208,15 +271,22 @@ export class RuntimeService {
     return this.status();
   }
 
-  /** Remove every installed build of this runtime (its server stops first). */
+  /** Remove every installed build of this runtime (its server stops first; an install in flight is cancelled, as
+   *  llama.cpp's is). Refused `{busy}` while a job runs on it — a job takes minutes, and removal would lose it. */
   async uninstall() {
-    if (this._task?.isAlive()) {
-      this._cancel.set();
-      await Promise.race([this._task.promise, new Promise((r) => setTimeout(r, 30_000).unref?.())]);
+    if (this._jobs > 0) throw refusal(`${this.rt.label} is running a job — remove it once the job has finished`, { busy: "engine-busy" });
+    this._removing = true;
+    try {
+      if (this._task?.isAlive()) {
+        this._cancel.set();
+        await Promise.race([this._task.promise, new Promise((r) => setTimeout(r, 30_000).unref?.())]);
+      }
+      await this._beforeRemove();
+      await rm(this.root, { recursive: true, force: true, maxRetries: os.platform() === "win32" ? 5 : 0, retryDelay: 200 });
+      this._state = idle();
+    } finally {
+      this._removing = false;
     }
-    await this._beforeRemove();
-    await rm(this.root, { recursive: true, force: true, maxRetries: os.platform() === "win32" ? 5 : 0, retryDelay: 200 });
-    this._state = idle();
     return this.status();
   }
 
@@ -228,6 +298,39 @@ export class RuntimeService {
 
   _fileAt(f) {
     return models.snapshotFilePath(this.hfRoot, f.repo, f.revision, f.path);
+  }
+
+  /** A file's blob: the bytes themselves, named by their SHA-256 (models.acquireFileSet downloads to it). */
+  _blobAt(f) {
+    return path.join(this.hfRoot, `models--${f.repo.replaceAll("/", "--")}`, "blobs", f.sha256);
+  }
+
+  /** Less memory than `m` takes here: `{needGb, haveGb}` or null — `ramGb` beside a graphics card with its own memory,
+   *  `ramGbShared` where the card's memory is the computer's (this box's CPU or Metal build, an integrated GPU — the
+   *  kit's memArch); the computer's memory as it is sold (snapRamGb: 8, 12, 16 GB …). */
+  _memoryNote(m, asset) {
+    let shared = !asset || asset.gpu === "cpu" || asset.gpu === "metal";
+    try {
+      shared ||= hardware.memArch(this._hardwareFn() || {}) !== "discrete";
+    } catch {
+      shared = true;
+    }
+    const needGb = Number((shared ? m.ramGbShared : m.ramGb) || 0);
+    const total = Number(this._totalMemFn() || 0);
+    if (!needGb || !total) return null;
+    const haveGb = hardware.snapRamGb(total / 1024 ** 2);
+    return haveGb < needGb ? { needGb, haveGb } : null;
+  }
+
+  /** What downloading `m` lacks on the drive: null, or `{needBytes, freeBytes}` — its files not here whole, less what
+   *  their unfinished downloads already hold. */
+  _modelRoom(m) {
+    const missing = m.files.filter((f) => {
+      const st = statSync(this._blobAt(f), { throwIfNoEntry: false });
+      return !(st?.isFile() && st.size === Number(f.bytes));
+    });
+    const bytes = missing.reduce((n, f) => n + Number(f.bytes || 0), 0);
+    return lacksRoom({ dir: this.hfRoot, bytes, files: missing.map((f) => this._blobAt(f)), free: this._freeBytesFn });
   }
 
   _here(m) {
@@ -243,9 +346,10 @@ export class RuntimeService {
     return m;
   }
 
-  /** Each model: its size, whether all its files are here (`onDisk`), whether the server runs it, its download's progress
-   *  (`status`, `downloaded` bytes of `total`). */
+  /** Each model: its size, whether all its files are here (`onDisk`), whether the server runs it, whether this computer
+   *  has less memory than it takes (`lowMemory`), its download's progress (`status`, `downloaded` bytes of `total`). */
   modelsStatus() {
+    const { asset } = this._pick();
     return this._modelsFn().map((m) => {
       const { cancel, ...state } = this._modelState.get(m.id) ?? { status: "", error: "", downloaded: 0, total: 0 };
       return {
@@ -256,16 +360,20 @@ export class RuntimeService {
         bytes: m.files.reduce((a, f) => a + Number(f.bytes || 0), 0),
         onDisk: this._here(m),
         running: this._server?.handle.isAlive() && this._server.modelKey === m.id,
+        lowMemory: this._memoryNote(m, asset),
         ...state,
       };
     });
   }
 
-  /** Start a model's download in the background (its progress in modelsStatus()). */
+  /** Start a model's download in the background (its progress in modelsStatus()); throws `{diskFull}` when it wouldn't
+   *  fit the drive. */
   downloadModel(id) {
     const m = this._model(id);
     const st = this._modelState.get(id);
     if (st?.status === "downloading") return this.modelsStatus().find((x) => x.id === id);
+    const short = this._modelRoom(m);
+    if (short) throw noRoom(m.name, short);
     const cancel = new AsyncEvent();
     const state = { status: "downloading", error: "", downloaded: 0, total: 0, cancel };
     this._modelState.set(id, state);
@@ -296,15 +404,17 @@ export class RuntimeService {
     return this.modelsStatus().find((x) => x.id === id);
   }
 
-  /** Remove a model's files (the server stops first if it runs it); a file another model row uses stays. */
+  /** Remove a model's files (the server stops first if it runs it); a file another model row uses stays. Refused
+   *  `{busy}` while it downloads or a job runs on it (busyModels — as Clear models cache refuses). */
   async deleteModel(id) {
     const m = this._model(id);
+    if (this.busyModels().includes(id)) throw refusal(`${m.name} is downloading or running a job — delete it once that has finished`, { busy: "model-busy" });
     if (this._server?.modelKey === id) await this.stopServer();
     const others = new Set(this._modelsFn().filter((x) => x.id !== id).flatMap((x) => x.files.map((f) => f.sha256)));
     for (const f of m.files) {
       if (others.has(f.sha256)) continue;
       await rm(this._fileAt(f), { force: true });
-      await rm(path.join(this.hfRoot, `models--${f.repo.replaceAll("/", "--")}`, "blobs", f.sha256), { force: true });
+      await rm(this._blobAt(f), { force: true });
     }
     this._modelState.delete(id);
     return this.modelsStatus().find((x) => x.id === id);
@@ -323,7 +433,7 @@ export class RuntimeService {
     for (const m of this._modelsFn()) {
       for (const f of m.files) {
         out.add(this._fileAt(f));
-        out.add(path.join(this.hfRoot, `models--${f.repo.replaceAll("/", "--")}`, "blobs", f.sha256));
+        out.add(this._blobAt(f));
       }
     }
     return out;
@@ -371,6 +481,7 @@ export class RuntimeService {
   /** The server running `modelKey` from `files` (`{slot: path}`) — started (or restarted on another model) when needed;
    *  `peakVramMb` the model's own peak on the card during a job (0: the runtime's default). */
   async ensureServer({ modelKey, files, peakVramMb = 0 }) {
+    if (this._removing) throw refusal(`${this.rt.label} is being removed — try again when it's done`, { busy: "engine-busy" });
     if (this._server?.handle.isAlive() && this._server.modelKey === modelKey) return this._server.handle;
     if (this._starting) await this._starting.catch(() => {});
     if (this._server?.handle.isAlive() && this._server.modelKey === modelKey) return this._server.handle;

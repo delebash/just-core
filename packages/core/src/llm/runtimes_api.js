@@ -15,13 +15,22 @@ const InstallIn = T.Object({ gpu: opt(T.String({ maxLength: 32 })), force: opt(T
 const FeatureParams = T.Object({ key: T.String({ minLength: 1, maxLength: 128 }) });
 const ModelParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }), modelId: T.String({ minLength: 1, maxLength: 128 }) });
 
-/** A model call, its "no such model" as a 404. */
-function modelCall(fn) {
+/** A service refusal in the routes' shape: no such model (404), what this computer lacks (409), no room on the drive
+ *  (507 "disk-full", with `needBytes`/`freeBytes` for the screen's words), busy (409 "engine-busy" · "model-busy"). */
+function asProblem(e) {
+  if (e?.notFound) return notFound(e.message);
+  if (e?.need) return new ApiError(409, "engine-cant-run-here", "This computer can't run this engine yet", e.need.detail, { need: e.need });
+  if (e?.diskFull) return new ApiError(507, "disk-full", "Not enough room on the drive", e.message, e.diskFull);
+  if (e?.busy) return new ApiError(409, e.busy, e.busy === "model-busy" ? "The model is busy" : "The engine is busy", e.message);
+  return e;
+}
+
+/** A service call, its refusals answered as problems. */
+async function call(fn) {
   try {
-    return fn();
+    return await fn();
   } catch (e) {
-    if (e?.notFound) throw notFound(e.message);
-    throw e;
+    throw asProblem(e);
   }
 }
 
@@ -35,31 +44,29 @@ export function makeRuntimesRouter() {
   const app = new Hono();
   app.get("/v1/ai/runtimes", (c) => c.json({ runtimes: runtimeServices().map((s) => s.status()) }));
   app.get("/v1/ai/runtimes/:id/engine/status", input({ params: IdParams }), (c) => c.json(serviceOf(c).status()));
-  app.post("/v1/ai/runtimes/:id/engine/install", input({ params: IdParams, body: InstallIn }), (c) => {
+  app.post("/v1/ai/runtimes/:id/engine/install", input({ params: IdParams, body: InstallIn }), async (c) => {
     const svc = serviceOf(c);
     const body = c.req.valid("json") ?? {};
-    try {
-      return c.json(svc.install({ gpu: body.gpu || null, force: !!body.force }), 202);
-    } catch (e) {
-      if (e?.need) throw new ApiError(409, "engine-cant-run-here", "This computer can't run this engine yet", e.need.detail, { need: e.need });
-      throw e;
-    }
+    return c.json(await call(() => svc.install({ gpu: body.gpu || null, force: !!body.force })), 202);
   });
   app.post("/v1/ai/runtimes/:id/engine/install/cancel", input({ params: IdParams }), (c) => c.json(serviceOf(c).cancelInstall()));
-  app.delete("/v1/ai/runtimes/:id/engine", input({ params: IdParams }), async (c) => c.json(await serviceOf(c).uninstall()));
+  app.delete("/v1/ai/runtimes/:id/engine", input({ params: IdParams }), async (c) => {
+    const svc = serviceOf(c);
+    return c.json(await call(() => svc.uninstall()));
+  });
   // its models: each one's size and state, a download (202) with progress and Cancel, removal
   app.get("/v1/ai/runtimes/:id/models", input({ params: IdParams }), (c) => c.json({ models: serviceOf(c).modelsStatus() }));
-  app.post("/v1/ai/runtimes/:id/models/:modelId/download", input({ params: ModelParams }), (c) =>
-    c.json(modelCall(() => serviceOf(c).downloadModel(c.req.valid("param").modelId)), 202),
-  );
-  app.post("/v1/ai/runtimes/:id/models/:modelId/download/cancel", input({ params: ModelParams }), (c) =>
-    c.json(modelCall(() => serviceOf(c).cancelModelDownload(c.req.valid("param").modelId))),
-  );
+  app.post("/v1/ai/runtimes/:id/models/:modelId/download", input({ params: ModelParams }), async (c) => {
+    const svc = serviceOf(c);
+    return c.json(await call(() => svc.downloadModel(c.req.valid("param").modelId)), 202);
+  });
+  app.post("/v1/ai/runtimes/:id/models/:modelId/download/cancel", input({ params: ModelParams }), async (c) => {
+    const svc = serviceOf(c);
+    return c.json(await call(() => svc.cancelModelDownload(c.req.valid("param").modelId)));
+  });
   app.delete("/v1/ai/runtimes/:id/models/:modelId", input({ params: ModelParams }), async (c) => {
     const svc = serviceOf(c);
-    const modelId = c.req.valid("param").modelId;
-    modelCall(() => svc._model(modelId));
-    return c.json(await svc.deleteModel(modelId));
+    return c.json(await call(() => svc.deleteModel(c.req.valid("param").modelId)));
   });
   // what a feature needs before it can run (its engine installed, its model downloaded) — the screens' "this feature
   // needs its engine" banner (the plan's K10); a chat feature's model is the llama.cpp screens' business: ready here

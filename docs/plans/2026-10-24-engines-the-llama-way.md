@@ -139,6 +139,29 @@ kit ships no models, as today.
   one); a factory Reset now resets an image preset's settings; `/v1/ai/routing` carries each feature's `kind`.
   Storage: sd.cpp's builds count as engine builds, its server log sits with the spawn logs. House-paint's
   `EngineInstallCard` and its extra Storage buckets go in its round B (H5).
+- **K10b · what house-paint's engine card said before anything downloads, in the kit** (found reading
+  house-paint's `api/engines_api.js` and `aiphoto_service.js` for round B — what round B must not lose). **BUILT
+  2026-10-27:**
+  - *Room on the drive* — house-paint's `freeBytes`/`partRoom`/`partBytes`/`mustFit` (fourteen reviews) moved to
+    `platform/disk_room.js` (`freeBytes`, `partRoom`, `partBytes`, `lacksRoom`, `ROOM_MARGIN`) with its tests. An
+    engine install asks for its zips plus what they unpack to (`runtime_binary.asset_unpacked_bytes`,
+    `runtime_unpacked_bytes`, measured — RESEARCH "stable-diffusion.cpp's builds unpacked"; 5× an unmeasured zip),
+    a model download for its files not here whole; what their own `.part` files hold counts. Refused 507
+    "disk-full" with `needBytes`/`freeBytes`, said on the screens in the app's words.
+  - *Busy* — an engine running a job isn't removed (a render of minutes would be lost — house-paint's rule; an
+    install in flight is still cancelled, llama.cpp's); a model downloading or running a job isn't deleted (as Clear
+    models cache refuses); nothing installs into or starts from an engine being removed. 409 "engine-busy" ·
+    "model-busy".
+  - *Slow here* — the runtime's `fastGpus` (sd.cpp: cuda12, the one measured fast); status `slow`.
+  - *Less memory than the model takes* — `runtime_model.ram_gb` / `ram_gb_shared` (house-paint's 12 / 16 GB move
+    with its model row in round B), against the computer's memory as sold (snapRamGb) and the kit's memArch;
+    models status `lowMemory: {needGb, haveGb}`.
+  - Screens: `LuRuntimeTab` and `LuEngineNeeded` say the notes before the download and the refusals in words
+    (`runtimeWords.js` `slowWords`, `lowMemoryWords`, `refusalProblem`); template test mounted.
+  - Existing databases gain the four columns at start-up (`llm/db.js` ADDED_COLUMNS — JustWrite's check).
+  - Standard: existing code in our repos (house-paint's checks, moved as-is) and the kit's own patterns
+    (`ApiError` problems, ADDED_COLUMNS, the download tasks). Not built: llama.cpp's own engine install and GGUF
+    downloads have no room check yet (kit TASKS, open).
 - **K11 · Clear models cache is kind- and busy-aware (S7).** It never deletes a file a loaded or busy
   runtime holds (the arbiter's bookings + open ONNX sessions) and it knows every kind's rows — the two
   reasons house-paint kept its own folders (its TASKS:1706-1712). In a shared cache it removes only this

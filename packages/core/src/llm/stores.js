@@ -876,8 +876,9 @@ export class RunnerConfigStore {
 
   /**
    * A kit runtime's builds (runner/runtimes.js) — `{pinnedBuild, binaries}` from `runtime_binary` and
-   * `pinned_build:<id>`, each row as a BinaryAsset (camelCase) plus `assetBytes`, `runtimeBytes` and `requires`.
-   * The kit's defaults when the app never seeded the runtime.
+   * `pinned_build:<id>`, each row as a BinaryAsset (camelCase) plus `assetBytes`, `runtimeBytes`, what each unpacks to
+   * (`assetUnpackedBytes`, `runtimeUnpackedBytes` — 0: not measured) and `requires`. The kit's defaults when the app
+   * never seeded the runtime; `memory` and `fastGpus` are the runtime's own.
    */
   getRuntimeConfig(id) {
     const rt = runtimeOf(id);
@@ -897,13 +898,23 @@ export class RunnerConfigStore {
       runtimeSha256: r.runtime_sha256 ?? null,
       serverExe: r.server_exe,
       requires: typeof r.requires === "string" ? JSON.parse(r.requires || "{}") : (r.requires ?? {}),
+      assetUnpackedBytes: Number(r.asset_unpacked_bytes ?? 0),
+      runtimeUnpackedBytes: Number(r.runtime_unpacked_bytes ?? 0),
     });
     const idleRow = h.get("runner_setting", idleKey(id))?.value;
     const idleSeconds = idleRow != null && idleRow !== "" ? Number(idleRow) : (rt.defaults.idleSeconds ?? 0);
-    return { id, pinnedBuild: pin, binaries: (rows.length ? rows : rt.defaults.binaries).map(asset), idleSeconds, memory: rt.defaults.memory ?? null };
+    return {
+      id,
+      pinnedBuild: pin,
+      binaries: (rows.length ? rows : rt.defaults.binaries).map(asset),
+      idleSeconds,
+      memory: rt.defaults.memory ?? null,
+      fastGpus: rt.defaults.fastGpus ?? null,
+    };
   }
 
-  /** A kit runtime's models (`runtime_model`), in their order: `{runtime, id, name, kind, license, files, peakVramMb, builtIn}`. */
+  /** A kit runtime's models (`runtime_model`), in their order: `{runtime, id, name, kind, license, files, peakVramMb,
+   *  ramGb, ramGbShared, builtIn}`. */
   listRuntimeModels(runtime) {
     return db
       .session()
@@ -916,6 +927,8 @@ export class RunnerConfigStore {
         license: r.license,
         files: JSON.parse(r.files || "[]"),
         peakVramMb: Number(r.peak_vram_mb || 0),
+        ramGb: Number(r.ram_gb || 0),
+        ramGbShared: Number(r.ram_gb_shared || 0),
         builtIn: truthy(r.built_in),
       }));
   }
@@ -935,6 +948,8 @@ export class RunnerConfigStore {
       runtime_sha256: row.runtimeSha256 || null,
       server_exe: strip(row.serverExe || ""),
       requires: JSON.stringify(row.requires ?? {}),
+      asset_unpacked_bytes: Number(row.assetUnpackedBytes || 0),
+      runtime_unpacked_bytes: Number(row.runtimeUnpackedBytes || 0),
     };
     h.tx(() => {
       if (h.get("runtime_binary", key)) {
