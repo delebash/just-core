@@ -1756,6 +1756,7 @@
       "reachLlm": "No se pudo conectar con el LLM",
       "withHint": "{lead} — {hint}",
       "withRaw": "{lead}. {raw}",
+      "noMemory": "El modelo no cupo en la memoria de este equipo: {detail}",
       "cutOff": "La respuesta se cortó: el modelo se quedó sin espacio antes de terminar. Si el preajuste de esta función tiene un límite en Máx. tok, auméntalo o elimínalo; de lo contrario, el texto enviado fue demasiado largo para el contexto del modelo.",
       "noResult": "La transmisión terminó sin un resultado."
     },

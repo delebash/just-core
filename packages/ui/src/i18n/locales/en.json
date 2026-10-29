@@ -1756,6 +1756,7 @@
       "reachLlm": "Couldn't reach the LLM",
       "withHint": "{lead} — {hint}",
       "withRaw": "{lead}. {raw}",
+      "noMemory": "The model didn't fit in this computer's memory: {detail}",
       "cutOff": "The answer was cut off: the model ran out of room before it finished. If this feature's preset has a Max tok cap, raise or clear it; otherwise the text sent was too long for the model's context.",
       "noResult": "The stream ended without a result."
     },

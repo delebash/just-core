@@ -28,6 +28,22 @@ function pickHint(msg, status) {
   return null;
 }
 
+// The local engine's own refusal to load a model that doesn't fit in memory (core runner/lifecycle.js _admitRam): the
+// engine WAS reached, and its sentence already says what the model needs, what is free and what to do — shown whole,
+// under its own lead (JustWrite's chat, 2026-10-29: "Couldn't reach the LLM: …when it last", the advice cut off).
+const NO_MEMORY = /not enough memory to load [^:]+:\s*([\s\S]+)$/i;
+
+// An engine's own words, whole up to a sentence: a long one ends at the last sentence end within RAW_MAX, with "…" —
+// never mid-word (a 160-character cut took the part that says what to do).
+const RAW_MAX = 400;
+function wholeSentences(text) {
+  const s = text.trim();
+  if (s.length <= RAW_MAX) return s;
+  const cut = s.slice(0, RAW_MAX);
+  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+  return `${end > 0 ? cut.slice(0, end + 1) : cut.trimEnd()}…`;
+}
+
 function urlHostname(provider) {
   try { return new URL(provider?.baseUrl || "").host || ""; } catch { return ""; }
 }
@@ -45,10 +61,15 @@ export function friendlyAiError(err, provider) {
   // Try to surface an HTTP status code if the message embeds one.
   const m = msg.match(/(\d{3})/);
   const status = m ? parseInt(m[1], 10) : null;
+  const noMemory = msg.match(NO_MEMORY);
   const host = urlHostname(provider);
-  const hint = pickHint(msg, status);
+  const hint = noMemory ? null : pickHint(msg, status);
   const lead = host ? kitT("kit.aiError.reachHost", { host }) : kitT("kit.aiError.reachLlm");
-  const friendly = hint ? kitT("kit.aiError.withHint", { lead, hint }) : kitT("kit.aiError.withRaw", { lead, raw: msg.slice(0, 160) });
+  const friendly = noMemory
+    ? kitT("kit.aiError.noMemory", { detail: wholeSentences(noMemory[1]) })
+    : hint
+      ? kitT("kit.aiError.withHint", { lead, hint })
+      : kitT("kit.aiError.withRaw", { lead, raw: wholeSentences(msg) });
   const out = new Error(friendly);
   out.cause = err;
   out.statusCode = status;
