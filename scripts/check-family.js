@@ -1471,7 +1471,6 @@ const ESM_PLATFORM = new Map([
   ["src-capacitor/capacitor.config.js", "Capacitor's .js config loader takes no ES module — quasar.dev/quasar-cli-vite/developing-capacitor-apps/configuring-capacitor"],
 ]);
 const ESM_KNOWN = new Map([
-  ["JustWrite", new Set([".github/workflows/release.yml"])],
   ["docgen", new Set([".github/workflows/release.yml"])],
   ["JustVoice", new Set([
     "scripts/mock-snapshots.js",
