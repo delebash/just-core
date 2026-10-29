@@ -641,6 +641,10 @@ async function modelsView(vramMb) {
   // Same one-pool condition as computeFit's arch arm (§13.10): a GPU-less Windows/Linux box
   // stays the plain CPU path (budget 0 → all bytes host).
   const onePool = (arch === "integrated" || arch === "unified") && ((hw.gpus || []).length > 0 || hw.platform === "macos");
+  // The fit's budget on a one-pool box is the pool — the launch's own (process.js `computeFit`'s arch arm): an
+  // integrated GPU reports no VRAM and a Mac no GPU, and scored against that 0 every row read "cpu" (2026-10-29). The
+  // response's `vramMb` stays the card the box reports; the card-chooser override is used as it is.
+  const fitVram = vramMb !== null ? vramMb : onePool ? hardware.budgetTotalMb(hw) : gpuVram;
   const mkey = hardware.machineKey(hw);
   const speedFacts = {};
   for (const m of catalog) {
@@ -751,7 +755,7 @@ async function modelsView(vramMb) {
       activeParams: m.activeParams ?? null,
       minVramMb: m.recommendedFor?.minVramMb ?? null,
       minRamMb: m.minRamMb ?? null,
-      fit: modelFit(m, gpuVram, hw.ramMb, margin),
+      fit: modelFit(m, fitVram, hw.ramMb, margin),
       status: statusFor(m.id, downloaded),
       downloaded,
       localDir: gguf ? path.dirname(gguf) : "",

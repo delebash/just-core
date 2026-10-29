@@ -180,6 +180,34 @@ test("cpu_only_machine", async () => {
   expect(Object.fromEntries(body.models.map((m) => [m.id, m.fit]))).toEqual({ "fits-ram": "cpu", "too-big-ram": "no" });
 });
 
+// A ONE-POOL box (an integrated GPU — detection gives it no VRAM figure — or a Mac, which has no GPU row at all) runs
+// the model from the shared pool: the fit scores against the pool, as the launch does (process.js `computeFit`'s arch
+// arm), not against the 0 MB of a card it hasn't. Before 2026-10-29 every such row read "cpu" and Quick setup
+// recommended nothing on the Iris Xe laptop that ran the E4B at 9.8 tok/s. A GPU-less Windows/Linux box stays CPU.
+test("one_pool_boxes_fit_against_the_shared_pool", async () => {
+  const models = [
+    mkModel("e4b", 6000), // 6000 / (16384 - 1024) → ok
+    mkModel("mid", 20000), // 20000 / 15360 = 1.30 → tight
+    mkModel("huge", 40000), // → no
+  ];
+  const irisXe = hwOf({ os: "Windows", platform: "windows", cpuCores: 8, ramMb: 16384, gpus: [{ vendor: "intel", name: "Intel(R) Iris(R) Xe Graphics", vramMb: 0 }] });
+  const mac = hwOf({ os: "Darwin", platform: "macos", cpuCores: 8, ramMb: 16384, gpus: [] });
+  for (const [name, hw] of [
+    ["Iris Xe", irisXe],
+    ["Mac", mac],
+  ]) {
+    vi.restoreAllMocks();
+    patchModels({ hw, models });
+    const body = await (await client().get("/v1/llm-runner/models")).json();
+    expect(Object.fromEntries(body.models.map((m) => [m.id, m.fit])), name).toEqual({ e4b: "ok", mid: "tight", huge: "no" });
+    expect(body.vramMb, name).toBe(0); // the card the box reports, unchanged
+  }
+  vi.restoreAllMocks();
+  patchModels({ hw: hwOf({ os: "Linux", platform: "linux", cpuCores: 8, ramMb: 16384, gpus: [] }), models });
+  const cpu = await (await client().get("/v1/llm-runner/models")).json();
+  expect(cpu.models.map((m) => m.fit)).toEqual(["cpu", "cpu", "cpu"]); // (RAM holds each 14B file: CPU, never "no")
+});
+
 test("fit_scores_total_card_even_with_models_resident", async () => {
   // User decree 2026-07-06 ("fix it"): Fit answers "how does this model run on this CARD",
   // never "what fits this instant". A resident model must not change Fit; the load-moment

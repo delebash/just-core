@@ -90,6 +90,12 @@ What a speech model costs, measured, is in JustVoice's register §2.
   ever lists them: nvidia-smi lists compute processes) are never named, and a server in an Electron utility process
   (`process.parentPort` set) counts its parent's tree as its own. — *measured + code, 2026-10-19* ·
   `packages/core/src/runner/hardware.js` `_shellTreePids`, `SYSTEM_GPU_PROCESSES`.
+- **A one-pool box has no card figure to fit against** (2026-10-29, the kit's finish list A2): detection gives an
+  integrated GPU no VRAM (the Iris Xe and Core Ultra detect-facts carry no qwMemorySize) and a Mac no GPU row, so
+  `maxVramMb` is 0 there. The models view scored the fit against that 0 and every row read "cpu" — Quick setup
+  recommended nothing on the laptop that ran the E4B at 9.8 tok/s. The fit now scores a one-pool box against the pool
+  (`hardware.budgetTotalMb`), the budget the launch already used (`process.js` `computeFit`'s arch arm). — *code +
+  test, 2026-10-29* · `runner/api.js` `fitVram`; `tests/runner_models.test.js` `one_pool_boxes_fit_against_the_shared_pool`.
 
 ---
 
