@@ -11,8 +11,8 @@
 # `core_ref` is the kit's commit the app was built and tested with (release.js passes it): the kit
 # is shared by every family app, so its main moves on while a release is being prepared.
 # The user docs (docs/*.md and docs/toc.json) go with the installers as docs.tar.gz, and the app's
-# website, the repository <this repo>-website when it has one, is asked to rebuild from them
-# (JustWrite's justwrite-website, its scripts/sync-docs; app-structure §19, "An app's website").
+# website, when it has one (WEBSITE_REPO below), is asked to rebuild from them (JustWrite's
+# justwrite-website, its scripts/sync-docs; app-structure §19, "An app's website").
 name: Release
 
 on:
@@ -45,6 +45,10 @@ on:
 
 permissions:
   contents: write # creates the release and attaches the files
+
+env:
+  # The app's website repository (owner/name), rebuilt from each release's docs.tar.gz; empty: no website.
+  WEBSITE_REPO: ""
 
 # one release run per tag at a time (a second waits; it never attaches beside the first)
 concurrency:
@@ -299,11 +303,11 @@ jobs:
           gh release upload "$TAG" *.exe *.dmg *.zip *.AppImage *.deb *.blockmap latest*.yml --clobber
           gh release edit "$TAG" --draft=false
 
-  # The app's website rebuilds from this release's docs.tar.gz: the repository <this repo>-website (its deploy
-  # workflow takes repository_dispatch "docs-updated" — JustWrite's justwrite-website). This run's GITHUB_TOKEN can't
-  # start another repository's workflow: the secret WEBSITE_DISPATCH_TOKEN holds a token that can (fine-grained,
-  # the website's repository, Contents read and write — docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event).
-  # Without the secret — an app with no website — this says so and passes.
+  # The app's website (WEBSITE_REPO) rebuilds from this release's docs.tar.gz: its deploy workflow takes
+  # repository_dispatch "docs-updated" (JustWrite's justwrite-website). This run's GITHUB_TOKEN can't start another
+  # repository's workflow: the secret WEBSITE_DISPATCH_TOKEN holds a token that can (fine-grained, the website's
+  # repository, Contents read and write — docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event).
+  # Without either — an app with no website — this says so and passes.
   notify-website:
     needs: publish
     runs-on: ubuntu-24.04
@@ -311,11 +315,15 @@ jobs:
       - name: Ask the website to rebuild
         env:
           GH_TOKEN: ${{ secrets.WEBSITE_DISPATCH_TOKEN }}
-          SITE: ${{ github.repository }}-website
+          SITE: ${{ env.WEBSITE_REPO }}
           TAG: ${{ inputs.tag }}
         run: |
+          if [ -z "$SITE" ]; then
+            echo "WEBSITE_REPO is empty: this app has no website to rebuild."
+            exit 0
+          fi
           if [ -z "$GH_TOKEN" ]; then
-            echo "WEBSITE_DISPATCH_TOKEN isn't set: no website to rebuild."
+            echo "WEBSITE_DISPATCH_TOKEN isn't set: $SITE rebuilds on its next push, not now."
             exit 0
           fi
           curl -fsSL -X POST \
