@@ -96,6 +96,14 @@ What a speech model costs, measured, is in JustVoice's register §2.
   recommended nothing on the laptop that ran the E4B at 9.8 tok/s. The fit now scores a one-pool box against the pool
   (`hardware.budgetTotalMb`), the budget the launch already used (`process.js` `computeFit`'s arch arm). — *code +
   test, 2026-10-29* · `runner/api.js` `fitVram`; `tests/runner_models.test.js` `one_pool_boxes_fit_against_the_shared_pool`.
+- **An embedding child's prompt cache grows into system memory** (JustWrite, measured on its built app 2026-10-29,
+  justwrite-app fb5b327b): llama-server's host-memory prompt cache (`-cram, --cache-ram N`, "default: 8192, -1 - no
+  limit, 0 - disable" — b11239's `--help`; llama.cpp #16391, merged 2025-10-09, before router mode) took the qwen3
+  4B embedding child (2.4 GB file, ngl 0, mmap+mlock) from 2.3 to 6.5 GB in two minutes of embedding a book; free memory
+  fell 17.1 → 8.2 GB and `_admitRam` refused the chat model. An embedding model gains nothing from it: its models.ini
+  row sets `cache-ram = 0` (a row that names its own keeps it; the install probe checks the flag). Open, for the user:
+  the chat rows keep the 8 GB default, and the RAM door doesn't count what a resident embedding model could give back.
+  — *measured (JustWrite) + code + test, 2026-10-29* · `runner/process.js` `emitModelsIni`.
 - **A load's real progress is on the router's `/models/sse`, not `GET /models`** (llama.cpp b11239
   `tools/server/server-models.cpp` + `server-context.cpp`, *read* 2026-10-29): every frame is `data: <json>` (no
   `event:` line) with `model` and `event` inside; a child's `status_change` carries `progress: {stages, current,

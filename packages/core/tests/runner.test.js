@@ -467,7 +467,7 @@ test("probe_argvs_cover_every_emitted_key", () => {
     const argvs = probeArgvs(build);
     expect(argvs.every((a) => a[a.length - 1] === "--version")).toBe(true);
     const seen = new Set(argvs.flat().filter((tok) => tok.startsWith("-")));
-    const missing = [...fixed, ...valueFlags, ...loading, "--no-models-autoload"].filter((f) => !seen.has(f));
+    const missing = [...fixed, ...valueFlags, ...loading, "--no-models-autoload", "--cache-ram"].filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
     // and never the spelling the OTHER era uses
     expect(seen.has("--load-mode")).toBe(build === "b10964");
@@ -1044,4 +1044,21 @@ test("js_only: start_router waits for health and reports a failed router", async
   }).catch((e) => e);
   expect(err).toBeInstanceOf(RunnerStartError);
   expect(err.message).toBe("llama-server router failed to become healthy (exit 1): error: invalid argument: --nope");
+});
+
+// JustWrite's report (2026-10-29, measured on its built app): the qwen3 embedding child grew from 2.3 to 6.5 GB of
+// system memory in two minutes of embedding — llama-server's host-memory prompt cache (`--cache-ram`, 8192 MiB by
+// default since #16391) — and the chat model's load was then refused for memory. An embedding model gains nothing from a
+// prompt cache: its row turns it off. A row that names its own cache-ram keeps it.
+test("an embedding row turns the prompt cache off; a chat row and a row that sets its own are left alone", () => {
+  const ini = emitModelsIni([
+    new ModelIniEntry({ modelId: "chat", ggufPath: "/m/chat.gguf", nGpuLayers: 20, nCpuMoe: 0, ctxLen: 4096 }),
+    new ModelIniEntry({ modelId: "embed", ggufPath: "/m/embed.gguf", nGpuLayers: 0, nCpuMoe: 0, ctxLen: 2048, embeddings: true }),
+    new ModelIniEntry({ modelId: "embed2", ggufPath: "/m/e2.gguf", nGpuLayers: 0, nCpuMoe: 0, ctxLen: 2048, embeddings: true, overrides: new Overrides({ extraFlags: ["--cache-ram", "64"] }) }),
+  ]);
+  const block = (id) => ini.split(`[${id}]`)[1].split("\n[")[0];
+  expect(block("embed")).toContain("cache-ram = 0");
+  expect(block("chat")).not.toContain("cache-ram");
+  expect(block("embed2")).toContain("cache-ram = 64");
+  expect(block("embed2")).not.toContain("cache-ram = 0");
 });

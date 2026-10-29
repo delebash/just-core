@@ -504,7 +504,7 @@ export function probeArgvs(engineBuild) {
   out.push([
     "--models-dir", ".", "--models-preset", "models.ini", "--models-max", "2", "--no-models-autoload",
     "--sleep-idle-seconds", "600", "--host", "127.0.0.1", "--port", "1",
-    "--embeddings", "--pooling", "mean", "--version",
+    "--embeddings", "--pooling", "mean", "--cache-ram", "0", "--version",
   ]);
   return out;
 }
@@ -534,6 +534,11 @@ export function emitModelsIni(entries, { engineBuild = "" } = {}) {
     if (e.embeddings) {
       section.push("embeddings = true");
       if (e.pooling) section.push(`pooling = ${e.pooling}`);
+      // no host-memory prompt cache for an embedding model (`--cache-ram`, 8192 MiB by default since llama.cpp #16391 —
+      // before router mode, so in every build the kit runs): it gains nothing, and JustWrite measured the qwen3 embed
+      // child growing 2.3 → 6.5 GB while embedding a book, which then refused the chat model (2026-10-29). A row that
+      // names its own keeps it.
+      if (!pairs.some(([k]) => k === "cache-ram")) section.push("cache-ram = 0");
     }
     if (e.loadOnStartup) section.push("load-on-startup = true");
     blocks.push(section.filter((s) => s).join("\n"));
