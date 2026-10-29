@@ -26,6 +26,23 @@ STATE:  The kit's half BUILT 2026-10-29: `website/` (sync-docs.js, deploy.js, de
         dispatch triggers, .mjs scripts); docgen's release (the template's old notify job) and its site — each on the
         guard's known list until then.
 
+## Kit asks from JustWrite's session, for its roadmap [2026-10-29]
+GO:     JustWrite's user (relayed by its session): "do it all … just complete the app"; this session's user: "go ndo it
+        all stop asking me stop stoping". Taken in this order, after house-paint's release (told JustWrite 2026-10-29).
+OPEN:   1. Multi-window ("Open a Character page in one window and write in another"): shell/main.js's
+           setWindowOpenHandler denies every non-http URL — allow a same-origin app://<id>/… URL as a new BrowserWindow
+           with the same webPreferences (preload, contextIsolation, sandbox) and the context menu, through Electron's
+           `{ action: "allow", overrideBrowserWindowOptions }` (electronjs.org/docs/latest/api/window-open); the app
+           opens one with plain window.open (a new tab in a browser). The server already merges two windows' saves.
+        2. Token budgets per feature ("a per-feature monthly cap that pauses AI calls when exceeded"): llm_usage records
+           feature, tokens and cost; a budget per feature, seeded empty (no cap), edited where the usage tab is;
+           dispatch checks the month's tokens before a call and refuses with a typed error the screen shows as
+           "<feature>'s monthly budget is used up — raise it in AI → Usage". Tokens or cost, and the month boundary:
+           this session decides (JustWrite leans tokens: local engines cost nothing).
+        3. The queued ones, below and in "Found by JustWrite's real-model screenshots": renderAiMarkdown; the one
+           page-lede look; EmptyState's message slot; q-inner-loading in dark; website/sync-docs taking a `lede:`
+           front-matter (docgen's item).
+
 ## Kit gaps from JustWrite's copies audit [2026-10-29]
 STATE:  OPEN — found by JustWrite's session; the kit decides each, the apps adopt.
         a) One page-lede look: JustWrite has 15 pages with an intro paragraph in the window lede's look
