@@ -1140,3 +1140,35 @@ test("measurement history: an unnamed run reads as the button that made it; a lo
   expect(table).not.toMatch(/\bmeasured\b/);
   expect(table).not.toContain("load footprint");
 });
+
+// The finish list's C25 (2026-10-29; JustVoice's import-format picker): UiSelect takes groups — `{label, options}` beside
+// plain options — each group's name a header above its first option (Quasar's option slot, the extra element marked
+// q-virtual-scroll--with-prev so the list's size math holds); the keyboard moves over the options only.
+test("UiSelect groups its options under headers; choosing one emits its value", async () => {
+  const value = ref("txt");
+  wrapper = mount(
+    {
+      render: () =>
+        h(UiSelect, {
+          id: "g-sel",
+          modelValue: value.value,
+          "onUpdate:modelValue": (v) => (value.value = v),
+          options: [
+            { label: "Text", options: [{ label: "Plain text", value: "txt" }, { label: "Markdown", value: "md" }] },
+            { label: "Books", options: [{ label: "EPUB", value: "epub" }] },
+          ],
+        }),
+    },
+    { attachTo: document.body, global: { plugins: withPinia() } },
+  );
+  await flushAll();
+  wrapper.findComponent(quasar.QSelect).vm.showPopup();
+  await flushAll();
+  const menu = document.body.querySelector(".ui-select-content");
+  expect([...menu.querySelectorAll(".ui-select-group")].map((g) => g.textContent.trim())).toEqual(["Text", "Books"]);
+  expect([...menu.querySelectorAll(".ui-select-item")].map((i) => i.textContent.trim())).toEqual(["Plain text", "Markdown", "EPUB"]);
+  expect(menu.querySelectorAll('[role="option"]').length).toBe(3); // headers are no options
+  await new DOMWrapper([...menu.querySelectorAll(".ui-select-item")].at(-1)).trigger("click");
+  await flushAll();
+  expect(value.value).toBe("epub");
+});

@@ -44,7 +44,7 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            moved to platform/lines.js — its real-engine run with the GPU runs). 23 a vision model's speed: one image's encode,
            recorded by the app's adapter, s/image, bands fast ≤5 s · fine ≤20 s · slow ≤60 s, editable. 24 If-Match
            in the kit (house-paint's check moved in; the template's notes and house-paint on it): "This note was changed
-           in another window" / "Your change wasn't saved — the note is shown as it is now". 25 UiSelect option groups.
+           in another window" / "Your change wasn't saved — the note is shown as it is now". 25 BUILT (UiSelect groups — JustVoice's picker moves onto it, its hand-off line).
            26 sync: remove a device from a cloud folder (syncs first; the confirm names the device and says it comes
            back if it syncs again); the design's 60-day auto-prune dropped. 27 sync "Changes waiting" = this device's
            changes not yet sent. 28 Claude prompt caching, the ledger counting cache tokens. 29 Mac/Linux: a pidfile
@@ -98,7 +98,7 @@ FOR JUSTVOICE'S SESSION, when one runs (none since these landed): this release r
         already (7c383a1d). From "Finish the kit" (2026-10-29): mount the kit's `resourceIsolation` beside csrfOrigin and
         play its server's audio with `crossorigin="anonymous"` (its ~25 `<audio>` / `new Audio` uses — app-structure §19;
         the guard's ISOLATION_KNOWN until then); no commit hooks (the family's ruling); AGENTS.md (its CLAUDE.md is 207
-        lines) and installErrorReporting in its boot; its UiServerImage override of the token (`jt:token`, src/boot/jv.js).
+        lines) and installErrorReporting in its boot; its UiServerImage override of the token (`jt:token`, src/boot/jv.js); its import-format picker (ImportModal.vue) onto UiSelect's groups (`{label, options}`).
 
 ## Every app's website deploys by its own `npm run deploy` [2026-10-29]
 DECIDED: the user, verbatim (2026-10-28): "why would i run the website workflow from the app workflow this doesnt make

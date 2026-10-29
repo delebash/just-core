@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 // Shared select. Supersedes JwSelect/JvSelect.
 //
-//   v-model="value"  :options="[{label,value,hint?}…] | ['a','b']"
+//   v-model="value"  :options="[{label,value,hint?}…] | ['a','b'] | [{label, options: […]}…]"
 //   :option-label :option-value :placeholder :disabled :show-clear :id :width
 //   :title :aria-label (on the trigger)
 //
@@ -10,6 +10,11 @@
 // list only — the closed trigger shows the label alone, so a choice can carry
 // its example ("Tags" · "pick from the model's list: [fear] [sigh]") without
 // widening the control (JustVoice's persona filters, 2026-10-03).
+//
+// A group — `{label, options: […]}` beside plain options — shows its name as a header above its first option in the
+// open list (2026-10-29, JustVoice's import formats): Quasar's option slot renders the header and the option, the
+// option marked `q-virtual-scroll--with-prev` so the list's size math holds (quasar.dev/vue-components/virtual-scroll,
+// "Utility classes"). The header is no option: the keyboard moves over the options only.
 //
 // Quasar's QSelect underneath (the kit's controls on Quasar —
 // docs/plans/2026-10-09-kit-controls-on-quasar.md): its root is the trigger box (.ui-select-trigger),
@@ -41,12 +46,18 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"]);
 
 // Accept plain strings/numbers OR { [optionLabel]: …, [optionValue]: … }.
+// A group's options flatten in order; the first carries the group's name (`group`) for its header.
+const one = (o) => {
+  if (o == null) return { label: "", value: null };
+  if (typeof o === "string" || typeof o === "number") return { label: String(o), value: o };
+  return { label: o[props.optionLabel], value: o[props.optionValue], hint: o.hint || "" };
+};
 const normalized = computed(() =>
-  props.options.map((o) => {
-    if (o == null) return { label: "", value: null };
-    if (typeof o === "string" || typeof o === "number") return { label: String(o), value: o };
-    return { label: o[props.optionLabel], value: o[props.optionValue], hint: o.hint || "" };
-  })
+  props.options.flatMap((o) =>
+    o && typeof o === "object" && Array.isArray(o.options)
+      ? o.options.map((x, i) => ({ ...one(x), group: i === 0 ? String(o.label ?? "") : "" }))
+      : [one(o)],
+  ),
 );
 const selectedLabel = computed(() => {
   if (props.modelValue == null) return "";
@@ -122,7 +133,8 @@ function itemAttrs(p) {
       </span>
     </template>
     <template #option="{ itemProps, opt, selected, focused }">
-      <div v-bind="itemAttrs(itemProps)" class="ui-select-item" :class="{ 'is-highlighted': focused, 'is-checked': selected, 'is-disabled': itemProps.disable }">
+      <div v-if="opt.group" class="ui-select-group" role="presentation">{{ opt.group }}</div>
+      <div v-bind="itemAttrs(itemProps)" class="ui-select-item" :class="{ 'q-virtual-scroll--with-prev': !!opt.group, 'is-highlighted': focused, 'is-checked': selected, 'is-disabled': itemProps.disable }">
         <span v-if="opt.hint" class="ui-select-item-main">
           <span class="ui-select-item-text">{{ opt.label }}</span>
           <span class="ui-select-hint">{{ opt.hint }}</span>
