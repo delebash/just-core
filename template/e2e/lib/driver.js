@@ -35,7 +35,8 @@ const { default: ELECTRON } = await import(pathToFileURL(path.join(REPO_ROOT, "s
 
 /** The shell's id (src-electron/electron-main.js) — its switch is <ID>_DEV_NO_SERVER. */
 const ID = "familytemplate";
-const NO_SERVER = `${ID.toUpperCase()}_DEV_NO_SERVER`;
+// the shell reads `<ID>_DEV_NO_SERVER` with a dash as "_" (shell/main.js) — docgen's id has dashes
+const NO_SERVER = `${ID.toUpperCase().replace(/-/g, "_")}_DEV_NO_SERVER`;
 
 /** The registered server port (app-structure §1) — where the window looks for its server. */
 export const PORT = 17490;

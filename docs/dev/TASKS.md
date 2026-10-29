@@ -32,8 +32,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            17 BUILT (the guard's checkResourceIsolation; §19's media row, measured; JustVoice's move in its
            hand-off line). 18 BUILT (declaredClaimFn, startRunner/Runner — its spawn diagnostics tests now on
            the router — and LoadRequest.jobId/profileSwitchesFn removed; the screenless data routes kept).
-        B. docgen's: 19 start-packaged reads the launcher name from server/package.json. 20 start-packaged `--data-dir
-           <folder>`: the packaged build on the real data folder, never removed by its cleanup. 21 the guard: docgen
+        B. docgen's: 19 + 20 BUILT (start-packaged: the launcher named for server/package.json; `--data-dir <folder>`,
+           never removed — its first real run with the final pass; the e2e driver's dashed-id fix). 21 the guard: docgen
            fails check 17; docgen + JustWrite in the chrome checks, docgen in the release checks (JustWrite after its
            clipboard fix); docgen's AUTO_KNOWN entry gone; a renderer-peers check.
         C. Features: 22 real load % from /models/sse (T5, watch 5). 23 a vision model's speed: one image's encode,

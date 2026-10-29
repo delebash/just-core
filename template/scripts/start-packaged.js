@@ -16,7 +16,10 @@
 // help says) — no window, no display: it must answer with its version and serve the UI at `/`.
 // `--default-data` names no data folder: the app's own default is used and printed ("data folder
 // used: …"), and on macOS and Linux it must lie outside the app (the release compares the window's
-// and the launcher's). The build is started from a copy in the system's temp folder, never inside the checkout:
+// and the launcher's). `--data-dir <folder>` starts it on that data folder — your real one (the checkout's data/, which
+// `npm run dev` and `npm run server` use): the acceptance start on real data, which writes no test data and NEVER
+// removes the folder (docgen's ask, 2026-10-29; stop the app on that folder first — one server per data folder).
+// The build is started from a copy in the system's temp folder, never inside the checkout:
 // there Node's package lookup walks up out of app.asar into the repo's own node_modules and finds a package the
 // build left out — JustWrite's server lacked a package on every installed computer, and only the AppImage (mounted
 // under /tmp) failed the check (2026-10-20). Exit 0 = it answered; 1 = it didn't.
@@ -38,10 +41,16 @@ const headless = process.argv.includes("--headless");
 // no data folder named: the app's own default, which the health answer names (printed as "data folder used:"),
 // never inside a Mac app's bundle or an AppImage's folder (the kit's data_paths bundledInstall)
 const defaultData = process.argv.includes("--default-data");
-const launcherName = `${pkg.name}-server`;
+// a data folder named: started on it, never removed (`--data-dir <folder>`)
+const dataDirAt = process.argv.indexOf("--data-dir");
+const givenData = dataDirAt > 0 ? path.resolve(process.argv[dataDirAt + 1] || "") : null;
+if (givenData && !existsSync(givenData)) throw new Error(`--data-dir ${givenData}: no such folder`);
+// the headless launcher is named for the server package (build/launcher: `<server package>.cmd`) — the root's name
+// isn't always its stem (docgen: just_ai_i18n_docgen / just-ai-i18n-docgen-server)
+const launcherName = JSON.parse(readFileSync(path.join(root, "server", "package.json"), "utf8")).name;
 const extraPaths = process.argv
   .slice(2)
-  .filter((a) => !a.startsWith("--"))
+  .filter((a, i, all) => !a.startsWith("--") && all[i - 1] !== "--data-dir")
   .map((a) => `/${a.replace(/^\/+/, "")}`);
 
 /** electron-builder's unpacked folder for this platform, by name (`mac-arm64`, `win-unpacked`, `linux-unpacked`). */
@@ -172,7 +181,7 @@ async function run() {
 async function started(temp) {
   const appImage = asUser ? readdirSync(out).find((f) => f.endsWith(".AppImage")) : null;
   if (asUser && !appImage) throw new Error(`no .AppImage in ${out}`);
-  const dataDir = defaultData ? null : temp("start-packaged-");
+  const dataDir = givenData ?? (defaultData ? null : temp("start-packaged-"));
   // the app's own default on macOS and Linux is under the home folder (Application Support, ~/.local/share): the
   // start gets a home of its own in the temp folder, so a check run on a developer's computer never touches their
   // real data folder (Windows' default is beside the executable — in the copy)
@@ -271,7 +280,8 @@ async function started(temp) {
   } finally {
     stop(child);
     await new Promise((r) => setTimeout(r, 1500)); // let the files go before the folder is removed
-    for (const dir of [dataDir, scratch, copy, home].filter(Boolean)) {
+    // the folders this start made — never a data folder it was given
+    for (const dir of [dataDir === givenData ? null : dataDir, scratch, copy, home].filter(Boolean)) {
       try {
         rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
       } catch (e) {
