@@ -6,7 +6,10 @@
 //
 // WHAT it does: a short sequence of real load→measure trials against the resident router —
 // first settle batch/ubatch (512/512 vs the resolved baseline; measured 8.6× TTFT there),
-// then walk `n-cpu-moe` around the fit/tune anchor (the winner is usually within ±2 of it).
+// then walk `n-cpu-moe` around the fit/tune anchor (the winner is usually within ±2 of it) — or, for a DENSE model,
+// walk the GPU layer count down from every block (2026-10-29: an untuned dense row is placed by llama.cpp's own --fit,
+// which keeps ~1 GiB of the card free — JustWrite's 12B got 39 of its 48 blocks on the 8 GB card, 21 tok/s against 41
+// with every block; kit RESEARCH, "llama.cpp b11960 on the family's rows").
 // Winner = highest measured decode tok/s (VRAM breaks ties). Every trial runs with the
 // configured embed co-resident (`ensureEmbedding` first) because the CPU-embed child holds
 // real VRAM and shifts the MoE floor — measuring without it finds configs that OOM in
@@ -249,7 +252,8 @@ export class AutoTuner {
     if (!explicit.length) return baseline;
     const top = Math.max(...explicit.map((t) => t.tokensPerSec));
     const tied = explicit.filter((t) => t.tokensPerSec >= top * TIE_BAND);
-    const best = pyMax(tied, (t) => [_intOf(t.switches, "n_cpu_moe") || -1, t.tokensPerSec]);
+    // a tie prefers headroom: more experts in RAM (a MoE), fewer blocks on the card (a dense model's walk)
+    const best = pyMax(tied, (t) => [_intOf(t.switches, "n_cpu_moe") || -1, -(_intOf(t.switches, "n_gpu_layers") ?? 0), t.tokensPerSec]);
     if (baseline !== null && !(best.tokensPerSec * TIE_BAND > baseline.tokensPerSec)) return baseline;
     return best;
   }
@@ -522,6 +526,24 @@ export class AutoTuner {
           if (await cancelled()) return;
           if (res(nxt) <= prev) break;
           cur = nxt;
+        }
+      } else if (pv.ok && !pv.isMoe && pyInt(pv.blockCount || 0) > 0 && !this._budgetOver()) {
+        // A DENSE model: the GPU layer count, walked DOWN from every block (`n_gpu_layers` = blocks on the card; every
+        // block renders as -ngl n + 1, process.js engineNglFlag). Each trial is a real load and measure, so a count that
+        // doesn't fit fails, or measures slow (the load's own back-off, a driver spilling into system memory), and
+        // loses. A step that measures faster than the one above it means the one above spilled: keep stepping while
+        // that holds, stop at the first step that isn't faster. Saved only on a strict win over the baseline, as every
+        // tune (_pickWinner).
+        const block = pyInt(pv.blockCount);
+        let budget = WALK_MAX_TRIALS;
+        let above = 0.0; // the last count that ran
+        for (let g = block; g >= 1 && budget > 0 && !this._budgetOver(); g -= WALK_STEP) {
+          budget -= 1;
+          const t = await this._try(svc, modelId, `gpu layers ${g}`, _merged(base, { n_gpu_layers: String(g), ...batch512 }), failedNcmoe);
+          if (await cancelled()) return;
+          if (!t.ok) continue; // didn't fit: a step down
+          if (above > 0.0 && t.tokensPerSec <= above) break;
+          above = t.tokensPerSec;
         }
       }
 

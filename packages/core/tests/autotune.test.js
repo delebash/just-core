@@ -12,8 +12,8 @@ import { createServer } from "../src/platform/server.js";
 import { AutoTuner, makeAutotuneRouter } from "../src/runner/autotune.js";
 import * as models from "../src/runner/models.js";
 
-/** Scripted load/measure: tok/s per n_cpu_moe value; a value in `fail` never reaches
- * running. Mirrors the real surface the sweep drives. */
+/** Scripted load/measure: tok/s per n_cpu_moe value — per n_gpu_layers for a dense model (`isMoe: false`); a value in
+ * `fail` never reaches running. Mirrors the real surface the sweep drives. */
 class FakeService {
   constructor({ tpsByNcmoe = null, fail = [], block = 30, isMoe = true } = {}) {
     this.tpsByNcmoe = tpsByNcmoe || {};
@@ -42,7 +42,8 @@ class FakeService {
 
   load(modelId, { switches = null } = {}) {
     this.loads.push({ ...(switches || {}) });
-    this._current = [modelId, String((switches || {}).n_cpu_moe ?? "")];
+    const knob = this.isMoe ? "n_cpu_moe" : "n_gpu_layers";
+    this._current = [modelId, String((switches || {})[knob] ?? "")];
     return { status: "starting" };
   }
 
@@ -156,11 +157,27 @@ test("batch_variant_added_when_baseline_differs", async () => {
   expect(ladder.every((t) => t.switches.batch_size === "512")).toBe(true);
 });
 
-test("dense_model_sweeps_batch_only", async () => {
-  const svc = new FakeService({ isMoe: false, tpsByNcmoe: { "": 40.0, base: 40.0 } });
+test("dense_model_sweeps_batch_then_walks_gpu_layers_down_and_keeps_the_baseline_when_nothing_beats_it", async () => {
+  // every count measures 10 tok/s here (the fake's default), the baseline 40: the walk stops at the first step that
+  // isn't faster, and the baseline stands (strict-beat)
+  const svc = new FakeService({ isMoe: false, tpsByNcmoe: { base: 40.0 } });
   const st = await runToEnd(makeTuner(svc), "m", { batch_size: "64", ubatch_size: "32" });
   expect(st.status).toBe("done");
-  expect(st.trials.map((t) => t.label)).toEqual(["baseline", "batch 512/512"]);
+  expect(st.trials.map((t) => t.label)).toEqual(["baseline", "batch 512/512", "gpu layers 30", "gpu layers 28"]);
+  expect(st.best.label).toBe("baseline");
+});
+
+// The user's item 5 (2026-10-29): an untuned dense row is placed by llama.cpp's --fit, which keeps ~1 GiB of the card
+// free — JustWrite's 12B (48 blocks) got 39 on the 8 GB card, 21 tok/s against 41 with every block. The walk measures
+// down from every block: a count that doesn't fit fails, one that spills measures slow, and the fastest clean one wins.
+test("a dense model's walk finds the most blocks that fit and saves it on a strict win", async () => {
+  const svc = new FakeService({ isMoe: false, block: 48, fail: ["48"], tpsByNcmoe: { base: 21.0, 46: 30.0, 44: 41.0, 42: 38.0 } });
+  const saved = [];
+  const st = await runToEnd(makeTuner(svc), "gemma-12b", { batch_size: "512", ubatch_size: "512" }, { saveFn: (id, sw) => saved.push([id, sw]), save: true });
+  // 48 fails, 46 spills (slower than what fits), 44 is faster → keep going, 42 is slower → stop
+  expect(st.trials.map((t) => t.label)).toEqual(["baseline", "gpu layers 48", "gpu layers 46", "gpu layers 44", "gpu layers 42"]);
+  expect(st.best.label).toBe("gpu layers 44");
+  expect(saved).toEqual([["gemma-12b", expect.objectContaining({ n_gpu_layers: "44" })]]);
 });
 
 test("cancel_stops_between_trials", async () => {

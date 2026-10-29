@@ -46,7 +46,8 @@ Every local llama-server launch resolves its flags in four tiers, strongest last
 3. **User-set values — presets / per-request overrides.** Anything set explicitly renders
    exactly, which per upstream semantics disables engine fitting for that arg.
 4. **Measured tunes — per (model, machine), always win.** Saved by the Tune modal or the
-   auto-tune sweep. The sweep compares explicit candidates against the model's CURRENT
+   auto-tune sweep. The sweep compares explicit candidates (`n-cpu-moe` for a MoE; for a dense model the GPU layer
+   count, walked down from every block — 2026-10-29, the engine's own fit keeps ~1 GiB free) against the model's CURRENT
    launch (baseline) and saves only a STRICT winner beyond the 5% tie band — a tie never
    overwrites the baseline, so an untuned box keeps the engine's fit and a tuned box
    keeps its tune. If a fit-placed launch fails for any reason, the runner retries once

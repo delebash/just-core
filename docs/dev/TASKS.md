@@ -91,7 +91,7 @@ DECIDED 2026-10-29 (the user, verbatim: "your rec go", on the numbered list of e
         retireSettings); speech (tts) no preset, the voice chooses. 2 the DSP program stays the app's (shipped with
         it, started through the kit's spawnChild) — no kit work. 3 the fork's model_management API in the kit (models
         registered into the running server). 4 eSpeak an extra archive on each audio.cpp build row; UniDic an
-        optional add-on row installed on demand from the Speech tab. 5 auto-tune gains a measured layer walk for dense
+        optional add-on row installed on demand from the Speech tab. 5 BUILT (runner/autotune.js, its tests not yet run) — auto-tune gains a measured layer walk for dense
         models; then JustWrite runs it on its 12B (--fit's 1,094 MiB margin left 10 of 49 layers on the CPU: 21 vs 41
         tok/s on b11960). 6 one coordinated card session now on b11960's open Gemma-4 + MTP bugs (#30419, #30698,
         #31077, #30975, exactness); if #30419 or #30698 fires, the release stays on b11239. 7 a one-pool laptop walk
