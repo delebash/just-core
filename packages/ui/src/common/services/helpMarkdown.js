@@ -13,6 +13,7 @@
 //   - every heading gets id="<slug>" (GitHub-style) so the drawer can
 //     scrollIntoView for a given "foo.md#section" link.
 
+import frontMatter from "front-matter";
 import { marked } from "marked";
 
 // Heading text → URL/anchor slug. Mirrors GitHub-style slug rules so
@@ -60,14 +61,17 @@ renderer.heading = function headingRenderer({ tokens, depth }) {
 
 marked.setOptions({ renderer, gfm: true, breaks: false });
 
-// Strip the leading H1 since the host surface renders the title in its own
-// header bar.
+// A doc's leading front-matter block is its data, never text on the page (2026-10-29: `lede:` — a doc's one-line
+// summary, which docgen's extract reads — rendered under an <hr>). It goes through the `front-matter` package, the
+// standard for a Markdown file's YAML header (gray-matter is Buffer-bound in a browser).
+// Then the leading H1, since the host surface renders the title in its own header bar.
 export function renderHelpMarkdown(md) {
   if (!md) return "";
+  const { body } = frontMatter(md);
   // `[^\r\n]*` rather than `.+`: JS treats \r as a line terminator, so `.` will
   // not cross it. With a CRLF checkout (git core.autocrlf on Windows) the H1
   // never stripped and every doc rendered its title twice — once in the host's
   // header bar, once at the top of the prose.
-  const stripped = md.replace(/^#\s+[^\r\n]*\r?\n+/, "");
+  const stripped = body.replace(/^#\s+[^\r\n]*\r?\n+/, "");
   return marked.parse(stripped);
 }

@@ -20,15 +20,16 @@
   "peerDependencies": {
     "@floating-ui/dom": "^1.8.0",
     "@internationalized/number": "^3.6.9",
-    "dom-accessibility-api": "^0.7.1",
     "@vueuse/core": "^15.0.0",
+    "dom-accessibility-api": "^0.7.1",
     "marked": "^18.1.0",
     "pinia": "^4.0",
     "qrcode": "^1.5.4",
     "quasar": "^2.35.0",
     "vue": "^3.5",
     "vue-i18n": "^11.4",
-    "vue-router": "^5.4.0"
+    "vue-router": "^5.4.0",
+    "front-matter": "^4.0.2"
   },
   "peerDependenciesMeta": {
     "qrcode": {
@@ -41,6 +42,7 @@
     "@intlify/eslint-plugin-vue-i18n": "^4.5.1",
     "eslint": "^10.12.0",
     "eslint-plugin-i18next": "^6.1.5",
+    "front-matter": "^4.0.2",
     "vitest": "^5.0.3",
     "vue-eslint-parser": "^10.4.1",
     "vue-i18n-extract": "^2.0.7"

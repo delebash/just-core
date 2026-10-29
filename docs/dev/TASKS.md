@@ -28,7 +28,9 @@ STATE:  The kit's half BUILT 2026-10-29: `website/` (sync-docs.js, deploy.js, de
 
 ## Kit asks from docgen's session [2026-10-29]
 STATE:  1 BUILT 2026-10-29 (RunRequest `presetId` — preset_resolve `presetById`; an unknown one a 404 naming it; test
-        run_with_a_chosen_preset_runs_that_preset_whole). 2, 3 and 4 OPEN, in that order.
+        run_with_a_chosen_preset_runs_that_preset_whole). 2 BUILT 2026-10-29 (renderHelpMarkdown skips a front-matter
+        block through the `front-matter` package — a new kit peer, installed in the template and house-paint, the
+        other apps by their sessions; tests/help_markdown.test.js; §19's "A help page" row). 3 and 4 OPEN.
         1. `runAction` with a chosen preset: docgen's escalation runs a feature with a preset the user picks
            (`presetId`); RunRequest (`llm/prompts.js` ~301-332) has none, and passing provider/model/temperature as
            overrides still mixes in the assigned preset's samplers/topP (~474-480). Ask: `RunRequest.presetId` — when

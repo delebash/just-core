@@ -37,6 +37,7 @@
     "@quasar/extras": "^2.1.0",
     "@vueuse/core": "^15.0.0",
     "dom-accessibility-api": "^0.7.1",
+    "front-matter": "^4.0.2",
     "marked": "^18.1.0",
     "pinia": "^4.0.3",
     "quasar": "^2.35.0",
