@@ -55,8 +55,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            LAST before the final tests: the engine pin moves to the latest release (32 and 33 run on it).
         D. Docs: 35 BUILT (the kit's AGENTS.md (CLAUDE.md → @AGENTS.md), just-sqlite-sync's too; the guard checks both copies). 36 BUILT (app-structure: an
            accessibility standard (WCAG 2.2 AA) with a template test — §17, e2e/tests/a11y.test.js on axe; "installers
-           are unsigned" family-wide — §Q.2 and the template's getting-started; no performance budgets — §18). 37 BUILT (the labeling law and the dismissal rules into §17/§19, from the code; the two IDEAS entries closed). 38 feature-model-system.md
-           against the JavaScript. 39 REVERSED by the user (2026-10-29, in JustWrite's session,
+           are unsigned" family-wide — §Q.2 and the template's getting-started; no performance budgets — §18). 37 BUILT (the labeling law and the dismissal rules into §17/§19, from the code; the two IDEAS entries closed). 38 BUILT (feature-model-system.md
+           against the JavaScript — its two stale bug notes now the finding below, "two routing bugs"). 39 REVERSED by the user (2026-10-29, in JustWrite's session,
            relayed): "what is husky and the ci i dont want tests just running or things just running on commit in
            gituhb unless we need it often you take up so much time running tests after each little change i dont like
            that", then on the rec to remove it family-wide: "remove hook your rec on rest" — no commit hooks,
@@ -72,6 +72,24 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            TTS in llama.cpp, watch 6/7, --log-jsonl, /metrics, the fixture-only probe arms, the imaging trigger.
         F. The tracker's done entries deleted, each confirmed in code. G. The apps' items go to their trackers.
 STATE:  under way.
+
+## Found while finishing the kit: two routing bugs [2026-10-29]
+STATE:  FINDING — code-verified 2026-10-29 (read, not run), while rewriting feature-model-system.md against the code.
+        OPEN — your call; not on the approved list, so nothing built.
+        1. A feature's Reset no longer restores the model-tab default (your decision 2026-07-16: "the model resets to
+           the default set in the model tab"). The reset sets the model from the routing default
+           (`llm/presets_api.js` ~261-270, only `if (d.model)`), but `modelApply.setAsDefault`
+           (`ui/services/modelApply.js:132-152`) — Set as default and Quick Setup — only rewrites the presets and never
+           writes it (`useRouting.setDefaultLlm` exists with no caller). So Reset leaves the seed's empty model.
+           REC: Set as default also writes the routing default (`setDefaultLlm`), the one the reset reads. Attacked:
+           the badge reads the presets' common model, a second notion of "the default" — but the reset wants the
+           last default the user chose, which is what this records; moving the reset onto the presets' common
+           model instead puts the UI's rule into the server.
+        2. A model whose download just finished doesn't show in an open model picker until a reload. The picker lists
+           downloaded models only (`llm/api.js:174-194`); `useRunnerModels.refresh`
+           (`ui/composables/useRunnerModels.js:178-188`) refreshes it only when the set of catalog ids changes, and a download changes a row's status, not the set.
+           REC: compare the ids of the rows on disk (status disk · loaded · stopping) instead. Attacked: a load
+           (disk → loading → loaded) refreshes the picker twice more — two small requests.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]
 DECIDED: the user, verbatim (2026-10-29, in JustWrite's session, relayed): "you dont understand we have several apps i
