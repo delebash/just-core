@@ -26,6 +26,18 @@ STATE:  The kit's half BUILT 2026-10-29: `website/` (sync-docs.js, deploy.js, de
         dispatch triggers, .mjs scripts); docgen's release (the template's old notify job) and its site — each on the
         guard's known list until then.
 
+## Kit gaps from JustWrite's copies audit [2026-10-29]
+STATE:  OPEN — found by JustWrite's session; the kit decides each, the apps adopt.
+        a) One page-lede look: JustWrite has 15 pages with an intro paragraph in the window lede's look
+           (`.ui-modal__lede`: muted, bold terms in --ink-2 600; JustWrite at 14px); the kit's `.page__lede` is
+           another (--ink-2 text, max-width 32em, no strong rule). Moving JustWrite onto it as it stands restyles 15
+           pages — the kit decides the one look first.
+        b) q-inner-loading in dark mode: Quasar paints its overlay #fff9 unless Quasar's own Dark is on, and nothing in
+           the kit sets Dark with the theme — the template's NotesPage loading state is a pale wash in dark mode.
+        c) EmptyState has no message slot: an empty text with <kbd>/<strong> (JustWrite's Markers, its events list)
+           can't move onto it.
+        Candidate: JustWrite's `.result-stamp` (mono 10.5px muted) for the "made … ago" lines in AI windows.
+
 ## Kit asks from docgen's session [2026-10-29]
 STATE:  1 BUILT 2026-10-29 (RunRequest `presetId` — preset_resolve `presetById`; an unknown one a 404 naming it; test
         run_with_a_chosen_preset_runs_that_preset_whole). 2 BUILT 2026-10-29 (renderHelpMarkdown skips a front-matter

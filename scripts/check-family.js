@@ -1520,9 +1520,8 @@ const AUTO_TRIGGER = /^(push|pull_request|pull_request_target|schedule|workflow_
 const STARTS_ANOTHER = /\/dispatches\b|\bgh\s+workflow\s+run\b/;
 const AUTO_KNOWN = new Map([
   ["JustVoice", new Set([".github/workflows/release.yml", ".github/workflows/codeql.yml"])],
-  // their notify-website jobs (JustWrite's own; docgen's the template's before 2026-10-29): their sessions move to the
-  // template's release, which starts nothing, and their sites' npm run deploy
-  ["JustWrite", new Set([".github/workflows/release.yml"])],
+  // its notify-website job (the template's before 2026-10-29): its session moves to the template's release, which
+  // starts nothing, and its site's npm run deploy (JustWrite's moved in 407b3eb)
   ["docgen", new Set([".github/workflows/release.yml"])],
 ]);
 function autoTriggers(text) {
