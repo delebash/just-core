@@ -67,6 +67,7 @@ function fakeFetch(input, init = {}) {
     server.presets = server.presets.map((x) => (x.id === "photo" ? { ...x, params: body.params } : x));
     return Promise.resolve(json({ presets: server.presets, paramRules: RULES }));
   }
+  if (p.startsWith("/v1/ai/runtimes/audiocpp/")) return Promise.resolve(speechRoute(p, method, body));
   return Promise.resolve(json({}));
 }
 const RULES = {
@@ -296,4 +297,92 @@ test("the runtime tab offers Update to the kit's tested build when the pin here 
   await later(1300);
   expect(button("Update to")).toBeFalsy();
   expect(text()).toContain("Installed — build master-1024-77b72a2.");
+});
+
+// Round E, E8 (2026-10-29): a runtime whose models load into running servers (audio.cpp) — its kinds to pick from, Load
+// where asked with the reason said, Unload, an add-on installed with its bar, its declared settings saved as numbers.
+function speechRoute(p, method, body) {
+  const S = server.speech;
+  const at = p.slice("/v1/ai/runtimes/audiocpp".length);
+  if (at === "/engine/status") return json(S.engine);
+  if (at === "/models") return json({ models: S.models });
+  const load = at.match(/^/models/([^/]+)/(load|unload)$/);
+  if (load?.[2] === "load") {
+    const held = { modelId: load[1], placement: "cpu", kind: S.models.find((m) => m.id === load[1]).kind };
+    S.engine = { ...S.engine, loaded: [...S.engine.loaded, held] };
+    return json({ ...held, reason: "fast enough on the CPU" });
+  }
+  if (load?.[2] === "unload") {
+    S.engine = { ...S.engine, loaded: S.engine.loaded.filter((l) => l.modelId !== load[1]) };
+    return json({ unloaded: true, loaded: S.engine.loaded });
+  }
+  if (at === "/addons/unidic/install") {
+    S.engine = { ...S.engine, addons: [{ ...S.engine.addons[0], status: "installing", downloaded: 10e6, total: 50e6 }] };
+    return json(S.engine.addons, 202);
+  }
+  if (at === "/settings" && method === "PUT") {
+    S.engine = { ...S.engine, settings: { ...S.engine.settings, ...body.settings } };
+    return json(S.engine);
+  }
+  return json({});
+}
+
+test("a runtime that loads its models: its kinds, Load where asked and why, Unload, an add-on with its bar, its settings", async () => {
+  server.speech = {
+    engine: {
+      id: "audiocpp", kind: "tts", kinds: ["tts", "stt"], label: "audio.cpp", build: "v0.9.2-jv.6", installed: true, running: "", downloadBytes: 0, need: null, status: "",
+      loaded: [],
+      addons: [{ id: "unidic", name: "Japanese dictionary", bytes: 50e6, installedBytes: 120e6, installed: false, status: "", error: "", downloaded: 0, total: 0 }],
+      settings: { backend: "auto", cpu_threads: 0 },
+    },
+    models: [
+      { id: "kokoro", name: "Kokoro", kind: "tts", license: "Apache-2.0", bytes: 3e8, onDisk: true, status: "" },
+      { id: "parakeet", name: "Parakeet", kind: "stt", license: "CC-BY-4.0", bytes: 6e8, onDisk: true, status: "" },
+      { id: "whisper", name: "Whisper", kind: "stt", license: "MIT", bytes: 1.5e9, onDisk: false, status: "" },
+    ],
+  };
+  wrapper = mount(LuRuntimeTab, { props: { runtimeId: "audiocpp" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  // two kinds: picked by kind
+  expect(text()).toContain("Kokoro");
+  await click("Transcription");
+  await settle();
+  expect(text()).not.toContain("Kokoro");
+  expect(text()).toContain("Parakeet");
+
+  // Load: where ("Auto" unless chosen), then where it went and why; a loaded model isn't deleted from under its server
+  await click("Load");
+  await settle();
+  expect(server.calls.find(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/audiocpp/models/parakeet/load")[2]).toEqual({ placement: "auto" });
+  expect(text()).toContain("Loaded on the CPU — fast enough on the CPU");
+  expect(button("Delete").getAttribute("aria-disabled") ?? String(button("Delete").disabled)).toMatch(/true/);
+  await click("Unload");
+  await settle();
+  expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/audiocpp/models/parakeet/unload")).toBe(true);
+  expect(text()).not.toContain("Loaded on the CPU");
+
+  // the add-on: Install, its bar while it downloads, then installed
+  expect(text()).toContain(`Not installed — ${fmtBytes(50e6)} to download, ${fmtBytes(120e6)} once installed.`);
+  await click(`Install (${fmtBytes(50e6)})`);
+  await settle();
+  expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/audiocpp/addons/unidic/install")).toBe(true);
+  expect(document.body.querySelector(".ui-progress, [role='progressbar']")).not.toBeNull();
+  server.speech.engine = { ...server.speech.engine, addons: [{ ...server.speech.engine.addons[0], installed: true, status: "installed", downloaded: 0, total: 0 }] };
+  await later(1300);
+  expect(text()).toContain(`Installed — ${fmtBytes(120e6)} on this computer.`);
+
+  // its settings: a number box takes a number (a word keeps Save off), sent as a number
+  const threads = document.body.querySelector("#lu-rt-audiocpp-set-cpu_threads");
+  expect(threads.value).toBe("0");
+  const save = () => wrapper.findAll("button").filter((b) => b.text().trim() === "Save").at(-1);
+  threads.value = "many";
+  threads.dispatchEvent(new Event("input"));
+  await settle();
+  expect(save().attributes("aria-disabled") ?? String(save().element.disabled)).toMatch(/true/);
+  threads.value = "4";
+  threads.dispatchEvent(new Event("input"));
+  await settle();
+  await save().trigger("click");
+  await settle();
+  expect(server.calls.find(([m, u]) => m === "PUT" && u === "/v1/ai/runtimes/audiocpp/settings")[2]).toEqual({ settings: { cpu_threads: 4 } });
 });

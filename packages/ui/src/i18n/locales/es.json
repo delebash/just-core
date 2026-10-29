@@ -2056,6 +2056,46 @@
       "remove": "Quitar",
       "removeTitle": "¿Quitar {name}?",
       "removeMessage": "Esto quita el motor de este equipo. Sus modelos se quedan; vuelve a instalarlo para usarlos.",
+      "kinds": {
+        "label": "Tipo de modelo",
+        "all": "Todos",
+        "tts": "Voz",
+        "stt": "Transcripción"
+      },
+      "search": "Buscar un modelo",
+      "placement": {
+        "label": "Dónde se ejecuta {name}",
+        "auto": "Automático",
+        "gpu": "Tarjeta gráfica",
+        "cpu": "CPU"
+      },
+      "loadedOn": {
+        "gpu": "Cargado en la tarjeta gráfica",
+        "cpu": "Cargado en la CPU"
+      },
+      "addonsTitle": "Complementos",
+      "addon": {
+        "install": "Instalar ({size})",
+        "installing": "Instalando…",
+        "installed": "Instalado — {size} en esta computadora.",
+        "notInstalled": "No instalado — {size} para descargar, {installed} una vez instalado.",
+        "removeTitle": "¿Quitar {name}?",
+        "removeMessage": "Esto libera {size}. El motor se inicia de nuevo sin él."
+      },
+      "settingsTitle": "Ajustes del motor",
+      "settings": {
+        "backend": "Versión (auto, cuda, vulkan, cpu, metal)",
+        "gpu": "Tarjeta gráfica (0 es la primera)",
+        "cpu_threads": "Hilos de CPU (0: uno por núcleo)",
+        "cpu_min_realtime": "Suficientemente rápido en la CPU desde (× tiempo real)",
+        "spill_mb": "Cuenta como desbordado pasados (MB de memoria compartida)",
+        "runaway_s_per_char": "Una línea desbocada: segundos por carácter",
+        "runaway_min_s": "Una línea desbocada: al menos (segundos)",
+        "card_margin_mb": "Margen en la tarjeta (MB)",
+        "gpu_threads": "Hilos de CPU del proceso de la tarjeta",
+        "start_timeout_s": "Tiempo de inicio máximo (segundos)",
+        "request_timeout_s": "Tiempo máximo por solicitud (segundos)"
+      },
       "modelsTitle": "Modelos",
       "noModels": "Esta aplicación no trae modelos para este motor.",
       "modelGone": "Este modelo ya no está en la aplicación.",
@@ -2065,6 +2105,8 @@
         "notDownloaded": "sin descargar",
         "download": "Descargar ({size})",
         "delete": "Borrar",
+        "load": "Cargar",
+        "unload": "Descargar de memoria",
         "deleteTitle": "¿Borrar {name}?",
         "deleteMessage": "Esto libera {size}. El modelo sigue en la lista y se descarga de nuevo cuando lo necesites."
       },

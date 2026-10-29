@@ -102,7 +102,14 @@ FOUND 2026-10-29 (for the user's word at the end, not built): (a) sd.cpp master-
         light where master-1004's render painted them — not a clean A/B (different masks); rec: a bare A/B, the same
         sd-server request on both builds, pixel-diffed. (b) A render's note named house-paint's OWN llama-server (its child)
         as "other programs" holding 6.3 GB — the own-process filter (hardware.js processTreePids) missed it once; not
-        reproduced. (c) the speech bands' fast line (5×) is the kit's start value, not decided.
+        reproduced. (c) the speech bands' fast line (5×) is the kit's start value, not decided. (d) JustWrite's
+        WCAG 2.2 AA run (axe 4.14, relayed 2026-10-29) found 6 in kit components: 1 UiCheckbox/UiToggle wrapped in a
+        text <label> leave the focusable role="checkbox" root unnamed (aria-toggle-field-name — JW's Writing AI tab,
+        SyncPanel .lu-sync-toggle/.lu-sync-unit, ConfigColumn .cc-chk); 2 Breadcrumb .breadcrumb-link is 15.8 px tall
+        (target-size 2.5.8 — a visible change); 3 SyncPanel's interval and device-name boxes unnamed; 4 ConfigColumn's 2
+        inputs and 2 textareas unnamed; 5 the engine console's .lu-logbox scrolls with nothing focusable; 6 --success
+        used as TEXT (DownloadBar label, ConfigColumn .cc-inprod, TuneMeasureModal .lu-tune-applied, AiModelsArea
+        STATUS_COLOR.ok) — 4.29:1 at the template's worst hue; the contract's text token is --success-ink.
 STATE:  under way.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]

@@ -16,6 +16,9 @@ import UiBanner from "../common/components/UiBanner.vue";
 import UiButton from "../common/components/UiButton.vue";
 import UiField from "../common/components/UiField.vue";
 import UiInput from "../common/components/UiInput.vue";
+import UiProgress from "../common/components/UiProgress.vue";
+import UiSegmented from "../common/components/UiSegmented.vue";
+import UiSelect from "../common/components/UiSelect.vue";
 import { confirmDialog } from "../common/services/dialog.js";
 import { committedNumber } from "../common/components/numberBox.js";
 import { fmtBytes } from "../common/services/downloadRate.js";
@@ -29,7 +32,7 @@ import { engineNeedWords, refusalProblem } from "../services/runtimeWords.js";
 const props = defineProps({
   runtimeId: { type: String, required: true },
 });
-const { t } = useI18n();
+const { t, te } = useI18n();
 
 const base = `/v1/ai/runtimes/${encodeURIComponent(props.runtimeId)}`;
 const engine = ref(null);
@@ -55,7 +58,8 @@ async function load() {
 // One poll for the tab while anything runs: the server's state fed to the tasks (a page opened mid-install arms them)
 let timer = null;
 let gone = false;
-const busy = () => engineTask.state === "running" || Object.values(modelTasks).some((x) => x.state === "running");
+const busy = () =>
+  engineTask.state === "running" || Object.values(modelTasks).some((x) => x.state === "running") || (engine.value?.addons ?? []).some((a) => a.status === "installing");
 function feed() {
   const e = engine.value;
   if (e?.status === "installing" && engineTask.state !== "running") engineTask.arm(kitT("kit.engine.phase.downloading"));
@@ -217,6 +221,88 @@ function modelState(m) {
   if (m.running) return t("kit.runtimes.model.running");
   return m.onDisk ? t("kit.runtimes.model.onDisk") : t("kit.runtimes.model.notDownloaded");
 }
+// ── a runtime whose models load into running servers (audio.cpp — round E, 2026-10-29) ──────────────────────────
+// Its models have kinds (speech, transcription), found by kind and name; a model on this computer loads where asked
+// (Auto lets the engine decide and says why) and lets go; its add-ons install on demand; its settings are its own.
+const kinds = computed(() => [...new Set(models.value.map((m) => m.kind).filter(Boolean))]);
+const kindFilter = ref("");
+const kindOptions = computed(() => [{ value: "", label: t("kit.runtimes.kinds.all") }, ...kinds.value.map((k) => ({ value: k, label: kindWords(k) }))]);
+const kindWords = (k) => (["tts", "stt"].includes(k) ? t(`kit.runtimes.kinds.${k}`) : k);
+const search = ref("");
+const shown = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  return models.value.filter((m) => (!kindFilter.value || m.kind === kindFilter.value) && (!q || String(m.name).toLowerCase().includes(q)));
+});
+const registers = computed(() => Array.isArray(engine.value?.loaded));
+const loadedOf = (m) => engine.value?.loaded?.find((l) => l.modelId === m.id) ?? null;
+const placements = reactive({}); // model id → "auto" | "gpu" | "cpu"
+const reasons = reactive({}); // model id → why its last load went where it did
+const loadingId = ref("");
+const placementOptions = computed(() => ["auto", "gpu", "cpu"].map((v) => ({ value: v, label: t(`kit.runtimes.placement.${v}`) })));
+async function loadModel(m) {
+  loadingId.value = m.id;
+  try {
+    const r = await request(`${base}/models/${encodeURIComponent(m.id)}/load`, { method: "POST", body: { placement: placements[m.id] || "auto" } });
+    reasons[m.id] = r?.reason || "";
+  } catch (e) {
+    reportError(refusalProblem(e, m.name, t) || e);
+  } finally {
+    loadingId.value = "";
+    await load();
+  }
+}
+async function unloadModel(m) {
+  try {
+    await request(`${base}/models/${encodeURIComponent(m.id)}/unload`, { method: "POST", body: {} });
+    delete reasons[m.id];
+  } catch (e) {
+    reportError(e);
+  }
+  await load();
+}
+async function installAddon(a) {
+  try {
+    await request(`${base}/addons/${encodeURIComponent(a.id)}/install`, { method: "POST", body: {} });
+  } catch (e) {
+    reportError(refusalProblem(e, a.name, t) || e);
+  }
+  await load();
+  schedule();
+}
+async function removeAddon(a) {
+  const ok = await confirmDialog({
+    title: t("kit.runtimes.addon.removeTitle", { name: a.name }),
+    message: t("kit.runtimes.addon.removeMessage", { size: size(a.installedBytes) }),
+    confirmLabel: t("kit.runtimes.remove"),
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    await request(`${base}/addons/${encodeURIComponent(a.id)}`, { method: "DELETE" });
+  } catch (e) {
+    reportError(e);
+  }
+  await load();
+}
+// the settings the runtime declares (its status's `settings`): one box each, saved together
+const settingDrafts = reactive({});
+const settingNames = computed(() => Object.keys(engine.value?.settings ?? {}));
+const settingWords = (name) => (te(`kit.runtimes.settings.${name}`) ? t(`kit.runtimes.settings.${name}`) : name);
+const changedSettings = () => settingNames.value.filter((n) => settingDrafts[n] !== undefined && String(settingDrafts[n]).trim() !== String(engine.value.settings[n]));
+// a number setting takes a number: a blank or a word keeps Save off rather than saving 0 (the route reads "" as 0)
+const settingOk = (n) => typeof engine.value.settings[n] !== "number" || (String(settingDrafts[n]).trim() !== "" && Number.isFinite(Number(settingDrafts[n])));
+const settingsChanged = computed(() => changedSettings().length > 0 && changedSettings().every(settingOk));
+async function saveSettings() {
+  const body = {};
+  for (const n of changedSettings()) body[n] = typeof engine.value.settings[n] === "number" ? Number(settingDrafts[n]) : String(settingDrafts[n]).trim();
+  try {
+    await request(`${base}/settings`, { method: "PUT", body: { settings: body } });
+    for (const n of Object.keys(body)) delete settingDrafts[n];
+  } catch (e) {
+    reportError(e);
+  }
+  await load();
+}
 defineExpose({ refresh: load });
 </script>
 
@@ -275,10 +361,46 @@ defineExpose({ refresh: load });
         <DownloadBar v-if="engineTask.state" :task="engineTask" :title="engine.label" />
       </section>
 
+      <!-- a runtime's add-ons (audio.cpp's Japanese dictionary): installed when asked -->
+      <section v-if="engine.addons?.length" class="lu-rt-part" :aria-label="t('kit.runtimes.addonsTitle')">
+        <h3 class="lu-rt-h">{{ t("kit.runtimes.addonsTitle") }}</h3>
+        <div v-for="a in engine.addons" :key="a.id" class="lu-rt-model">
+          <div class="lu-rt-model-row">
+            <div class="lu-rt-model-main">
+              <b>{{ a.name }}</b>
+              <span class="lu-rt-line">{{ a.installed ? t("kit.runtimes.addon.installed", { size: size(a.installedBytes) }) : t("kit.runtimes.addon.notInstalled", { size: size(a.bytes), installed: size(a.installedBytes) }) }}</span>
+              <span v-if="a.status === 'error'" class="lu-rt-line lu-rt-error">{{ a.error }}</span>
+            </div>
+            <UiButton v-if="!a.installed" intent="secondary" size="small" :loading="a.status === 'installing'" :disabled="!engine.installed" :label="t('kit.runtimes.addon.install', { size: size(a.bytes) })" @click="installAddon(a)" />
+            <UiButton v-else intent="secondary" size="small" :label="t('kit.runtimes.remove')" @click="removeAddon(a)" />
+          </div>
+          <UiProgress v-if="a.status === 'installing'" :value="a.downloaded || 0" :max="a.total || 0" :label="t('kit.runtimes.addon.installing')" />
+        </div>
+      </section>
+
+      <!-- the settings the runtime declares (audio.cpp's build, threads, timeouts …) -->
+      <section v-if="settingNames.length" class="lu-rt-part" :aria-label="t('kit.runtimes.settingsTitle')">
+        <h3 class="lu-rt-h">{{ t("kit.runtimes.settingsTitle") }}</h3>
+        <UiField v-for="n in settingNames" :key="n" :label="settingWords(n)" :for="`lu-rt-${runtimeId}-set-${n}`">
+          <UiInput
+            :id="`lu-rt-${runtimeId}-set-${n}`" :model-value="settingDrafts[n] ?? String(engine.settings[n])" width="token" :invalid="settingDrafts[n] !== undefined && !settingOk(n)"
+            @update:model-value="(v) => (settingDrafts[n] = v)"
+          />
+        </UiField>
+        <div class="lu-rt-actions">
+          <UiButton intent="secondary" size="small" :disabled="!settingsChanged" :label="t('kit.common.save')" @click="saveSettings" />
+        </div>
+      </section>
+
+      <slot name="before-models" :engine="engine" :models="models" />
       <section class="lu-rt-part" :aria-label="t('kit.runtimes.modelsTitle')">
         <h3 class="lu-rt-h">{{ t("kit.runtimes.modelsTitle") }}</h3>
+        <div v-if="kinds.length > 1 || models.length > 12" class="lu-rt-find">
+          <UiSegmented v-if="kinds.length > 1" v-model="kindFilter" :options="kindOptions" size="small" :aria-label="t('kit.runtimes.kinds.label')" />
+          <UiInput v-if="models.length > 12" v-model="search" size="small" width="name" :placeholder="t('kit.runtimes.search')" :aria-label="t('kit.runtimes.search')" />
+        </div>
         <p v-if="!models.length" class="lu-rt-line">{{ t("kit.runtimes.noModels") }}</p>
-        <div v-for="m in models" :key="m.id" class="lu-rt-model">
+        <div v-for="m in shown" :key="m.id" class="lu-rt-model">
           <div class="lu-rt-model-row">
             <div class="lu-rt-model-main">
               <span class="lu-rt-model-name">
@@ -291,12 +413,29 @@ defineExpose({ refresh: load });
               v-if="!m.onDisk" intent="primary" size="small" focusable-when-disabled :disabled="taskFor(m.id).state === 'running'"
               :label="t('kit.runtimes.model.download', { size: size(m.bytes) })" @click="download(m)"
             />
-            <UiButton v-else intent="secondary" size="small" :label="t('kit.runtimes.model.delete')" @click="removeModel(m)" />
+            <template v-else>
+              <!-- a runtime that loads its models: where to, then Load / Unload -->
+              <template v-if="registers">
+                <UiSelect
+                  v-if="!loadedOf(m)" :model-value="placements[m.id] || 'auto'" :options="placementOptions" width="fit"
+                  :aria-label="t('kit.runtimes.placement.label', { name: m.name })" @update:model-value="(v) => (placements[m.id] = v)"
+                />
+                <UiButton
+                  v-if="!loadedOf(m)" intent="primary" size="small" :loading="loadingId === m.id" :disabled="!engine.installed || (!!loadingId && loadingId !== m.id)"
+                  :label="t('kit.runtimes.model.load')" @click="loadModel(m)"
+                />
+                <UiButton v-else intent="secondary" size="small" :label="t('kit.runtimes.model.unload')" @click="unloadModel(m)" />
+              </template>
+              <UiButton intent="secondary" size="small" :disabled="!!loadedOf(m)" :label="t('kit.runtimes.model.delete')" @click="removeModel(m)" />
+            </template>
           </div>
+          <span v-if="loadedOf(m)" class="lu-rt-line">{{ t(`kit.runtimes.loadedOn.${loadedOf(m).placement}`) }}<template v-if="reasons[m.id]"> — {{ reasons[m.id] }}</template></span>
+          <slot name="model" :model="m" :loaded="loadedOf(m)" />
           <UiBanner v-if="fitWarning(m)" intent="warning" class="lu-rt-note">{{ fitWarning(m) }}</UiBanner>
           <DownloadBar v-if="taskFor(m.id).state" :task="taskFor(m.id)" :title="m.name" />
         </div>
       </section>
+      <slot name="after-models" :engine="engine" :models="models" />
     </template>
   </div>
 </template>
@@ -314,4 +453,6 @@ defineExpose({ refresh: load });
 .lu-rt-model-row { display: flex; align-items: center; gap: 12px; }
 .lu-rt-model-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .lu-rt-model-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lu-rt-find { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lu-rt-error { color: var(--danger-ink); }
 </style>

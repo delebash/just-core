@@ -2056,6 +2056,46 @@
       "remove": "Remove",
       "removeTitle": "Remove {name}?",
       "removeMessage": "This removes the engine from this computer. Its models stay; install it again to use them.",
+      "kinds": {
+        "label": "Kind of model",
+        "all": "All",
+        "tts": "Speech",
+        "stt": "Transcription"
+      },
+      "search": "Find a model",
+      "placement": {
+        "label": "Where {name} runs",
+        "auto": "Auto",
+        "gpu": "Graphics card",
+        "cpu": "CPU"
+      },
+      "loadedOn": {
+        "gpu": "Loaded on the graphics card",
+        "cpu": "Loaded on the CPU"
+      },
+      "addonsTitle": "Add-ons",
+      "addon": {
+        "install": "Install ({size})",
+        "installing": "Installing…",
+        "installed": "Installed — {size} on this computer.",
+        "notInstalled": "Not installed — {size} to download, {installed} once installed.",
+        "removeTitle": "Remove {name}?",
+        "removeMessage": "This frees {size}. The engine starts again without it."
+      },
+      "settingsTitle": "Engine settings",
+      "settings": {
+        "backend": "Build (auto, cuda, vulkan, cpu, metal)",
+        "gpu": "Graphics card (0 is the first)",
+        "cpu_threads": "CPU threads (0: one per core)",
+        "cpu_min_realtime": "Fast enough on the CPU at (× real time)",
+        "spill_mb": "Counts as spilled past (MB of shared memory)",
+        "runaway_s_per_char": "A runaway line: seconds per character",
+        "runaway_min_s": "A runaway line: at least (seconds)",
+        "card_margin_mb": "Headroom on the card (MB)",
+        "gpu_threads": "The card process's CPU threads",
+        "start_timeout_s": "Start timeout (seconds)",
+        "request_timeout_s": "Request timeout (seconds)"
+      },
       "modelsTitle": "Models",
       "noModels": "This app brings no models for this engine.",
       "modelGone": "This model isn't in the app any more.",
@@ -2065,6 +2105,8 @@
         "notDownloaded": "not downloaded",
         "download": "Download ({size})",
         "delete": "Delete",
+        "load": "Load",
+        "unload": "Unload",
         "deleteTitle": "Delete {name}?",
         "deleteMessage": "This frees {size}. The model stays in the list and downloads again when you need it."
       },
