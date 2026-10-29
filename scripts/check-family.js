@@ -1587,6 +1587,7 @@ function checkWebsite(site) {
   }
   if (pj.scripts?.deploy !== "node scripts/deploy.js") report('package.json has no "deploy": "node scripts/deploy.js" — the site deploys by npm run deploy');
   if (!pj.justSite?.appRepo || !pj.justSite?.siteRepo) report("package.json has no justSite { appRepo, siteRepo } — the scripts read the app's and the site's repositories there");
+  if (!pj.dependencies?.["front-matter"] && !pj.devDependencies?.["front-matter"]) report("package.json lacks front-matter — scripts/sync-docs.js reads each doc's front-matter (its lede:) with it");
   // its other workflows: nothing by itself, nothing started from elsewhere (check 25's rule)
   const flows = join(site.dir, ".github", "workflows");
   for (const f of existsSync(flows) ? readdirSync(flows) : []) {

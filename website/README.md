@@ -13,7 +13,8 @@ site beside the kit against them:
 | `scripts/deploy.js` | `npm run deploy`: says which release's docs go live, asks, then runs the site's own workflow (the user's `gh` login — no token anywhere) |
 | `.github/workflows/deploy.yml` | the build and the GitHub Pages deploy — `workflow_dispatch` only: nothing builds by itself, and no other workflow starts it; `publish: false` (`npm run deploy -- --dry-run`) builds and uploads without deploying |
 
-A site's `package.json` names its app and itself, and runs the scripts:
+A site's `package.json` names its app and itself, runs the scripts, and has `front-matter` (sync-docs reads a doc's
+front-matter with it: the block never reaches the page, and its `lede:` is the page's description):
 
 ```json
 "scripts": {
