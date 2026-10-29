@@ -23,6 +23,11 @@ export const PARAM_RULES = Object.freeze({
   vision: Object.freeze({
     executionProvider: { values: Object.freeze(["auto", "cpu"]), default: "auto" },
   }),
+  // transcription (audio.cpp — round E, 2026-10-29): where its model runs — "auto" lets the runtime decide (the card when
+  // it fits, the CPU when it's fast enough there), "gpu" / "cpu" pin it. Speech (tts) has no preset: the voice chooses.
+  stt: Object.freeze({
+    placement: { values: Object.freeze(["auto", "gpu", "cpu"]), default: "auto" },
+  }),
 });
 
 /** `params` for a preset of `kind`, checked against its rules and filled with the defaults; a chat preset's are `{}`. */

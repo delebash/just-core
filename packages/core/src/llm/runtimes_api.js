@@ -7,7 +7,7 @@ import { ApiError, notFound } from "../platform/errors.js";
 import { opt, T } from "../platform/models.js";
 import { input } from "../platform/server.js";
 import { getRuntimeService, runtimeServices } from "../runner/runtime_service.js";
-import { bandKey, idleKey } from "../runner/runtimes.js";
+import { bandKey, idleKey, kindsOf, settingKey } from "../runner/runtimes.js";
 import { runtimeFeatureReadiness } from "./image_dispatch.js";
 import * as seed from "./seed.js";
 import * as stores from "./stores.js";
@@ -20,6 +20,15 @@ const Band = T.Number({ exclusiveMinimum: 0, maximum: 1e6 });
 const SettingsIn = T.Object({
   idleSeconds: opt(T.Integer({ minimum: 0, maximum: 86400 })),
   bands: opt(T.Object({ fast: Band, fine: Band, slow: Band })),
+  // a runtime with several kinds (audio.cpp: tts, stt): a kind's bands
+  bandsByKind: opt(T.Record(T.String({ maxLength: 16 }), T.Object({ fast: Band, fine: Band, slow: Band }))),
+  // the settings the runtime declares (audio.cpp's backend, threads, timeouts … — runtimes.js defaults.settings), each a
+  // string or a number; a name it doesn't declare is refused
+  settings: opt(T.Record(T.String({ maxLength: 64 }), T.Union([T.String({ maxLength: 256 }), T.Number()]))),
+});
+const LoadIn = T.Object({
+  placement: opt(T.Union([T.Literal("auto"), T.Literal("gpu"), T.Literal("cpu")])),
+  sessionOptions: opt(T.Record(T.String({ maxLength: 128 }), T.Union([T.String({ maxLength: 4096 }), T.Number(), T.Boolean()]))),
 });
 const FeatureParams = T.Object({ key: T.String({ minLength: 1, maxLength: 128 }) });
 const ModelParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }), modelId: T.String({ minLength: 1, maxLength: 128 }) });
@@ -116,6 +125,16 @@ export function makeRuntimesRouter() {
       for (const which of ["fast", "fine", "slow"]) store.setSetting(bandKey(svc.rt.kind, which), String(body.bands[which]));
     }
     if (body.idleSeconds != null) store.setSetting(idleKey(svc.rt.id), String(body.idleSeconds));
+    for (const [kind, b] of Object.entries(body.bandsByKind ?? {})) {
+      if (!kindsOf(svc.rt).includes(kind)) throw new ApiError(400, "no-such-kind", "This engine has no such kind", `${svc.rt.label} has no "${kind}" models`);
+      for (const which of ["fast", "fine", "slow"]) store.setSetting(bandKey(kind, which), String(b[which]));
+    }
+    const declared = svc.rt.defaults?.settings ?? {};
+    for (const [name, value] of Object.entries(body.settings ?? {})) {
+      if (!Object.hasOwn(declared, name)) throw new ApiError(400, "no-such-setting", "This engine has no such setting", `${svc.rt.label} has no setting "${name}"`);
+      if (typeof declared[name] === "number" && !Number.isFinite(Number(value))) throw new ApiError(400, "bad-setting", "That setting takes a number", `${name}: ${value}`);
+      store.setSetting(settingKey(svc.rt.id, name), String(value));
+    }
     return c.json(await checked(svc));
   });
   app.post("/v1/ai/runtimes/:id/engine/install/cancel", input({ params: IdParams }), (c) => c.json(serviceOf(c).cancelInstall()));
@@ -125,6 +144,20 @@ export function makeRuntimesRouter() {
   });
   // its models: each one's size and state, a download (202) with progress and Cancel, removal
   app.get("/v1/ai/runtimes/:id/models", input({ params: IdParams }), (c) => c.json({ models: serviceOf(c).modelsStatus() }));
+  // a runtime that registers its models (audio.cpp — round E): load one where asked ("auto": the runtime decides), let it
+  // go, and what each kind holds
+  app.post("/v1/ai/runtimes/:id/models/:modelId/load", input({ params: ModelParams, body: LoadIn }), async (c) => {
+    const svc = serviceOf(c);
+    if (!svc.loadModel) throw new ApiError(409, "nothing-to-load", "This engine loads its models itself", `${svc.rt.label} has no load`);
+    const body = c.req.valid("json") ?? {};
+    return c.json(await call(() => svc.loadModel(c.req.valid("param").modelId, { placement: body.placement || "auto", ...(body.sessionOptions ? { sessionOptions: body.sessionOptions } : {}) })));
+  });
+  app.post("/v1/ai/runtimes/:id/models/:modelId/unload", input({ params: ModelParams }), async (c) => {
+    const svc = serviceOf(c);
+    if (!svc.unloadModel) throw new ApiError(409, "nothing-to-load", "This engine loads its models itself", `${svc.rt.label} has no unload`);
+    return c.json({ unloaded: await call(() => svc.unloadModel(c.req.valid("param").modelId)), loaded: svc.loaded() });
+  });
+  app.get("/v1/ai/runtimes/:id/loaded", input({ params: IdParams }), (c) => c.json({ loaded: serviceOf(c).loaded?.() ?? [] }));
   app.post("/v1/ai/runtimes/:id/models/:modelId/download", input({ params: ModelParams }), async (c) => {
     const svc = serviceOf(c);
     return c.json(await call(() => svc.downloadModel(c.req.valid("param").modelId)), 202);
@@ -144,7 +177,7 @@ export function makeRuntimesRouter() {
     const entry = seed.appFeatureCatalog().find((e) => e.key === key);
     if (!entry) throw notFound(`no AI feature ${key} in this app`);
     const kind = entry.kind || "llm";
-    if (kind === "image" || kind === "vision") {
+    if (kind === "image" || kind === "vision" || kind === "stt") {
       // an in-process runtime's answer says whether it loads here: checked first
       for (const svc of runtimeServices()) {
         try {

@@ -40,7 +40,7 @@ export const FeatureRow = T.Object({
   labelKey: opt(T.String(), ""),
   hintKey: opt(T.String(), ""),
   groupKey: opt(T.String(), ""),
-  // the model kind the feature runs on (llm · image · vision): the screens route it among that kind's presets only
+  // the model kind the feature runs on (llm · image · vision · stt): the screens route it among that kind's presets only
   kind: opt(T.String(), "llm"),
 });
 
@@ -59,7 +59,7 @@ export const RoutingResponse = T.Object({
  * owned by the action's preset).
  */
 export function FeatureCatalogEntry({ key, label, hint = "", group = "", labelKey = "", hintKey = "", groupKey = "", kind = "llm" }) {
-  // `kind`: the model kind the feature runs on (llm · image · vision — runner/runtimes.js); its presets are that kind's
+  // `kind`: the model kind the feature runs on (llm · image · vision · stt — runner/runtimes.js); its presets are that kind's
   return { key, label, hint, group, labelKey, hintKey, groupKey, kind };
 }
 
