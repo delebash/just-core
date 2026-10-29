@@ -47,8 +47,8 @@ STATE:  The kit's half BUILT 2026-10-29: `website/` (sync-docs.js, deploy.js, de
         attached); the guard's check 25 counts a dispatch or a call from another workflow and a workflow starting
         another, check 26 checks every site beside the kit; §19's row. House-paint and its site on it. JustWrite on it
         (release.yml 53328251, dry run 40826175245 green; justwrite-website 6aa7f99, its build-only run 40826178027);
-        docgen's site on it (8cd783f) — the guard's known list empty (992f3d9). OPEN: docgen's release dry run
-        (40826540251, its session sends the result).
+        docgen's site on it (8cd783f) and its release (dry run 40827227846 green after e5540c0: electron-builder 26 refused
+        the "&" in its AppImage's name — the guard checks it now, a59cb19) — the guard's known list empty (992f3d9).
 
 ## Kit asks from JustWrite's session, for its roadmap [2026-10-29]
 GO:     JustWrite's user (relayed by its session): "do it all … just complete the app"; this session's user: "go ndo it
