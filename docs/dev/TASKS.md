@@ -21,8 +21,7 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
         item in the session's research notes) — close = delete each line as it lands:
         A. Bugs: 1 BUILT (multi-window + the own-page check; the template's e2e test runs with the final pass).
            2 BUILT (one-pool fit). 3 BUILT (a shared cache keeps the builds other apps use). 4 + 5 BUILT (`--no-models-autoload`; the embeddings route makes its model
-           ready) — its real-router check (realrouter_smoke, JW_REALROUTER=1) runs with the GPU runs. 6 an empty idle box turns idle-unload off. 7 a streamed token holding
-           U+2028/2029/0085 is lost — split lines on CR/LF only. 8 auto-tune stays "running" when the service throws.
+           ready) — its real-router check (realrouter_smoke, JW_REALROUTER=1) runs with the GPU runs. 6 BUILT (the engine panel's cleared boxes left out of its save). 7 BUILT (stream lines end at CR/LF only). 8 auto-tune stays "running" when the service throws.
            9 a failed model row gets Dismiss. 10 measure history hides the load rows; an unnamed row reads "Load &
            measure". 11 a failed engine-update check says "Couldn't check for a newer engine — showing the build this
            app was tested with."; the check is cached. 12 the llama.cpp download checked against GitHub's digest.

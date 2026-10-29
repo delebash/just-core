@@ -3,7 +3,7 @@
 // OpenAI-shape message builder, the system sweep, the sampler allowlist filter, and the
 // one-place D10 error formatter.
 import { expect, test } from "vitest";
-import { adapterHttpError, buildChatMessages, LLMMessage, selectAllowed, splitSystem } from "../src/llm/base.js";
+import { adapterHttpError, buildChatMessages, iterLines, LLMMessage, selectAllowed, splitSystem } from "../src/llm/base.js";
 import { RuntimeError } from "../src/platform/py.js";
 
 test("build_chat_messages_prepends_system_then_turns", () => {
@@ -56,4 +56,31 @@ test("adapter_http_error_formats_the_three_D10_forms", () => {
   expect(transport.message).toBe("anthropic request failed: connection reset");
   // detail is capped at 400 chars (the envelope's contract)
   expect(adapterHttpError("openai", 400, "x".repeat(600)).message).toBe(`openai 400: ${"x".repeat(400)}`);
+});
+
+/** A fetch body that hands over `chunks`, as a server's stream arrives. */
+const bodyOf = (chunks) =>
+  new ReadableStream({
+    start(c) {
+      for (const s of chunks) c.enqueue(new TextEncoder().encode(s));
+      c.close();
+    },
+  });
+const linesOf = async (chunks) => {
+  const out = [];
+  for await (const line of iterLines(bodyOf(chunks))) out.push(line);
+  return out;
+};
+
+// The finish list's A7 (2026-10-29): the reader was httpx's iter_lines — Python's splitlines, which also breaks at
+// \v \f \x1c-\x1e U+0085 U+2028 U+2029. A JSON string carries those three raw (llama.cpp escapes only below 0x20), so a
+// token holding one was cut in two and silently lost. A stream's lines end at \r\n, \n or \r only (WHATWG SSE's end of
+// line; NDJSON).
+test("a stream's lines end at CR, LF or CRLF only — a token holding U+2028, U+2029, U+0085, VT or FF stays whole", async () => {
+  const token = 'data: {"delta":"a b c\u0085d\u000be\u000cf"}';
+  expect(await linesOf([`${token}\n\n`])).toEqual([token, ""]);
+  // across chunks, and a CRLF split between two
+  expect(await linesOf(["data: {\"x\":", "\"a b\"}\r", "\ndata: 2\r\n"])).toEqual(['data: {"x":"a b"}', "data: 2"]);
+  // a lone CR ends a line; a last line without an end is still read
+  expect(await linesOf(["one\rtwo\nthree"])).toEqual(["one", "two", "three"]);
 });

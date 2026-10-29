@@ -27,7 +27,7 @@
 import { EnvHttpProxyAgent } from "undici";
 import * as http from "../platform/http.js";
 import { noProxyWithLoopback } from "../platform/no_proxy.js";
-import { cpSlice, errText, pyStr, RuntimeError, splitlines, truthy } from "../platform/py.js";
+import { cpSlice, errText, pyStr, RuntimeError, truthy } from "../platform/py.js";
 import { pyJson } from "../platform/pyjson.js";
 
 /** One conversation turn. `role` follows OpenAI's words (system / user / assistant / tool),
@@ -260,15 +260,15 @@ export async function httpxStream(method, url, { json, headers, timeout, signal 
   }
 }
 
-// httpx's Response.iter_lines() is str.splitlines() applied incrementally — it breaks on
-// \n \r \r\n AND \v \f \x1c \x1d \x1e \x85 U+2028 U+2029. A JSON string carries U+2028 /
-// U+2029 / U+0085 unescaped, so an SSE `data:` line holding one is CUT in two there: the
-// first half fails json.loads and the second doesn't start with "data:" — Python silently
-// drops that chunk. Copied as-is (same answers); reported as a Python bug: an SSE reader
-// should break on \n / \r / \r\n only.
-const NEWLINE_CHARS = "\n\r\x0b\x0c\x1c\x1d\x1e\x85  ";
+// A stream's lines end at \r\n, \n or \r — and only there (WHATWG SSE's end of line,
+// html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream; NDJSON, github.com/ndjson/ndjson-spec).
+// The Python port read them with httpx's iter_lines — str.splitlines(), which also breaks at \v \f \x1c-\x1e \x85
+// U+2028 U+2029 — and JSON carries those last three raw (llama.cpp escapes only below 0x20): a token holding one was cut
+// in two and both halves dropped (fixed 2026-10-29, the finish list's A7).
+const NEWLINE_CHARS = "\n\r";
+const LINE_END = /\r\n|\r|\n/;
 
-/** httpx._decoders.LineDecoder, line for line. */
+/** httpx._decoders.LineDecoder's incremental shape (a CR at a chunk's end waits for a possible LF), on those line ends. */
 class LineDecoder {
   buffer = [];
   trailingCr = false;
@@ -285,7 +285,8 @@ class LineDecoder {
     }
     if (!text) return [];
     const trailingNewline = NEWLINE_CHARS.includes(text[text.length - 1]);
-    let lines = splitlines(text);
+    let lines = text.split(LINE_END);
+    if (trailingNewline) lines.pop(); // the empty tail after the last line end (splitlines' shape)
     if (lines.length === 1 && !trailingNewline) {
       this.buffer.push(lines[0]);
       return [];
