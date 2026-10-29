@@ -21,6 +21,7 @@ import LuRunnerBinaries from "./LuRunnerBinaries.vue";
 import LuEngineInstallButton from "./LuEngineInstallButton.vue";
 import LuEngineUpdateButton from "./LuEngineUpdateButton.vue";
 import { request } from "../client.js";
+import { engineKnobsBody } from "../engineKnobs.js";
 import { pushToast } from "../common/services/toastBridge.js";
 import { useEngine } from "../composables/useEngine.js";
 import { usePoll } from "../common/composables/usePoll.js";
@@ -177,16 +178,19 @@ async function saveKnobs() {
   try {
     // Send ONLY this form's knobs — a partial PUT. Never echo a full config, or it
     // would clobber the binaries / pinned build / VRAM margin the binaries editor
-    // owns. Drafts still null (a failed seed fetch) are simply omitted.
-    const body = { modelsMax: Number(modelsMax.value), sleepIdleSeconds: Number(sleepIdleSeconds.value) };
-    if (safetyMarginMb.value !== null) body.safetyMarginMb = Number(safetyMarginMb.value) || 0;
-    if (ctxCapTokens.value !== null) body.ctxCapTokens = Number(ctxCapTokens.value) || 0;
-    if (bandFastToks.value !== null) body.bandFastToks = Number(bandFastToks.value) || 0;
-    if (bandFineToks.value !== null) body.bandFineToks = Number(bandFineToks.value) || 0;
-    if (bandSlowToks.value !== null) body.bandSlowToks = Number(bandSlowToks.value) || 0;
-    if (bandDeadzonePct.value !== null) body.bandDeadzoneFrac = (Number(bandDeadzonePct.value) || 0) / 100;
-    if (speedFloorGracePct.value !== null) body.speedFloorGrace = (Number(speedFloorGracePct.value) || 0) / 100;
-    if (ramHeadroomMb.value !== null) body.ramHeadroomMb = Number(ramHeadroomMb.value) || 0;
+    // owns. A box with no number in it (a failed seed fetch, or cleared) is omitted (engineKnobs.js).
+    const body = engineKnobsBody({
+      modelsMax: modelsMax.value,
+      sleepIdleSeconds: sleepIdleSeconds.value,
+      safetyMarginMb: safetyMarginMb.value,
+      ctxCapTokens: ctxCapTokens.value,
+      bandFastToks: bandFastToks.value,
+      bandFineToks: bandFineToks.value,
+      bandSlowToks: bandSlowToks.value,
+      bandDeadzonePct: bandDeadzonePct.value,
+      speedFloorGracePct: speedFloorGracePct.value,
+      ramHeadroomMb: ramHeadroomMb.value,
+    });
     const r = await request("/v1/ai/engine-config", { method: "PUT", body });
     modelsMax.value = r.modelsMax; // re-sync from the server (reflects the clamps)
     sleepIdleSeconds.value = r.sleepIdleSeconds;
