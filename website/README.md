@@ -11,7 +11,7 @@ site beside the kit against them:
 |---|---|
 | `scripts/sync-docs.js` | the app's `docs/*.md` into Starlight's collection — from the latest release's `docs.tar.gz` (or, for a release made before the app attached it, the tag's source), or `--from local` from the app's repo beside the site |
 | `scripts/deploy.js` | `npm run deploy`: says which release's docs go live, asks, then runs the site's own workflow (the user's `gh` login — no token anywhere) |
-| `.github/workflows/deploy.yml` | the build and the GitHub Pages deploy — `workflow_dispatch` only: nothing builds by itself, and no other workflow starts it |
+| `.github/workflows/deploy.yml` | the build and the GitHub Pages deploy — `workflow_dispatch` only: nothing builds by itself, and no other workflow starts it; `publish: false` (`npm run deploy -- --dry-run`) builds and uploads without deploying |
 
 A site's `package.json` names its app and itself, and runs the scripts:
 
