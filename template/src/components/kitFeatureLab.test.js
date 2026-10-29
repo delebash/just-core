@@ -7,6 +7,7 @@
 // from its own pages; the links lived only in the promptless block and vanished).
 import { installLlmUi, LlmUiHosts } from "@delebash/ui";
 import FeatureLab from "@delebash/ui/components/FeatureLab.vue";
+import FeatureWorkbench from "@delebash/ui/views/FeatureWorkbench.vue";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia } from "pinia";
@@ -22,8 +23,8 @@ const LINKS = [
 ];
 
 let wrapper;
-async function mountLab(props) {
-  const Host = { render: () => [h(FeatureLab, props), h(LlmUiHosts)] };
+async function mountLab(props, component = FeatureLab) {
+  const Host = { render: () => [h(component, props), h(LlmUiHosts)] };
   wrapper = mount(Host, {
     attachTo: document.body,
     global: {
@@ -62,6 +63,29 @@ test("a prompt row's Lab shows the app's doors to the data its prompt is fed", a
     ["Context & glossary", "#/setup"],
     ["Notes", "#/review"],
   ]);
+});
+
+// The way an app reaches it — AI Settings → the workbench → the row's Lab (docgen's e2e, 2026-10-29: the workbench
+// handed the links only to the promptless Lab, so the test above passed and the app showed none)
+test("through the workbench: the prompt row's Lab shows the app's links", async () => {
+  const PROMPT = { key: "translate", feature: "translate", system: "You translate.", user_template: "{{text}}", label: "Translate" };
+  const ANSWERS = {
+    "/v1/ai/prompts": { prompts: [PROMPT] },
+    "/v1/ai/routing": { features: [{ key: "translate", kind: "llm", label: "Translate" }] },
+    "/v1/llm-providers": { providers: [] },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url) => {
+      const body = ANSWERS[new URL(String(url), "http://x").pathname] ?? {};
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    }),
+  );
+  await mountLab({ dataLinks: LINKS, initialAction: "translate" }, FeatureWorkbench);
+  await vi.waitFor(() => expect(links()).toEqual([
+    ["Context & glossary", "#/setup"],
+    ["Notes", "#/review"],
+  ]));
 });
 
 test("without dataLinks no line shows (JustWrite passes none)", async () => {

@@ -32,8 +32,8 @@ import { keyedText, presetDisplayName } from "../services/seededWords.js";
 
 const props = defineProps({
   runStream: { type: Function, default: null },
-  // The app's doors to its prompt-feeding data, rendered by the promptless Lab
-  // (Option-A seam, ruling 2026-08-04). [{label, href}].
+  // The app's doors to its prompt-feeding data, rendered by the Lab — a prompt row's and a
+  // promptless feature's alike (Option-A seam, ruling 2026-08-04; docgen's rows 2026-10-29). [{label, href}].
   dataLinks: { type: Array, default: () => [] },
   // Deep-link focus (parity batch 2026-08-06 — JV's retired #speakerlab lands
   // on its attribution action): an action key (or feature key) to select on
@@ -478,7 +478,7 @@ onMounted(load);
               @click="navCollapsed = !navCollapsed"><Icon name="SidebarToggle" :size="14" /></UiButton>
           </div>
           <FeatureLab :key="`${selAction}:${labEpoch}`"
-            :action="selAction" :prompt="action" :providers="providers" :presets="enginePresets"
+            :action="selAction" :prompt="action" :data-links="props.dataLinks" :providers="providers" :presets="enginePresets"
             :sampler-catalog-list="samplerCatalogList"
             :production-preset-id="selResolvedPreset"
             @use-production="onUseProduction" @presets-changed="onPresetsChanged"
