@@ -191,3 +191,22 @@ test("the route: the running ones listed; a job's events streamed — its snapsh
   ]);
   expect((await app.request("/v1/jobs/nope/events")).status).toBe(404);
 });
+
+// Round E (2026-10-29): a finished job can be forgotten at once — JustVoice's export is fetched once, then its file goes —
+// and the app hears when any finished job leaves (forgotten or swept), so what it left behind goes with it.
+test("forget drops a finished job now (never a running one); onForget hears every job that leaves, forgotten or swept", async () => {
+  const gone = [];
+  const jobs = new JobRegistry({ keepMs: 1000, onForget: (j) => gone.push([j.id, j.state]) });
+  const a = jobs.start({ kind: "export", key: "p1" }, async () => "file-1");
+  const b = jobs.start({ kind: "export", key: "p2" }, stopsOnSignal);
+  await settle(jobs, a.id);
+  expect(jobs.forget(b.id)).toBe(false); // still running
+  expect(jobs.forget(a.id)).toBe(true);
+  expect(jobs.get(a.id)).toBeNull();
+  expect(jobs.ended.get(a.id)).toMatchObject({ state: "done" });
+  expect(jobs.forget(a.id)).toBe(false); // gone already
+  jobs.cancel(b.id);
+  await settle(jobs, b.id);
+  jobs.sweep(Date.now() + 5000);
+  expect(gone).toEqual([[a.id, "done"], [b.id, "cancelled"]]);
+});

@@ -19,9 +19,12 @@ const isAbort = (e) => e?.name === "AbortError" || e?.code === "ABORT_ERR";
 
 export class JobRegistry {
   /** `keepMs` how long a finished job is kept to be read; `onFinish(job)` a job ended (done, failed or cancelled) —
-   *  the window that started it changed something (the kit's ChangeCounter counts it as that window's). */
-  constructor({ keepMs = 10 * 60_000, onFinish = null } = {}) {
+   *  the window that started it changed something (the kit's ChangeCounter counts it as that window's); `onForget(job)`
+   *  a finished job leaves the registry (swept or forgotten) — what it left behind goes with it (JustVoice's export's
+   *  file: fetched once, then deleted; round E, 2026-10-29). */
+  constructor({ keepMs = 10 * 60_000, onFinish = null, onForget = null } = {}) {
     this.keepMs = keepMs;
+    this.onForget = onForget;
     this.jobs = new Map();
     // a forgotten job's end, kept for this process's life (the last 1000): a window that slept through it is told it
     // ended — not that the server started again (410 Gone)
@@ -170,11 +173,26 @@ export class JobRegistry {
   /** Forget finished jobs older than `keepMs` — each one's end kept (ended). */
   sweep(now = Date.now()) {
     for (const [id, j] of this.jobs) {
-      if (j.state !== "running" && j.finishedAt && now - Date.parse(j.finishedAt) > this.keepMs) {
-        this.jobs.delete(id);
-        this.ended.set(id, { id, kind: j.kind, key: j.key, state: j.state, finishedAt: j.finishedAt });
-        if (this.ended.size > 1000) this.ended.delete(this.ended.keys().next().value);
-      }
+      if (j.state !== "running" && j.finishedAt && now - Date.parse(j.finishedAt) > this.keepMs) this._drop(id, j);
+    }
+  }
+
+  /** Forget a FINISHED job now (its result was fetched); false while it runs or when there is none. */
+  forget(id) {
+    const j = this.jobs.get(id);
+    if (!j || j.state === "running") return false;
+    this._drop(id, j);
+    return true;
+  }
+
+  _drop(id, j) {
+    this.jobs.delete(id);
+    this.ended.set(id, { id, kind: j.kind, key: j.key, state: j.state, finishedAt: j.finishedAt });
+    if (this.ended.size > 1000) this.ended.delete(this.ended.keys().next().value);
+    try {
+      this.onForget?.(snapshot(j));
+    } catch {
+      // the app's clean-up never breaks the registry
     }
   }
 
