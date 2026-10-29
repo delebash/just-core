@@ -1213,6 +1213,7 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | Room on the drive before a download | `platform/disk_room.js` `lacksRoom`, `freeBytes`, `partBytes` | `statfs` in the app |
 | A rename another program holds a moment | `platform/rename_held.js` `renameHeld` | a bare `rename` |
 | Backup, restore, reset | `platform/data_api.js` `makeDataRouter` | — |
+| Sync between devices (a cloud folder, pairing, a file by hand; removing a device from the folder) | `just-sqlite-sync` `createAppSync` (its routes, `restoreHooks`) · `ui/components/SyncPanel.vue` | a sync of the app's own; deleting a device's folder files by hand |
 | What the data folder holds (Storage) | `platform/disk_api.js` `makeDiskRouter` | — |
 | **Server** | | |
 | A refusal | `platform/errors.js` `ApiError`, `notFound` | hand-built JSON |

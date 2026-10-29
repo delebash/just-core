@@ -142,8 +142,9 @@ snapshots; a device writes only in its own folder and reads all others (no two d
 one file — backless-core's layout, which round 2 found; Super Productivity's single shared file is
 the failure it avoids). Sync runs when the app opens, when it closes, and every few minutes. Every
 100 files a device writes a snapshot and later deletes the files it covers; a device that fell behind
-a deleted range restarts from the snapshot; folders of devices silent for 60 days are pruned (the
-user can see and remove devices). Files are written as `.tmp` and renamed (OneDrive doesn't sync
+a deleted range restarts from the snapshot; a device's folder stays until the user removes the device on the
+sync screen (the 60-day auto-prune dropped, the kit's finish list
+2026-10-29). Files are written as `.tmp` and renamed (OneDrive doesn't sync
 `.tmp` files). **Desktop:** the folder on disk. **Phone:** OneDrive's app folder through Microsoft
 Graph (`/me/drive/special/approot`, sign-in in the system browser with PKCE), then Dropbox's App
 Folder; Google Drive later (its app-data folder is hidden from the desktop).

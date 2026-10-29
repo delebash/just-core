@@ -1074,7 +1074,9 @@
         "title": "Devices",
         "none": "None yet.",
         "network": "Synced over the network",
-        "beforeRestore": "{name} (before the restore on {date})"
+        "beforeRestore": "{name} (before the restore on {date})",
+        "removeTitle": "Remove {name} from the sync folder?",
+        "removeBody": "This device syncs first, so nothing {name} wrote is lost. Then its files are deleted from the folder. If {name} syncs again, it comes back."
       }
     },
     "configColumn": {

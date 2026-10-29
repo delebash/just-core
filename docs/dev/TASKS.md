@@ -44,8 +44,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            moved to platform/lines.js — its real-engine run with the GPU runs). 23 BUILT (a vision model's speed: the work's `recordSpeed(secondsPerImage)`, bands 5 / 20 / 60 s seeded and
            editable; house-paint's finder records its encode by its session). 24 BUILT (If-Match in the kit — platform/versions.js; the template's notes on it; house-paint's
            outlines onto it by its session). 25 BUILT (UiSelect groups — JustVoice's picker moves onto it, its hand-off line).
-           26 sync: remove a device from a cloud folder (syncs first; the confirm names the device and says it comes
-           back if it syncs again); the design's 60-day auto-prune dropped. 27 sync "Changes waiting" = this device's
+           26 BUILT (sync: remove a device from a cloud folder — just-sqlite-sync ccf3fb6 `DELETE folder/devices/:id`, syncs first;
+           SyncPanel's Remove on a folder row, the confirm's words mine; the design's 60-day auto-prune dropped; both apps' help). 27 sync "Changes waiting" = this device's
            changes not yet sent. 28 BUILT (Claude's prompt cache on every request; the ledger prices writes and reads at each model's rates,
            editable on the price table — column words mine). 29 Mac/Linux: a pidfile
            sweep of engines a crash left. 30 round E (JustVoice's audio.cpp and jobs into the kit) BEFORE the release.

@@ -284,6 +284,19 @@ async function removePeer(url) {
   await run("remove", () => saveSettings({ removePeers: [url] }));
 }
 
+// A device in the cloud folder no longer used (an old computer, the id before a restore): the server
+// syncs first, then deletes its files and forgets it. One still in use comes back at its next sync.
+async function removeFolderDevice(p) {
+  const name = deviceLabel(p);
+  const ok = await confirmDialog({
+    title: t("kit.sync.devices.removeTitle", { name }),
+    message: t("kit.sync.devices.removeBody", { name }),
+    confirmLabel: t("kit.common.remove"),
+  });
+  if (!ok) return;
+  await run(`device:${p.id}`, () => request(`/v1/sync/folder/devices/${encodeURIComponent(p.id)}`, { method: "DELETE" }));
+}
+
 let timer = null;
 onMounted(() => {
   load();
@@ -406,6 +419,7 @@ onBeforeUnmount(() => clearInterval(timer));
       <span v-if="!(status?.peers ?? []).length" class="lu-muted"><em>{{ t('kit.sync.devices.none') }}</em></span>
       <div v-for="p in status?.peers ?? []" :key="p.id" class="lu-sync-device">
         <span><b>{{ deviceLabel(p) }}</b> <span class="lu-muted">· {{ kindLabel(p.kind) }} · {{ ago(p.lastSync) }}</span></span>
+        <UiButton v-if="p.kind === 'folder' && settings.folder" intent="ghost" size="small" :loading="busy === `device:${p.id}`" :disabled="!!busy" @click="removeFolderDevice(p)">{{ t('kit.common.remove') }}</UiButton>
       </div>
       <template v-if="(settings.peers ?? []).length">
         <b class="lu-sync-sub">{{ t('kit.sync.devices.network') }}</b>

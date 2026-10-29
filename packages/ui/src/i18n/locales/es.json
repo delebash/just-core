@@ -1074,7 +1074,9 @@
         "title": "Dispositivos",
         "none": "Aún no hay ninguno.",
         "network": "Sincronizado por la red",
-        "beforeRestore": "{name} (antes de la restauración del {date})"
+        "beforeRestore": "{name} (antes de la restauración del {date})",
+        "removeTitle": "¿Quitar {name} de la carpeta de sincronización?",
+        "removeBody": "Este dispositivo se sincroniza primero, así no se pierde nada de lo que {name} escribió. Luego se borran sus archivos de la carpeta. Si {name} vuelve a sincronizar, reaparece."
       }
     },
     "configColumn": {
