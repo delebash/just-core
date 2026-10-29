@@ -37,6 +37,7 @@ import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkPlanText, kitExports as planKitExports } from "./check-plan.js";
 import { installedSkillDrift } from "./install-skills.js";
+import { appImageNameProblem } from "./lib/appimage-name.js";
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FAMILY = resolve(KIT, "..");
@@ -531,6 +532,9 @@ function checkQuasar(app) {
     [/delete\s+process\.env\.npm_config_allow_scripts/, "the npm_config_allow_scripts delete (§Q.6)"],
   ];
   for (const [re, what] of needs) if (!re.test(cfg)) fail(name, `quasar.config.js has no ${what}`);
+  // the AppImage's file name (electron-builder 26 refuses an "&" there — docgen's Linux release build, 2026-10-29)
+  const appImage = appImageNameProblem(cfg);
+  if (appImage) fail(name, `quasar.config.js's ${appImage}`);
 
   const electronPkg = json("src-electron/package.json");
   if (!electronPkg) fail(name, "src-electron/package.json missing — the main process's dependencies (§Q.1)");

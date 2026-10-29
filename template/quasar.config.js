@@ -184,6 +184,8 @@ export default defineConfig(() => {
         // the AppImage; a .deb also needs `linux.maintainer` ("name <email>", published in the package)
         // and `homepage` in package.json (electron-builder stops on "Please specify project homepage" —
         // JustWrite, 2026-10-20) — add both, and 'deb' to the targets, with what the app's owner wants public
+        // a productName with anything but letters, digits, - _ . and spaces (docgen's "&") needs executableName here: the
+        // AppImage is named from it, and electron-builder refuses the rest (the guard checks)
         linux: {
           target: [ 'AppImage' ],
           category: 'Office',
