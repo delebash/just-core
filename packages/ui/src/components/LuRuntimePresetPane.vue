@@ -55,9 +55,12 @@ watch(preset, (p) => {
 }, { immediate: true });
 const changed = computed(() => !!preset.value && Object.keys(rules.value).some((k) => draft[k] !== preset.value.params?.[k]));
 const fieldLabel = (name) => (te(`kit.runtimes.preset.fields.${name}`) ? t(`kit.runtimes.preset.fields.${name}`) : name);
-// a choice's values in words where the kit has them (executionProvider), else as the server names them
-const valueOptions = (name, values) =>
-  values.map((v) => ({ value: v, label: te(`kit.runtimes.preset.values.${name}.${v}`) ? t(`kit.runtimes.preset.values.${name}.${v}`) : v }));
+// a choice's values in words where the kit has them — the card's own (executionProvider), else the kit's words for
+// that setting elsewhere (a transcription preset's placement: the runtime tab's Auto / Graphics card / CPU,
+// kit.runtimes.placement — one set of words; JustVoice's session, 2026-10-29), else as the server names them
+const valueWord = (name, v) =>
+  te(`kit.runtimes.preset.values.${name}.${v}`) ? t(`kit.runtimes.preset.values.${name}.${v}`) : te(`kit.runtimes.${name}.${v}`) ? t(`kit.runtimes.${name}.${v}`) : v;
+const valueOptions = (name, values) => values.map((v) => ({ value: v, label: valueWord(name, v) }));
 // the pane's words for its kind (an image model, a vision model), the image's for a kind the kit has none for
 const kindWord = (key) => (te(`kit.runtimes.preset.${key}.${props.kind}`) ? t(`kit.runtimes.preset.${key}.${props.kind}`) : t(`kit.runtimes.preset.${key}.image`));
 const stepOf = (rule) => (rule.type === "int" ? 1 : rule.max <= 1 ? 0.05 : 0.5);

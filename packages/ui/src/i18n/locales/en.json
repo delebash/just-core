@@ -2183,15 +2183,18 @@
       "preset": {
         "none": {
           "image": "This app has no image presets.",
-          "vision": "This app has no vision presets."
+          "vision": "This app has no vision presets.",
+          "stt": "This app has no transcription presets."
         },
         "model": {
           "image": "Image model",
-          "vision": "Vision model"
+          "vision": "Vision model",
+          "stt": "Transcription model"
         },
         "choose": {
           "image": "Choose an image model",
-          "vision": "Choose a vision model"
+          "vision": "Choose a vision model",
+          "stt": "Choose a transcription model"
         },
         "seedHint": "A seed of −1 picks a new one each time; any other number draws the same picture again.",
         "reset": "Reset to the app's settings",
@@ -2201,7 +2204,8 @@
           "strength": "Strength",
           "sampler": "Sampler",
           "seed": "Seed",
-          "executionProvider": "Runs on"
+          "executionProvider": "Runs on",
+          "placement": "Runs on"
         },
         "values": {
           "executionProvider": {

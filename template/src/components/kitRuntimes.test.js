@@ -57,9 +57,14 @@ function fakeFetch(input, init = {}) {
   }
   if (p === "/v1/ai/features/photo.render/readiness") return Promise.resolve(json(server.readiness()));
   if (p === "/v1/ai/engine-presets" && url.search === "?kind=image") return Promise.resolve(json({ presets: server.presets, paramRules: RULES }));
-  if (p === "/v1/ai/preset-assignments") return Promise.resolve(json({ defaultPresetId: "talk", features: { "photo.render": "photo", "parts.find": "parts" } }));
+  if (p === "/v1/ai/preset-assignments") return Promise.resolve(json({ defaultPresetId: "talk", features: { "photo.render": "photo", "parts.find": "parts", "dictation.transcribe": "dictate" } }));
   // a vision feature (round C): its presets, the kind's rules, its readiness
   if (p === "/v1/ai/engine-presets" && url.search === "?kind=vision") return Promise.resolve(json({ presets: server.visionPresets, paramRules: VISION_RULES }));
+  // a transcription feature (round E): its stt preset, where it runs
+  if (p === "/v1/ai/engine-presets" && url.search === "?kind=stt") {
+    return Promise.resolve(json({ presets: [{ id: "dictate", name: "Dictation", model: "parakeet", kind: "stt", builtIn: true, params: { placement: "auto" } }], paramRules: STT_RULES }));
+  }
+  if (p === "/v1/ai/features/dictation.transcribe/readiness") return Promise.resolve(json({ feature: "dictation.transcribe", kind: "stt", ready: true, need: "", runtime: "audiocpp", model: "parakeet" }));
   if (p === "/v1/ai/features/parts.find/readiness") return Promise.resolve(json({ feature: "parts.find", kind: "vision", ready: true, need: "", runtime: "onnx", model: "seg" }));
   if (p === "/v1/ai/engine-presets/parts" && method === "PUT") {
     server.visionPresets = server.visionPresets.map((x) => (x.id === "parts" ? { ...x, params: body.params } : x));
@@ -82,6 +87,7 @@ const RULES = {
   sampler: { values: ["euler", "lcm"], default: "euler" },
 };
 const VISION_RULES = { executionProvider: { values: ["auto", "cpu"], default: "auto" } };
+const STT_RULES = { placement: { values: ["auto", "gpu", "cpu"], default: "auto" } };
 
 let wrapper;
 beforeEach(() => {
@@ -272,6 +278,21 @@ test("a vision feature's preset pane: its kind's presets, where it runs in words
   await click("Save");
   await settle();
   expect(server.calls.find(([m, u]) => m === "PUT" && u === "/v1/ai/engine-presets/parts")[2].params).toEqual({ executionProvider: "cpu" });
+});
+
+// Round E (JustVoice's session, 2026-10-29): a transcription preset's card said "Image model" and its placement raw.
+test("a transcription feature's preset pane: its own words, and where it runs in the runtime tab's words", async () => {
+  wrapper = mount(LuRuntimePresetPane, { props: { feature: "dictation.transcribe", kind: "stt", label: "Dictation" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  expect(text()).toContain("Transcription model");
+  expect(text()).not.toContain("Image model");
+  expect(text()).toContain("Runs on");
+  const where = wrapper.findAllComponents(UiSelect).find((c) => c.attributes("id") === "lu-imgpane-dictation.transcribe-placement" || c.props("id") === "lu-imgpane-dictation.transcribe-placement");
+  expect(where.props("options")).toEqual([
+    { value: "auto", label: "Auto" },
+    { value: "gpu", label: "Graphics card" },
+    { value: "cpu", label: "CPU" },
+  ]);
 });
 
 // The finish list's A13 (2026-10-29): a runtime's speed bands, seeded in its kind's unit, are edited on its tab.

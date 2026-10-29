@@ -2183,15 +2183,18 @@
       "preset": {
         "none": {
           "image": "Esta aplicación no tiene ajustes de imagen.",
-          "vision": "Esta aplicación no tiene ajustes de visión."
+          "vision": "Esta aplicación no tiene ajustes de visión.",
+          "stt": "Esta aplicación no tiene ajustes de transcripción."
         },
         "model": {
           "image": "Modelo de imagen",
-          "vision": "Modelo de visión"
+          "vision": "Modelo de visión",
+          "stt": "Modelo de transcripción"
         },
         "choose": {
           "image": "Elige un modelo de imagen",
-          "vision": "Elige un modelo de visión"
+          "vision": "Elige un modelo de visión",
+          "stt": "Elige un modelo de transcripción"
         },
         "seedHint": "Una semilla de −1 elige una nueva cada vez; cualquier otro número vuelve a dibujar la misma imagen.",
         "reset": "Restablecer los ajustes de la aplicación",
@@ -2201,7 +2204,8 @@
           "strength": "Intensidad",
           "sampler": "Muestreador",
           "seed": "Semilla",
-          "executionProvider": "Se ejecuta en"
+          "executionProvider": "Se ejecuta en",
+          "placement": "Se ejecuta en"
         },
         "values": {
           "executionProvider": {
