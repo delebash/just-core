@@ -179,9 +179,12 @@ export async function refresh() {
   try {
     data.value = await request("/v1/llm-runner/models");
     error.value = "";
-    // #305: when the built-in catalog gains/loses a model, refresh the picker cache so open
-    // dropdowns show it without a full reload. Compare the id SET only (not status).
-    const builtinIds = (data.value?.models || []).map((m) => m.id).sort().join(",");
+    // #305: when a model lands on disk or leaves it, refresh the picker cache so open dropdowns show it without a
+    // reload — the picker lists the DOWNLOADED models only (llm/api.js), so the set compared is the rows on disk
+    // (status disk · loaded · stopping); a download that finished changes a row's status, not the catalog's id set
+    // (compared until 2026-10-29: an open picker missed the new model).
+    const ON_DISK = new Set(["disk", "loaded", "stopping"]);
+    const builtinIds = (data.value?.models || []).filter((m) => ON_DISK.has(m.status)).map((m) => m.id).sort().join(",");
     if (_lastBuiltinIds !== null && builtinIds !== _lastBuiltinIds) {
       useProviderModels().refreshModels(BUILTIN_PROVIDER_ID);
     }

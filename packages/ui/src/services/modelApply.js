@@ -148,6 +148,12 @@ export async function setAsDefault(providerId, modelId, { overwrite = false } = 
     if (p.providerId === providerId && p.model === modelId) continue; // already the target
     await request(`/v1/ai/engine-presets/${p.id}`, { method: "PUT", body: { ...p, providerId, model: modelId } });
   }
+  // The default the user chose, recorded where a feature's Reset reads it (llm/presets_api.js — "the model resets to the
+  // default set in the model tab", the user, 2026-07-16). Until 2026-10-29 only the presets carried it, so a Reset
+  // fell back to the seed's empty model (the kit's TASKS, "two routing bugs").
+  const routing = useRouting();
+  await routing.loadRouting();
+  await routing.setDefaultLlm({ providerId, model: modelId });
   await refreshApplied();
 }
 

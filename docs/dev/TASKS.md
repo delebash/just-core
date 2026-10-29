@@ -81,26 +81,10 @@ DECIDED 2026-10-29 (the user, on four questions, the answers as chosen): round E
         close-out dropped 14 "changes waiting" and 15 the remove-device button for JustWrite at 12:20, after this list's
         10:51 go) — "Keep both (Recommended)". The pin move — "Every engine the kit pins (Recommended)": llama.cpp and
         stable-diffusion.cpp to their latest releases, sd.cpp re-checked with one render. The two routing bugs below —
-        "Fix both (Recommended)".
+        "Fix both (Recommended)" — BUILT: Set as default records the routing default the Reset reads
+        (ui/services/modelApply.js); the picker refreshes when a model lands on disk (ui/composables/useRunnerModels.js);
+        template tests kitModelApply / kitRunnerModelsPicker, not yet run.
 STATE:  under way.
-
-## Found while finishing the kit: two routing bugs [2026-10-29]
-STATE:  FINDING — code-verified 2026-10-29 (read, not run), while rewriting feature-model-system.md against the code.
-        DECIDED 2026-10-29 — "Fix both (Recommended)" (the recs below).
-        1. A feature's Reset no longer restores the model-tab default (your decision 2026-07-16: "the model resets to
-           the default set in the model tab"). The reset sets the model from the routing default
-           (`llm/presets_api.js` ~261-270, only `if (d.model)`), but `modelApply.setAsDefault`
-           (`ui/services/modelApply.js:132-152`) — Set as default and Quick Setup — only rewrites the presets and never
-           writes it (`useRouting.setDefaultLlm` exists with no caller). So Reset leaves the seed's empty model.
-           REC: Set as default also writes the routing default (`setDefaultLlm`), the one the reset reads. Attacked:
-           the badge reads the presets' common model, a second notion of "the default" — but the reset wants the
-           last default the user chose, which is what this records; moving the reset onto the presets' common
-           model instead puts the UI's rule into the server.
-        2. A model whose download just finished doesn't show in an open model picker until a reload. The picker lists
-           downloaded models only (`llm/api.js:174-194`); `useRunnerModels.refresh`
-           (`ui/composables/useRunnerModels.js:178-188`) refreshes it only when the set of catalog ids changes, and a download changes a row's status, not the set.
-           REC: compare the ids of the rows on disk (status disk · loaded · stopping) instead. Attacked: a load
-           (disk → loading → loaded) refreshes the picker twice more — two small requests.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]
 DECIDED: the user, verbatim (2026-10-29, in JustWrite's session, relayed): "you dont understand we have several apps i

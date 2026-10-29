@@ -70,11 +70,11 @@ the Python-era version — the kit's finish list, D38). Paths are under `package
   `modelApply.setAsDefault` (`ui/services/modelApply.js` ~132-152). It rewrites the `providerId` and `model` of
   every assigned preset that still uses the previous default — the most common model across the assigned presets
   (`dominantOf`, ~38-55) — and of every preset still blank from its seed; a preset the user pointed elsewhere is
-  left alone unless the user chose to overwrite them all. Each preset keeps its own params.
-- The Default badge reads that same common model (`refreshApplied`).
-- The routing document's default (`llm/routing_api.js` `RoutingDefaults`, ~20-25: `llmId`, `model`, and the
-  embedding's `embeddingId`, `embeddingModel`) is written for the embedding only (`setDefaultEmbedding`); nothing
-  in the kit writes its chat `model` today — see §5 and the kit's TASKS, "two routing bugs".
+  left alone unless the user chose to overwrite them all. Each preset keeps its own params. It then records the
+  pair as the routing document's default (`llm/routing_api.js` `RoutingDefaults`: `llmId`, `model`, through
+  `useRouting.setDefaultLlm`) — the default a feature's Reset reads (§5; since 2026-10-29). The embedding's half of
+  that document (`embeddingId`, `embeddingModel`) is `setAsEmbedding`'s.
+- The Default badge reads the presets' common model (`refreshApplied`).
 
 ## 4. The model picker (per provider)
 
@@ -83,8 +83,9 @@ the Python-era version — the kit's finish list, D38). Paths are under `package
   `local-llamacpp` answers with the **downloaded** catalog rows (`builtinProviderHealth`, ~68-104, each checked on
   disk) — not only the loaded one (#305, fixed).
 - The cache fetches once (`ensureModels` skips a provider it already holds); `useRunnerModels.refresh` re-fetches
-  the built-in provider's list when the set of catalog ids changes. A finished download changes a row's status,
-  not that set, so an open picker misses the new model until a reload — the kit's TASKS, "two routing bugs" (2).
+  the built-in provider's list when the set of models on disk changes (rows whose status is disk · loaded ·
+  stopping), so a download that finishes shows in an open picker (2026-10-29; the catalog's id set, compared before,
+  doesn't change when a download finishes).
 
 ## 5. Reset
 
@@ -92,9 +93,8 @@ the Python-era version — the kit's finish list, D38). Paths are under `package
   `llm/presets_api.js` ~246-275): the feature's seeded ref back, that preset's params back to the seed
   (`seed.js` `resetPresetToFactory`), its prompt back to the seed, and its model set to the routing default's —
   only when that default has a model (~261-270). The user's decision (2026-07-16): a reset is full — preset,
-  prompt, provider and model — and the model resets to the default set in the Models tab. Since §3's apply no
-  longer writes the routing default's model, the reset leaves the seed's empty model today — the kit's TASKS,
-  "two routing bugs" (1).
+  prompt, provider and model — and the model resets to the default set in the Models tab, which §3's Set as default
+  records (until 2026-10-29 nothing did, and the reset left the seed's empty model).
 - **Reset all** (`FeatureWorkbench.vue` → `POST /v1/ai/engine-presets/reset`, ~190-193 → `seed.js`
   `resetRoutingToFactory`): every built-in preset, seeded ref and the default preset back to the seed; custom
   presets are kept; the models blank to the seed.
@@ -120,4 +120,4 @@ the Python-era version — the kit's finish list, D38). Paths are under `package
 
 ## Known gaps (open)
 
-- The two routing bugs in §3–§5 — the kit's TASKS, "Found while finishing the kit: two routing bugs".
+- None recorded (2026-10-29).
