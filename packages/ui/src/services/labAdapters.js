@@ -35,7 +35,7 @@
 //
 // Registered once at boot via installLlmUi({ labAdapters: { <featureKey>: … } });
 // keyed by the FEATURE key, so every action row of that feature (and the
-// promptless feature pane, whose action IS the feature key) gets the adapter.
+// sectioned feature pane, whose action IS the feature key) gets the adapter.
 const _adapters = {};
 
 export function registerLabAdapters(map) {

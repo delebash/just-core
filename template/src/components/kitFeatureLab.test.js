@@ -92,3 +92,19 @@ test("without dataLinks no line shows (JustWrite passes none)", async () => {
   await mountLab({ action: "translate", prompt: { key: "translate", feature: "translate", system: "S", user_template: "{{text}}" } });
   expect(document.querySelector(".lu-fw-datalinks")).toBeNull();
 });
+
+// The pipeline-owned kind retired (2026-10-29: docgen's translate/confirm/review became prompt rows, the last app with
+// `featurePrompts: {}`): only a SECTIONED feature (JustVoice's refine) asks the app for its prompt preview. A chat
+// feature with no prompt rows that isn't sectioned is a bug state — said, with no request for a preview that no app
+// serves.
+test("a chat feature with no prompt rows, not sectioned: no prompt preview is asked for, and the pane says why", async () => {
+  const fetch = vi.fn(async (url) => {
+    const path = new URL(String(url), "http://x").pathname;
+    const body = { "/v1/ai/prompts": { prompts: [] }, "/v1/ai/routing": { features: [{ key: "draft", kind: "llm", label: "Draft" }] }, "/v1/llm-providers": { providers: [] } }[path] ?? {};
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  vi.stubGlobal("fetch", fetch);
+  await mountLab({ initialAction: "draft" }, FeatureWorkbench);
+  await vi.waitFor(() => expect(document.querySelector(".lu-fw-edit .lu-error")?.textContent).toContain(i18n.global.t("kit.workbench.err.noPrompt", { feature: "Draft" })));
+  expect(fetch.mock.calls.map(([u]) => new URL(String(u), "http://x").pathname)).not.toContain("/v1/ai/prompt-preview");
+});

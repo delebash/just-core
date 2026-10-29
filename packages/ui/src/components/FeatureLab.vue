@@ -27,7 +27,8 @@ import { presetToThinkingControl, thinkingControlToWire } from "../thinkingContr
 const props = defineProps({
   action: { type: String, default: "" },
   prompt: { type: Object, default: null },      // the action's prompt row (read to run)
-  // PROMPTLESS mode (2026-08-04): the app's pipeline builds the real prompt per run —
+  // BUILT-PROMPT mode (2026-08-04; a sectioned feature's since the pipeline-owned kind retired, 2026-10-29): the app
+  // composes the real prompt per run —
   // `builtPrompt` {system, user} is that prompt over a live sample (the app's
   // /v1/ai/prompt-preview), shown read-only as the one truth. Columns hide their
   // prompt boxes until the explicit unlock reveals ephemeral test copies; nothing
@@ -372,7 +373,7 @@ const columnConfig = computed(() => {
         </div>
       </template>
       <!-- A prompt row's variables can come from the app's own pages too (docgen's context, glossary and notes,
-           2026-10-29): the same doors to that data as the promptless Lab's -->
+           2026-10-29): the same doors to that data as a sectioned feature's Lab -->
       <div v-if="dataLinks.length" class="lu-fw-datalinks lu-muted">
         {{ t('kit.lab.changeData') }}
         <a v-for="l in dataLinks" :key="l.label" :href="l.href">{{ l.label }}</a>

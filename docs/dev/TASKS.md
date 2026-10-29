@@ -139,10 +139,12 @@ STATE:  1 BUILT 2026-10-29 (RunRequest `presetId` — preset_resolve `presetById
            letting `sec-fetch-dest: iframe` navigations to exactly those through, with a test.
         6 BUILT 2026-10-29: FeatureLab's `dataLinks` show on a prompt row's Lab too, under the test input (docgen's
         rows' context, glossary and notes come from its own pages); template src/components/kitFeatureLab.test.js.
-        OPEN, the kit's to retire once docgen's rows ship (its notice, 2026-10-29): no app passes featurePrompts: {}
-        any more — FeatureWorkbench's loadPreview (views/FeatureWorkbench.vue ~311-319, ~388) is reached only by
-        JustVoice's sectioned features; FeatureLab's promptless non-sectioned branch, its "zero-actions" comment
-        (~87-91) and §11's two feature kinds go or stay as the research's step 4 said.
+        The promptless Lab RETIRED 2026-10-29 (docgen's rows shipped, d43e63f — no app passes featurePrompts: {}): the
+        Workbench asks for a prompt preview only for a sectioned feature (JustVoice's refine, its carve-out), says
+        `kit.workbench.err.noPrompt` for a chat feature with neither rows nor sections, and never shows the last feature's
+        built prompt under the next; the nav keeps row-less features (runtime, panel, sectioned panes); §11 is one kind
+        plus the sectioned carve-out; §19's "The Lab's test input" row (10e6de2). Template kitFeatureLab.test.js; JustVoice's
+        renderer tests 261 pass on it.
 
 ## Security advisories in the kit's dependencies — found by docgen's session's npm audit [2026-10-28]
 STATE:  The kit's, the template's and house-paint's DONE 2026-10-29 (the user's "your rec go"): packages/core

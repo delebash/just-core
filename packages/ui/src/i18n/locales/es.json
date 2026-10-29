@@ -1578,7 +1578,8 @@
         "preset": "Error al cambiar el preajuste: {error}",
         "reset": "Error al restablecer: {error}",
         "save": "Error al guardar: {error}",
-        "preview": "La vista previa del prompt de la aplicación no está disponible."
+        "preview": "La vista previa del prompt de la aplicación no está disponible.",
+        "noPrompt": "{feature} no tiene un prompt para el laboratorio: la aplicación no le registra ninguno."
       },
       "resetPresets": {
         "title": "¿Restablecer los preajustes a los valores predeterminados?",

@@ -916,29 +916,25 @@ the model needed (2026-09-29). Hand-copying the load group per app is how one
 consumer got a model-ID title divergence, a spinner-then-plate double splash, and a
 shell flash between them; the control exists so none of that can be rebuilt.
 
-**Prompt ownership + the Lab** (2026-08-04): the ENGINE PRESET — provider · model ·
+**Prompt ownership + the Lab** (2026-08-04; one kind since 2026-10-29): the ENGINE PRESET — provider · model ·
 every ask-param — and its whole editing surface (the Feature Workbench's Lab, columns,
-Save-as-preset, "Use in production") are the KIT's. The FEATURE LIST is the app's, and
-every feature is one of two kinds: **prompt-row-owned** (JW's writing actions — editable
-system/user templates that save and apply) or **pipeline-owned** (`feature_prompts={}` —
-the app builds the real prompt in code each run). A pipeline-owned app implements the
-family contract `POST /v1/ai/prompt-preview {feature, lang?, keys?} → {system, user,
-sample}` — the REAL builders over a small live sample. The default sample is the
-BUSIEST language's pending keys, and a FINISHED language samples already-translated
-keys with `sample` saying so (ruling 2026-08-04: the Lab always renders on a healthy
-project — a preview that 400s because the user's work is done punishes success).
-Loud NAMED 400s are for genuinely broken states only: no targets configured, an
-unknown feature, explicit keys that don't fit, a catalogue with no keys.
-(`lang`/`keys` are server-accepted extras; the kit's Workbench
-sends only `{feature}` today — `FeatureWorkbench.vue:235`.) The optional
-`dataLinks` prop (`[{label, href}]`, forwarded AiModelsArea → Workbench → Lab)
-lets a pipeline app link the DATA its builder assembles — context · glossary ·
-notes — under the generated prompt ("Change what this prompt says:", manifest
-`lab.changeData`); apps that pass nothing render nothing. The kit's Lab shows it read-only (unlockable per-column copies,
-ephemeral, never saved) above the same preset columns every app gets. `jsonMode` is
-prompt-row state, so pipeline-owned features carry no JSON toggle: the app's adapters
-own `response_format` (the 6-keys-exhausted lesson). A registered feature that never
-calls the engine is a LIE on the routing surface — register it the day it routes.
+Save-as-preset, "Use in production") are the KIT's. The FEATURE LIST is the app's, and every chat
+feature's prompt is **prompt rows**: editable system/user templates the kit seeds, renders and runs
+(`runAction`), saved and applied — JustWrite's writing actions, docgen's translate/confirm/review. The
+pipeline-owned kind (`featurePrompts: {}`, the app building the prompt in code and serving
+`POST /v1/ai/prompt-preview` for the Lab) retired on 2026-10-29, when docgen, its last user, moved onto
+rows. One carve-out keeps that door: a **sectioned** feature (`installLlmUi({ sectionedFeatures })` —
+JustVoice's refine), whose rows compose into ONE call (the `<key>.base` row the template, its
+`{{section}}` markers filled from the other rows): the app answers `POST /v1/ai/prompt-preview {feature}
+→ {system, user, sample}` with the REAL composition over a small live sample, every other feature a
+404, and the Lab shows it read-only (unlockable per-column copies, ephemeral, never saved). A chat
+feature with neither rows nor sections is a bug state the Workbench says (`kit.workbench.err.noPrompt`),
+never a preview asked for. The Lab's test input comes from the app's own data through
+`configureTestData` and `installLlm` `testSamples` (§19). The optional `dataLinks` prop
+(`[{label, href}]`, forwarded AiModelsArea → Workbench → Lab) links the DATA a prompt is fed — docgen's
+context · glossary · notes — under the test input ("Change what this prompt says:", `kit.lab.changeData`)
+on every Lab; apps that pass nothing render nothing. `jsonMode` is prompt-row state. A registered
+feature that never calls the engine is a LIE on the routing surface — register it the day it routes.
 
 And the test is CONTENT, not mounting: log a marker line, fetch `/v1/logs/tail`,
 assert the marker (a 200 from an empty ring proves nothing).

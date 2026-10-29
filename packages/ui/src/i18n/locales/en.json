@@ -1578,7 +1578,8 @@
         "preset": "Preset change failed: {error}",
         "reset": "Reset failed: {error}",
         "save": "Save failed: {error}",
-        "preview": "The app's prompt preview is unavailable."
+        "preview": "The app's prompt preview is unavailable.",
+        "noPrompt": "{feature} has no prompt for the Lab — the app registers none for it."
       },
       "resetPresets": {
         "title": "Reset presets to defaults?",

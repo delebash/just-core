@@ -32,8 +32,8 @@ import { keyedText, presetDisplayName } from "../services/seededWords.js";
 
 const props = defineProps({
   runStream: { type: Function, default: null },
-  // The app's doors to its prompt-feeding data, rendered by the Lab — a prompt row's and a
-  // promptless feature's alike (Option-A seam, ruling 2026-08-04; docgen's rows 2026-10-29). [{label, href}].
+  // The app's doors to the data its prompts are fed, rendered by the Lab — a prompt row's and a
+  // sectioned feature's alike (Option-A seam, ruling 2026-08-04; docgen's rows 2026-10-29). [{label, href}].
   dataLinks: { type: Array, default: () => [] },
   // Deep-link focus (parity batch 2026-08-06 — JV's retired #speakerlab lands
   // on its attribution action): an action key (or feature key) to select on
@@ -84,11 +84,9 @@ const navGroups = computed(() => {
   const groupLabel = {};
   for (const f of routing.value?.features || []) {
     const actions = prompts.value.filter((p) => p.feature === f.key);
-    // A feature with NO prompt rows still ROUTES (feature -> engine preset). Apps
-    // that build their own prompts (i18n: feature_prompts={} because shielding owns
-    // the request body) register features with zero actions - dropping them here
-    // rendered "Routing by feature" EMPTY for the whole app (found live 2026-08-03).
-    // They stay, and select a routing-only pane instead of a FeatureLab.
+    // A feature with NO prompt rows still ROUTES (feature -> engine preset): a runtime feature (an image or vision
+    // model's — its preset pane), a labeled panel's, a sectioned one's. Dropping them here once rendered "Routing by
+    // feature" EMPTY for a whole app (found live 2026-08-03). They stay, and select their pane.
     const grp = f.group || GROUP_FALLBACK;
     if (!(grp in byGroup)) { byGroup[grp] = []; order.push(grp); groupLabel[grp] = f.group ? keyedText(f.groupKey, f.group) : grp; }
     byGroup[grp].push({ key: f.key, label: featMeta.value[f.key].label, actions });
@@ -298,11 +296,9 @@ async function onUseProduction(presetId) {
   await setFeaturePreset(selAction.value, presetId);
 }
 
-// ── Promptless features: the app's pipeline owns the prompt (2026-08-04) ──
-// The Lab shows the REAL generated prompt from the app's /v1/ai/prompt-preview
-// (the family contract) so tuning runs what production runs. An app or feature
-// without a preview fails LOUD into the assignment-only fallback — routing still
-// picks the engine preset; nothing renders blank.
+// ── A sectioned feature's built prompt (2026-08-08; the pipeline-owned kind it grew from retired 2026-10-29) ──
+// Its rows compose into ONE call, so the Lab shows the REAL composed prompt from the app's /v1/ai/prompt-preview
+// (JustVoice's refine — its carve-out) and tuning runs what production runs. A preview that fails says so, LOUD.
 const builtPrompt = ref(null);   // {system, user} from the app's builder
 const builtMeta = ref("");       // names the sample ("6 pending key(s) · es")
 const previewErr = ref("");
@@ -384,8 +380,15 @@ async function saveSection(row) {
   }
 }
 watch(selFeature, (k) => {
+  builtPrompt.value = null; // never the last feature's prompt under this one
+  previewErr.value = "";
   if (!k || kindOf(k) !== "llm") return; // an image feature has no prompt to preview (its pane is its own)
-  if (!prompts.value.some((p) => p.feature === k) || sectionedFeature(k)) loadPreview(k);
+  if (sectionedFeature(k)) loadPreview(k);
+  // A chat feature with no prompt rows that isn't sectioned (nor a labeled panel's) is a bug state since the
+  // pipeline-owned kind retired (2026-10-29): said, and no preview asked of an app that serves none.
+  else if (!prompts.value.some((p) => p.feature === k) && !featurePanelMetaFor(k)?.label) {
+    previewErr.value = t("kit.workbench.err.noPrompt", { feature: featMeta.value[k]?.label || k });
+  }
 });
 
 const navCollapsed = ref(false);
@@ -532,8 +535,8 @@ onMounted(load);
             </div>
           </div>
 
-          <!-- The full Lab over the app-built prompt (sectioned AND promptless
-               features): Generated prompt · model · params · Save as preset ·
+          <!-- The full Lab over a sectioned feature's composed prompt:
+               Generated prompt · model · params · Save as preset ·
                Use in production. The preset row inside the Lab is THE
                assignment control (one source — the 2026-06-29 ruling; the
                resurrected per-feature chooser died with the pieces pane,
