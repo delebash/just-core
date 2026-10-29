@@ -783,7 +783,9 @@ export class RuntimeService {
     arb.busyBegin(this.rt.kind);
     clearTimeout(this._idleTimer);
     try {
-      return await fn(held.instance);
+      // the work records its speed itself — the kit can't time it (an app keeps an image's encode): one image's encode in
+      // seconds, the vision kind's unit (2026-10-29)
+      return await fn(held.instance, { recordSpeed: (secPerImage) => this.recordSpeed(modelId, { secPerImage }) });
     } finally {
       held.jobs--;
       arb.busyEnd(this.rt.kind);

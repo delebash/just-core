@@ -13,7 +13,7 @@ import { createServer } from "../src/platform/server.js";
 import { configureRuntimeServices, RuntimeService } from "../src/runner/runtime_service.js";
 import { freshDb } from "./helpers.js";
 
-test("a runtime's speed bands: seeded, shown in its status, edited through its settings; a kind without bands refuses them", async () => {
+test("a runtime's speed bands: seeded, shown in its status, edited through its settings", async () => {
   freshDb();
   seed.configureAppSeed({ featureCatalog: [], featurePrompts: {}, enginePresets: [], featurePresets: {}, defaultPresetId: "", runtimes: ["sdcpp", "onnx"], runtimeModels: [] });
   seed.seedLlm();
@@ -32,7 +32,6 @@ test("a runtime's speed bands: seeded, shown in its status, edited through its s
   // the idle time alone still saves, the bands kept
   expect((await (await put("sdcpp", { idleSeconds: 120 })).json())).toMatchObject({ idleSeconds: 120, bands: { fast: 20 } });
   expect((await put("sdcpp", { bands: { fast: 0, fine: 90, slow: 240 } })).status).toBe(422);
-  // a kind with no speed bands (ONNX's vision, until it gets its own)
-  expect((await status("onnx")).bands).toBeNull();
-  expect((await put("onnx", { bands: { fast: 1, fine: 2, slow: 3 } })).status).toBe(400);
+  // the vision kind's bands, in the same unit (the finish list's C23: one image's encode)
+  expect((await status("onnx")).bands).toMatchObject({ fast: 5, fine: 20, slow: 60, unit: "s/image" });
 });

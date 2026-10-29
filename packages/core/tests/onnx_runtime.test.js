@@ -278,3 +278,21 @@ test("a vision feature runs through its preset: the model, the params, the app's
   expect(a.built[0].executionProvider).toBe("cpu");
   await svc.stopServer();
 });
+
+// The finish list's C23 (2026-10-29): a vision model's speed on its chip. The kit can't time the work itself — an app
+// keeps an image's encode (house-paint's finder), so one run has it and the next doesn't — so the work gets a
+// `recordSpeed(secondsPerImage)` the app calls after one image's encode; it lands in the measurement ledger in the
+// image runtime's unit (s/image), and the vision kind has bands in it: fast ≤5 s, fine ≤20 s, slow ≤60 s (seeded,
+// editable on its tab).
+test("a vision run records one image's encode as seconds per image; the vision kind has bands in that unit", async () => {
+  const { DEFAULT_RUNTIME_BANDS } = await import("../src/runner/config.js");
+  expect(DEFAULT_RUNTIME_BANDS.vision).toMatchObject({ fast: 5, fine: 20, slow: 60, lowerIsFaster: true, unit: "s/image" });
+  filesHere();
+  const recorded = [];
+  const svc = service({ arbiter: () => fakeArbiter(), measurements: { record: (id, row) => recorded.push([id, row]) } });
+  await svc.withModel("tiny-seg", { adapter: adapterOf(), params: {} }, async (_inst, { recordSpeed }) => {
+    recordSpeed(13.5);
+  });
+  expect(recorded).toHaveLength(1);
+  expect(recorded[0][1]).toMatchObject({ kind: "vision", secPerImage: 13.5, source: "speed" });
+});

@@ -78,6 +78,9 @@ export const DEFAULT_BAND_SLOW_TOKS = 2.0;
 // (seed.seedRuntimeBinaries); the dead zone is the chat bands' own `band_deadzone_frac`. Start values, not law.
 export const DEFAULT_RUNTIME_BANDS = Object.freeze({
   image: Object.freeze({ fast: 30, fine: 120, slow: 300, lowerIsFaster: true, unit: "s/image" }),
+  // a vision model: one image's encode, recorded by the app's adapter (the finish list's C23, 2026-10-29 — house-paint
+  // measured SAM 3's encode on the CPU at 13–16 s)
+  vision: Object.freeze({ fast: 5, fine: 20, slow: 60, lowerIsFaster: true, unit: "s/image" }),
 });
 
 // Speed-truth plan 2026-09-19 §5 — the band DEAD ZONE. A PREDICTED tok/s within this
