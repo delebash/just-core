@@ -98,6 +98,7 @@ import {
   takeCarried,
   useDefaultRoot,
 } from "./dataRoot.js";
+import { buildCsp } from "./csp.js";
 import { pickSpellLanguages } from "./spellLanguages.js";
 import { placeSaved } from "./save_place.js";
 import { firstErrorLine, listenFailure, PROXY_PROBE_URL, proxyFromPac, serverEnv } from "./server_start.js";
@@ -209,7 +210,9 @@ const STOP_WAIT_MS = 15_000;
  *   logFile       the server's live log, relative to the data root (tray "Open log file")
  *   closeHoldMs   wait before closing so a `pagehide` save lands (JustWrite: 400)
  *   csp           the Content-Security-Policy for app:// pages (a default is used)
- *   cspAdd        sources added to the default's directives, e.g. {"img-src": ["https:"]}
+ *   cspAdd        sources added to a directive, e.g. {"img-src": ["https:"]} — one the default lists, or one it
+ *                 doesn't, which then holds exactly these ({"frame-src": ["http://127.0.0.1:*"]}: docgen's frame of
+ *                 its own server's page); see csp.js
  *   trayExtras    extra tray items [{id, label, event}] sent to the renderer as `tray:<event>`
  *   permissions   web permissions the app's page may have beyond the clipboard (e.g. "media"
  *                 for the microphone); every other request is denied
@@ -541,22 +544,8 @@ export function runDesktopApp(config) {
     });
   }
 
-  // ── app:// — the built UI, with a written CSP ──────────────────────────────
-  const cspDefault = [
-    ["default-src", "'self'"],
-    ["script-src", "'self'"],
-    ["style-src", "'self' 'unsafe-inline'"],
-    ["img-src", "'self' data: blob: http://127.0.0.1:* http://localhost:*"],
-    ["media-src", "'self' data: blob: http://127.0.0.1:* http://localhost:*"],
-    ["font-src", "'self' data:"],
-    ["connect-src", "'self' http://127.0.0.1:* http://localhost:*"],
-    ["worker-src", "'self' blob:"],
-    ["object-src", "'none'"],
-    ["base-uri", "'self'"],
-  ];
-  const csp =
-    config.csp ||
-    cspDefault.map(([d, src]) => [d, src, ...((config.cspAdd || {})[d] || [])].join(" ")).join("; ");
+  // ── app:// — the built UI, with a written CSP (csp.js: the default, an app's cspAdd, or its own csp) ──────────
+  const csp = buildCsp({ csp: config.csp, cspAdd: config.cspAdd });
 
   function serveApp(request) {
     const url = new URL(request.url);

@@ -112,9 +112,14 @@ const PASSING_SITES = new Set(["same-origin", "none"]);
 
 /** `app.use("*", resourceIsolation({appOrigins, extraOrigins, originRegex, typeBase, apiPrefixes}))` — refuses a
  *  read the browser marks cross-site (403 problem+json), but the app's own origins and a navigation to its pages. */
-export function resourceIsolation({ appOrigins = [], extraOrigins = [], originRegex = "", typeBase = "", apiPrefixes = ["/v1"] } = {}) {
+export function resourceIsolation({ appOrigins = [], extraOrigins = [], originRegex = "", typeBase = "", apiPrefixes = ["/v1"], framePaths = [] } = {}) {
   const allowed = originAllowlist({ appOrigins, extraOrigins, originRegex });
   const isApi = (p) => (apiPrefixes || []).some((pre) => p.startsWith(pre));
+  // `framePaths` (2026-10-29, docgen's Review frames its server's /v1/gt-frame from the desktop window): a frame's
+  // navigation (Sec-Fetch-Dest iframe) to exactly these paths passes. A frame's request carries no Origin, so it can't
+  // be told from another page's frame of the same path: a path named here must hold no data (docgen's is a static
+  // shell echoing its own text). Any other use of the path stays held.
+  const frameable = new Set(framePaths || []);
   return async function resourceIsolationMiddleware(c, next) {
     if (!READS.has(c.req.method)) return next();
     const site = c.req.header("sec-fetch-site");
@@ -123,6 +128,7 @@ export function resourceIsolation({ appOrigins = [], extraOrigins = [], originRe
     if (origin && allowed(c, origin)) return next();
     const p = requestPath(c);
     if (c.req.header("sec-fetch-mode") === "navigate" && c.req.header("sec-fetch-dest") === "document" && !isApi(p)) return next();
+    if (c.req.header("sec-fetch-mode") === "navigate" && c.req.header("sec-fetch-dest") === "iframe" && frameable.has(p)) return next();
     return sendProblem(c, 403, {
       type: `${typeBase}cross-site`,
       title: "Forbidden",

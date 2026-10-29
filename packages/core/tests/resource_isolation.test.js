@@ -78,3 +78,21 @@ test("same-origin, none and no header pass; writes are left to csrfOrigin", asyn
   const w = await a.request("http://127.0.0.1:17499/v1/notes", { method: "POST", headers: meta("cross-site", "cors", "empty", { origin: "https://evil.example" }) });
   expect(w.status).toBe(200); // (csrfOrigin refuses it, wired beside this one)
 });
+
+test("framePaths: a frame of exactly those paths passes (a page with no data — docgen's text shell); nothing else", async () => {
+  // docgen's Review frames its server's GET /v1/gt-frame from the desktop window (2026-10-29): a cross-site navigation,
+  // Sec-Fetch-Dest iframe, no Origin — refused before. A frame's request can't tell the app's window from another
+  // page, so a listed path answers any frame: it must hold no data.
+  const a = createServer({ typeBase: "t/" });
+  a.use("*", resourceIsolation({ appOrigins: ["app://demo"], typeBase: "t/", framePaths: ["/v1/gt-frame"] }));
+  a.get("/v1/gt-frame", (c) => c.text("<!doctype html>the frame"));
+  a.get("/v1/data/backup", (c) => c.json({ made: true }));
+  expect((await get(a, "/v1/gt-frame?text=hi", meta("cross-site", "navigate", "iframe"))).status).toBe(200);
+  // only a frame of it: the same path loaded as an image or fetched cross-site is still refused
+  expect((await get(a, "/v1/gt-frame", meta("cross-site", "no-cors", "image"))).status).toBe(403);
+  // and only the paths named: another API path framed is refused, so is a path that merely starts the same
+  expect((await get(a, "/v1/data/backup", meta("cross-site", "navigate", "iframe"))).status).toBe(403);
+  expect((await get(a, "/v1/gt-frame-more", meta("cross-site", "navigate", "iframe"))).status).toBe(403);
+  // without the option nothing changes: a frame of any path is refused (the test above)
+  expect((await get(app(), "/v1/data/backup", meta("cross-site", "navigate", "iframe"))).status).toBe(403);
+});

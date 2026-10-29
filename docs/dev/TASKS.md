@@ -30,7 +30,12 @@ STATE:  The kit's half BUILT 2026-10-29: `website/` (sync-docs.js, deploy.js, de
 STATE:  1 BUILT 2026-10-29 (RunRequest `presetId` — preset_resolve `presetById`; an unknown one a 404 naming it; test
         run_with_a_chosen_preset_runs_that_preset_whole). 2 BUILT 2026-10-29 (renderHelpMarkdown skips a front-matter
         block through the `front-matter` package — a new kit peer, installed in the template and house-paint, the
-        other apps by their sessions; tests/help_markdown.test.js; §19's "A help page" row). 3 and 4 OPEN.
+        other apps by their sessions; tests/help_markdown.test.js; §19's "A help page" row). 3 BUILT 2026-10-29 (the
+        policy builder is shell/csp.js `buildCsp`: cspAdd extends a default directive or adds one the default lacks,
+        holding exactly the app's sources; a name or source that would smuggle a directive in throws at start;
+        tests/shell_csp.test.js). 4 BUILT 2026-10-29 (resourceIsolation `framePaths`: an iframe navigation to exactly
+        those paths passes — no Origin to tell the app's window from another page's frame, so a listed path holds no
+        data; tests/resource_isolation.test.js). docgen's sync before its first release: below, 5.
         1. `runAction` with a chosen preset: docgen's escalation runs a feature with a preset the user picks
            (`presetId`); RunRequest (`llm/prompts.js` ~301-332) has none, and passing provider/model/temperature as
            overrides still mixes in the assigned preset's samplers/topP (~474-480). Ask: `RunRequest.presetId` — when
