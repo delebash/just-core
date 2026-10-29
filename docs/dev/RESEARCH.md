@@ -2302,7 +2302,7 @@ claude-code-on-the-web, cloud-environments, remote-control, worktrees, workflows
 
 The plan: [`../plans/2026-10-12-i18n-standard.md`](../plans/2026-10-12-i18n-standard.md). The July
 research and its seven decisions are JustWrite's
-`docs/plans/2026-07-26-i18n-single-source-research.md`; what JustWrite still shows in English, by
+`docs/plans/archive/2026-07-26-i18n-single-source-research.md`; what JustWrite still shows in English, by
 a pseudo-locale run, is JustWrite's `docs/dev/RESEARCH.md` "Translation: what still shows in
 English".
 
