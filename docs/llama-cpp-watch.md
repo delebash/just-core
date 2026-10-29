@@ -51,7 +51,7 @@ one sitting:
 
 ## Current state
 
-- **Pinned build:** `b11239` — `DEFAULT_PINNED_BUILD` in `llm_runner/runner/config.py`
+- **Pinned build:** `b11239` — `DEFAULT_PINNED_BUILD` in `packages/core/src/runner/config.js`
   (line anchors in this doc went stale once — cite the SYMBOL, grep for the line).
   Moved from `b10750` on **2026-09-28**. User: *"go draft the comment and close it do 1 and 3
   as well"*; item 1 = move the pin to head.
@@ -328,8 +328,8 @@ byte-identical at `b10964` and `b11056`** (`LLM_FFN_EXPS_REGEX`, `i_gpu_start`, 
 
 ## Adoption candidates — from the 2026-07-14 review, b9899 → b9993
 
-*(Every build below is at or under `b9993`, so with the pin now at `b10750` all of these
-backend fixes ship; the code-side ideas - b9986, b9967 - remain opportunistic.)*
+*(Every build below is at or under `b9993`, so with the pin at `b11239` all of these backend fixes ship; the
+code-side ideas - b9986, b9967 - remain opportunistic. Item 1, the bump, was done 2026-07-14 — the review log.)*
 
 None forces a code change; ranked by value to our surfaces. Only builds **>b9899**
 (everything ≤ our pin is already in our build). Grounded to our code where noted.
@@ -337,7 +337,7 @@ None forces a code change; ranked by value to our surfaces. Only builds **>b9899
 **1. Bump the engine build `b9899` → `b9993` (highest leverage).** One pin bump pulls
 in every backend perf + correctness fix below for free — same mechanism as the last
 bump (`DEFAULT_PINNED_BUILD`, `llm_runner/runner/config.py`; precedent = the b9899
-bump). Needs a box test (binary download + a load). NOT done here — flagged for your word.
+bump). DONE 2026-07-14 (the review log's second row).
 
 **2. Reasoning / thinking — strongest cluster, with a real gap it fixes.** Our
 low/medium/high effort is translated per provider (Ollama → native `think` level,
@@ -388,9 +388,8 @@ b9911 (NVFP4), b9937 · AMD Vulkan b9932 (GCN FA), b9929 (small GPUs) · Intel S
 | 2026-09-19 (same evening) | b10437 (good) | b10964 (bad) | 8 builds probed of the 318 between them, on draft acceptance | **Yes — culprit named** | **BISECT (user: "go bisect").** **First bad build `b10751` = `cuda: fuse MoE weighted expert reduction` (#25952)** — it fuses the MoE combine tail into one CUDA kernel, reordering float accumulation across experts, so acceptance halves (0.823 → 0.481) and drafted output stops equalling greedy. CUDA-only, MoE-only. Last good = **b10750**, which BEATS b10437 (1.028 ×, exact, byte-identical output) and has every platform asset. **Pin moved b9993 → b10750** (user: "go pin b10750"). Every test build deleted; the author's disk left as found. Open: report #25952 upstream; and the Update button still offers the stable b10964, which is bad. |
 | 2026-09-28 | b10750 | b11239 (stable: `v0.5.0` = b11146) | b10750 / b10751 / b11239 re-measured; no commit read | **Yes — the 2026-09-19 MTP finding was too broad** | **RE-MEASURE (user: "re-measure with a real chat prompt on b10750 vs b10751", then "go measure head with the raw prompt control").** Prompted by #29381, closed unmerged: *"can't reproduce … hallucinated"*. Through the chat template the three builds are level (acceptance ±0.02, the draft 1.10–1.32× on each) and NONE is exact. The raw control reproduces byte for byte, so the drop is real but confined to untemplated input. **Pin moved b10750 → b11239** (user: "do 1"). Three asset renames verified against the live release. Plan §10 has the tables. Open: the USER posts the #29168 correction and closes it (agents are barred by llama.cpp's AGENTS.md); the live DBs still pin b10750. |
 
-**Last reviewed:** `b11056` · 2026-09-19 (commit-log review); **b11057 landed after it and
-was MEASURED, not reviewed** — its one commit is `chat : fix gemma4 required tool grammar`
-(#29115), and it carries the MTP regression unchanged. **Pin: `b10750`** (moved this day, by measurement
-— the last build before the MTP regression; see Current state). The author's disk is still
-`b10437`. **Nothing ≥ b10751 may be pinned until #25952's regression is fixed upstream** —
-b10964 (the current stable) and b11056 (head) both fail the speed-and-exactness gate.
+**Last reviewed:** `b11056` · 2026-09-19 (commit-log review); `b11057`–`b11239` were measured, not
+reviewed (2026-09-28). **Pin: `b11239`** (moved 2026-09-28 by re-measurement: the 2026-09-19 MTP drop is confined to
+untemplated input, so `b10751` and later are allowed — the review log). The `b11239` move skipped the review
+checklist's re-read of the placement rules and request parsing; that re-read and the next pin move (to the latest
+release) are the kit's TASKS, "Finish the kit", items 32 and the pin.

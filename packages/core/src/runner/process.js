@@ -189,9 +189,8 @@ export const OVERRIDES_FIELDS = Object.freeze({
   // mtp_draft_* facts after acquiring the draft file — not hand-typed (a raw switch row CAN
   // set it; power-user escape). Verified against llama.cpp b9644.
   modelDraft: "model_draft",
-  // Thinking budget (--reasoning-budget): -1 unlimited (llama default) | 0 = no thinking |
-  // N>0 caps the thinking tokens, then --reasoning-budget-message is injected before the
-  // end-of-thinking tag. Verified against llama.cpp b9644.
+  // The thinking budget: DATA only, never a launch flag (retired 2026-07-14 — see the flag table below). The value
+  // is the class tune's cap that llm/reasoning reads; every request carries its own reasoning_budget_tokens.
   reasoningBudget: "reasoning_budget",
   reasoningBudgetMessage: "reasoning_budget_message",
   extraFlags: "extra_flags",

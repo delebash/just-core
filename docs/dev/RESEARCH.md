@@ -2662,7 +2662,9 @@ touches the subject. History in [`../plans/archive/`](../plans/archive/) is not 
 
 **Speed** — [`2026-09-19-speed-truth-and-calibrated-pick.md`](../plans/2026-09-19-speed-truth-and-calibrated-pick.md).
 
-**The CPU-only band** — [`2026-07-19-cpu-only-band-test.md`](../plans/2026-07-19-cpu-only-band-test.md).
+**The CPU-only band** — the recipe [`2026-07-19-cpu-only-band-test.md`](../plans/2026-07-19-cpu-only-band-test.md); its
+run (2026-07-22) and numbers are JustWrite's `docs/plans/archive/2026-07-22-igpu-research-and-cpu-band-recovery.md`
+and `bench/results/README.md` (cold first token 27–67 s, decode 6.8–9.4 tok/s).
 
 **Jobs across the three apps** — [`2026-08-14-three-app-job-matrix.md`](../plans/2026-08-14-three-app-job-matrix.md).
 

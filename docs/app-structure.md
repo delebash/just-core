@@ -1030,8 +1030,8 @@ and the headless launcher) · `app.js` · `app_state.js` · `paths.js` · `versi
 (leading-underscore private helpers allowed beside them) with `health_api.js` (one base wire:
 `status/product/version/apiVersion` + per-app extras) and the family `/v1/prefs` door through the
 kit's `makePrefsRouter` · `database/` (`index.js`/`session.js`/`models.js`/`models_schema.js`/`seed.js`)
-where the app owns SQL — JW + JV; docgen deliberately has NONE (workspace sidecars + its
-`appmeta` table) · NO per-app CSRF (pure kit); `errors.js` exists only as an alias re-exporting
+where the app owns SQL — JW + JV; docgen keeps only its `appmeta` table, by numbered migrations in
+`database/schema.js` (2026-10-29), its workspace data in sidecar files · NO per-app CSRF (pure kit); `errors.js` exists only as an alias re-exporting
 the kit's `platform/errors` (JW + JV). `cli.js` stays where an app has domain subcommands. Tests
 in `server/tests/*.test.js`.
 
@@ -1278,10 +1278,9 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 
 - **JustWrite's `/v1/settings`** still mixes operator rows with the renderer document behind the
   mapped `/v1/prefs` door (recorded 2026-08-08, not re-checked).
-- **docgen's problem+json handler adoption and the alias sweep** (`plans/archive/target-tree.md`
-  §3b) stayed parked (recorded 2026-08-08, not re-checked).
 - **§15–§18 in JustWrite, JustVoice and docgen** (recorded 2026-10-18): the kit gives all three the
   request ids, the 422 limits and the family 500 at once; their forms predate `schemaRules` /
-  `fieldErrors` and their boot files don't call `installErrorReporting` yet.
+  `fieldErrors`. JustWrite's and docgen's boot files call `installErrorReporting`; JustVoice's doesn't yet
+  (re-checked 2026-10-29; docgen answers with the kit's problem+json through `createServer`).
 - **§16 in JustWrite and JustVoice** (recorded 2026-10-18): both drop and reseed rather than migrate
   (JW `docs/dev/ARCHITECTURE.md` "Storage policy"; JV `database/session.js`).

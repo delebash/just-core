@@ -1,6 +1,11 @@
 # CPU-only band — the box test (2026-07-19)
 
-**Status: RECIPE — waiting for the box run.** This doc is written to be executed by a
+**Status: RUN 2026-07-22 — the results are NOT in this doc's table (left empty).** The record is JustWrite's
+`docs/plans/archive/2026-07-22-igpu-research-and-cpu-band-recovery.md` and `bench/results/README.md`. The command
+below is gone: the harness is now `npm run bench:cpu` (`bench/harness/configs/cpu.json`), and `--tauri` with the
+Tauri app. What follows is the recipe as written.
+
+**Status as written: RECIPE — waiting for the box run.** This doc is written to be executed by a
 local Claude session on the user's Windows machine (RTX 2070 Super 8 GB · 32 GB RAM).
 It produces NUMBERS ONLY — no product change, no copy change, no catalog change
 happens from the box session. The numbers come back here (fill the results table),

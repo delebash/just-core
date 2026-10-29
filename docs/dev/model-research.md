@@ -14,7 +14,8 @@ app data). This doc keeps the durable laws, measured numbers, and the why.
 
 - **Gemma ≤ 3 is NOT permissively licensed** (Gemma ToU) — only **Gemma 4 is
   Apache-2.0** (HF-API verified). Never seed Gemma ≤ 3. Llama carries the
-  "Llama Community" flag; Mistral Large is research-non-commercial.
+  "Llama Community" flag; Mistral Large is research-non-commercial. A model's licence binds the family only if
+  its weights are ever BUNDLED with an app (the apps download them from the hub); that day it is the user's call.
 - **llama.cpp drops JSON-schema enforcement when thinking is on** (reproduced) →
   extraction runs think-off; attribution = 2-pass (reason → emit). **Deep schemas
   break every constrained-decode engine** → keep extraction schemas FLAT.
@@ -61,6 +62,15 @@ app data). This doc keeps the durable laws, measured numbers, and the why.
   exactly where VRAM is tight (JW later measured ~2× app-path vs bare-GGUF with
   config deltas included).
 - Qwen3.6-27B beat Gemma-4-31B 76.8 vs 76.4 on a 500-prompt creative test (external).
+- **Ternary Bonsai 1 (27B, Q2_g64) is NOT a contender on the 8 GB rung** — measured 2026-09-19 on the 2070S at the
+  app's own flags (ctx 32768, q8_0 KV, fa on, the engine placing tensors): 7.06 GB file, 38/65 layers on the card
+  (4,120 MiB card + 3,103 MiB host), **2.65 tok/s**, against Gemma 26B-A4B's 46.35 (draft) / 38.10 (none). It is
+  DENSE (`expert_count 0`): every token reads all 7 GB and 27 layers cross PCIe; a MoE activates ~4B. "27B quality
+  at 6.7 GB" is true of the FILE, not the speed — the evidence-not-press-release law. Not in the catalog.
+- **Ternary Bonsai 2 (27B, from Qwen3.8) runs only on PrismML's fork** — verified from the GGUF headers 2026-09-19:
+  402 of 851 tensors are ggml types 143 (PTQ1_0) / 142 (PQ2_0), which mainline llama.cpp doesn't have (its enum
+  ends at 39, MXFP4, and its history never mentions them). The kit ships no forks; it waits for those types in
+  mainline.
 
 ## Speaker attribution (JV F2's research base)
 

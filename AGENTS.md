@@ -73,7 +73,8 @@ engine.
   reaches the launch; an untuned model leaves GPU placement to llama-server's own `--fit`, but
   `ctx-size` is always emitted; user values render exactly; measured tunes win, and auto-tune
   saves only a strict winner beyond the 5 % tie band.
-- **Detection proposes, never dictates.** The box's class is `vram<GB>|ram<GB>`, overridable via
+- **Detection proposes, never dictates.** The box's class is `dgpu-vram<GB>|ram<GB>` (`igpu-mem<GB>` / `unified-mem<GB>` on one
+  memory pool — `hardware.js` `formatClassKey`), overridable via
   `classKeyOverride` on `/v1/ai/engine-config`.
 
 ## Where to look

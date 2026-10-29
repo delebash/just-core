@@ -37,14 +37,14 @@ mark every assumption "(assumed)" for them to correct.
 
 ## Before planning or building any piece
 
-- **The kit and template first.** Anything they have — AI engines (llama.cpp today; stable-diffusion.cpp,
-  audio.cpp and the onnx runtime as the engines plan lands), feature routing, jobs, looks, controls — is used
+- **The kit and template first.** Anything they have — AI engines (llama.cpp, stable-diffusion.cpp and the
+  onnx runtime; audio.cpp when the engines plan's round E lands), feature routing, jobs, looks, controls — is used
   from there. Anything they lack is a kit gap: it goes into the kit first (or the user signs it off as NOT
   STANDARD), and the app is built on the kit after. Never inside the app.
-- **The areas with no standard yet** (the kit's `docs/dev/RESEARCH.md`, the template research's **N** list):
-  accessibility, client-side form validation, performance budgets, signing — and image/vision models until
-  the engines plan's round B lands (`docs/plans/2026-10-24-engines-the-llama-way.md`). A piece in one of them
-  is not planned until the kit has it or the user signs it off by name.
+- **The area with no standard yet** (the kit's `docs/dev/RESEARCH.md`, the template research's **N** list):
+  client-side form validation. A piece in it is not planned until the kit has it or the user signs it off by
+  name. (Decided since: accessibility — app-structure §17, WCAG 2.2 AA; signing — installers are unsigned,
+  §Q.2; performance budgets — none, §18; image and vision models — the kit's engines, rounds B and C.)
 - **Every plan carries a standards table** with a "Kit code" column: each row names the kit file or export it
   uses (`acquireRuntime`, `packages/core/src/runner/binary.js`), or says "app — why" for the app's own logic,
   or "NOT STANDARD — the standard option and the trade-off" (it waits for the user's word on that row).

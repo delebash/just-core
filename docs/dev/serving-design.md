@@ -202,9 +202,12 @@ standing distillation).
 
 - The arbiter's LRU sees load-time + measure/tokenize touches, NOT live generate
   traffic.
-- `--sleep-idle-seconds` unloads the child while the arbiter KEEPS the reservation
-  → `committed_mb` over-counts after sleep (conservative by choice). A SLEEPING
-  child is NOT VRAM-free, and direct-to-router clients bypass the arbiter entirely.
+- `--sleep-idle-seconds` unloads a child; its reservation stays, marked `asleep` (`runner/arbiter.js`,
+  `syncSleeping` against the router's live `GET /models`): `committedMb` — what the admission doors price on —
+  counts only awake models, `bookedMb` counts the sleepers too, and a sleeper is never an eviction victim (it
+  holds nothing). Its wake is admitted like a load (`lifecycle.js` `reconcileSleeping`, `_admitWake`; fixed
+  2026-08-15). Still open: a client that calls the router's `/v1` directly wakes a child with nothing
+  arbitrating (arbiter.js LIMITATIONS).
 - An evict-then-failed-load leaves the victim evicted (collateral).
 - The multi-click unload/reload oddity was never diagnosed — the plan's own ruling:
   observe once with timestamps, REPORT BACK, don't fix blind. (Tracked.)

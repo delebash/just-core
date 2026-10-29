@@ -244,8 +244,8 @@ async function makeDefault(m) {
 // both ride it, no duplicated fetch/body).
 const stopModel = (m) => request("/v1/llm-runner/stop", { method: "POST", body: { modelId: m.id } });
 // Unload (user, 2026-07-07: "no way to unload"): free a resident model's VRAM without
-// loading something else. The router stays up; the model loads again on Load-as-default
-// or on the next request that needs it.
+// loading something else. The router stays up; the model loads again on the next request that needs it
+// (models load when a task uses them — Set as default never loads).
 async function unloadModel(m) {
   busy.value = `unload:${m.id}`;
   try {

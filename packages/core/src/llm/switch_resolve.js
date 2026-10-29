@@ -31,8 +31,8 @@ import { pyStr, strip } from "../platform/py.js";
 import * as db from "./db.js";
 
 // ── Active engine backend (Pass 2, 2026-07-22) ───────────────────────────────
-// llm/ must not import runner/ (install.js is the one coupling point), so the ACTIVE engine
-// family reaches the tune layers through this injected hook — the setEnsureLocalModel
+// The runner owns the ACTIVE engine family and runner/ never imports llm/ (the one-way rule), so it
+// reaches the tune layers through this injected hook — the setEnsureLocalModel
 // pattern. null (standalone, tests, pre-boot) → no backend context → legacy behavior.
 let activeBackendFn = null;
 

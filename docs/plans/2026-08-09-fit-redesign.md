@@ -1,6 +1,7 @@
 # The fit redesign — one physical truth for "does this model run here"
 
-**Date:** 2026-08-09 · **Status:** designed in full, awaiting per-phase go
+**Date:** 2026-08-09 · **Status:** BUILT — every phase (0–7) built and pushed by 2026-08-13 (the kit's TASKS,
+"Fit redesign"). How fit works now is `docs/dev/serving-design.md`, "Fit — one physical authority"; this plan is the history.
 **Designed by:** a full-day adversarial session (Fable + Opus, 6+ ordered re-passes, every
 claim code-verified with file:line, three read-only probes run on the real GGUF headers on
 the author's box). **Executor:** Opus, against THIS document — the design work is done;

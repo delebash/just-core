@@ -9,8 +9,8 @@
 //   2. preferred local runner (config.prefer_local_features)
 //   3. first registered adapter (fallback)
 //
-// llm/ never imports runner/ (they are decoupled — install.js is the one coupling point):
-// the runner reaches dispatch through the injected seams below, set at boot.
+// The imports run one way: runner/ never imports llm/ (llm/ imports runner/ freely — its config, hardware,
+// models, runtimes …); the runner reaches dispatch through the injected seams below, set at boot.
 
 import { getLogger } from "../platform/log.js";
 import { cpSlice, errText, RuntimeError, strip, strRepr, truthy } from "../platform/py.js";

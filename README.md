@@ -26,7 +26,8 @@ packages were `server/` = `@delebash/llm-runner` and `ui/` = `@delebash/llm-ui`)
 recommendation (the distinct `(model, class)` pairs ride `GET /v1/ai/model-catalog`
 as `classTuneRefs` + `myClassKey`; candidates pass the §10 guards and rank by the
 shared quality comparator). No config for the class → the §10 speed-floor rule (most
-capable model that still streams fast). The box's class is `vram<GB>|ram<GB>`,
+capable model that still streams fast). The box's class is `dgpu-vram<GB>|ram<GB>` (a graphics card), `igpu-mem<GB>` or `unified-mem<GB>` (one memory pool —
+`runner/hardware.js` `formatClassKey`),
 detection overridable via `classKeyOverride` on `/v1/ai/engine-config` ("detection
 proposes, never dictates"). The old hidden `model_class_picks` table is deleted —
 one visible table answers both "which model" and "which launch config".
