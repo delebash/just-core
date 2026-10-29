@@ -30,9 +30,13 @@ STATE:  JustWrite v2.0.0's release runs were stopped on 2026-10-28. 40783469420 
         Its screenshots (e2e/capture-direct.js, uncommitted) wait for the final build. JustWrite's session also
         reports that 9836ed4's packaged server did start in dry run 40777984596: the installer carries real copies of
         its packages, so the Hono gap only hit checkouts and the phone bundle.
-OPEN:   the go to JustWrite's session — only once the engines plan's rounds C and D and the kit's open items are
-        built, committed, pushed and the full cross-app run is green. It names the exact kit and sync commits to
-        build with.
+DECIDED 2026-10-28, the user's answer to "When should I give its session the build go?": **"Once JW's work is in
+        (Recommended)"** — "When JustWrite commits its in-progress Brainstorm work and its full checks pass in a clean
+        copy on kit b69050b + sync 1e07053, I send the go naming those commits. JustWrite uses none of rounds C/D/E's
+        new kit pieces." (The kit commit named is the one the guard's list change lands on, the commit after
+        b69050b: only scripts/check-family.js.) The kit holds still — no commit — from that check until JustWrite's
+        release run has started: release.js builds with the kit checkout's HEAD.
+OPEN:   the go to JustWrite's session, once its clean-copy checks pass on the named commits.
         JustWrite's blockers, found by the user (its code; its session fixes them, and the go waits for the commits):
         - A scene opened from a link (a strand's beat chip, "Appears in scenes", a mention) highlights its chapter
           in the left nav but leaves it collapsed, so the scene row is hidden. The links are a bare router.push;
@@ -78,8 +82,9 @@ STATE:  BUILT 2026-10-27 — CLAUDE.md (the user's global, merged into "Standard
         the runtime screens; K10b's `fastGpus`, `slow`, `ram_gb`, `lowMemory` gone (the plan's K10b says what).
         House-paint's round B on it: done 2026-10-27 (house-paint's TASKS says what).
         Family tests' bare `element.click()`: BUILT 2026-10-28 for the template and house-paint (VTU's `trigger`,
-        `DOMWrapper` for an element outside a wrapper — §18), and the guard's check 24 fails a new one. OPEN, each by
-        its session: JustWrite's 10 files and JustVoice's 8 (the guard's CLICK_KNOWN prints them until then).
+        `DOMWrapper` for an element outside a wrapper — §18), and the guard's check 24 fails a new one. JustWrite's 10
+        files converted by its session (c391373). OPEN, by its session: JustVoice's 8 (the guard's CLICK_KNOWN prints
+        them until then).
 
 ## Every engine the llama.cpp way, the standards check, JustWrite's findings [2026-10-24]
 GO:     the user, verbatim: "the speech engine audio cpp and the stable diffusion cpp should be integratet eh
@@ -153,11 +158,16 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         `runServerJob` and its words (`kit.jobs.*`), moved from house-paint with their tests; house-paint on them
         (its TASKS); §19's row. JustVoice moves its `/v1/jobs` (its own snake_case shape) onto it in round E, by its
         session.
-        OPEN, for the user's word: docgen's jobs are a third way — one run at a time with a server-sent event
-        stream, a "confirming" state and a run history (`/v1/jobs`, `/current`, `/cancel`, `/stream`, RESEARCH §11).
-        Either the kit's registry grows what docgen needs (an event stream beside the poll, a history), and docgen
-        moves onto it; or docgen's single run stays its own, named in §19 as an exception. Its `/v1/jobs/current`
-        would also be read as a job id by the kit's `/v1/jobs/:id` if both were mounted.
+        docgen's jobs, a third way — one run at a time with a server-sent event stream, a "confirming" state and a
+        run history (`/v1/jobs`, `/current`, `/cancel`, `/stream`, RESEARCH §11). DECIDED 2026-10-28, the user's
+        answer to "Which way?": **"Fold into the kit (Recommended)"** — "The kit's job system gains a live event
+        stream beside polling, plus a run history. docgen moves onto it in a docgen session I start. This follows
+        your one-way rule. It's a sizable job, and it doesn't block JustWrite." OPEN: built after JustWrite's
+        release run has started (the kit holds still under it). Its `/v1/jobs/current` would be read as a job id
+        by the kit's `/v1/jobs/:id`: the move renames it.
+        Round E (JustVoice's audio.cpp into the kit, by its session): DECIDED 2026-10-28, the user's answer to "Start
+        it?": **"Later, after releases (Recommended)"** — "It's a big change across the kit and JustVoice. Doing it
+        after JustWrite ships keeps it off JustWrite's release path."
         llama.cpp's own engine install and GGUF downloads: BUILT 2026-10-28 — `runner/download.js` `streamDownload`
         asks `disk_room.js` `lacksRoom` as soon as it knows a file's size (the probe's, a single stream's
         Content-Length) and refuses with its `DiskFullError` before writing anything (a resumable `.part` kept and

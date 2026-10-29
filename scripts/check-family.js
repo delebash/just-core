@@ -1556,18 +1556,6 @@ function checkEngines(app) {
 // millisecond on (vuejs/test-utils#1854). The files that did it before the rule are listed (CLICK_KNOWN) and printed
 // until their session moves them; any other file fails.
 const CLICK_KNOWN = new Map([
-  ["JustWrite", new Set([
-    "src/components/BrainstormPanel.test.js",
-    "src/components/EntityIndex.test.js",
-    "src/components/LogsPanel.copy.test.js",
-    "src/components/LuFeatureChip.save.test.js",
-    "src/components/ProviderForm.autoLoadModels.test.js",
-    "src/components/ProviderForm.defaultOnSave.test.js",
-    "src/components/ProviderForm.keyReveal.test.js",
-    "src/components/ProviderForm.reasoningColumns.test.js",
-    "src/components/providerScope.test.js",
-    "src/components/UiDate.test.js",
-  ])],
   ["JustVoice", new Set([
     "src/components/BookRunCard.test.js",
     "src/components/CapturePill.test.js",
