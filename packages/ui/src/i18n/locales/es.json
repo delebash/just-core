@@ -1822,7 +1822,10 @@
       "col": {
         "id": "ID del modelo",
         "input": "Entrada $/1M",
-        "output": "Salida $/1M"
+        "output": "Salida $/1M",
+        "cacheWrite": "Escritura en caché $/1M",
+        "cacheRead": "Lectura de caché $/1M",
+        "cacheTitle": "La caché de prompts de un proveedor (la de Claude): lo que cuesta escribir un prompt en ella y volver a leerlo. 0 = se cobra como entrada."
       },
       "idExample": "p. ej. {id}",
       "add": "＋ Añadir"

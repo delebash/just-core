@@ -383,7 +383,7 @@ export const TABLES = [
   },
   {
     "name": "model_pricing",
-    "ddl": "CREATE TABLE model_pricing (\n\tmodel_id VARCHAR NOT NULL, \n\tinput_per_m FLOAT NOT NULL, \n\toutput_per_m FLOAT NOT NULL, \n\tPRIMARY KEY (model_id)\n)",
+    "ddl": "CREATE TABLE model_pricing (\n\tmodel_id VARCHAR NOT NULL, \n\tinput_per_m FLOAT NOT NULL, \n\toutput_per_m FLOAT NOT NULL, \n\tcache_write_per_m FLOAT NOT NULL DEFAULT 0, \n\tcache_read_per_m FLOAT NOT NULL DEFAULT 0, \n\tPRIMARY KEY (model_id)\n)",
     "indexes": [],
     "columns": {
       "model_id": {

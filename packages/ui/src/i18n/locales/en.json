@@ -1822,7 +1822,10 @@
       "col": {
         "id": "Model id",
         "input": "Input $/1M",
-        "output": "Output $/1M"
+        "output": "Output $/1M",
+        "cacheWrite": "Cache write $/1M",
+        "cacheRead": "Cache read $/1M",
+        "cacheTitle": "A provider's prompt cache (Claude's): what writing a prompt to it and reading it back cost. 0 = priced as input."
       },
       "idExample": "e.g. {id}",
       "add": "＋ Add"

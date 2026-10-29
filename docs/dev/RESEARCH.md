@@ -2222,6 +2222,15 @@ claude-code-on-the-web, cloud-environments, remote-control, worktrees, workflows
 
 ## 7 · Cloud model adapters
 
+- **Claude's prompt cache, and what it costs per model** (platform.claude.com prompt caching + pricing, *read*
+  2026-10-29): the top-level `cache_control: {type: "ephemeral"}` on a request caches its last cacheable block (5
+  minutes; a prompt under the model's minimum — 512 to 4096 tokens — silently isn't cached). With caching on, usage's
+  `input_tokens` is only the uncached part; `cache_creation_input_tokens` and `cache_read_input_tokens` come apart. The
+  rates are per model, not one multiplier: 5-minute writes 1.25× input; reads Fable 5.1 $0.25 (0.025×), Opus 5.5
+  $0.20 (0.05×), Sonnet 5.5 $0.10, Haiku 5.5 $0.01, Opus 4.x / Sonnet 4.6 / Haiku 4.5 0.1×. The kit's Claude adapter
+  caches every request since 2026-10-29; `prompt_tokens` counts the whole prompt; the ledger prices writes and reads
+  at the model's own rates (`model_pricing.cache_write_per_m` / `cache_read_per_m`, seeded, editable on the price
+  table — 0: priced as input, never under-reported). — *docs + code + test* · `llm/anthropic.js`, `llm/pricing.js`.
 - The Claude adapter tells model generations apart with a table (`GENERATIONS`,
   `server/src/llm/anthropic.js`): per generation, how thinking turns off (`disabled`,
   `between_tools` for Sonnet 5.5, or not at all for Fable, Mythos and Opus 5.5) and whether it

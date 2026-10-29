@@ -38,8 +38,10 @@ export function LLMMessage(role, content) {
 }
 
 /** A non-streaming chat completion's result. finish_reason: "stop" | "length" | "tool_use" | "error". */
-export function LLMResponse({ text, model, finish_reason = "stop", prompt_tokens = 0, completion_tokens = 0, raw = {} } = {}) {
-  return { text, model, finish_reason, prompt_tokens, completion_tokens, raw };
+// `prompt_tokens` counts the whole prompt; `cache_write_tokens` / `cache_read_tokens` the part of it a provider wrote to
+// or read from its prompt cache (Claude's — the ledger prices them at the model's own cache rates; 0 elsewhere).
+export function LLMResponse({ text, model, finish_reason = "stop", prompt_tokens = 0, completion_tokens = 0, cache_write_tokens = 0, cache_read_tokens = 0, raw = {} } = {}) {
+  return { text, model, finish_reason, prompt_tokens, completion_tokens, cache_write_tokens, cache_read_tokens, raw };
 }
 
 /**
@@ -66,8 +68,10 @@ export function StreamDelta({
   model = "",
   finish_reason = "",
   reasoning = "",
+  cache_write_tokens = 0,
+  cache_read_tokens = 0,
 } = {}) {
-  return { text, done, prompt_tokens, completion_tokens, progress, model, finish_reason, reasoning };
+  return { text, done, prompt_tokens, completion_tokens, progress, model, finish_reason, reasoning, cache_write_tokens, cache_read_tokens };
 }
 
 /** Python's `isinstance(x, LLMAdapter)` on the runtime-checkable Protocol: every member present. */

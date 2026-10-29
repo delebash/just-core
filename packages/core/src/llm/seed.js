@@ -897,13 +897,21 @@ export function seedModelTunesIfMissing(h, hwKey, entries) {
   return added;
 }
 
-/** Seed the cloud pricing table from DEFAULT_PRICING (merge-by-id — never clobber edits). */
+/** Seed the cloud pricing table from DEFAULT_PRICING (merge-by-id — never clobber edits). A seeded model's cache rates
+ *  that are still empty (a row from before they existed, 2026-10-29) take the seed's — a rate the user set is kept. */
 export function seedDefaultPricing(h) {
-  const existing = new Set(h.all("select model_id from model_pricing").map((r) => r.model_id));
+  const rows = new Map(h.all("select * from model_pricing", [], "model_pricing").map((r) => [r.model_id, r]));
   let added = 0;
-  for (const [mid, [inp, out]] of Object.entries(DEFAULT_PRICING)) {
-    if (existing.has(mid)) continue;
-    h.insert("model_pricing", { model_id: mid, input_per_m: Number(inp), output_per_m: Number(out) });
+  for (const [mid, [inp, out, write = 0, read = 0]] of Object.entries(DEFAULT_PRICING)) {
+    const was = rows.get(mid);
+    if (was) {
+      const fill = {};
+      if (!was.cache_write_per_m && write) fill.cache_write_per_m = Number(write);
+      if (!was.cache_read_per_m && read) fill.cache_read_per_m = Number(read);
+      if (Object.keys(fill).length) h.update("model_pricing", fill, { model_id: mid });
+      continue;
+    }
+    h.insert("model_pricing", { model_id: mid, input_per_m: Number(inp), output_per_m: Number(out), cache_write_per_m: Number(write), cache_read_per_m: Number(read) });
     added += 1;
   }
   return added;

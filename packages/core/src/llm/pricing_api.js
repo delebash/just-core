@@ -12,6 +12,8 @@ export const PricingRow = T.Object({
   modelId: T.String(),
   inputPerM: opt(T.Number(), 0.0), // USD per 1,000,000 input tokens
   outputPerM: opt(T.Number(), 0.0), // USD per 1,000,000 output tokens
+  cacheWritePerM: opt(T.Number(), 0.0), // a prompt cache's writes (0: priced as input)
+  cacheReadPerM: opt(T.Number(), 0.0), // its reads (0: priced as input)
 });
 
 export const PricingResponse = T.Object({ rows: T.Array(PricingRow) });

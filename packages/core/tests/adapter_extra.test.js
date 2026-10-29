@@ -1132,6 +1132,7 @@ test("wire: anthropic legacy and adaptive models send Python's bodies", async ()
       method: "POST",
       url: "https://api.anthropic.com/v1/messages",
       body: {
+        cache_control: { type: "ephemeral" }, // Claude's prompt caching on every request (2026-10-29)
         max_tokens: 4096,
         messages: [{ role: "user", content: "hi" }],
         model: "claude-haiku-4-5",
@@ -1146,6 +1147,7 @@ test("wire: anthropic legacy and adaptive models send Python's bodies", async ()
       method: "POST",
       url: "https://api.anthropic.com/v1/messages",
       body: {
+        cache_control: { type: "ephemeral" },
         max_tokens: 64,
         messages: [{ role: "user", content: "hi" }],
         model: "claude-opus-4-8",
@@ -1224,4 +1226,28 @@ test("ollama_embed_fallback_says_a_dropped_connection_in_the_adapters_words", as
   const err = await a.embed(["a"], { model: "nomic" }).catch((e) => e);
   expect(err.message).toMatch(/^ollama embeddings request failed: /);
   expect(err.unreachable).toBe(true);
+});
+
+// The finish list's C28 (2026-10-29): Claude's prompt caching on every request — the top-level automatic form,
+// `cache_control: {type: "ephemeral"}` (platform.claude.com, prompt caching) — and the usage counted whole: the API's
+// `input_tokens` is only the uncached part once caching is on, the writes and reads come apart.
+test("anthropic_caches_the_prompt_and_counts_its_cache_tokens", async () => {
+  const msg = {
+    id: "m", type: "message", role: "assistant", model: "claude-opus-5-5", content: [{ type: "text", text: "ok" }], stop_reason: "end_turn",
+    usage: { input_tokens: 1000, cache_creation_input_tokens: 2000, cache_read_input_tokens: 7000, output_tokens: 500 },
+  };
+  const a = anthropic({ message: msg });
+  const r = await a.chat([user("hi")], { model: "claude-opus-5-5" });
+  expect(a._client.last.cache_control).toEqual({ type: "ephemeral" });
+  expect([r.prompt_tokens, r.cache_write_tokens, r.cache_read_tokens, r.completion_tokens]).toEqual([10000, 2000, 7000, 500]);
+  const s = anthropic({
+    stream: [
+      { type: "message_start", message: { usage: { input_tokens: 10, cache_creation_input_tokens: 20, cache_read_input_tokens: 70 } } },
+      { type: "content_block_delta", delta: { type: "text_delta", text: "x" } },
+      { type: "message_delta", usage: { output_tokens: 3 } },
+    ],
+  });
+  const done = (await collect(s.streamChat([user("hi")]))).at(-1);
+  expect(s._client.last.cache_control).toEqual({ type: "ephemeral" });
+  expect([done.prompt_tokens, done.cache_write_tokens, done.cache_read_tokens]).toEqual([100, 20, 70]);
 });

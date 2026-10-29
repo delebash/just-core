@@ -870,7 +870,7 @@ export function makeFeatureRouter(getStore, getConfig) {
         model: resp.model,
         promptTokens: resp.prompt_tokens,
         completionTokens: resp.completion_tokens,
-        cost: pricing.costFor(resp.model, resp.prompt_tokens, resp.completion_tokens),
+        cost: pricing.costFor(resp.model, resp.prompt_tokens, resp.completion_tokens, { cacheWrite: resp.cache_write_tokens || 0, cacheRead: resp.cache_read_tokens || 0 }),
         finishReason: resp.finish_reason || "",
       }),
     );
@@ -933,7 +933,7 @@ export function makeFeatureRouter(getStore, getConfig) {
               promptTokens: delta.prompt_tokens,
               completionTokens: delta.completion_tokens,
               model: delta.model,
-              cost: pricing.costFor(delta.model, delta.prompt_tokens, delta.completion_tokens),
+              cost: pricing.costFor(delta.model, delta.prompt_tokens, delta.completion_tokens, { cacheWrite: delta.cache_write_tokens || 0, cacheRead: delta.cache_read_tokens || 0 }),
               // "length" = cut off (see RunResponse.finishReason).
               finishReason: delta.finish_reason,
             };

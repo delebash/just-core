@@ -681,7 +681,13 @@ export class FeaturePresetRefStore {
 }
 
 // ── cloud pricing (the usage-ledger cost source) ─────────────────────────────
-const pricingToWire = (r) => ({ modelId: r.model_id, inputPerM: r.input_per_m, outputPerM: r.output_per_m });
+const pricingToWire = (r) => ({
+  modelId: r.model_id,
+  inputPerM: r.input_per_m,
+  outputPerM: r.output_per_m,
+  cacheWritePerM: r.cache_write_per_m ?? 0,
+  cacheReadPerM: r.cache_read_per_m ?? 0,
+});
 
 export class PricingStore {
   list() {
@@ -691,11 +697,11 @@ export class PricingStore {
       .map(pricingToWire);
   }
 
-  /** {modelId(lowercased): [inputPerM, outputPerM]} */
+  /** {modelId(lowercased): [inputPerM, outputPerM, cacheWritePerM, cacheReadPerM]} (0: no cache rate) */
   asMap() {
     const out = {};
     for (const r of db.session().all("select * from model_pricing", [], "model_pricing")) {
-      out[r.model_id.toLowerCase()] = [r.input_per_m, r.output_per_m];
+      out[r.model_id.toLowerCase()] = [r.input_per_m, r.output_per_m, r.cache_write_per_m ?? 0, r.cache_read_per_m ?? 0];
     }
     return out;
   }
@@ -703,7 +709,12 @@ export class PricingStore {
   upsert(row) {
     const h = db.session();
     const mid = (row.modelId || "").trim().toLowerCase();
-    const vals = { input_per_m: Number(row.inputPerM || 0.0), output_per_m: Number(row.outputPerM || 0.0) };
+    const vals = {
+      input_per_m: Number(row.inputPerM || 0.0),
+      output_per_m: Number(row.outputPerM || 0.0),
+      cache_write_per_m: Number(row.cacheWritePerM || 0.0),
+      cache_read_per_m: Number(row.cacheReadPerM || 0.0),
+    };
     return h.tx(() => {
       if (h.get("model_pricing", mid)) h.update("model_pricing", vals, { model_id: mid });
       else h.insert("model_pricing", { model_id: mid, ...vals });

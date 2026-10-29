@@ -202,7 +202,18 @@ export class AnthropicAdapter {
     const mapped = AnthropicAdapter._mapExtra(rest);
     if (mapped) Object.assign(kwargs, mapped);
     AnthropicAdapter._applyReasoning(kwargs, think, effort, budget, modelId);
+    // Claude's prompt caching on every request — the top-level automatic form (platform.claude.com, "Prompt caching"):
+    // a repeated prefix (a feature's system prompt, a book's context) reads at the model's cache rate; a prompt below
+    // the model's minimum simply isn't cached (2026-10-29)
+    kwargs.cache_control = { type: "ephemeral" };
     return kwargs;
+  }
+
+  /** The prompt's tokens from a usage block: with caching on, `input_tokens` is only the uncached part. */
+  static _promptUsage(u) {
+    const write = pyInt(u?.cache_creation_input_tokens || 0);
+    const read = pyInt(u?.cache_read_input_tokens || 0);
+    return { prompt: pyInt(u?.input_tokens || 0) + write + read, write, read };
   }
 
   async _d10(e, { stream = false } = {}) {
@@ -229,12 +240,15 @@ export class AnthropicAdapter {
       .map((blk) => blk.text)
       .join("");
     const usage = msg.usage;
+    const p = AnthropicAdapter._promptUsage(usage);
     return LLMResponse({
       text,
       model: msg.model || kwargs.model,
       finish_reason: msg.stop_reason || "stop",
-      prompt_tokens: pyInt(usage?.input_tokens || 0),
+      prompt_tokens: p.prompt,
       completion_tokens: pyInt(usage?.output_tokens || 0),
+      cache_write_tokens: p.write,
+      cache_read_tokens: p.read,
       raw: msg,
     });
   }
@@ -246,6 +260,8 @@ export class AnthropicAdapter {
     const kwargs = this._buildKwargs(messages, { model, temperature, maxTokens, system, think, extra });
     let pt = 0;
     let ct = 0;
+    let cw = 0;
+    let cr = 0;
     let finish = "";
     try {
       const events = await (await this._ensureClient()).messages.create({ ...kwargs, stream: true }, signal ? { signal } : undefined);
@@ -256,7 +272,7 @@ export class AnthropicAdapter {
         const etype = event?.type ?? null;
         if (etype === "message_start") {
           const u = event.message?.usage ?? null;
-          if (u != null && u.input_tokens != null) pt = pyInt(u.input_tokens || 0);
+          if (u != null && u.input_tokens != null) ({ prompt: pt, write: cw, read: cr } = AnthropicAdapter._promptUsage(u));
         } else if (etype === "content_block_delta") {
           const delta = event.delta ?? null;
           if (delta != null && delta.type === "text_delta") {
@@ -274,7 +290,7 @@ export class AnthropicAdapter {
       if (signal?.aborted) throw abortError(signal);
       throw await this._d10(e, { stream: true });
     }
-    yield StreamDelta({ done: true, prompt_tokens: pt, completion_tokens: ct, finish_reason: finish });
+    yield StreamDelta({ done: true, prompt_tokens: pt, completion_tokens: ct, finish_reason: finish, cache_write_tokens: cw, cache_read_tokens: cr });
   }
 
   async models() {

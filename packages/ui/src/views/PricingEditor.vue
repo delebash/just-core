@@ -18,19 +18,23 @@ const MODEL_ID_EXAMPLE = "gpt-5-mini";
 const rows = ref([]);
 const loading = ref(true);
 const error = ref("");
-const draft = ref({ modelId: "", inputPerM: "", outputPerM: "" });
+// a row's prices: input, output, and a prompt cache's writes and reads (Claude's — 0: priced as input; 2026-10-29)
+const PRICE_FIELDS = ["inputPerM", "outputPerM", "cacheWritePerM", "cacheReadPerM"];
+const emptyDraft = () => ({ modelId: "", inputPerM: "", outputPerM: "", cacheWritePerM: "", cacheReadPerM: "" });
+const draft = ref(emptyDraft());
 const busy = ref(""); // the modelId (or "__add") currently saving/deleting
 
 // Each row keeps the prices the server has (`base`), so Save shows only on a row edited here — one primary
 // button per change, not one on every row. A save or a remove answers the whole list: a row edited here and
 // not yet saved keeps its edits (it used to lose them to another row's save).
-const pricesOf = (r) => ({ inputPerM: String(r.inputPerM), outputPerM: String(r.outputPerM) });
-const isEdited = (r) => !!r.base && (String(r.inputPerM) !== r.base.inputPerM || String(r.outputPerM) !== r.base.outputPerM);
+const pricesOf = (r) => Object.fromEntries(PRICE_FIELDS.map((k) => [k, String(r[k] ?? 0)]));
+const isEdited = (r) => !!r.base && PRICE_FIELDS.some((k) => String(r[k] ?? 0) !== r.base[k]);
+const numbers = (r) => Object.fromEntries(PRICE_FIELDS.map((k) => [k, Number(r[k]) || 0]));
 function _apply(d, savedId = null) {
   const edited = new Map(rows.value.filter((r) => r.modelId !== savedId && isEdited(r)).map((r) => [r.modelId, r]));
   rows.value = (d.rows || []).map((r) => {
     const mine = edited.get(r.modelId);
-    return { ...r, ...(mine ? { inputPerM: mine.inputPerM, outputPerM: mine.outputPerM } : {}), base: pricesOf(r) };
+    return { ...r, ...(mine ? Object.fromEntries(PRICE_FIELDS.map((k) => [k, mine[k]])) : {}), base: pricesOf(r) };
   });
 }
 
@@ -49,14 +53,14 @@ async function put(body, key) {
 }
 
 function saveRow(r) {
-  put({ modelId: r.modelId, inputPerM: Number(r.inputPerM) || 0, outputPerM: Number(r.outputPerM) || 0 }, r.modelId);
+  put({ modelId: r.modelId, ...numbers(r) }, r.modelId);
 }
 
 async function addRow() {
   const id = (draft.value.modelId || "").trim();
   if (!id) { error.value = t("kit.pricing.err.idRequired"); return; }
-  const ok = await put({ modelId: id, inputPerM: Number(draft.value.inputPerM) || 0, outputPerM: Number(draft.value.outputPerM) || 0 }, "__add");
-  if (ok) draft.value = { modelId: "", inputPerM: "", outputPerM: "" };
+  const ok = await put({ modelId: id, ...numbers(draft.value) }, "__add");
+  if (ok) draft.value = emptyDraft();
 }
 
 async function delRow(r) {
@@ -80,13 +84,18 @@ onMounted(load);
     <div v-if="loading" class="lu-muted">{{ t('kit.common.loading') }}</div>
     <table v-else class="ui-formgrid lu-price-tbl">
       <thead>
-        <tr><th>{{ t('kit.pricing.col.id') }}</th><th>{{ t('kit.pricing.col.input') }}</th><th>{{ t('kit.pricing.col.output') }}</th><th /></tr>
+        <tr>
+          <th>{{ t('kit.pricing.col.id') }}</th><th>{{ t('kit.pricing.col.input') }}</th><th>{{ t('kit.pricing.col.output') }}</th>
+          <th :title="t('kit.pricing.col.cacheTitle')">{{ t('kit.pricing.col.cacheWrite') }}</th><th :title="t('kit.pricing.col.cacheTitle')">{{ t('kit.pricing.col.cacheRead') }}</th><th />
+        </tr>
       </thead>
       <tbody>
         <tr v-for="r in rows" :key="r.modelId">
           <td class="lu-price-id">{{ r.modelId }}</td>
           <td><UiInput v-model="r.inputPerM" type="number" width="token" /></td>
           <td><UiInput v-model="r.outputPerM" type="number" width="token" /></td>
+          <td><UiInput v-model="r.cacheWritePerM" type="number" width="token" /></td>
+          <td><UiInput v-model="r.cacheReadPerM" type="number" width="token" /></td>
           <td>
             <div class="lu-price-act">
               <UiButton v-if="isEdited(r)" intent="primary" size="small" :loading="busy === r.modelId" @click="saveRow(r)">{{ t('kit.common.save') }}</UiButton>
@@ -98,6 +107,8 @@ onMounted(load);
           <td><UiInput v-model="draft.modelId" :placeholder="t('kit.pricing.idExample', { id: MODEL_ID_EXAMPLE })" /></td>
           <td><UiInput v-model="draft.inputPerM" type="number" placeholder="0" width="token" /></td>
           <td><UiInput v-model="draft.outputPerM" type="number" placeholder="0" width="token" /></td>
+          <td><UiInput v-model="draft.cacheWritePerM" type="number" placeholder="0" width="token" /></td>
+          <td><UiInput v-model="draft.cacheReadPerM" type="number" placeholder="0" width="token" /></td>
           <td><div class="lu-price-act"><UiButton intent="secondary" size="small" :loading="busy === '__add'" @click="addRow">{{ t('kit.pricing.add') }}</UiButton></div></td>
         </tr>
       </tbody>

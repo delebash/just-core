@@ -19,6 +19,9 @@ export class DbUsageSink {
   record(entry) {
     if (!db.isConfigured()) return;
     const meta = { durationMs: entry.duration_ms, ok: entry.ok };
+    // the prompt's cached part (Claude's prompt cache) — priced at the model's cache rates, kept for the record
+    if (entry.cache_write_tokens) meta.cacheWriteTokens = entry.cache_write_tokens;
+    if (entry.cache_read_tokens) meta.cacheReadTokens = entry.cache_read_tokens;
     if (entry.error) meta.error = entry.error;
     try {
       db.session().insert("llm_usage", {
@@ -29,7 +32,7 @@ export class DbUsageSink {
         model: entry.model ?? null,
         prompt_tokens: Math.max(0, entry.prompt_tokens),
         completion_tokens: Math.max(0, entry.completion_tokens),
-        cost: costFor(entry.model, entry.prompt_tokens, entry.completion_tokens),
+        cost: costFor(entry.model, entry.prompt_tokens, entry.completion_tokens, { cacheWrite: entry.cache_write_tokens || 0, cacheRead: entry.cache_read_tokens || 0 }),
         meta: pyJson(meta),
       });
     } catch {

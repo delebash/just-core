@@ -54,6 +54,9 @@ export const ADDED_COLUMNS = [
   ["model_measurements", "sec_per_image", "FLOAT NOT NULL DEFAULT 0"],
   // a llama.cpp build's runtime companion (cudart) checked like its download — the finish list's A12 (2026-10-29)
   ["runner_binary", "runtime_sha256", "VARCHAR"],
+  // a prompt cache's write and read rates per model (Claude's) — the finish list's C28 (2026-10-29)
+  ["model_pricing", "cache_write_per_m", "FLOAT NOT NULL DEFAULT 0"],
+  ["model_pricing", "cache_read_per_m", "FLOAT NOT NULL DEFAULT 0"],
 ];
 
 let handle = null;

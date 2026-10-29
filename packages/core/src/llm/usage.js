@@ -21,8 +21,10 @@ export function UsageEntry({
   error = null,
   provider_id = null,
   at = Date.now() / 1000,
+  cache_write_tokens = 0,
+  cache_read_tokens = 0,
 }) {
-  return { feature, model, prompt_tokens, completion_tokens, duration_ms, ok, error, provider_id, at };
+  return { feature, model, prompt_tokens, completion_tokens, duration_ms, ok, error, provider_id, at, cache_write_tokens, cache_read_tokens };
 }
 
 /**

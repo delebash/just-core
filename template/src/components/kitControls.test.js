@@ -935,7 +935,8 @@ test("the price table: Save only on an edited row, one row's save keeps another'
   expect(saves()).toHaveLength(2);
   await new DOMWrapper(saves()[0]).trigger("click");
   await flushAll();
-  expect(puts).toEqual([{ modelId: "gpt-a", inputPerM: 1.5, outputPerM: 2 }]);
+  // (the cache rates ride along — 0 for a row the server sent none for: priced as input)
+  expect(puts).toEqual([{ modelId: "gpt-a", inputPerM: 1.5, outputPerM: 2, cacheWritePerM: 0, cacheReadPerM: 0 }]);
   expect(saves()).toHaveLength(1); // gpt-a saved; gpt-b's edit is still there, still unsaved
   expect(boxes()[1][1].value).toBe("9");
 });
