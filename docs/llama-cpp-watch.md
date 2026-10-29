@@ -51,9 +51,11 @@ one sitting:
 
 ## Current state
 
-- **Pinned build:** `b11239` — `DEFAULT_PINNED_BUILD` in `packages/core/src/runner/config.js`
-  (line anchors in this doc went stale once — cite the SYMBOL, grep for the line).
-  Moved from `b10750` on **2026-09-28**. User: *"go draft the comment and close it do 1 and 3
+- **Pinned build:** `b11960` — `DEFAULT_PINNED_BUILD` in `packages/core/src/runner/config.js`
+  (line anchors in this doc went stale once — cite the SYMBOL, grep for the line). Moved from `b11239` on
+  **2026-10-29** (the family release: every pinned engine at its latest; b11960 is the stable v0.8.0's build), after the
+  full review and the card checks in the review log. Each seeded row now carries GitHub's sha256. Before that: moved
+  from `b10750` on **2026-09-28**. User: *"go draft the comment and close it do 1 and 3
   as well"*; item 1 = move the pin to head.
   - **Why:** a re-measure through the chat template found no MTP regression at b10751 or at
     head. The b10750 reason came from ONE raw `/completion` prompt (plan §10; the review log).
@@ -195,7 +197,10 @@ Verified against upstream builds in code (so a reviewer knows what's already ado
 - **Bad build ranges** — before choosing a pin, search the window for regressions that were
   later fixed and keep the pin outside them. Known: `b10121`–`b10267` (macOS ≤ 15 binaries,
   #26375) · `b10398`–`b10581` (no Linux ROCm asset) · `b10741`–`b10748` (Gemma-4 assistant MTP
-  draft, #28159 → #28183).
+  draft, #28159 → #28183) · `b11594`–`b11682` (several Vulkan devices slow, #29741 → #30468) · `b11678`–`b11823`
+  (the first request after a load 60 s+ with MoE weights in host memory, #30449 → #30793, fixed at b11824). Open at
+  b11960, none firing on the family's rows (2026-10-29): #30698 (Gemma-4 + mmproj + MTP startup abort, from b11548),
+  #30419 (json_schema under draft-mtp), #31077 (MTP after a KV rollback), #30975 (teardown hang), #30688 (Vulkan MTP).
 
 ## Adoption candidates — open (from the 2026-09-19 review, b9993 → b11056)
 
@@ -217,9 +222,8 @@ The review behind them (1,064 commits read): `docs/plans/2026-09-19-engine-updat
 | 2026-09-19 (same day) | — | — | — | — | **Plan EXECUTED (user: "go do it all").** Items 1, 2, 3 and 8 BUILT and gated; all three apps green; verified live against real GitHub and the real engine. **Item 4 (pin → b10964) REFUSED BY ITS OWN BOX TEST** — on the flagship's MTP path b10964 runs at 0.784 of b10437 and its speculative output is no longer exact; b11056 the same. |
 | 2026-09-19 (same evening) | b10437 (good) | b10964 (bad) | 8 builds probed of the 318 between them, on draft acceptance | **Yes — culprit named** | **BISECT (user: "go bisect").** **First bad build `b10751` = `cuda: fuse MoE weighted expert reduction` (#25952)** — it fuses the MoE combine tail into one CUDA kernel, reordering float accumulation across experts, so acceptance halves (0.823 → 0.481) and drafted output stops equalling greedy. CUDA-only, MoE-only. Last good = **b10750**, which BEATS b10437 (1.028 ×, exact, byte-identical output) and has every platform asset. **Pin moved b9993 → b10750** (user: "go pin b10750"). Every test build deleted; the author's disk left as found. Open: report #25952 upstream; and the Update button still offers the stable b10964, which is bad. |
 | 2026-09-28 | b10750 | b11239 (stable: `v0.5.0` = b11146) | b10750 / b10751 / b11239 re-measured; no commit read | **Yes — the 2026-09-19 MTP finding was too broad** | **RE-MEASURE (user: "re-measure with a real chat prompt on b10750 vs b10751", then "go measure head with the raw prompt control").** Prompted by #29381, closed unmerged: *"can't reproduce … hallucinated"*. Through the chat template the three builds are level (acceptance ±0.02, the draft 1.10–1.32× on each) and NONE is exact. The raw control reproduces byte for byte, so the drop is real but confined to untemplated input. **Pin moved b10750 → b11239** (user: "do 1"). Three asset renames verified against the live release. Plan §10 has the tables. #29168 closed 2026-09-28; the live DBs move with the next pin (the kit's TASKS, "Finish the kit"). |
+| 2026-10-29 | b11239 | b11982 (stable: `v0.8.0` = b11960) | b11240–b11960 — all 721 commit titles read (treeless clone), v0.6–v0.8 notes, the sources diffed at both tags | **No change the kit needs** | **Pin moved b11239 → b11960** (the user: every pinned engine at its latest for the release). Flags, models.ini keys, request parsing, router routes and placement unchanged; new flags all off by default (`--moe-cache-mib`, `--models-memory-margin`, `--spec-draft-sampling`); the default port 8080 → 9931 (the kit always passes `--port`). Step 0b PASS (5 configs within 1 MiB). On the card, through the router with JustWrite's rows: both load (no #30698), its entity schema answers under draft-mtp (no #30419), 10/10 shared-prefix requests (no #31077), unload 1.1 s (no #30975); drafted ≠ greedy as before; `--fit` keeps the MTP draft (#24350 doesn't reproduce) but leaves 1,094 MiB free — an untuned 12B at 39 of 49 layers, 21 vs 41 tok/s. |
 
-**Last reviewed:** `b11056` · 2026-09-19 (commit-log review); `b11057`–`b11239` were measured, not
-reviewed (2026-09-28). **Pin: `b11239`** (moved 2026-09-28 by re-measurement: the 2026-09-19 MTP drop is confined to
-untemplated input, so `b10751` and later are allowed — the review log). The `b11239` move skipped the review
-checklist's re-read of the placement rules and request parsing; that re-read and the next pin move (to the latest
-release) are the kit's TASKS, "Finish the kit", items 32 and the pin.
+**Last reviewed:** `b11960` · 2026-10-29 (the commit log b11240–b11960, the sources at both tags; `b11057`–`b11239`'s
+titles were never read, but placement and request parsing are confirmed identical from b10437/b10964 through b11960).
+**Pin: `b11960`** (moved 2026-10-29 — the review log).

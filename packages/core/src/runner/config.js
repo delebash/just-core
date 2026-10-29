@@ -24,6 +24,13 @@ import { model } from "../platform/models.js";
 import { RunnerConfig } from "./schema.js";
 
 // EXACT llama.cpp release tag (never "latest" — reproducible spawns).
+// b11239 → b11960 (2026-10-29; the user: every pinned engine at its latest for the family release). b11960 is the build
+// GitHub's latest release, the stable v0.8.0, names (its nightly-tag.txt). Checked before the move (the watch doc's
+// review log, 2026-10-29): all 721 commit titles b11240–b11960 read; every flag, models.ini key, request field, router
+// route and placement rule the kit uses is unchanged; Step 0b passes (the kit's predicted model MiB within 1 MiB of
+// llama-fit-params on two models, five configs); and on the card through the router, JustWrite's two Gemma-4 + MTP rows
+// load, answer their JSON contract under the draft (upstream #30419 doesn't fire), survive a 10-request shared-prefix
+// run (#31077) and unload in 1.1 s (#30975). Drafted output ≠ greedy, as on every pin since the 2026-09-28 re-measure.
 // b10750 → b11239 (2026-09-28, the #29168 re-measure; user: "do 1" = move the pin to head).
 // The earlier b10750 pin ("the last build before upstream broke MTP") did NOT survive a
 // real-prompt test: its 0.823 → 0.481 acceptance drop was measured with ONE raw
@@ -37,9 +44,9 @@ import { RunnerConfig } from "./schema.js";
 // Seeding is insert-if-missing, so an EXISTING DB keeps its old `pinned_build` row — bump it
 // in the UI (Settings → AI → engine Binaries panel); this constant fixes fresh installs and
 // the panel's "reset to defaults". The Update button compares the stable channel's build
-// with the build ON DISK (`update_check`); stable (v0.5.0) names b11146, older than this
-// pin, so it offers nothing. (history: runner/config.py)
-export const DEFAULT_PINNED_BUILD = "b11239";
+// with the build ON DISK (`update_check`) and also offers this tested pin; stable (v0.8.0) names b11960, this pin.
+// (history: runner/config.py)
+export const DEFAULT_PINNED_BUILD = "b11960";
 
 // Reserve this much VRAM headroom when computing the GPU layer split.
 export const DEFAULT_SAFETY_MARGIN_MB = 1024;
@@ -169,7 +176,9 @@ export const MAX_DOWNLOAD_CONCURRENT = 10;
 // version; on Linux, from b10969, it is build-tagged.
 //
 // The rows keep Python's snake_case keys: they are seed DATA mapped onto `runner_binary`
-// columns (seed + the reset-to-defaults path read `b.asset_url`, `b.server_exe`, …).
+// columns (seed + the reset-to-defaults path read `b.asset_url`, `b.server_exe`, …). `sha256` / `runtime_sha256`: GitHub's
+// digest of each archive (GET …/releases/tags/b11960, 2026-10-29) — a download is checked against it (binary.js). The two
+// Windows cudart zips are byte-identical to b11239's.
 const REL = `https://github.com/ggml-org/llama.cpp/releases/download/${DEFAULT_PINNED_BUILD}`;
 export const DEFAULT_BINARIES = [
   {
@@ -177,7 +186,9 @@ export const DEFAULT_BINARIES = [
     gpu: "cuda12",
     source: "github",
     asset_url: `${REL}/llama-${DEFAULT_PINNED_BUILD}-bin-win-cuda-12.4-x64.zip`,
+    sha256: "8d9d819261de10cc2f03921b8b79c779c5c458e21edb60c170ee30a7d462d684",
     runtime_url: `${REL}/cudart-llama-bin-win-cuda-12.4-x64.zip`,
+    runtime_sha256: "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6",
     server_exe: "llama-server.exe",
   },
   {
@@ -185,7 +196,9 @@ export const DEFAULT_BINARIES = [
     gpu: "cuda13",
     source: "github",
     asset_url: `${REL}/llama-${DEFAULT_PINNED_BUILD}-bin-win-cuda-13.4-x64.zip`,
+    sha256: "31c75ea62b80f0816c855ea783ef68757bc2d48028edaa57d904e4982bddea4a",
     runtime_url: `${REL}/cudart-llama-bin-win-cuda-13.4-x64.zip`,
+    runtime_sha256: "738f8c251ac22b70c3ae6f83a10cf222725df0395246a2cf58f32bdb85fbe668",
     server_exe: "llama-server.exe",
   },
   // Windows AMD has been renamed TWICE upstream: win-hip-radeon (≤ b10398) → win-rocm-7.14 →
@@ -195,6 +208,7 @@ export const DEFAULT_BINARIES = [
     gpu: "rocm",
     source: "github",
     asset_url: `${REL}/llama-${DEFAULT_PINNED_BUILD}-bin-win-rocm-10.0-x64.zip`,
+    sha256: "7036a6008ea4b83229f5db5b0624f5c880a0c49c57aa38d904d0419ce74783b4",
     server_exe: "llama-server.exe",
   },
   {
@@ -202,6 +216,7 @@ export const DEFAULT_BINARIES = [
     gpu: "vulkan",
     source: "github",
     asset_url: `${REL}/llama-${DEFAULT_PINNED_BUILD}-bin-win-vulkan-x64.zip`,
+    sha256: "bac6914b5e83523eb008c6789eaa12669f93fbc196c3b9e8237b6672323b33e9",
     server_exe: "llama-server.exe",
   },
   // The cpu rows are RETIRED (user, 2026-07-07: "deleet" — a CPU-only machine can't run
@@ -213,6 +228,7 @@ export const DEFAULT_BINARIES = [
     gpu: "metal",
     source: "github",
     asset_url: `${REL}/llama-${DEFAULT_PINNED_BUILD}-bin-macos-arm64.tar.gz`,
+    sha256: "58e5a5e1d7c2bf66cedd9c29e0323f3e570660a70a1e2156d32eed08f4cc1e3c",
     server_exe: "llama-server",
   },
   // Linux AMD: rocm-7.2 (≤ b10397) → NO asset for b10398-b10581 → rocm-7.14 → rocm-10.0
@@ -222,6 +238,7 @@ export const DEFAULT_BINARIES = [
     gpu: "rocm",
     source: "github",
     asset_url: `${REL}/llama-${DEFAULT_PINNED_BUILD}-bin-ubuntu-rocm-10.0-x64.tar.gz`,
+    sha256: "63546b0175840c75b261bcb55e75cce49852c6d632eee352edbfa62c3bf120e3",
     server_exe: "llama-server",
   },
   {
@@ -229,6 +246,7 @@ export const DEFAULT_BINARIES = [
     gpu: "vulkan",
     source: "github",
     asset_url: `${REL}/llama-${DEFAULT_PINNED_BUILD}-bin-ubuntu-vulkan-x64.tar.gz`,
+    sha256: "164199e978304bb32a8a6c24b8efa015528ddf286821596eab676c90b375feac",
     server_exe: "llama-server",
   },
   // Linux CUDA: docker-only upstream, and NO pin-faithful image exists — per-build image

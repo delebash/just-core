@@ -54,7 +54,9 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            31 BUILT (the log names a llama.cpp config.ini the engine reads). 32 the pin's skipped re-read (placement rules,
            request parsing) + one MoE and one dense check run. 33 re-test --fit with Gemma-4 MTP drafts (if broken:
            llama-fit-params first, then launch with its placement). 34 the speed-truth walks on JustWrite's real app.
-           LAST before the final tests: the engine pin moves to the latest release (32 and 33 run on it).
+           LAST before the final tests: the engine pin moves to the latest release (32 and 33 run on it) — BUILT: llama.cpp
+           b11960 with each row's sha256, sd.cpp master-1024-77b72a2; 32 BUILT (the re-read, 721 commits; Step 0b PASS); 33
+           BUILT (--fit keeps the MTP draft; it halves an untuned 12B — the user's item 5); the card checks PASS (item 6).
         D. Docs: 35 BUILT (the kit's AGENTS.md (CLAUDE.md → @AGENTS.md), just-sqlite-sync's too; the guard checks both copies). 36 BUILT (app-structure: an
            accessibility standard (WCAG 2.2 AA) with a template test — §17, e2e/tests/a11y.test.js on axe; "installers
            are unsigned" family-wide — §Q.2 and the template's getting-started; no performance budgets — §18). 37 BUILT (the labeling law and the dismissal rules into §17/§19, from the code; the two IDEAS entries closed). 38 BUILT (feature-model-system.md

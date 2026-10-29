@@ -329,6 +329,16 @@ sheet `docs/plans/2026-10-07-kit-in-javascript.md`):
   server; with our own Job Object through `koffi` (MIT) it died too (*measured*). llama-server's
   router mode starts per-model children (`runner/arbiter.py:4`, `process.py:382`), so the kit's
   spawn needs that job (today: ctypes, `runner/process.py:831-907`).
+- **llama.cpp b11960 on the family's rows** (*measured*, 2026-10-29, the RTX 2070 SUPER 8 GB, the shared cache's b11960
+  cuda12 build, JustWrite's models.ini rows): Step 0b — the kit's `placedWeightMib` against `llama-fit-params -fitp on`,
+  26B-A4B qat at ngl/ncmoe 31/21, 30/21, 31/0 and 12B qat at 48 and 49 — every config within 1 MiB. `--fit` keeps a
+  Gemma-4 MTP draft (draft_n 62, 0.61 accepted), logs "failed to measure the memory of the extra model, fitting
+  without it", and leaves 1,094 MiB of the card free: the untuned 12B at ctx 16384 gets `-ngl 39` and decodes 21 tok/s,
+  41 with `--fit off` (all layers; warm and cold alike). The kit's auto-tune walks `n-cpu-moe` only for a MoE
+  (`autotune.js`), so it couldn't recover that. Through the router: load 10.4 s (26B) / 15.6 s (12B); the entity
+  schema (nested json_schema, think off) answers under draft-mtp; 10/10 shared-prefix requests; unload 1.1 s; the
+  draft 1.09× on the 26B (36.3 vs 33.3 tok/s), ~1.0× on the fit-placed 12B. The b11960 Windows zip is genuine
+  (`--version`: build 11960, commit 8642541b2).
 - **Process trees on Mac and Linux** (2026-10-29, read in code, not run on a Mac or Linux box): no job
   object — a server killed hard (crash, force quit) leaves its llama-server and the router's children
   running, holding the card. The kit's spawn seam records `<log>.pid` (pid, program, command line,

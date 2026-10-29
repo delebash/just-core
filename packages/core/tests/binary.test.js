@@ -145,6 +145,17 @@ const failingStream = (err) =>
     throw err;
   });
 
+// The download tests run FAKE archives through the seeded rows, so the rows' published digests (GitHub's, seeded since the
+// b11960 pin) are cleared for them — the checksum itself has its own tests ("checksums and resumable runtime downloads").
+const plumbingConfig = () => {
+  const m = defaultConfig();
+  for (const b of m.llamacpp.binaries) {
+    b.sha256 = null;
+    b.runtimeSha256 = null;
+  }
+  return m;
+};
+
 test("select_windows_cuda", () => {
   const m = defaultConfig();
   const h = hw("windows", { cuda: true }, [gpu({ vendor: "NVIDIA", name: "RTX 2070 SUPER", vramMb: 8192 })]);
@@ -205,7 +216,7 @@ test("select_cross_platform_rows", () => {
 
 test("acquire_windows_cuda_downloads_cudart_companion", async () => {
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   const h = hw("windows", { cuda: true });
   const calls = [];
   makeStream(calls, "llama-server.exe");
@@ -224,7 +235,7 @@ test("acquire_fetches_stored_url_into_pin_folder", async () => {
   // 2026-07-21: URLs are CONCRETE in the DB; the server does NOT compose — acquire fetches
   // exactly the stored assetUrl and unpacks into the pinned build's folder.
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   const build = m.llamacpp.pinnedBuild;
   const calls = [];
   makeStream(calls, "llama-server.exe");
@@ -298,7 +309,7 @@ function noStagingLitter(root, m) {
 test("acquire_atomic_a_failed_download_leaves_the_working_engine", async () => {
   // THE BRICK THIS FIXES: a force re-download that FAILS must NOT wipe the working engine.
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   const good = seedWorkingEngine(root, m);
   failingStream(new Error("network died mid-download"));
   await expect(binmod.acquireBinary(root, m, hw("windows", { cuda: true }), { force: true })).rejects.toThrow(/network died/);
@@ -309,7 +320,7 @@ test("acquire_atomic_a_failed_download_leaves_the_working_engine", async () => {
 test("acquire_atomic_a_build_that_fails_launch_is_discarded", async () => {
   // A downloaded build whose exe won't launch (missing DLL) is discarded; the old one stays.
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   const good = seedWorkingEngine(root, m);
   makeStream([], "llama-server.exe");
   vi.spyOn(binmod, "_verifyExeLaunches").mockRejectedValue(new Error("a required runtime library is missing"));
@@ -324,7 +335,7 @@ test("acquire_discards_a_build_that_rejects_our_flags", async () => {
   // The b10875 class, end to end: the download and the launch check both SUCCEED, and the
   // build is still discarded because it refuses a flag this app puts on every model.
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   const good = seedWorkingEngine(root, m);
   makeStream([], "llama-server.exe");
   vi.spyOn(binmod, "_verifyExeAcceptsFlags").mockRejectedValue(
@@ -343,7 +354,7 @@ test("acquire_force_reinstalls_and_swaps_even_when_present", async () => {
   // force re-fetches over an existing variant (an update / reinstall) via the staged swap —
   // NOT the idempotent skip — and the fresh build lands in place.
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   seedWorkingEngine(root, m);
   const calls = [];
   makeStream(calls, "llama-server.exe");
@@ -371,7 +382,7 @@ test("acquire_refuses_a_placeholder_url", async () => {
 test("acquire_tar_gz_macos", async () => {
   // macOS/Linux assets are .tar.gz — _unpack must handle them (was zip-only).
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   const calls = [];
   makeStream(calls, "llama-server");
   const exe = await binmod.acquireBinary(root, m, hw("macos", { metal: true }));
@@ -473,7 +484,7 @@ test("acquire_docker_raises", async () => {
 test("acquire_unpacks_into_variant_dir", async () => {
   // New installs land in <build>/<gpu>/ so variants coexist for the spawn chain.
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   makeStream([], "llama-server.exe");
   const exe = await binmod.acquireBinary(root, m, hw("windows", { cuda: true }));
   expect(isRelativeTo(exe, binmod.variantDir(root, m.llamacpp.pinnedBuild, "cuda12"))).toBe(true);
@@ -482,7 +493,7 @@ test("acquire_unpacks_into_variant_dir", async () => {
 test("acquire_gpu_override_installs_specific_variant", async () => {
   // The engine install plants fallbacks via gpu=...; each lands in ITS OWN dir.
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   const h = hw("windows", { cuda: true });
   makeStream([], "llama-server.exe");
   const exe = await binmod.acquireBinary(root, m, h, { gpu: "vulkan" });
@@ -564,7 +575,7 @@ test("acquire_binary_targets_pin_not_disk_build", async () => {
   // the superseded one is still on disk — resolving here would skip the download and the
   // stale-build sweep would then delete the only engine on disk.
   const root = tmp();
-  const m = defaultConfig();
+  const m = plumbingConfig();
   const older = `b${binmod.buildNum(m.llamacpp.pinnedBuild) - 30}`;
   const d = binmod.variantDir(root, older, "cuda12");
   mkdirSync(d, { recursive: true });
