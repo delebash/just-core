@@ -13,6 +13,19 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## Security advisories in the kit's dependencies — found by docgen's session's npm audit [2026-10-28]
+STATE:  OPEN — the kit's to set; every app's build takes them.
+        - `undici` in `packages/core` (`"^8.11.2"`, the lock at 8.11.2) — inside 8.0.0–8.12.1: GHSA-2m5v-pch6-74hx
+          (TLS certificate validation bypassed through dropped tls options in Agent, high), GHSA-4w7w-5xrc-9h26
+          (cross-origin redirect cache poisoning), several DoS. Fix: the floor `^8.12.2`, the lock to 8.12.3 (npm's
+          latest 8.x, 2026-10-28); docgen's built app installs 8.11.2.
+        - Electron 44.7.0, pinned in the template's and every app's `src-electron/package.json`: GHSA-jr5w-w6x2-84p9
+          (high, compromised eMudhra intermediate certificates), fixed in 44.10.0 (npm's latest 44.x). Fix: the
+          template and house-paint to 44.10.0; JustWrite's, JustVoice's and docgen's by their sessions.
+        docgen applied its own (its root lock: jsdom's undici 8.12.3, serialize-javascript 7.1.4; src-electron's
+        fast-uri and @electron/get's undici) and dropped qrcode (only SyncPanel imports it; docgen has no sync) — so a
+        renderer-peer check must count what an app's renderer imports, not every peer the kit lists.
+
 ## Sync gaps, moved from JustWrite's tracker [2026-10-28]
 WHY:    JustWrite's "Sync — offline first…" OPEN line (its docs/dev/TASKS.md): both are the sync engine's or the kit's
         code, so JustWrite has nothing to build. Queued after house-paint's release (the user's focus, 2026-10-28).
