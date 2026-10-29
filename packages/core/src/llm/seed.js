@@ -1129,6 +1129,7 @@ export function seedRuntimeBinaries(h, ids) {
         position: i,
         asset_unpacked_bytes: b.asset_unpacked_bytes ?? 0,
         runtime_unpacked_bytes: b.runtime_unpacked_bytes ?? 0,
+        extras: JSON.stringify(b.extras ?? []),
       });
       added += 1;
     });

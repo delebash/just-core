@@ -5,6 +5,7 @@
 // `pinned_build:<id>`, and the kit owns their defaults as it owns llama.cpp's. `kind` is the one vocabulary the
 // catalog, the providers, the features, the presets and the arbiter share: llm · tts · stt · image · vision.
 import {
+  AUDIOCPP_ADDONS,
   AUDIOCPP_BUILDS_IN_ORDER,
   AUDIOCPP_FEATURES,
   DEFAULT_AUDIOCPP_BINARIES,
@@ -70,6 +71,7 @@ export const RUNTIMES = Object.freeze({
       settings: DEFAULT_AUDIOCPP_SETTINGS,
       features: AUDIOCPP_FEATURES,
       buildsInOrder: AUDIOCPP_BUILDS_IN_ORDER,
+      addons: AUDIOCPP_ADDONS,
     }),
   }),
 });

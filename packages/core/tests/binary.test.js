@@ -13,7 +13,7 @@ import { existsSync, fstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { tmpdir } from "node:os";
 import path, { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { crc32, deflateRawSync, gunzipSync, gzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { beforeEach, expect, test, vi } from "vitest";
 import { model } from "../src/platform/models.js";
 import { NotImplementedError } from "../src/platform/py.js";
@@ -21,6 +21,7 @@ import * as procs from "../src/platform/procs.js";
 import * as binmod from "../src/runner/binary.js";
 import { DEFAULT_BINARIES, DEFAULT_PINNED_BUILD, defaultConfig } from "../src/runner/config.js";
 import * as download from "../src/runner/download.js";
+import { tarGzBytes, zipBytes } from "./archives.js";
 import { BinaryAsset, GpuInfo, HardwareInfo } from "../src/runner/schema.js";
 
 const { selectBinary } = binmod;
@@ -55,75 +56,7 @@ function hw(platformName, runtimes, gpus = null) {
 }
 const gpu = (o) => model(GpuInfo, o);
 
-// ── Archive writers (zipfile.writestr / tarfile.addfile, as the Python fake used) ──
-
-/** A zip of [name, bytes] entries — stored (method 0) unless `deflate`. */
-function zipBytes(entries, { deflate = false } = {}) {
-  const locals = [];
-  const cds = [];
-  let off = 0;
-  for (const [name, raw] of entries) {
-    const data = Buffer.from(raw);
-    const nb = Buffer.from(name, "utf8");
-    const body = deflate ? deflateRawSync(data) : data;
-    const crc = crc32(data) >>> 0;
-    const lh = Buffer.alloc(30);
-    lh.writeUInt32LE(0x04034b50, 0);
-    lh.writeUInt16LE(20, 4);
-    lh.writeUInt16LE(deflate ? 8 : 0, 8);
-    lh.writeUInt32LE(crc, 14);
-    lh.writeUInt32LE(body.length, 18);
-    lh.writeUInt32LE(data.length, 22);
-    lh.writeUInt16LE(nb.length, 26);
-    const cd = Buffer.alloc(46);
-    cd.writeUInt32LE(0x02014b50, 0);
-    cd.writeUInt16LE(20, 4);
-    cd.writeUInt16LE(20, 6);
-    cd.writeUInt16LE(deflate ? 8 : 0, 10);
-    cd.writeUInt32LE(crc, 16);
-    cd.writeUInt32LE(body.length, 20);
-    cd.writeUInt32LE(data.length, 24);
-    cd.writeUInt16LE(nb.length, 28);
-    cd.writeUInt32LE(off, 42);
-    locals.push(lh, nb, body);
-    cds.push(cd, nb);
-    off += 30 + nb.length + body.length;
-  }
-  const cdBuf = Buffer.concat(cds);
-  const eocd = Buffer.alloc(22);
-  eocd.writeUInt32LE(0x06054b50, 0);
-  eocd.writeUInt16LE(entries.length, 8);
-  eocd.writeUInt16LE(entries.length, 10);
-  eocd.writeUInt32LE(cdBuf.length, 12);
-  eocd.writeUInt32LE(off, 16);
-  return Buffer.concat([...locals, cdBuf, eocd]);
-}
-
-/** A gzipped ustar archive of [name, bytes, {type, mode, linkname}] members. */
-function tarGzBytes(members) {
-  const blocks = [];
-  for (const [name, raw, opt = {}] of members) {
-    const data = Buffer.from(raw);
-    const h = Buffer.alloc(512);
-    h.write(name, 0, 100, "utf8");
-    h.write(`${(opt.mode ?? 0o644).toString(8).padStart(7, "0")}\0`, 100, "ascii");
-    h.write("0000000\0", 108, "ascii");
-    h.write("0000000\0", 116, "ascii");
-    h.write(`${data.length.toString(8).padStart(11, "0")}\0`, 124, "ascii");
-    h.write("00000000000\0", 136, "ascii");
-    h.write("        ", 148, "ascii");
-    h.write(opt.type ?? "0", 156, "ascii");
-    if (opt.linkname) h.write(opt.linkname, 157, 100, "utf8");
-    h.write("ustar\0", 257, "ascii");
-    h.write("00", 263, "ascii");
-    let sum = 0;
-    for (const b of h) sum += b;
-    h.write(`${sum.toString(8).padStart(6, "0")}\0 `, 148, "ascii");
-    blocks.push(h, data, Buffer.alloc((512 - (data.length % 512)) % 512));
-  }
-  blocks.push(Buffer.alloc(1024));
-  return gzipSync(Buffer.concat(blocks));
-}
+// ── Archive writers: tests/archives.js ──
 
 /**
  * Fake streamDownload: writes a `.zip` or `.tar.gz` (by dest suffix) containing `exeName`,

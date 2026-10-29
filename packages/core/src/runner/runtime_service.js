@@ -23,7 +23,7 @@ import { freeBytes, lacksRoom } from "../platform/disk_room.js";
 import { ApiError } from "../platform/errors.js";
 import { getLogger } from "../platform/log.js";
 import { getArbiter } from "./arbiter.js";
-import { AudioCppPool, ModelEntry, physicalCores } from "./audiocpp.js";
+import { AudioCppPool, ModelEntry, physicalCores, sideEnv } from "./audiocpp.js";
 import * as binary from "./binary.js";
 import { buildsInUse, recordBuild } from "./cache_registry.js";
 import * as fit from "./fit.js";
@@ -31,6 +31,7 @@ import * as hardware from "./hardware.js";
 import * as models from "./models.js";
 import * as onnx from "./onnx.js";
 import * as processMod from "./process.js";
+import { installArchive, installed as extraInstalled } from "./runtime_extras.js";
 import { buildHas, runtimeOf } from "./runtimes.js";
 
 const log = getLogger("llm_runner.runner.runtime_service");
@@ -130,6 +131,9 @@ export class RuntimeService {
     stateDir = null,
     beforeRemove = null,
     acquire = binary.acquireRuntime,
+    // () => a server program to run instead of the installed build, or null — an app's development build (JustVoice's
+    // `npm run dev` runs its audio.cpp checkout's own, which has every feature — round E)
+    exeOverride = null,
     startServer = processMod.startServerProcess,
     findPort = processMod.findFreePort,
     arbiter = getArbiter,
@@ -169,6 +173,7 @@ export class RuntimeService {
     this._findPort = findPort;
     this._arbiter = arbiter;
     this._freeBytesFn = freeBytesFn;
+    this._exeOverride = exeOverride;
     this._measurements = measurements;
     this._removing = false; // the engine's folder is going: nothing installs into it or starts from it
     this._state = idle();
@@ -208,6 +213,8 @@ export class RuntimeService {
   /** The installed server's path for this box, or null — never downloads (an in-process runtime has none). */
   installedExe() {
     if (this.rt.inProcess) return null;
+    const dev = this._exeOverride?.();
+    if (dev) return dev;
     const { cfg, asset } = this._pick();
     return asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null;
   }
@@ -297,6 +304,10 @@ export class RuntimeService {
       bands: cfg.bands ? { fast: cfg.bands.fast, fine: cfg.bands.fine, slow: cfg.bands.slow, unit: cfg.bands.unit, lowerIsFaster: !!cfg.bands.lowerIsFaster } : null,
       downloadBytes: (asset?.assetBytes || 0) + (asset?.runtimeBytes || 0),
       need: unmetNeed(asset, this._systemFn(), this.rt.label),
+      // a runtime with add-ons (audio.cpp's Japanese dictionary) says which are here
+      ...(this.rt.defaults.addons?.length ? { addons: this.addons() } : {}),
+      // a runtime that registers models says what each server holds (round E)
+      ...(this._pool ? { loaded: this.loaded() } : {}),
       ...this._state,
     };
   }
@@ -341,6 +352,20 @@ export class RuntimeService {
         },
         cancelCheck: () => this._cancel.isSet(),
       });
+      // the build's extras (eSpeak NG beside audio.cpp), into its own folder — a build installs whole or not at all
+      const asset = this._assetFor(gpu) ?? this._pick().asset;
+      if (asset?.extras?.length) {
+        const dir = this._extrasDir(cfg.pinnedBuild, asset);
+        for (const extra of asset.extras) {
+          await installArchive(dir, extra, {
+            onProgress: (downloaded, total) => {
+              this._state.downloaded = downloaded;
+              this._state.total = total || 0;
+            },
+            cancelCheck: () => this._cancel.isSet(),
+          });
+        }
+      }
       this._state = { ...idle(), status: "installed" };
       await this._sweepStaleBuilds(cfg.pinnedBuild);
     } catch (e) {
@@ -366,7 +391,8 @@ export class RuntimeService {
     if (others.unknown.length) return log.info(`${this.rt.id}: old builds kept — ${others.unknown.join(", ")} share this cache and never said which build they use`);
     let stale = [];
     try {
-      stale = readdirSync(this.root, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== keep && !others.builds.has(d.name));
+      // a folder named "_…" is the runtime's own, not a build (its add-ons: `_addons`)
+      stale = readdirSync(this.root, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith("_") && d.name !== keep && !others.builds.has(d.name));
     } catch {
       return; // no runtime folder
     }
@@ -776,10 +802,78 @@ export class RuntimeService {
 
   // ── registered models: servers per placement and kind (audio.cpp — round E) ────────────────────────────────────
 
-  /** The environment the runtime's side programs need (eSpeak NG, the Japanese dictionary — round E's extras); none
-   *  until they are installed. */
+  /** Where a build's extras unpack: `<its folder>/_extras`. */
+  _extrasDir(build, asset) {
+    return path.join(binary.runtimeVariantDir(this.cacheRoot, this.rt.folder, build, asset.gpu), "_extras");
+  }
+
+  /** Where the runtime's add-ons live — kept across builds. */
+  get addonsDir() {
+    return path.join(this.root, "_addons");
+  }
+
+  /** The environment the runtime's side programs need, from what is installed: the pinned build's extras (eSpeak NG)
+   *  and the add-ons (the Japanese dictionary). */
   extrasEnv() {
-    return {};
+    const { cfg, asset } = this._pick();
+    const espeak = asset?.extras?.find((x) => x.into?.startsWith("espeak"));
+    const unidic = (this.rt.defaults.addons ?? []).find((a) => a.id === "unidic");
+    return sideEnv({
+      espeakDir: espeak && asset ? path.join(this._extrasDir(cfg.pinnedBuild, asset), espeak.into) : null,
+      unidicDir: unidic && extraInstalled(this.addonsDir, unidic) ? path.join(this.addonsDir, unidic.into) : null,
+    });
+  }
+
+  /** The runtime's add-ons and whether each is here: `[{id, name, bytes, installedBytes, installed, status, error,
+   *  downloaded, total}]`. */
+  addons() {
+    return (this.rt.defaults.addons ?? []).map((a) => ({
+      id: a.id,
+      name: a.name,
+      bytes: a.bytes ?? 0,
+      installedBytes: a.installedBytes ?? 0,
+      installed: extraInstalled(this.addonsDir, a),
+      ...(this._addonState?.get(a.id) ?? { status: "", error: "", downloaded: 0, total: 0 }),
+    }));
+  }
+
+  /** Install add-on `id` in the background (its progress in addons()); its servers start again with it, their models
+   *  loading again on next use. Refused `{diskFull}` when it wouldn't fit beside what's there. */
+  installAddon(id) {
+    const a = (this.rt.defaults.addons ?? []).find((x) => x.id === id);
+    if (!a) throw refusal(`${this.rt.label} has no add-on "${id}"`, { notFound: true });
+    this._addonState ??= new Map();
+    if (this._addonState.get(id)?.status === "installing") return this.addons();
+    const need = (a.bytes ?? 0) + (a.installedBytes ?? 0);
+    const room = lacksRoom({ dir: this.root, bytes: need, free: this._freeBytesFn });
+    if (room) throw noRoom(a.name, room);
+    const st = { status: "installing", error: "", downloaded: 0, total: a.bytes ?? 0 };
+    this._addonState.set(id, st);
+    background(`${this.rt.id} add-on ${id}`, async () => {
+      try {
+        await installArchive(this.addonsDir, a, {
+          onProgress: (downloaded, total) => {
+            st.downloaded = downloaded;
+            st.total = total || st.total;
+          },
+        });
+        this._addonState.set(id, { status: "installed", error: "", downloaded: 0, total: 0 });
+        if (this._pool) await this.stopServer(); // the environment changed: the servers start again with it
+      } catch (e) {
+        this._addonState.set(id, { status: "error", error: String(e?.message || e), downloaded: 0, total: 0 });
+      }
+    }, log);
+    return this.addons();
+  }
+
+  /** Remove add-on `id` (its servers start again without it). */
+  async removeAddon(id) {
+    const a = (this.rt.defaults.addons ?? []).find((x) => x.id === id);
+    if (!a) throw refusal(`${this.rt.label} has no add-on "${id}"`, { notFound: true });
+    if (this._pool) await this.stopServer();
+    await rm(path.join(this.addonsDir, a.into), { recursive: true, force: true });
+    this._addonState?.delete(id);
+    return this.addons();
   }
 
   /** The server entries that load `modelId`: the model itself and each companion (`<id>::<role>`), from its row's
@@ -817,7 +911,7 @@ export class RuntimeService {
     const exe = this.installedExe();
     if (!exe) throw Object.assign(new Error(`${this.rt.label} isn't installed`), { notInstalled: true });
     const cfg = this._configFn();
-    if (!buildHas(this.rt, cfg.pinnedBuild, "model_management")) {
+    if (!this._exeOverride?.() && !buildHas(this.rt, cfg.pinnedBuild, "model_management")) {
       throw refusal(`${this.rt.label} ${cfg.pinnedBuild} can't load models while it runs — update it`, { need: { reason: "update-engine" } });
     }
     const entries = this.entriesFor(modelId, { sessionOptions });

@@ -16,7 +16,7 @@
 // What is the app's, injected by RuntimeService: where its config and logs go, its settings (threads, timeouts), and the
 // environment its side programs need (eSpeak NG's library and data, the Japanese dictionary — round E's extras).
 
-import { closeSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, statSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -78,6 +78,34 @@ export async function physicalCores() {
   }
   cores = n > 0 ? n : Math.max(1, os.availableParallelism?.() || os.cpus().length || 1);
   return cores;
+}
+
+/** eSpeak NG's `[library, dataFolder]` in its folder (an extra unpacked beside the build), or null. */
+export function espeakPaths(dir) {
+  let names;
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return null;
+  }
+  const lib = names.find((n) => [".dll", ".so", ".dylib"].includes(path.extname(n)) || n.includes(".so."));
+  const data = path.join(dir, "espeak-ng-data");
+  try {
+    if (lib && statSync(data).isDirectory()) return [path.join(dir, lib), data];
+  } catch {
+    // no data folder
+  }
+  return null;
+}
+
+/** The environment audio.cpp's side programs need, from what is installed: eSpeak NG (`espeakDir`) — Kokoro reads its
+ *  library and data ONLY from these variables — and the Japanese dictionary (`unidicDir`, MeCab's). */
+export function sideEnv({ espeakDir = null, unidicDir = null } = {}) {
+  const env = {};
+  const found = espeakDir ? espeakPaths(espeakDir) : null;
+  if (found) [env.AUDIOCPP_ESPEAK_LIBRARY, env.AUDIOCPP_ESPEAK_DATA] = found;
+  if (unidicDir) env.AUDIOCPP_UNIDIC_DIR = unidicDir;
+  return env;
 }
 
 /** The backend a build runs: its folder's gpu name (`…/<build>/<gpu>/audiocpp_server`) as audio.cpp names backends. */

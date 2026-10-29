@@ -366,17 +366,46 @@ const acRow = (platform, gpu, asset, bytes, unpacked, sha256, extra = {}) => ({
   ...extra,
 });
 const acCudart = (asset, bytes, unpacked, sha256) => ({ runtime_url: `${AC_REL}/${asset}`, runtime_bytes: bytes, runtime_unpacked_bytes: unpacked, runtime_sha256: sha256 });
+// eSpeak NG, the phonemizer Kokoro and Kitten read (AUDIOCPP_ESPEAK_LIBRARY / _DATA): GPL, so downloaded beside the build,
+// never bundled — the espeakng-loader 0.2.4 wheel for this platform from PyPI, its library and data only (JustVoice's
+// espeak.js; sizes and SHA-256 from PyPI's JSON, 2026-10-29 — the same digests JustVoice pinned).
+const PYPI = "https://files.pythonhosted.org/packages";
+const espeak = (pathTail, bytes, sha256) => [
+  { name: "eSpeak NG 0.2.4", url: `${PYPI}/${pathTail}`, sha256, bytes, archive: "zip", take: "espeakng_loader", skipExt: [".py"], into: "espeak-ng-0.2.4", check: "espeak-ng-data" },
+];
+const ESPEAK_WIN = espeak("9d/ed/a3d872fbad4f3a3f3db0e8c31768ab14e77cd77306de16b8b20b1e1df7ea/espeakng_loader-0.2.4-py3-none-win_amd64.whl", 9437292, "41f1e08ac9deda2efd1ea9de0b81dab9f5ae3c4b24284f76533d0a7b1dd7abd7");
+const ESPEAK_LINUX = espeak("de/1e/25ec5ab07528c0fbb215a61800a38eca05c8a99445515a02d7fa5debcb32/espeakng_loader-0.2.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", 10078484, "08721baf27d13d461f6be6eed9a65277e70d68234ff484fd8b9897b222cdcb6d");
+const ESPEAK_MAC = espeak("a8/26/258c0cd43b9bc1043301c5f61767d6a6c3b679df82790c9cb43a3277b865/espeakng_loader-0.2.4-py3-none-macosx_11_0_arm64.whl", 9892565, "d27cdca31112226e7299d8562e889d3e38a1e48055c9ee381b45d669072ee59f");
 export const DEFAULT_AUDIOCPP_BINARIES = [
   acRow("windows", "cuda12", "audio-v0.9.2-jv.6-bin-windows-x64-cuda12.4.zip", 467437957, 1222597316, "e7061704063e2b583714670ddd4479126c23040a1bfed1ac4720d397e0d7a94a",
-    acCudart("audio-v0.9.2-jv.6-cudart-windows-x64-cuda12.4.zip", 607273675, 865923072, "5172d93ab24a378ea9b4877c5a0055836c81d3bf031d46d0e2722d1a1ad313cc")),
+    { ...acCudart("audio-v0.9.2-jv.6-cudart-windows-x64-cuda12.4.zip", 607273675, 865923072, "5172d93ab24a378ea9b4877c5a0055836c81d3bf031d46d0e2722d1a1ad313cc"), extras: ESPEAK_WIN }),
   acRow("windows", "cuda13", "audio-v0.9.2-jv.6-bin-windows-x64-cuda13.3.zip", 279082215, 341290692, "caeff2e01879ad619f1275ac3848ed1a527902e4929e502c2bec5e08780f8c9b",
-    acCudart("audio-v0.9.2-jv.6-cudart-windows-x64-cuda13.3.zip", 575457454, 768815552, "8aa9b806a800ab2491ace9aea0910201206e592d17ab7ed445474a6c2e7ab955")),
-  acRow("windows", "vulkan", "audio-v0.9.2-jv.6-bin-windows-x64-vulkan.zip", 66608834, 191689540, "04ef95c99dc33c02feb4516c6d03b4c45fdf658675dfc53881ba646c27a76660"),
-  acRow("windows", "cpu", "audio-v0.9.2-jv.6-bin-windows-x64-cpu-portable.zip", 32029202, 76319044, "94847349a42ad052250b29c7cd8b5ede4918c1092207671d47235112d9bd856e"),
-  acRow("linux", "vulkan", "audio-v0.9.2-jv.6-bin-ubuntu-x64-vulkan.tar.gz", 85268472, 0, "9979081d11214c84ba4302351c7413db45d453f0bb8dc76734c1a0261b3eed93"),
-  acRow("linux", "cpu", "audio-v0.9.2-jv.6-bin-ubuntu-x64-cpu-portable.tar.gz", 63696990, 0, "80d7c998cc7911c2e988da44cb16110f505d6b6e5d5f93968f3756ab27cd9ced"),
-  acRow("macos", "metal", "audio-v0.9.2-jv.6-bin-macos-arm64-metal.tar.gz", 35780548, 0, "b97e66f85ecfce7aa597fcbabced9eeba4907e049f520da46826d71d3b94c1ef"),
+    { ...acCudart("audio-v0.9.2-jv.6-cudart-windows-x64-cuda13.3.zip", 575457454, 768815552, "8aa9b806a800ab2491ace9aea0910201206e592d17ab7ed445474a6c2e7ab955"), extras: ESPEAK_WIN }),
+  acRow("windows", "vulkan", "audio-v0.9.2-jv.6-bin-windows-x64-vulkan.zip", 66608834, 191689540, "04ef95c99dc33c02feb4516c6d03b4c45fdf658675dfc53881ba646c27a76660", { extras: ESPEAK_WIN }),
+  acRow("windows", "cpu", "audio-v0.9.2-jv.6-bin-windows-x64-cpu-portable.zip", 32029202, 76319044, "94847349a42ad052250b29c7cd8b5ede4918c1092207671d47235112d9bd856e", { extras: ESPEAK_WIN }),
+  acRow("linux", "vulkan", "audio-v0.9.2-jv.6-bin-ubuntu-x64-vulkan.tar.gz", 85268472, 0, "9979081d11214c84ba4302351c7413db45d453f0bb8dc76734c1a0261b3eed93", { extras: ESPEAK_LINUX }),
+  acRow("linux", "cpu", "audio-v0.9.2-jv.6-bin-ubuntu-x64-cpu-portable.tar.gz", 63696990, 0, "80d7c998cc7911c2e988da44cb16110f505d6b6e5d5f93968f3756ab27cd9ced", { extras: ESPEAK_LINUX }),
+  acRow("macos", "metal", "audio-v0.9.2-jv.6-bin-macos-arm64-metal.tar.gz", 35780548, 0, "b97e66f85ecfce7aa597fcbabced9eeba4907e049f520da46826d71d3b94c1ef", { extras: ESPEAK_MAC }),
 ];
+// The runtime's add-ons — installed when the user asks, kept across builds (`<runtime folder>/_addons`). The Japanese
+// dictionary: MeCab reads UniDic (unidic-lite 1.0.8, PyPI's sdist — its dictionary folder and licences only) for Kokoro's
+// Japanese voices and Chatterbox Japanese; installing it restarts the speech processes (AUDIOCPP_UNIDIC_DIR). Sizes measured
+// by JustVoice (2026-10-03): 47,356,746 bytes down, 260,467,176 installed.
+export const AUDIOCPP_ADDONS = Object.freeze([
+  Object.freeze({
+    id: "unidic",
+    name: "Japanese dictionary (UniDic)",
+    url: "https://files.pythonhosted.org/packages/55/2b/8cf7514cb57d028abcef625afa847d60ff1ffbf0049c36b78faa7c35046f/unidic-lite-1.0.8.tar.gz",
+    sha256: "db9d4572d9fdd4d00a97949d4b0741ec480ee05a7e7e2e32f547500dae27b245",
+    bytes: 47356746,
+    installedBytes: 260467176,
+    archive: "tar.gz",
+    take: "unidic-lite-1.0.8/unidic_lite/dicdir",
+    also: Object.freeze(["unidic-lite-1.0.8/LICENSE", "unidic-lite-1.0.8/LICENSE.unidic"]),
+    into: "unidic-lite-1.0.8",
+    check: "dicrc",
+  }),
+]);
 // The first build that has each fork feature (JustVoice's release.js FEATURES): an older build on disk refuses the feature
 // by name instead of failing inside. Builds in order, oldest first.
 export const AUDIOCPP_BUILDS_IN_ORDER = Object.freeze(["v0.9.0", "v0.9.0-jv.1", "v0.9.0-jv.4", "v0.9.0-jv.5", "v0.9.2-jv.6"]);

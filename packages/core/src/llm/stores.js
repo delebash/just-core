@@ -915,6 +915,7 @@ export class RunnerConfigStore {
       requires: typeof r.requires === "string" ? JSON.parse(r.requires || "{}") : (r.requires ?? {}),
       assetUnpackedBytes: Number(r.asset_unpacked_bytes ?? 0),
       runtimeUnpackedBytes: Number(r.runtime_unpacked_bytes ?? 0),
+      extras: typeof r.extras === "string" ? JSON.parse(r.extras || "[]") : (r.extras ?? []),
     });
     const idleRow = h.get("runner_setting", idleKey(id))?.value;
     const idleSeconds = idleRow != null && idleRow !== "" ? Number(idleRow) : (rt.defaults.idleSeconds ?? 0);
@@ -998,6 +999,7 @@ export class RunnerConfigStore {
       requires: JSON.stringify(row.requires ?? {}),
       asset_unpacked_bytes: Number(row.assetUnpackedBytes || 0),
       runtime_unpacked_bytes: Number(row.runtimeUnpackedBytes || 0),
+      extras: JSON.stringify(row.extras ?? []),
     };
     h.tx(() => {
       if (h.get("runtime_binary", key)) {

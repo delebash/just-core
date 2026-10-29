@@ -85,6 +85,18 @@ export function makeRuntimesRouter() {
       throw e;
     }
   });
+  // a runtime's add-ons (audio.cpp's Japanese dictionary — round E): installed when the user asks, removed the same way
+  const AddonParams = T.Object({ id: T.String(), addon: T.String() });
+  app.post("/v1/ai/runtimes/:id/addons/:addon/install", input({ params: AddonParams }), async (c) => {
+    const svc = getRuntimeService(c.req.valid("param").id);
+    if (!svc) throw notFound(`no runtime ${c.req.valid("param").id} in this app`);
+    return c.json({ addons: await call(() => svc.installAddon(c.req.valid("param").addon)) }, 202);
+  });
+  app.delete("/v1/ai/runtimes/:id/addons/:addon", input({ params: AddonParams }), async (c) => {
+    const svc = getRuntimeService(c.req.valid("param").id);
+    if (!svc) throw notFound(`no runtime ${c.req.valid("param").id} in this app`);
+    return c.json({ addons: await call(() => svc.removeAddon(c.req.valid("param").addon)) });
+  });
   // whether this runtime can run on this computer — an app's release start check asks it on every runner (an
   // in-process runtime's load; a server runtime's build for this computer and what the system lacks): 200, or 503
   // in words (just-house-paint's /v1/segment/runtime, for every runtime)
