@@ -271,8 +271,8 @@ test("a runtime's speed bands: shown in its unit, Save sends the three lines", a
   fast.value = "20";
   fast.dispatchEvent(new Event("input"));
   await settle();
-  const saves = [...document.body.querySelectorAll("button")].filter((b) => b.textContent.trim() === "Save");
-  saves.at(-1).click();
+  // the bands' own Save (the second on the tab — the idle time's is first)
+  await wrapper.findAll("button").filter((b) => b.text().trim() === "Save").at(-1).trigger("click");
   await settle();
   expect(server.calls.find(([m, u, b]) => m === "PUT" && u === "/v1/ai/runtimes/sdcpp/settings" && b?.bands)[2]).toEqual({ bands: { fast: 20, fine: 120, slow: 300 } });
 });
