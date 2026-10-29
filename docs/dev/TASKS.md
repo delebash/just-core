@@ -132,6 +132,11 @@ THE FINAL PASS 2026-10-29 (run once, every suite, on main): core 1593 passed (fi
         its hand-off); JustWrite lint, server 196, unit 807; just-sqlite-sync 75. Waiting on the card: JustWrite's C34
         walks and 12B auto-tune, house-paint's A/B, then the realrouter smoke (JustWrite's app closed); JustWrite's
         and house-paint's own build + e2e from their sessions (their apps are up there).
+RESULT (a) 2026-10-29, house-paint's session: master-1024 STAYS — the app's own request (House 1, the same 8 picks,
+        p_aiphoto: 4 steps, cfg 1, euler, seed 42) through each build's sd-server (the kit's sdServerArgv): mean ΔE2000
+        1004↔1024 0.00 inside the union mask (158,290 px), 0 % past 5 ΔE, every part and shutter piece alike; the PNGs
+        byte-identical across builds (final fc0ab344…, = the in-app render) though the builds differ (sd-server.exe
+        7dc541a8… vs 39cbd076…). The light shutter pair comes out on 1004 too: the website's picture had other inputs.
 STATE:  under way.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]
