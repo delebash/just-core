@@ -705,21 +705,82 @@ test("resident_router_down_is_empty", async () => {
 
 test("resident_lists_every_other_kinds_booking_with_the_model_holding_it", async () => {
   // round E, G10: the memory strip's speech, transcription and image cells — never an AI model's booking; the model
-  // holding each, as its runtime says
-  const { configureRuntimeServices } = await import("../src/runner/runtime_service.js");
+  // holding each, as its owner says (the booking's holderFn — a runtime's holderOf)
   const svc = serviceFor(tmp());
   svc._arbiter.reserve(TEST_MODEL.id, 5000, { kind: "llm" });
-  svc._arbiter.reserve("tts:audiocpp:gpu", 1200, { kind: "tts", source: "measured" });
-  svc._arbiter.reserve("stt:audiocpp:cpu", 300, { kind: "stt", source: "computed" });
-  configureRuntimeServices([["audiocpp", { holderOf: (key) => (key === "tts:audiocpp:gpu" ? "kokoro" : "") }]]);
+  svc._arbiter.reserve("tts:audiocpp:gpu", 1200, { kind: "tts", source: "measured", holderFn: () => "kokoro" });
+  svc._arbiter.reserve("stt:audiocpp:cpu", 300, { kind: "stt", source: "computed", holderFn: () => "" });
+  const res = await svc.resident();
+  expect(res.runtime_bookings).toEqual([
+    { key: "tts:audiocpp:gpu", kind: "tts", runtime: "audiocpp", placement: "gpu", modelId: "kokoro", mb: 1200, source: "measured" },
+    { key: "stt:audiocpp:cpu", kind: "stt", runtime: "audiocpp", placement: "cpu", modelId: "", mb: 300, source: "computed" },
+  ]);
+});
+
+test("resident carries the chat default's claim while it isn't in memory: its size on demand, 'cloud', or nothing", async () => {
+  // round E (2026-10-29): the strip's idle LLM cell — JustVoice's deleted /v1/engines/vram fed it; the kit says it now
+  let chat = TEST_MODEL.id;
+  const arb = new VramArbiter(() => fakeHw(8192));
+  const svc = serviceFor(tmp(), { arbiter: arb, hardwareFn: () => fakeHw(8192), defaultLlmIdFn: () => chat });
+  vi.spyOn(hardware, "usedPoolMb").mockResolvedValue(null);
+  const ladder = vi.spyOn(svc, "_resolveClaim").mockReturnValue({ vramMb: 4200, ramMb: 5000, source: "measured", matches: 2 });
+  const { llm_claim: claim } = await svc.resident();
+  expect(claim).toEqual({ route: "local", model_id: TEST_MODEL.id, mb: 4200, source: "measured" });
+  // read through the claim ladder at most once a while — the strip polls every couple of seconds
+  await svc.resident();
+  expect(ladder).toHaveBeenCalledTimes(1);
+  // in memory: the strip names it among the chat models instead
+  arb.reserve(TEST_MODEL.id, 4200, { kind: "llm" });
+  expect((await svc.resident()).llm_claim).toBeNull();
+  arb.release(TEST_MODEL.id);
+  // a model that would take nothing from the pool (on the CPU): nothing to claim
+  svc._claimCache = null;
+  ladder.mockReturnValue({ vramMb: 0, ramMb: 5000, source: "computed", matches: 0 });
+  expect((await svc.resident()).llm_claim).toBeNull();
+  // the chat default on a cloud provider; then nothing set at all
+  chat = "";
+  svc._chatCloudFn = () => true;
+  expect((await svc.resident()).llm_claim).toEqual({ route: "cloud", model_id: "", mb: 0, source: "" });
+  svc._chatCloudFn = () => false;
+  expect((await svc.resident()).llm_claim).toBeNull();
+  // on the wire, camelCase
+  chat = TEST_MODEL.id;
+  svc._claimCache = null;
+  ladder.mockReturnValue({ vramMb: 3000, ramMb: 4000, source: "computed", matches: 0 });
+  const { RunnerResidentResponse } = await import("../src/runner/schema.js");
+  const { populateByName } = await import("../src/runner/api.js");
+  expect(model(RunnerResidentResponse, populateByName(RunnerResidentResponse, await svc.resident())).llmClaim).toEqual({ route: "local", modelId: TEST_MODEL.id, mb: 3000, source: "computed" });
+});
+
+test("resident carries the arbiter's evictions and the busy kinds — on the wire in camelCase, an Unload never among them", async () => {
+  // round E (2026-10-29): the memory strip says each new eviction once and marks a cell whose kind is busy
+  const arb = new VramArbiter(() => fakeHw(8192));
+  const svc = serviceFor(tmp(), { arbiter: arb, hardwareFn: () => fakeHw(8192) });
+  vi.spyOn(hardware, "usedPoolMb").mockResolvedValue(null);
+  arb.reserve("tts:audiocpp:gpu", 6000, { kind: "tts", evictFn: () => {}, holderFn: () => "kokoro" });
+  arb.reserve("stt:audiocpp:cpu", 100, { kind: "stt", evictFn: () => {} });
+  arb.release("stt:audiocpp:cpu"); // an Unload: released, never recorded
+  await arb.makeRoom(8000, { reason: "loading gemma", forKind: "llm" });
+  arb.busyBegin("stt");
   try {
     const res = await svc.resident();
-    expect(res.runtime_bookings).toEqual([
-      { key: "tts:audiocpp:gpu", kind: "tts", runtime: "audiocpp", placement: "gpu", modelId: "kokoro", mb: 1200, source: "measured" },
-      { key: "stt:audiocpp:cpu", kind: "stt", runtime: "audiocpp", placement: "cpu", modelId: "", mb: 300, source: "computed" },
-    ]);
+    expect(res.evictions).toHaveLength(1);
+    expect(res.evictions[0]).toMatchObject({ key: "tts:audiocpp:gpu", kind: "tts", model_id: "kokoro", for_kind: "llm" });
+    expect(res.evictions[0].at).toBeGreaterThan(Date.now() - 60_000);
+    expect(res.busy_kinds).toEqual(["stt"]);
+    // the route's response model: camelCase, each field the schema's
+    const { RunnerResidentResponse } = await import("../src/runner/schema.js");
+    const { populateByName } = await import("../src/runner/api.js");
+    const wire = model(RunnerResidentResponse, populateByName(RunnerResidentResponse, res));
+    expect(wire.evictions).toEqual([{ id: res.evictions[0].id, at: res.evictions[0].at, key: "tts:audiocpp:gpu", kind: "tts", modelId: "kokoro", forKind: "llm" }]);
+    expect(wire.busyKinds).toEqual(["stt"]);
+    // only the newest few ride on every poll
+    for (let i = 0; i < 30; i++) arb.recordEviction(`k${i}`, "llm");
+    const many = await svc.resident();
+    expect(many.evictions).toHaveLength(20);
+    expect(many.evictions.at(-1).key).toBe("k29");
   } finally {
-    configureRuntimeServices([]);
+    arb.busyEnd("stt");
   }
 });
 

@@ -72,6 +72,8 @@ export { runAiFeature, runAiFeatureStream } from "./services/aiFeature.js";
 // owns a task lifecycle directly (check-family check 11).
 export { runAiEndpoint, runAiEndpointStream, toTaskUsage, withAiTask } from "./services/appTask.js";
 export { JOB_POLL_MS, jobEnded, jobEndedAway, jobError, jobGone, runServerJob } from "./services/serverJob.js";
+// A kit runtime model's Load — the AI page's runtime tab's and an app's own screen's one way (round E, 2026-10-29).
+export { LOAD_POLL_MS, loadRuntimeModel } from "./services/runtimeLoad.js";
 export { friendlyAiError } from "./services/aiErrors.js";
 export { keyedText, presetDisplayName, providerDisplayName } from "./services/seededWords.js";
 export { default as AiTaskStack } from "./components/AiTaskStack.vue";
@@ -144,8 +146,9 @@ export { default as LuRuntimeTab } from "./components/LuRuntimeTab.vue";
 export { default as LuRuntimePresetPane } from "./components/LuRuntimePresetPane.vue";
 export { default as LuEngineNeeded } from "./components/LuEngineNeeded.vue";
 // The live memory cells the AI page's strip shows — used, free, the chat models, each runtime's booking, other apps —
-// for an app's Home to show the same (round E, G10): never a reading of the app's own.
-export { useMemoryCells } from "./composables/useMemoryCells.js";
+// for an app's Home to show the same (round E, G10): never a reading of the app's own. Each reading's new evictions are
+// said once per window (round E, 2026-10-29; `_resetEvictionsSaid` for tests).
+export { _resetEvictionsSaid, useMemoryCells } from "./composables/useMemoryCells.js";
 
 // views
 export { default as ProviderForm } from "./views/ProviderForm.vue";

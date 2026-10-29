@@ -166,6 +166,12 @@ export const _DRIVER_CTX_MB = 549;
 // ignore this. The value lives in arbiter.js (2026-08-09 seam) so `makeRoom` and `_admit`
 // share one threshold.
 export const _EVICT_MIN_MB = ARBITER_EVICT_MIN_MB;
+// How many of the arbiter's newest evictions `/resident` carries (round E, 2026-10-29): the screen polls every couple
+// of seconds and says only those newer than the last it saw, so a few cover any burst between two readings.
+export const RESIDENT_EVICTIONS = 20;
+// How long the chat default's claim is kept between `/resident` readings (seconds): the claim ladder reads the model's
+// header and the measurements, and the strip polls every couple of seconds; a new measurement shows within this.
+export const LLM_CLAIM_TTL_S = 30;
 
 // Post-download integrity gate (the corrupt-GGUF fix, 2026-07-11). A freshly-acquired main
 // GGUF has its header parsed BEFORE spawn; a corrupt or incomplete download (a file zeroed by
@@ -1125,6 +1131,7 @@ export class RunnerService {
       identifyFn = _defaultIdentifyFn,
       embeddingIdsFn = _defaultEmbeddingIdsFn,
       defaultLlmIdFn = null,
+      chatCloudFn = null,
       acquireBinary = (...a) => binary.acquireBinary(...a),
       acquiredExe = (...a) => binary.acquiredServerExe(...a),
       acquiredExes = (...a) => binary.acquiredServerExes(...a),
@@ -1170,6 +1177,10 @@ export class RunnerService {
     // The LOCAL chat default's catalog id ("" when the chat default is cloud/Ollama) — the
     // embed placement guarantee's static baseline (#274 half 2).
     this._defaultLlmIdFn = defaultLlmIdFn || (() => "");
+    // Whether the chat default runs on a cloud provider (a provider set Online) — the memory strip's idle LLM cell says
+    // "cloud" (`_llmClaim`; round E, 2026-10-29).
+    this._chatCloudFn = chatCloudFn || (() => false);
+    this._claimCache = null; // the chat default's claim, read at most every LLM_CLAIM_TTL_S
     this._acquireBinary = acquireBinary;
     this._acquiredExe = acquiredExe;
     this._acquiredExes = acquiredExes;
@@ -2738,14 +2749,18 @@ export class RunnerService {
       remaining_mb: snap.remaining_mb,
       models: [],
       // every other kind's booking — speech, transcription, an image or vision runtime's — for the memory strip, which
-      // read only the AI models here (round E, G10)
-      runtime_bookings: runtimeBookings(snap.reservations, (key) => {
-        for (const s of runtimeServices()) {
-          const id = s.holderOf?.(key);
-          if (id) return id;
-        }
-        return "";
-      }),
+      // read only the AI models here (round E, G10); the model holding each as its owner says (arbiter `holderOf`)
+      runtime_bookings: runtimeBookings(snap.reservations, (key) => this._arbiter.holderOf(key)),
+      // what the arbiter unloaded to make room for another load — the newest RESIDENT_EVICTIONS, oldest first, each
+      // `{id, at (epoch ms), key, kind, model_id, for_kind}` — and the kinds a line is running in (never evicted): the
+      // kit's useMemoryCells says each new eviction and marks a busy kind's cell (round E, 2026-10-29)
+      evictions: this._arbiter
+        .eventsSince(0)
+        .slice(-RESIDENT_EVICTIONS)
+        .map((e) => ({ id: e.seq, at: e.at * 1000, key: e.victim_key, kind: e.victim_kind, model_id: e.model_id ?? "", for_kind: e.for_kind ?? "" })),
+      busy_kinds: snap.busy_kinds ?? [],
+      // what the chat default takes when it loads on demand, or that it runs in the cloud — the strip's idle LLM cell
+      llm_claim: this._llmClaim(live),
     };
     const rows = [];
     const byId = new Map();
@@ -2809,6 +2824,50 @@ export class RunnerService {
     }
     out.models = rows;
     return out;
+  }
+
+  /**
+   * The chat default's claim while it isn't in memory (round E, 2026-10-29 — the memory strip's idle LLM cell, which
+   * JustVoice's own `/v1/engines/vram` fed until round E deleted it): `{route: "local", model_id, mb, source}` for a
+   * chat default on this runner that isn't resident or loading — what a load of it would take, from the claim ladder
+   * (`_resolveClaim`: measured here, else the fit's physics, else the catalog's price — the embed guard's chat baseline);
+   * `{route: "cloud"}` when the chat default is a cloud provider's; null otherwise (nothing set, another program's local
+   * server, a model that would take nothing from the pool). `live` the router's own view (`resident`). Kept
+   * LLM_CLAIM_TTL_S per model. Never throws: the strip must render whatever the routing store says.
+   */
+  _llmClaim(live) {
+    let chatId = "";
+    try {
+      chatId = this._defaultLlmIdFn() || "";
+    } catch {
+      chatId = ""; // a routing-store hiccup: no claim
+    }
+    if (!chatId) {
+      let cloud = false;
+      try {
+        cloud = !!this._chatCloudFn();
+      } catch {
+        cloud = false;
+      }
+      return cloud ? { route: "cloud", model_id: "", mb: 0, source: "" } : null;
+    }
+    // in memory, asleep or on its way: the strip names it among the chat models instead
+    const routerState = live.get(chatId)?.value ?? "";
+    if (["loaded", "sleeping", "loading"].includes(routerState) || this._resident.has(chatId) || this._arbiter.isReserved(chatId)) return null;
+    const now = this._now();
+    const kept = this._claimCache;
+    let claim = kept && kept.modelId === chatId && now - kept.at < LLM_CLAIM_TTL_S ? kept.claim : undefined;
+    if (claim === undefined) {
+      try {
+        const row = this.catalog().find((m) => m.id === chatId);
+        claim = row == null ? null : this._resolveClaim(row); // a model not in the catalog claims nothing
+      } catch {
+        claim = null;
+      }
+      this._claimCache = { modelId: chatId, at: now, claim };
+    }
+    const mb = Math.trunc(Number(claim?.vramMb) || 0);
+    return mb > 0 ? { route: "local", model_id: chatId, mb, source: claim.source || "computed" } : null;
   }
 
   /**
@@ -2905,6 +2964,7 @@ export class RunnerService {
       exclude: modelId,
       hardware: hw,
       reason: `waking ${modelId}`,
+      forKind: "llm",
       selfKind: "llm",
       selfEvict: (k) => this._evictResident(k),
     });
@@ -4052,7 +4112,7 @@ export class RunnerService {
       if (victim == null) break;
       log.info(`arbiter: evict replaced embed ${victim} to make room for ${modelId}`);
       await this._evictResident(victim);
-      arb.recordEviction(victim, "llm", `replaced embedding model (loading ${modelId})`);
+      arb.recordEviction(victim, "llm", `replaced embedding model (loading ${modelId})`, { modelId: victim, forKind: "llm" });
     }
 
     // Phase B — the count cap, llm-scoped: only the runner's own children count, and only they
@@ -4068,7 +4128,7 @@ export class RunnerService {
       if (victim == null) break;
       log.info(`arbiter: evict LRU ${victim} (models_max) to make room for ${modelId}`);
       await this._evictResident(victim);
-      arb.recordEviction(victim, "llm", `model count cap (loading ${modelId})`);
+      arb.recordEviction(victim, "llm", `model count cap (loading ${modelId})`, { modelId: victim, forKind: "llm" });
     }
 
     // Phase C — the VRAM fit, through the shared policy home. Victims may be ANY kind (an idle
@@ -4081,6 +4141,7 @@ export class RunnerService {
         exclude: modelId,
         hardware: hw,
         reason: `loading ${modelId}`,
+        forKind: "llm",
         selfKind: "llm",
         selfEvict: (k) => this._evictResident(k),
       }));
@@ -4870,6 +4931,7 @@ export function configureService({
   identifyFn = null,
   embeddingIdsFn = null,
   defaultLlmIdFn = null,
+  chatCloudFn = null,
   configFn = null,
   hardwareFn = null,
   cacheRoot = null,
@@ -4891,6 +4953,7 @@ export function configureService({
     identifyFn,
     embeddingIdsFn,
     defaultLlmIdFn,
+    chatCloudFn,
     configFn,
     hardwareFn,
     knobBackendsFn,

@@ -7,17 +7,19 @@
 // runtime feature's preset pane on Routing — an image one's (its settings from the server's rules, Save, a refused
 // value under its field), a vision one's (where it runs, in words).
 // K10b: no room on the drive said in words; each model's chip (fits here? how fast?) is the chat catalog's own.
-import { _resolveDialog, AiModelsArea, LuEngineNeeded, LuRuntimePresetPane, LuRuntimeTab, UiNumber, UiSelect, useMemoryCells } from "@delebash/ui";
+import { _resetEvictionsSaid, _resolveDialog, AiModelsArea, LuEngineNeeded, LuRuntimePresetPane, LuRuntimeTab, loadRuntimeModel, UiNumber, UiSelect, useAiTasksStore, useMemoryCells } from "@delebash/ui";
 import { fmtBytes } from "@delebash/ui/common/services/downloadRate.js";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
 import * as quasar from "quasar";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { h, onMounted } from "vue";
 import { i18n } from "../i18n/index.js";
 
 const QUASAR_COMPONENTS = Object.fromEntries(Object.entries(quasar).filter(([k, v]) => /^Q[A-Z]/.test(k) && v?.name));
-const plugins = () => [[quasar.Quasar, { ...QUASAR_TEST_OPTIONS, components: QUASAR_COMPONENTS }], i18n];
+// Pinia: a Load is a task on the AI tasks strip (loadRuntimeModel inside withAiTask — round E, 2026-10-29)
+const plugins = () => [[quasar.Quasar, { ...QUASAR_TEST_OPTIONS, components: QUASAR_COMPONENTS }], i18n, createPinia()];
 
 // ── a stand-in server: the engine, one model, an image feature's readiness and presets
 let server;
@@ -96,6 +98,7 @@ beforeEach(() => {
     },
   };
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
+  _resetEvictionsSaid();
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 });
 afterEach(() => {
@@ -452,11 +455,14 @@ test("a Load that downloads first: its bar, then its loading state with Cancel, 
   expect(rowButton("Parakeet", "Cancel")).toBeTruthy(); // the row's, now the bar is done
   expect(changes()).toContainEqual({ what: "download", id: "parakeet" });
 
-  server.speech.models = server.speech.models.map((m) => ({ ...m, loading: "" }));
+  server.speech.models = server.speech.models.map((m) => ({ ...m, loading: "", running: true }));
   server.speech.engine = { ...server.speech.engine, loaded: [{ modelId: "parakeet", placement: "cpu", kind: "stt", reason: "fast enough on the CPU" }] };
   await later(1300);
   expect(text()).toContain("Loaded on the CPU — fast enough on the CPU");
   expect(changes()).toContainEqual({ what: "load", id: "parakeet" });
+  // the whole Load was one task on the AI tasks strip (loadRuntimeModel — round E, 2026-10-29), done
+  const [task] = Object.values(useAiTasksStore().tasks);
+  expect(task).toMatchObject({ feature: "runtime.load", label: "Load Parakeet", status: "done", meta: { runtimeId: "audiocpp", modelId: "parakeet" } });
 });
 
 test("Cancel on a load's download is an Unload — it stops the load; a load answered 'load-cancelled' says nothing", async () => {
@@ -574,6 +580,52 @@ test("the app's groups and filters: a heading per group that shows its models, t
   await settle();
   expect(heading("Pocket TTS")).toBeUndefined();
   expect(heading("Parakeet")).toBeTruthy();
+});
+
+// Round E's last kit gaps (2026-10-29): the app's order — JustVoice's sort control in its `filters` slot
+test("the app's order: `sort` orders the flat list and each group's models, `groupSort` the groups — live from the app's filters", async () => {
+  server.speech = speechServer({
+    models: [
+      speechModel("c-mid", "Charlie", "tts", { engine: "alpha", bytes: 5e8 }),
+      speechModel("a-big", "Alpha", "tts", { engine: "zeta", bytes: 9e8 }),
+      speechModel("b-small", "Bravo", "tts", { engine: "zeta", bytes: 1e8 }),
+      speechModel("loose", "Loose", "stt", { bytes: 2e8 }),
+    ],
+  });
+  const byNameOrSize = (a, b, f) => (f.by === "size" ? a.bytes - b.bytes : a.name.localeCompare(b.name));
+  const sortControl = { filters: ({ filters }) => h("button", { type: "button", class: "app-sort", onClick: () => (filters.by = "size") }, "By size") };
+  const names = () => wrapper.findAll(".lu-rt-model b").map((b) => b.text());
+  // one flat list: by name, then by size once the app's control says so
+  mountSpeech({ sort: byNameOrSize }, sortControl);
+  await settle();
+  expect(names()).toEqual(["Alpha", "Bravo", "Charlie", "Loose"]);
+  await wrapper.find(".app-sort").trigger("click");
+  await settle();
+  expect(names()).toEqual(["Bravo", "Loose", "Charlie", "Alpha"]);
+  wrapper.unmount();
+
+  // grouped: each group's models in the app's order; the groups in the server's (their first model's) — a sort of the
+  // models never moves them; the one in no group after the groups
+  const engines = { alpha: "Alpha engine", zeta: "Zeta engine" };
+  const group = (m) => (m.engine ? { key: m.engine, label: engines[m.engine] } : null);
+  mountSpeech({ group, sort: byNameOrSize }, sortControl);
+  await settle();
+  const headings = () => wrapper.findAll(".lu-rt-gh button").map((b) => b.text().trim());
+  expect(headings()).toEqual(["Alpha engine", "Zeta engine"]);
+  await wrapper.findAll(".lu-rt-gh button").find((b) => b.text().trim() === "Zeta engine").trigger("click");
+  await settle();
+  expect(names()).toEqual(["Alpha", "Bravo", "Loose"]);
+  await wrapper.find(".app-sort").trigger("click");
+  await settle();
+  expect(headings()).toEqual(["Alpha engine", "Zeta engine"]);
+  expect(names()).toEqual(["Bravo", "Alpha", "Loose"]);
+  wrapper.unmount();
+
+  // the app's group order: each group with its every model
+  mountSpeech({ group, groupSort: (a, b) => b.models.length - a.models.length || a.label.localeCompare(b.label) });
+  await settle();
+  expect(headings()).toEqual(["Zeta engine", "Alpha engine"]);
+  expect(names()).toEqual(["Loose"]);
 });
 
 test("the settings' controls as the runtime declares them; each kind's speed bands; Reinstall — and the app told", async () => {
@@ -818,4 +870,142 @@ test("an app's Home shows the strip's own memory cells through useMemoryCells", 
     "Transcription · CPU": "~800 MB",
     "Other apps": "2.1 GB",
   });
+});
+
+// Round E's last kit gaps (2026-10-29): a runtime model's Load as the kit's service — an app's own screen loads a model
+// the tab's way (JustVoice's voice picker), one task on the AI tasks strip.
+const loadTaskOf = (modelId) => Object.values(useAiTasksStore().tasks).find((x) => x.meta.modelId === modelId);
+test("loadRuntimeModel: a download first — the task's count, then loading, then loaded — each reading of the row heard; Cancel is an Unload", async () => {
+  setActivePinia(createPinia());
+  server.speech = speechServer({ models: [speechModel("parakeet", "Parakeet", "stt"), speechModel("kokoro", "Kokoro", "tts")] });
+  const downloadFirst = (id) => (body) => {
+    server.speech.asked = body;
+    server.speech.models = server.speech.models.map((m) => (m.id === id ? { ...m, onDisk: false, status: "downloading", downloaded: 3e7, total: 3e8, loading: "downloading" } : m));
+    return json({ status: "downloading", modelId: id }, 202);
+  };
+  server.speech.onLoad = { parakeet: downloadFirst("parakeet"), kokoro: downloadFirst("kokoro") };
+  const create = vi.spyOn(quasar.Notify, "create");
+  const rows = [];
+  const run = loadRuntimeModel("audiocpp", "parakeet", { label: "Parakeet", placement: "cpu", onRow: (r) => rows.push(r.loading) });
+  await settle();
+  expect(server.speech.asked).toEqual({ placement: "cpu" });
+  const task = loadTaskOf("parakeet");
+  expect(task).toMatchObject({ feature: "runtime.load", label: "Load Parakeet", status: "connecting" });
+  expect(task.progress).toMatchObject({ done: 3e7, total: 3e8 }); // the download's bytes on the task's count
+  server.speech.models = server.speech.models.map((m) => (m.id === "parakeet" ? { ...m, onDisk: true, status: "downloaded", downloaded: 0, total: 0, loading: "loading" } : m));
+  await later(1300);
+  expect(task.progress.text).toBe("loading…");
+  server.speech.models = server.speech.models.map((m) => (m.id === "parakeet" ? { ...m, loading: "", running: true } : m));
+  await later(1300);
+  expect(await run).toEqual({ status: "loaded", held: null, started: true });
+  expect(task.status).toBe("done");
+  expect(rows).toEqual(["downloading", "loading", ""]);
+
+  // the strip's Cancel: an Unload — the load stops, its download included; nothing said
+  const cancelled = loadRuntimeModel("audiocpp", "kokoro", { label: "Kokoro" });
+  await settle();
+  useAiTasksStore().cancel(loadTaskOf("kokoro").id);
+  await settle();
+  expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/audiocpp/models/kokoro/unload")).toBe(true);
+  expect(await cancelled).toEqual({ status: "cancelled", started: true });
+  expect(loadTaskOf("kokoro").status).toBe("cancelled");
+  expect(create).not.toHaveBeenCalled();
+  create.mockRestore();
+});
+
+test("loadRuntimeModel: a load that fails after its download says why; a refusal in the kit's words; the licence gate handed to the app; 'load-cancelled' says nothing", async () => {
+  setActivePinia(createPinia());
+  server.speech = speechServer({ models: [speechModel("parakeet", "Parakeet", "stt"), speechModel("kokoro", "Kokoro", "tts"), speechModel("voxcpm", "VoxCPM2", "tts")] });
+  server.speech.onLoad = {
+    parakeet: () => {
+      server.speech.models = server.speech.models.map((m) => (m.id === "parakeet" ? { ...m, onDisk: false, status: "downloading", downloaded: 1, total: 10, loading: "downloading" } : m));
+      return json({ status: "downloading" }, 202);
+    },
+    kokoro: () => problem("model-busy", 409),
+    voxcpm: () => problem("terms-required", 403, { modelId: "voxcpm" }),
+  };
+  const create = vi.spyOn(quasar.Notify, "create");
+  const failed = loadRuntimeModel("audiocpp", "parakeet", { label: "Parakeet" });
+  await settle();
+  server.speech.models = server.speech.models.map((m) => (m.id === "parakeet" ? { ...m, onDisk: true, status: "downloaded", loading: "", loadError: "the server stopped while loading it" } : m));
+  await later(1300);
+  expect(await failed).toMatchObject({ status: "failed", started: true });
+  expect(loadTaskOf("parakeet")).toMatchObject({ status: "error" });
+  expect(loadTaskOf("parakeet").error).toBe("Parakeet didn't load. The server stopped while loading it.");
+  expect(create.mock.calls.at(-1)[0]).toMatchObject({ message: "Parakeet didn't load", caption: `The server stopped while loading it · ${i18n.global.t("kit.errors.seeLogs")}` });
+
+  // refused before anything started: the kit's words, nothing started
+  expect(await loadRuntimeModel("audiocpp", "kokoro", { label: "Kokoro" })).toMatchObject({ status: "failed", started: false });
+  expect(create.mock.calls.at(-1)[0].message).toBe(i18n.global.t("kit.runtimes.busy.title", { name: "Kokoro" }));
+  const toasts = create.mock.calls.length;
+
+  // the app's licence gate: the app gets the model's row and the same load to repeat; the task leaves the strip at once
+  const asked = [];
+  expect(await loadRuntimeModel("audiocpp", "voxcpm", { label: "VoxCPM2", onTermsRequired: (x) => asked.push(x) })).toEqual({ status: "terms-required", started: false });
+  expect(asked[0].model).toMatchObject({ id: "voxcpm", name: "VoxCPM2" });
+  expect(loadTaskOf("voxcpm")).toBeUndefined();
+  expect(useAiTasksStore().history[0]).toMatchObject({ label: "Load VoxCPM2", status: "cancelled" });
+  server.speech.onLoad = { kokoro: () => problem("load-cancelled", 409) };
+  expect(await asked[0].retry()).toMatchObject({ status: "loaded", started: true });
+  // an Unload ended it: what was asked
+  expect(await loadRuntimeModel("audiocpp", "kokoro", { label: "Kokoro" })).toEqual({ status: "cancelled", started: false });
+  expect(create.mock.calls.length).toBe(toasts);
+  create.mockRestore();
+});
+
+// Round E's last kit gaps (2026-10-29): what the arbiter unloaded to make room is said once, wherever a strip reads; a
+// busy kind's cells say so; the LLM cell's idle words are the kit's.
+test("the memory cells: a busy kind's cells say so, the chat default's claim is the kit's, each new eviction said once in the kit's words", async () => {
+  // the strip reads every 2.5 s on an interval
+  vi.useRealTimers();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  const before = { id: 5, at: 0, key: "gemma", kind: "llm", modelId: "gemma", forKind: "tts" };
+  server.resident = { ...RESIDENT, models: [], busyKinds: ["tts"], llmClaim: { route: "local", modelId: "qwen3-4b", mb: 4300, source: "measured" }, evictions: [before] };
+  const Strip = {
+    setup() {
+      const memory = useMemoryCells();
+      onMounted(memory.start);
+      return () =>
+        h(
+          "div",
+          memory.cells.value.map((c) => h("div", { key: c.key, class: "home-cell", title: c.title }, [h("span", c.label), h("span", c.value), h("span", c.sub || "")])),
+        );
+    },
+  };
+  wrapper = mount({ render: () => h("div", [h(Strip), h(Strip)]) }, { attachTo: document.body, global: { plugins: plugins() } });
+  const create = vi.spyOn(quasar.Notify, "create"); // after the mount: Quasar's install sets Notify.create
+  await settle();
+  const cell = (label) => [...document.body.querySelectorAll(".home-cell")].find((c) => c.children[0].textContent === label);
+  expect(cell("LLM").children[1].textContent).toBe("~4.2 GB on demand");
+  expect(cell("LLM").title).toBe("qwen3-4b loads when an AI feature needs it — what it took when it last loaded here");
+  // a line running in speech: its cell says busy, and why in its title; transcription's doesn't
+  expect(cell("Speech · Graphics card").children[2].textContent).toBe("busy");
+  expect(cell("Speech · Graphics card").title).toContain("isn't unloaded to make room");
+  expect(cell("Transcription · CPU").children[2].textContent).toBe("");
+  // the first reading's eviction happened before the window looked
+  expect(create).not.toHaveBeenCalled();
+
+  // new ones: each said once, oldest first — though two strips read
+  server.resident = {
+    ...server.resident,
+    evictions: [before, { id: 9, at: 0, key: "tts:audiocpp:gpu", kind: "tts", modelId: "kokoro", forKind: "llm" }, { id: 10, at: 0, key: "stt:audiocpp:gpu", kind: "stt", modelId: "", forKind: "llm" }],
+  };
+  await later(2600);
+  expect(create.mock.calls.map(([o]) => o.message)).toEqual(["kokoro was unloaded to make room for an AI model.", "A transcription model was unloaded to make room for an AI model."]);
+  await later(2600);
+  expect(create).toHaveBeenCalledTimes(2);
+
+  // a strip mounted again says none of the old ones
+  wrapper.unmount();
+  wrapper = mount(Strip, { attachTo: document.body, global: { plugins: plugins() } });
+  const again = vi.spyOn(quasar.Notify, "create");
+  await settle();
+  await later(2600);
+  expect(again).not.toHaveBeenCalled();
+
+  // the chat default on a cloud provider
+  server.resident = { ...server.resident, llmClaim: { route: "cloud", modelId: "", mb: 0, source: "" } };
+  await later(2600);
+  expect(cell("LLM").children[1].textContent).toBe("cloud");
+  again.mockRestore();
 });

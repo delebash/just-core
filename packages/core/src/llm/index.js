@@ -9,6 +9,7 @@ export { buildLlmConfig } from "./config_builder.js";
 export * as db from "./db.js";
 export { TABLES as LLM_TABLES } from "./db.js";
 export { LLMNotConfiguredError, resolveRoute } from "./dispatch.js";
+export { makeImageJobsRouter } from "./image_jobs_api.js";
 export { installLlm } from "./install.js";
 export { MeasurementFlag } from "./model_measurements_api.js";
 export { presetRecipe, resolveFeaturePreset } from "./preset_resolve.js";

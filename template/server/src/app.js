@@ -16,12 +16,14 @@
 
 import { statSync } from "node:fs";
 import path from "node:path";
-import { installLlm, runnerRouter } from "@delebash/core/llm";
+import { installLlm, makeImageJobsRouter, runnerRouter } from "@delebash/core/llm";
 import {
   bearerAuth,
   CAPACITOR_ORIGINS,
   ChangeCounter,
   createServer,
+  JobRegistry,
+  makeJobsRouter,
   csrfOrigin,
   installFileLog,
   installLogRing,
@@ -168,7 +170,9 @@ export async function createApp(dataDir = null) {
   const db = openAppDatabase(dataDir);
   // the data's epoch is kept in the database (a restore or a reset renews it)
   changes.useDatabase(db);
-  setState(new AppState(dataDir, db, { changes }));
+  // long work as jobs (the kit's JobRegistry): a job that ends is its window's change
+  const jobs = new JobRegistry({ onFinish: (job) => changes.note(job.clientId) });
+  setState(new AppState(dataDir, db, { changes, jobs }));
 
   // 5. The family routers.
   app.route("/", healthRouter());
@@ -186,6 +190,10 @@ export async function createApp(dataDir = null) {
   // 6. The AI stack: the host mounts the runner's process API, installLlm mounts the rest.
   app.route("/", runnerRouter());
   await installLlm(app, llmArgs(db, dataDir));
+  // long jobs (/v1/jobs: what one does, its events, cancel) and an image feature run as one over HTTP — the door a
+  // caller outside the screens uses (JustStage's Blender extension, 2026-10-29); each picture kept until fetched
+  app.route("/", makeJobsRouter(jobs));
+  app.route("/", makeImageJobsRouter(jobs, { resultDir: path.join(dataDir, "image-jobs") }));
 
   // 7. The app's own routes.
   app.route("/", settingsRouter());

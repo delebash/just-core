@@ -117,7 +117,9 @@ const props = defineProps({
   // The LLM cell's IDLE text ({text, title}), host-fed: with no model resident the
   // cell says "—" unless the host knows better (JV's on-demand claim line — Q3's
   // "how does a user know what fits when the LLM loads on demand"). One cell, one
-  // owner; the host supplies only the idle words.
+  // owner; the host supplies only the idle words. Since round E (2026-10-29) the kit
+  // says them itself — /resident's `llmClaim` ("~4.1 GB on demand", "cloud") — and
+  // this prop only overrides them.
   llmClaim: { type: Object, default: null },
   // A kit runtime's tab, the app's way (round E, G7 — JustVoice's speech models grouped by engine with its own panels):
   // `{<runtimeId>: {hidden?, props?}}` — `hidden` drops the tab; `props` go to its LuRuntimeTab as they are (`group`,

@@ -402,6 +402,13 @@ export function wireRunnerCatalog(
     const d = stores.getRoutingStore().getRouting().default;
     return d.llmId === "local-llamacpp" && d.model ? d.model : "";
   };
+  const chatCloudFn = () => {
+    // The chat default on a cloud provider (one set Online — `local` false; Ollama or LM Studio stay local): the memory
+    // strip's idle LLM cell says "cloud" (round E, 2026-10-29).
+    const d = stores.getRoutingStore().getRouting().default;
+    if (!d.llmId || d.llmId === "local-llamacpp") return false;
+    return stores.getProviderStore().get(d.llmId)?.local === false;
+  };
   const switchesFn = (modelId) => switchResolve.resolveModelSwitches(modelId, currentHwKey(), currentClassKey());
   const identifyFn = async (modelId, ggufPath) => {
     const { fetchGenerationConfigSamplers } = await import("../runner/gguf_remote.js");
@@ -495,6 +502,7 @@ export function wireRunnerCatalog(
     identifyFn,
     embeddingIdsFn,
     defaultLlmIdFn,
+    chatCloudFn,
     configFn: stores.buildRunnerConfig,
     cacheRoot: resolvedCache ? String(resolvedCache) : null,
     runtimeRoot: runtimeRoot ? String(runtimeRoot) : null,

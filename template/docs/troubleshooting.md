@@ -35,6 +35,12 @@ its reason and **Retry**.
 the computer has free — pick a smaller one, or unload another model first. **Settings → Logs**
 has the engine's own words.
 
+**"… was unloaded to make room for …".** The graphics card holds only so much: loading one model took the memory
+another was using, so the app unloaded that one. It loads again the next time it's needed. A model that is working
+right then is never unloaded — on the AI Settings memory strip its cell says **busy**. While the AI model isn't in
+memory, its cell says what it takes when it loads (**~4.1 GB on demand**), or **cloud** when your AI features run on
+an online provider.
+
 **A message showed a reference.** The reference finds the matching line in **Settings → Logs**:
 the server writes every failure there under the same reference, and this window's own errors land
 there too.

@@ -15,7 +15,9 @@ import { withAiTask } from "./appTask.js";
 
 export const JOB_POLL_MS = 400;
 
-const wait = (ms, signal) =>
+/** Wait `ms`, or reject with an AbortError the moment `signal` aborts — a follow loop's pause (this file's polls and
+ *  services/runtimeLoad.js's). */
+export const wait = (ms, signal) =>
   new Promise((resolve, reject) => {
     const onAbort = () => {
       clearTimeout(t);
@@ -104,19 +106,29 @@ export function jobError(job) {
  * Run a server job as one task. `start()` posts the request and answers the job's snapshot; `feature` and `label`
  * name the task on the strip, `meta` tells its screen which run is its own (a house's id, a brand); `describe(job,
  * percent)` words the progress from the job's own message (the part being found — "Trim · 40%"), else the percent
- * alone. `onEvent(event)` takes the job's own events (`{ type, ...payload }`, and `{ type: "cancelling" }`) and
- * `onJob(snapshot)` each snapshot (its `data`) — given either, the job's event stream is followed, polling again if
- * it drops. Resolves with the job's result; a cancel rejects with an AbortError (the strip shows it as cancelled, never
- * as a failure).
+ * alone. `note` is a line on the job's row — a string, or `(job) => string` read from each snapshot and the end's
+ * (JustVoice's export: what the file leaves out, round E 2026-10-29); it rides the task's own lines (`setStats`), so the
+ * strip, the AI tasks panel and its history show it. `onEvent(event)` takes the job's own events (`{ type, ...payload
+ * }`, and `{ type: "cancelling" }`) and `onJob(snapshot)` each snapshot (its `data`) — given either, the job's event
+ * stream is followed, polling again if it drops. Resolves with the job's result; a cancel rejects with an AbortError
+ * (the strip shows it as cancelled, never as a failure).
  */
-export function runServerJob({ start, feature, label, meta, describe, onEvent, onJob, pollMs = JOB_POLL_MS }) {
-  return withAiTask({ feature, label, meta }, async (task) => {
+export function runServerJob({ start, feature, label, meta, describe, note, onEvent, onJob, pollMs = JOB_POLL_MS }) {
+  const fixedNote = typeof note === "function" ? "" : String(note ?? "");
+  return withAiTask({ feature, label, meta, ...(fixedNote ? { stats: [fixedNote] } : {}) }, async (task) => {
     let job = await start();
     task.signal.addEventListener("abort", () => del(`/v1/jobs/${encodeURIComponent(job.id)}`).catch(() => {}), { once: true });
+    // a note read from the job: replaced at each snapshot, gone when it says nothing
+    const noted = (j) => {
+      if (typeof note !== "function") return;
+      const line = note(j);
+      task.setStats(line ? [String(line)] : []);
+    };
     const shown = (j) => {
       job = j;
       const pct = Math.round((j.progress || 0) * 100);
       task.setProgress(pct, 100, describe?.(j, pct) || kitT("kit.jobs.percent", { n: pct }));
+      noted(j);
       onJob?.(j);
     };
     if ((onEvent || onJob) && job.state === "running") {
@@ -136,7 +148,8 @@ export function runServerJob({ start, feature, label, meta, describe, onEvent, o
       await wait(pollMs, task.signal);
       job = await poll(job.id, task.signal);
     }
-    // the end, once, to a caller that keeps the job (its state, its data) — followed or polled
+    // the end, once, to a caller that keeps the job (its state, its data) — followed or polled; its note read from it
+    noted(job);
     onJob?.(job);
     if (job.state === "cancelled") {
       // stopped from elsewhere (another window's Cancel, a page's own, a restore stopping every job): the task ends

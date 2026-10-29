@@ -980,7 +980,7 @@ export class RuntimeService {
 
   _book(mb) {
     const { key } = this._booking();
-    this._arbiter().reserve(key, mb, { kind: this.rt.kind, evictFn: () => this.stopServer(), source: "declared" });
+    this._arbiter().reserve(key, mb, { kind: this.rt.kind, evictFn: () => this.stopServer(), source: "declared", holderFn: () => this.holderOf(key) });
   }
 
   _armIdle() {
@@ -1320,6 +1320,8 @@ export class RuntimeService {
       pinned: this._loadingKeys?.has(key) ?? false,
       evictFn: () => this._evictInstance(kind, placement),
       source,
+      // the model on that server now — the memory strip's and an eviction's `modelId` (round E, 2026-10-29)
+      holderFn: () => this.holderOf(key),
       // What evicting it gives back in system memory — an AI model's load credits it (the kit's RAM door, 2026-10-12).
       ramFn: async () => {
         const h = this._heldOn(kind, placement);
@@ -1617,7 +1619,7 @@ export class RuntimeService {
       }
       // Auto's third step, for a model never measured on the card; it waits for the AI model's memory to drain before
       // the load reads the card.
-      if (decided.unloadAi && !price) await sp.unloadAiModel(modelId);
+      if (decided.unloadAi && !price) await sp.unloadAiModel(modelId, kind);
       // The memory check again, without the credit: whatever was going to make room has, so this reading is exact — the
       // last refusal before the model registers.
       if (aiCreditMb > 0) await sp.admitSystemMemory(row, device);
@@ -2094,13 +2096,13 @@ export class RuntimeService {
       this._loading ??= (async () => {
         const ep = onnx.resolveProvider(executionProvider);
         const mb = ep === "cpu" ? 0 : Number(m.peakVramMb || 0);
-        if (mb && !(await arb.makeRoom(mb, { exclude: bookingKey, hardware: this._hardwareFn(), reason: `${this.rt.label} model` }))) {
+        if (mb && !(await arb.makeRoom(mb, { exclude: bookingKey, hardware: this._hardwareFn(), reason: `${this.rt.label} model`, forKind: this.rt.kind }))) {
           throw new EngineBusyError(this.rt.label);
         }
         const ort = await this._ort.load();
         const instance = await adapter.create({ files: m.files, ort: ort?.default ?? ort, executionProvider, dmlDeviceId: this._dmlDeviceIdFn?.(), log });
         this._loaded = { key, modelId, instance, ep, mb, jobs: 0 };
-        arb.reserve(bookingKey, mb, { kind: this.rt.kind, evictFn: () => this._releaseLoaded(), source: "declared" });
+        arb.reserve(bookingKey, mb, { kind: this.rt.kind, evictFn: () => this._releaseLoaded(), source: "declared", holderFn: () => this.holderOf(bookingKey) });
         log.info(`${this.rt.id}: ${modelId} in memory (${ep})`);
       })().finally(() => {
         this._loading = null;
@@ -2155,7 +2157,7 @@ export class RuntimeService {
     arb.busyBegin(this.rt.kind);
     this._jobs += 1;
     try {
-      if (peakMb > idleMb && !(await arb.makeRoom(peakMb - idleMb, { exclude: key, hardware: this._hardwareFn(), reason: `${this.rt.label} job` }))) {
+      if (peakMb > idleMb && !(await arb.makeRoom(peakMb - idleMb, { exclude: key, hardware: this._hardwareFn(), reason: `${this.rt.label} job`, forKind: this.rt.kind }))) {
         throw new EngineBusyError(this.rt.label);
       }
       this._book(peakMb);

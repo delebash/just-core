@@ -14,6 +14,8 @@
 // Auto/GPU/CPU saved, where it would load and why before a load, "Try the card again"; a load that downloads first, its
 // bar then its loading state, Cancel on the way; a licence the app gates (`terms-required`, with the action to repeat);
 // each setting with the control the runtime declares; and `changed` after anything here changes what the app shows.
+// The app's order (`sort`, `groupSort` — JustVoice's sort control in its `filters` slot), and a Load through the kit's
+// one way (services/runtimeLoad.js loadRuntimeModel — a task on the AI tasks strip), round E's last kit gaps.
 import { computed, onActivated, onBeforeUnmount, onMounted, reactive, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { request } from "../client.js";
@@ -35,6 +37,7 @@ import { fitLabel, fitWarning, speedBandLabel } from "../common/services/modelPi
 import { pushToast } from "../common/services/toastBridge.js";
 import { reportError } from "../common/services/reportError.js";
 import { createDownloadTask, readEngineStatus, readRuntimeModelStatus, runtimeEngineChannel, runtimeModelChannel } from "../composables/useDownloadTask.js";
+import { loadRuntimeModel } from "../services/runtimeLoad.js";
 import { engineNeedWords, refusalProblem } from "../services/runtimeWords.js";
 
 const props = defineProps({
@@ -48,6 +51,13 @@ const props = defineProps({
   // The app's filter: `(model, filters) => boolean` over `filters`, the object its `filters` slot edits — with the kind
   // picker and the search.
   filter: { type: Function, default: null },
+  // The app's order (round E, 2026-10-29): `sort` `(a, b, filters) => number` over models — the flat list's and inside
+  // each group; `groupSort` `(a, b, filters) => number` over the groups, each the app's group (`{key, label, …}`) with
+  // `models`, its every model. `filters` is the object its `filters` slot edits, so a sort control there (name, size …)
+  // reorders the list as it changes; a sort function the app swaps does too. Absent: the server's order — groups in the
+  // order of their first model; a model in no group stays after the groups.
+  sort: { type: Function, default: null },
+  groupSort: { type: Function, default: null },
 });
 // `changed` {what, id}: something here changed what the app shows (G9) — `what` is load, unload, install, update,
 // reinstall, remove, download, delete, addon-install, addon-remove, settings or placement; `id` the model's or the
@@ -64,9 +74,11 @@ const models = ref([]);
 const loadFailed = ref(false);
 const engineTask = createDownloadTask(runtimeEngineChannel(props.runtimeId));
 const modelTasks = reactive({}); // model id → its download task
-const pending = reactive({}); // model id → its Load's request is on its way
-// loading: its Load's request waits, or the server says a load of it runs (`loading` "downloading" | "loading")
+const pending = reactive({}); // model id → a Load of it from here runs (loadRuntimeModel follows it to its end)
+// loading: a Load from here runs, or the server says a load of it runs (`loading` "downloading" | "loading")
 const isLoading = (m) => !!pending[m.id] || !!m.loading;
+// a Load from here whose request waits — no download of it begun (its bar not armed): the other Loads wait for it
+const requesting = (id) => !!pending[id] && !modelTasks[id]?.state;
 const taskFor = (id) =>
   (modelTasks[id] ??= createDownloadTask({
     ...runtimeModelChannel(props.runtimeId, () => id),
@@ -99,12 +111,19 @@ let gone = false;
 let engineVerb = "install"; // what the engine's bar runs: install, update or reinstall
 const wasLoading = {}; // model id → it was loading at the last reading
 const addonWas = {}; // add-on id → its status at the last reading
+const barWas = {}; // model id → its bar's state at the last look
+// a Load from here is read by loadRuntimeModel (its row through `onRow`): the tab's poll is for everything else
 const busy = () =>
   engineTask.state === "running" ||
-  Object.values(modelTasks).some((x) => x.state === "running") ||
+  Object.entries(modelTasks).some(([id, x]) => x.state === "running" && !pending[id]) ||
   (engine.value?.addons ?? []).some((a) => a.status === "installing") ||
-  models.value.some((m) => m.loading) ||
-  Object.keys(pending).length > 0;
+  models.value.some((m) => m.loading && !pending[m.id]);
+// a model's download ended — this poll's, or a Load's that loadRuntimeModel followed: the app is told once
+function downloadEnded(id) {
+  const s = modelTasks[id]?.state ?? "";
+  if (s === "done" && barWas[id] !== "done") changed("download", id);
+  barWas[id] = s;
+}
 // a reinstall's build stays on disk while it installs again: its status, not `installed`, says it runs
 const engineReading = (e) => (e.status === "installing" ? { detail: e.detail, done: e.downloaded, total: e.total, status: e.status } : readEngineStatus(e));
 function feed() {
@@ -119,12 +138,12 @@ function feed() {
     addonWas[a.id] = a.status;
   }
   for (const m of models.value) {
-    if (m.status === "downloading" && modelTasks[m.id]?.state !== "running") taskFor(m.id).arm(kitT("kit.phase.downloading"));
-    const task = modelTasks[m.id];
-    if (task?.state === "running") {
-      task.apply(readRuntimeModelStatus(m));
-      if (task.state === "done") changed("download", m.id);
+    // a Load from here drives its own bar (loadRuntimeModel)
+    if (!pending[m.id]) {
+      if (m.status === "downloading" && modelTasks[m.id]?.state !== "running") taskFor(m.id).arm(kitT("kit.phase.downloading"));
+      if (modelTasks[m.id]?.state === "running") modelTasks[m.id].apply(readRuntimeModelStatus(m));
     }
+    downloadEnded(m.id);
     // a load that went on here without the tab waiting on it (a 202's, or one the app started) ended
     if (wasLoading[m.id] && !m.loading && !pending[m.id]) changed("load", m.id);
     wasLoading[m.id] = !!m.loading;
@@ -315,34 +334,44 @@ const kindOptions = computed(() => [{ value: "", label: t("kit.runtimes.kinds.al
 const kindWords = (k) => (["tts", "stt"].includes(k) ? t(`kit.runtimes.kinds.${k}`) : k);
 const kindOk = (m) => !kindFilter.value || m.kind === kindFilter.value;
 const search = ref("");
-// what the app's `filters` slot edits — its own fields, read by its `filter`
+// what the app's `filters` slot edits — its own fields, read by its `filter` and its `sort`
 const filters = reactive({});
+// the models in the app's order (`sort`), else the server's
+const ordered = computed(() => (props.sort ? [...models.value].sort((a, b) => props.sort(a, b, filters)) : models.value));
 const shown = computed(() => {
   const q = search.value.trim().toLowerCase();
   const words = (m) => `${m.name} ${props.group?.(m)?.label ?? ""}`.toLowerCase(); // a model is found by its group's name too
-  return models.value.filter((m) => kindOk(m) && (!q || words(m).includes(q)) && (!props.filter || props.filter(m, filters)));
+  return ordered.value.filter((m) => kindOk(m) && (!q || words(m).includes(q)) && (!props.filter || props.filter(m, filters)));
 });
-// The list as the app groups it (G6), its groups in the order of their first model: each `{key, group, models (shown),
-// all (the group's every model), inKind (those of the kind picked)}`. No `group`: one section, no heading.
+// The list as the app groups it (G6): each `{key, group, models (shown), all (the group's every model), inKind (those of
+// the kind picked)}`, its models in the app's order; the groups in the app's (`groupSort`), else the order of their first
+// model in the server's list — a sort of the models never moves the groups. No `group`: one section, no heading.
 const sections = computed(() => {
   if (!props.group) return [{ key: "", group: null, models: shown.value, all: shown.value, inKind: shown.value.length }];
   const on = new Set(shown.value.map((m) => m.id));
+  const groupOf = new Map(models.value.map((m) => [m.id, props.group(m)]));
   const groups = new Map();
-  const loose = [];
   for (const m of models.value) {
-    const g = props.group(m);
+    const g = groupOf.get(m.id);
+    if (g && !groups.has(`g:${g.key}`)) groups.set(`g:${g.key}`, { key: `g:${g.key}`, group: g, models: [], all: [], inKind: 0 });
+  }
+  const loose = [];
+  for (const m of ordered.value) {
+    const g = groupOf.get(m.id);
     if (!g) {
       if (on.has(m.id)) loose.push(m);
       continue;
     }
-    const key = `g:${g.key}`;
-    if (!groups.has(key)) groups.set(key, { key, group: g, models: [], all: [], inKind: 0 });
-    const sec = groups.get(key);
+    const sec = groups.get(`g:${g.key}`);
     sec.all.push(m);
     if (kindOk(m)) sec.inKind++;
     if (on.has(m.id)) sec.models.push(m);
   }
-  const list = [...groups.values()].filter((s) => s.models.length);
+  let list = [...groups.values()].filter((s) => s.models.length);
+  if (props.groupSort) {
+    const asGroup = (s) => ({ ...s.group, models: s.all });
+    list = list.map((s) => [asGroup(s), s]).sort(([a], [b]) => props.groupSort(a, b, filters)).map(([, s]) => s);
+  }
   if (loose.length) list.push({ key: "", group: null, models: loose, all: loose, inKind: loose.length });
   return list;
 });
@@ -389,24 +418,30 @@ async function tryCardAgain(m) {
     reportError(e);
   }
 }
-// Load: where its saved choice says (the server reads it). A model not on this computer downloads first (202
-// {status: "downloading"}, G4): its bar, then its loading state, from the poll. Unloaded on its way (G12) it answers
-// 409 load-cancelled — what was asked, not a failure.
+// Load: the kit's one way (services/runtimeLoad.js loadRuntimeModel), a task on the AI tasks strip — where its saved
+// choice says (the server reads it). A model not on this computer downloads first (202, G4): this row's bar, then its
+// loading state, its row read by the service (`onRow`). Unloaded on its way (G12) it ends as asked, saying nothing; the
+// app's licence gate (G5) hands the app the model and this Load to repeat; any other refusal is said by the service.
 async function loadModel(m) {
+  const bar = taskFor(m.id);
+  if (bar.state !== "running") bar.reset(); // a finished download's last words go; this load's come if it downloads
+  barWas[m.id] = bar.state;
   pending[m.id] = true;
-  schedule(); // its loading state from the server while the request waits
-  try {
-    const r = await request(`${modelUrl(m.id)}/load`, { method: "POST", body: {} });
-    if (r?.status === "downloading") taskFor(m.id).arm(kitT("kit.phase.downloading"));
-    else changed("load", m.id);
-  } catch (e) {
-    if (!termsRefused(e, m, () => loadModel(m)) && problemCode(e) !== "load-cancelled") reportError(refusalProblem(e, m.name, t) || e);
-  } finally {
-    await load();
-    feed();
-    delete pending[m.id]; // after the feed: the load it waited on is this request's, said above
-    if (busy()) schedule();
-  }
+  const out = await loadRuntimeModel(props.runtimeId, m.id, {
+    label: m.name,
+    download: bar,
+    onRow: (row) => {
+      replaceModel(row);
+      downloadEnded(row.id);
+    },
+    onTermsRequired: () => emit("terms-required", { model: m, retry: () => loadModel(m) }),
+  });
+  await load();
+  feed();
+  delete pending[m.id]; // after the feed: the load it waited on is this one's, said below
+  // the server took it (loaded, or downloaded and then stopped or failed): what the app shows changed
+  if (out.status === "loaded" || out.started) changed("load", m.id);
+  if (busy()) schedule();
 }
 // Unload — a load on its way stops (its download included)
 async function unloadModel(m) {
@@ -632,7 +667,7 @@ defineExpose({ refresh, filters });
                       :aria-label="t('kit.runtimes.placement.label', { name: m.name })" @update:model-value="(v) => setPlacement(m, v)"
                     />
                     <UiButton
-                      v-if="!loadedOf(m)" intent="primary" size="small" :disabled="!engine.installed || Object.keys(pending).length > 0"
+                      v-if="!loadedOf(m)" intent="primary" size="small" :disabled="!engine.installed || Object.keys(pending).some(requesting)"
                       :label="t('kit.runtimes.model.load')" @click="loadModel(m)"
                     />
                     <UiButton v-else intent="secondary" size="small" :label="t('kit.runtimes.model.unload')" @click="unloadModel(m)" />

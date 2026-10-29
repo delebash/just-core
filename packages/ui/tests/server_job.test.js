@@ -203,6 +203,31 @@ test("the caller that keeps the job gets its end once — followed or polled", a
   expect(polled).toEqual(["running", "done"]);
 });
 
+// round E (2026-10-29): a line on the job's row — JustVoice's export saying what the file leaves out
+test("a job's note is a line on its task: a fixed one from the start, one read from each snapshot and its end", async () => {
+  const tasks = useAiTasksStore();
+  answers.set("/v1/jobs/n1", { id: "n1", state: "done", result: 1 });
+  await runServerJob({ start: async () => ({ id: "n1", state: "running", progress: 0 }), feature: "fixed", label: "x", note: "WAV only — no ffmpeg", pollMs: 1 });
+  expect(Object.values(tasks.tasks).find((t) => t.feature === "fixed").stats).toEqual(["WAV only — no ffmpeg"]);
+
+  let n = 0;
+  answers.set("/v1/jobs/n2", () => (++n < 2 ? { id: "n2", state: "running", progress: 0.5, data: { note: "" } } : { id: "n2", state: "done", result: 2, data: { note: "chapters only" } }));
+  const lines = [];
+  const r = await runServerJob({
+    start: async () => ({ id: "n2", state: "running", progress: 0, data: { note: "reading" } }),
+    feature: "read",
+    label: "x",
+    note: (job) => job.data?.note,
+    onJob: () => lines.push([...Object.values(tasks.tasks).find((t) => t.feature === "read").stats]),
+    pollMs: 1,
+  });
+  expect(r).toBe(2);
+  // each snapshot's line, gone when it says nothing; the end's kept on the finished row (and its history)
+  expect(lines[0]).toEqual(["reading"]);
+  expect(lines).toContainEqual([]);
+  expect(Object.values(tasks.tasks).find((t) => t.feature === "read").stats).toEqual(["chapters only"]);
+});
+
 test("a job cancelled from elsewhere ends its task as cancelled — never a failure on the strip", async () => {
   // the server says cancelled (another window's Cancel, a restore) while this task's own signal never fired
   answers.set("/v1/jobs/c1", { id: "c1", state: "cancelled" });

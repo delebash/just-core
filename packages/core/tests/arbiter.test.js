@@ -335,10 +335,44 @@ test("eviction_events_ring_and_since", async () => {
   expect(e.victim_key).toBe("old");
   expect(e.victim_kind).toBe("llm");
   expect(e.reason).toBe("loading luxtts");
-  expect(e.seq).toBe(1);
+  expect(e.seq).toBeGreaterThan(0);
   expect(a.eventsSince(e.seq)).toEqual([]); // the client's cursor advances
   a.clear();
   expect(a.eventsSince(0)).toEqual([]);
+});
+
+// Round E (2026-10-29): an eviction says which model it unloaded and what it made room for — the memory strip's toast
+// ("Kokoro was unloaded to make room for an AI model"); its id keeps rising across a restart of the server.
+test("an eviction records the model it unloaded and the kind it made room for; ids rise across a restart", async () => {
+  const a = arb(8000);
+  let held = "kokoro";
+  a.reserve("tts:audiocpp:gpu", 3000, { kind: "tts", evictFn: () => (held = ""), holderFn: () => held });
+  a.reserve("qwen3-4b", 3000, { kind: "llm", evictFn: () => {} });
+  a.reserve("stt:other", 1000, { kind: "stt", evictFn: () => {} }); // its owner says nothing of its model
+  expect([a.holderOf("tts:audiocpp:gpu"), a.holderOf("qwen3-4b"), a.holderOf("stt:other"), a.holderOf("nothing")]).toEqual(["kokoro", "qwen3-4b", "", ""]);
+  // the model is read before its evictor runs — once unloaded, nothing holds the key
+  expect(await a.makeRoom(8000, { reason: "loading gemma", forKind: "llm", minMb: 0 })).toBe(true);
+  const events = a.eventsSince(0);
+  expect(events.map((e) => [e.victim_key, e.model_id, e.for_kind])).toEqual([
+    ["tts:audiocpp:gpu", "kokoro", "llm"],
+    ["qwen3-4b", "qwen3-4b", "llm"],
+    ["stt:other", "", "llm"],
+  ]);
+  expect(events[1].seq).toBeGreaterThan(events[0].seq);
+  expect(events[2].seq).toBeGreaterThan(events[1].seq);
+  // the runner's own admission evictions name theirs; a caller that names nothing records ""
+  a.recordEviction("old-embed", "llm", "replaced embedding model");
+  expect(a.eventsSince(events[2].seq)).toMatchObject([{ victim_key: "old-embed", model_id: "", for_kind: "" }]);
+  // a new process (a restart, seconds later): its first id is above the last one the window saw — never 1 again
+  const before = a.eventsSince(0).at(-1).seq;
+  const now = vi.spyOn(Date, "now").mockReturnValue(before + 3000);
+  try {
+    const next = arb(8000);
+    next.recordEviction("x", "llm");
+    expect(next.eventsSince(0)[0].seq).toBe(before + 3000);
+  } finally {
+    now.mockRestore();
+  }
 });
 
 // ── Phase 4 (fit-redesign §5.2/§13.10c): the ledger goes ARCH-AWARE ──────────

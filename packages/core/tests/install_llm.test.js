@@ -240,6 +240,21 @@ test("headless_boot_app_none_wires_everything_but_mounts_nothing", async () => {
   expect(String(lifecycle.getService().cacheRoot)).toBe(pyPath(join(tmp, "ai-cache")));
 });
 
+test("the chat default's route for the memory strip's idle LLM cell: 'cloud' only for a provider set Online", async () => {
+  // round E (2026-10-29): /resident's llmClaim — the runner hears whether the chat default runs in the cloud
+  await installLlm(null, { db: h, dataDir: tmp });
+  seedLlm();
+  const svc = lifecycle.getService();
+  const route = (llmId, model = "m") => {
+    stores.getRoutingStore().setRouting({ default: { llmId, model, embeddingId: "", embeddingModel: "" } });
+    return [svc._chatCloudFn(), svc._defaultLlmIdFn()];
+  };
+  expect(route("openai")).toEqual([true, ""]);
+  expect(route("openai-compat-local")).toEqual([false, ""]); // Ollama: on this machine, its memory not the kit's to say
+  expect(route("local-llamacpp", "qwen3-4b")).toEqual([false, "qwen3-4b"]); // the runner's own: its claim instead
+  expect(route("")).toEqual([false, ""]);
+});
+
 test("measured_class_tunes_bind_to_the_HOSTS_id_for_the_same_gguf", async () => {
   // The most expensive knowledge in this package is a measured class tune, and it was
   // addressable only by model_id: an app that seeds the SAME GGUF under its own id inherited

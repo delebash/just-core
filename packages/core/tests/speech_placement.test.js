@@ -561,7 +561,8 @@ test("Auto's third step: a never-measured model with no CPU speed unloads the AI
   aiOnCard(arb, 6800, () => evicted.push("gemma"));
   expect(await svc.loadModel("plain")).toEqual({ modelId: "plain", placement: "gpu", kind: "tts", reason: "it has no usable speed on the CPU, so the AI model makes room" });
   expect(evicted).toEqual(["gemma"]);
-  expect(arb.eventsSince(0)).toMatchObject([{ victim_key: "llm:gemma", reason: "loading plain" }]);
+  // the eviction says the AI model it unloaded and the kind it made room for (round E, 2026-10-29)
+  expect(arb.eventsSince(0)).toMatchObject([{ victim_key: "llm:gemma", reason: "loading plain", model_id: "llm:gemma", for_kind: "tts" }]);
   expect(arb.reservedMb("tts:audiocpp:gpu")).toBe(1500);
 });
 
@@ -597,7 +598,7 @@ test("a booking per server and kind: the arbiter evicts a speech model through i
     expect(svc.loaded()).toEqual([]);
     expect(pool.get("gpu", "tts").calls).toContainEqual(["unload", ["kokoro"]]);
     expect(arb.isReserved("tts:audiocpp:gpu")).toBe(false);
-    expect(arb.eventsSince(0)).toMatchObject([{ victim_key: "tts:audiocpp:gpu", victim_kind: "tts" }]);
+    expect(arb.eventsSince(0)).toMatchObject([{ victim_key: "tts:audiocpp:gpu", victim_kind: "tts", model_id: "kokoro" }]); // the model its server held
   }
   {
     const mb = { 11: 1200, 21: 700 };

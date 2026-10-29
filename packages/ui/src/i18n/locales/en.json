@@ -707,7 +707,14 @@
         "otherApps": "Other apps",
         "otherAppsTitle": "Memory held by processes this app doesn't manage (browser, desktop compositor, games)",
         "hide": "hide",
-        "showApps": "show apps"
+        "showApps": "show apps",
+        "busy": "busy",
+        "busyTitle": "In use now — it isn't unloaded to make room until its work ends",
+        "onDemand": "~{size} on demand",
+        "onDemandTitle": "{model} loads when an AI feature needs it — an estimate of what it takes",
+        "onDemandMeasuredTitle": "{model} loads when an AI feature needs it — what it took when it last loaded here",
+        "cloud": "cloud",
+        "cloudTitle": "Your AI features run on a cloud provider — no memory needed here"
       },
       "gpuApps": {
         "readFailed": "Couldn't read the process list: {error}",
@@ -793,6 +800,25 @@
         "label": "Where the providers run",
         "localShort": "Local",
         "onlineShort": "Online"
+      },
+      "evicted": {
+        "toast": "{model} was unloaded to make room for {incoming}.",
+        "model": {
+          "llm": "An AI model",
+          "tts": "A speech model",
+          "stt": "A transcription model",
+          "image": "An image model",
+          "vision": "A vision model",
+          "other": "A model"
+        },
+        "incoming": {
+          "llm": "an AI model",
+          "tts": "a speech model",
+          "stt": "a transcription model",
+          "image": "an image model",
+          "vision": "a vision model",
+          "other": "another model"
+        }
       }
     },
     "common": {
@@ -2127,7 +2153,8 @@
         "load": "Load",
         "unload": "Unload",
         "deleteTitle": "Delete {name}?",
-        "deleteMessage": "This frees {size}. The model stays in the list and downloads again when you need it."
+        "deleteMessage": "This frees {size}. The model stays in the list and downloads again when you need it.",
+        "didntLoad": "{name} didn't load"
       },
       "needs": {
         "vcRuntime": "Microsoft's Visual C++ runtime isn't on this computer ({files} missing) — install it, then try again.",
@@ -2210,7 +2237,9 @@
         "fastAtLeast": "Fast at ≥",
         "fineAtLeast": "Fine at ≥",
         "slowAtLeast": "Slow at ≥"
-      }
+      },
+      "loadTask": "Load {name}",
+      "loadTip": "It downloads, then loads — Cancel stops both"
     },
     "jobs": {
       "failed": "The work stopped with an error.",

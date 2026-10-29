@@ -707,7 +707,14 @@
         "otherApps": "Otras aplicaciones",
         "otherAppsTitle": "Memoria retenida por procesos que esta aplicación no gestiona (navegador, compositor de escritorio, juegos)",
         "hide": "ocultar",
-        "showApps": "mostrar aplicaciones"
+        "showApps": "mostrar aplicaciones",
+        "busy": "ocupado",
+        "busyTitle": "En uso ahora: no se descarga de la memoria para dejar sitio hasta que termine su trabajo",
+        "onDemand": "~{size} bajo demanda",
+        "onDemandTitle": "{model} se carga cuando una función de IA lo necesita; una estimación de lo que ocupa",
+        "onDemandMeasuredTitle": "{model} se carga cuando una función de IA lo necesita; lo que ocupó la última vez que se cargó aquí",
+        "cloud": "en la nube",
+        "cloudTitle": "Tus funciones de IA se ejecutan en un proveedor en la nube; no necesitan memoria aquí"
       },
       "gpuApps": {
         "readFailed": "No se pudo leer la lista de procesos: {error}",
@@ -793,6 +800,25 @@
         "label": "Dónde se ejecutan los proveedores",
         "localShort": "Local",
         "onlineShort": "En línea"
+      },
+      "evicted": {
+        "toast": "Se descargó {model} de la memoria para dejar sitio a {incoming}.",
+        "model": {
+          "llm": "un modelo de IA",
+          "tts": "un modelo de voz",
+          "stt": "un modelo de transcripción",
+          "image": "un modelo de imágenes",
+          "vision": "un modelo de visión",
+          "other": "un modelo"
+        },
+        "incoming": {
+          "llm": "un modelo de IA",
+          "tts": "un modelo de voz",
+          "stt": "un modelo de transcripción",
+          "image": "un modelo de imágenes",
+          "vision": "un modelo de visión",
+          "other": "otro modelo"
+        }
       }
     },
     "common": {
@@ -2127,7 +2153,8 @@
         "load": "Cargar",
         "unload": "Descargar de memoria",
         "deleteTitle": "¿Borrar {name}?",
-        "deleteMessage": "Esto libera {size}. El modelo sigue en la lista y se descarga de nuevo cuando lo necesites."
+        "deleteMessage": "Esto libera {size}. El modelo sigue en la lista y se descarga de nuevo cuando lo necesites.",
+        "didntLoad": "{name} no se cargó"
       },
       "needs": {
         "vcRuntime": "El entorno de ejecución de Visual C++ de Microsoft no está en este equipo (faltan {files}): instálalo y vuelve a intentarlo.",
@@ -2210,7 +2237,9 @@
         "fastAtLeast": "Rápido con ≥",
         "fineAtLeast": "Aceptable con ≥",
         "slowAtLeast": "Lento con ≥"
-      }
+      },
+      "loadTask": "Cargar {name}",
+      "loadTip": "Se descarga y después se carga; Cancelar detiene las dos cosas"
     },
     "jobs": {
       "failed": "El trabajo se detuvo con un error.",

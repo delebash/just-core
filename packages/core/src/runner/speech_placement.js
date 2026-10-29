@@ -760,8 +760,9 @@ export class SpeechPlacement {
 
   /** Auto's third step for a model never measured on the card: unload the AI model before the load, through the
    *  arbiter's `makeRoom` (so the eviction event — and the app's toast — say who made room for whom). Every other kind
-   *  booked on the card is protected — it is the AI model that makes room; a busy AI model by the arbiter itself. */
-  async unloadAiModel(modelId) {
+   *  booked on the card is protected — it is the AI model that makes room; a busy AI model by the arbiter itself.
+   *  `forKind` the kind loading (the eviction's record says it — round E, 2026-10-29). */
+  async unloadAiModel(modelId, forKind = "") {
     const hw = await this.hardware();
     try {
       const total = hw !== null ? Math.trunc(hardware.budgetTotalMb(hw)) : 0;
@@ -772,7 +773,7 @@ export class SpeechPlacement {
       const protectedKinds = [...new Set((await reservations()).map((r) => r.kind).filter((k) => k !== "llm"))];
       const beforeLlm = await llmMb();
       const beforeUsed = await this.usedPoolMb();
-      await arb.makeRoom(total, { protectedKinds, hardware: hw, reason: `loading ${modelId}` });
+      await arb.makeRoom(total, { protectedKinds, hardware: hw, reason: `loading ${modelId}`, forKind });
       // An unloaded model's memory drains over a second or two. Wait for the card to show it before the load reads the
       // card (audit §5 B2).
       await this.waitForDrain(beforeUsed, beforeLlm - (await llmMb()));
@@ -855,7 +856,7 @@ export class SpeechPlacement {
       if (want <= (await arb.remainingMb(hw))) return null;
       target = want;
     }
-    if (await arb.makeRoom(target, { exclude, hardware: hw, reason: `loading ${row.id}` })) {
+    if (await arb.makeRoom(target, { exclude, hardware: hw, reason: `loading ${row.id}`, forKind: row.kind || "" })) {
       // Eviction frees device memory ASYNCHRONOUSLY. Wait briefly for the measured number to agree; if it stays short,
       // proceed — the ledger says room.
       if (free !== null) {

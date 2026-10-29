@@ -43,6 +43,8 @@ export const keepAuth = {
 };
 
 async function stopRunnerBestEffort() {
+  // the jobs first: an image job running on the engine ends before the engine does
+  await getState().jobs?.cancelAll().catch(() => {});
   try {
     await lifecycle.getService().stop();
   } catch {

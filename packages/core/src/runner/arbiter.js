@@ -77,12 +77,15 @@ export const EVICT_MIN_MB = 600;
 
 /** One ledger row (Python's `_Reservation`). */
 export class _Reservation {
-  constructor({ vramMb, pinned, seq, kind = "llm", evictFn = null, source = "computed", asleep = false, ramFn = null }) {
+  constructor({ vramMb, pinned, seq, kind = "llm", evictFn = null, source = "computed", asleep = false, ramFn = null, holderFn = null }) {
     this.vramMb = vramMb;
     // The OWNER's reader of the system memory it holds (async → MB | null), when it has one — a
     // JustVoice speech slot's process. An AI model's load credits it when it may evict this
     // holder (`evictableRamMb`, 2026-10-12).
     this.ramFn = ramFn;
+    // The OWNER's reader of the model holding it now (sync → id | ""), when the key doesn't name it — a runtime's
+    // server, whose model changes under one key (`holderOf`; round E, 2026-10-29).
+    this.holderFn = holderFn;
     this.pinned = pinned;
     this.seq = seq; // monotonic use stamp — higher = more recently used (drives LRU eviction)
     this.kind = kind; // owner kind: "llm" | "tts" | "stt" — drives busy protection + kind-scoped counts
@@ -128,8 +131,8 @@ export class VramArbiter {
     // flight, so its residents are not eviction victims.
     this._busy = new Map();
     // Eviction event ring (newest last, capped) — the toast feed. Recorded by `makeRoom` and
-    // the runner's admission evictions; read by JV's GET /v1/engines/vram (eventsSince) so
-    // swaps surface as toasts.
+    // the runner's admission evictions; read by GET /v1/llm-runner/resident (`evictions` — the kit's
+    // useMemoryCells says each new one; round E, 2026-10-29) so swaps surface as toasts.
     this._events = [];
     this._eventSeq = 0;
   }
@@ -246,14 +249,30 @@ export class VramArbiter {
    * evictor — without one, `makeRoom` can never pick this reservation. `source` (§13.1)
    * records the number's provenance — measured | computed | declared.
    */
-  reserve(key, vramMb, { pinned = false, kind = "llm", evictFn = null, source = "computed", ramFn = null } = {}) {
+  reserve(key, vramMb, { pinned = false, kind = "llm", evictFn = null, source = "computed", ramFn = null, holderFn = null } = {}) {
     this._seq += 1;
     this._reservations.set(
       key,
       // Python's max(0, vram_mb): 0 unless the number is > 0 (NaN included).
-      new _Reservation({ vramMb: vramMb > 0 ? vramMb : 0, pinned, seq: this._seq, kind, evictFn, source: source || "computed", ramFn }),
+      new _Reservation({ vramMb: vramMb > 0 ? vramMb : 0, pinned, seq: this._seq, kind, evictFn, source: source || "computed", ramFn, holderFn }),
     );
     return true;
+  }
+
+  /** The model holding booking `key` (round E, 2026-10-29): its owner's `holderFn` says (a runtime's server — the
+   *  memory strip's `modelId`, an eviction's); an AI model's booking is keyed by the model itself; "" when none says,
+   *  or `key` isn't booked. */
+  holderOf(key) {
+    const r = this._reservations.get(key);
+    if (r === undefined) return "";
+    if (typeof r.holderFn === "function") {
+      try {
+        return String(r.holderFn() || "");
+      } catch {
+        return ""; // an owner that can't say
+      }
+    }
+    return r.kind === "llm" ? String(key) : "";
   }
 
   /** The system memory (MB) that the reservations `makeRoom` could evict say they hold — what a
@@ -381,12 +400,13 @@ export class VramArbiter {
    * reservations recorded without one), and belong to a kind that is neither in
    * `protectedKinds` nor BUSY (`busyKinds` — the invariant is enforced here so no caller can
    * forget it). The reservation is released on the ATTEMPT, so the loop always terminates
-   * (`_admit`'s 2026-07-06 lesson). `reason` names the beneficiary for the eviction-event
-   * toast ("loading luxtts").
+   * (`_admit`'s 2026-07-06 lesson). `reason` names the beneficiary for the log ("loading luxtts"); `forKind` the kind
+   * of the load the room is for — the eviction's record says it (the toast's "to make room for a speech model"; round
+   * E, 2026-10-29).
    */
   async makeRoom(
     neededMb,
-    { exclude = null, protectedKinds = [], hardware: hw = null, minMb = EVICT_MIN_MB, reason = "", selfKind = null, selfEvict = null } = {},
+    { exclude = null, protectedKinds = [], hardware: hw = null, minMb = EVICT_MIN_MB, reason = "", selfKind = null, selfEvict = null, forKind = "" } = {},
   ) {
     if (neededMb <= 0) return true;
     const box = hw != null ? hw : await this._hardwareFn();
@@ -409,6 +429,7 @@ export class VramArbiter {
       if (victim === null) return false;
       const [, key, res] = victim;
       log.info(`arbiter make_room: evict LRU ${key} (${res.kind}, ${res.vramMb} MB)${reason ? ` — ${reason}` : ""}`);
+      const modelId = this.holderOf(key); // before its evictor: once unloaded, nothing holds it
       try {
         if (res.evictFn != null) await res.evictFn();
         else await selfEvict(key);
@@ -417,22 +438,27 @@ export class VramArbiter {
         log.warning(`arbiter make_room: evictor for ${key} failed`, e);
       }
       this.release(key);
-      this.recordEviction(key, res.kind, reason);
+      this.recordEviction(key, res.kind, reason, { modelId, forKind });
     }
   }
 
   // ── eviction events (the toast feed, Q3: event-driven honesty) ────────────
 
   /** Append one eviction to the ring (cap 50). Called by `makeRoom` and by the runner's own
-   * admission evictions so BOTH directions surface. */
-  recordEviction(victimKey, victimKind, reason = "") {
-    this._eventSeq += 1;
+   * admission evictions so BOTH directions surface — never by an Unload the user asked for. `modelId` the model it
+   * unloaded, `forKind` the kind of the load it made room for (round E, 2026-10-29). Each `seq` is above the last and
+   * above the clock's milliseconds: a window that outlives a restart of the server (the tray's Restart) still sees the
+   * new process's evictions as new — a count from 1 again read as long said. */
+  recordEviction(victimKey, victimKind, reason = "", { modelId = "", forKind = "" } = {}) {
+    this._eventSeq = Math.max(this._eventSeq + 1, Date.now());
     this._events.push({
       seq: this._eventSeq,
       at: Math.trunc(Date.now() / 1000),
       victim_key: victimKey,
       victim_kind: victimKind,
       reason: reason || "",
+      model_id: modelId || "",
+      for_kind: forKind || "",
     });
     if (this._events.length > 50) this._events.splice(0, this._events.length - 50);
   }

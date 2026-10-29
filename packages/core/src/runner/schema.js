@@ -171,6 +171,29 @@ export const RuntimeBooking = strictObject({
   source: opt(T.String(), ""),
 });
 
+/** One booking the arbiter unloaded to make room for another load (arbiter.js `makeRoom`, the runner's admission) —
+ *  never an Unload the user asked for (round E, 2026-10-29): its `id` (each above the last, across the server's
+ *  restarts too), when (`at`, epoch ms), the booking's key and kind, the model that held it ("" when none said) and the
+ *  kind of the load it made room for ("" when the caller didn't say). */
+export const Eviction = strictObject({
+  id: T.Integer(),
+  at: opt(T.Integer(), 0),
+  key: T.String(),
+  kind: T.String(),
+  modelId: opt(T.String(), ""),
+  forKind: opt(T.String(), ""),
+});
+
+/** The chat default while it isn't in memory (lifecycle.js `_llmClaim`, round E 2026-10-29): `route` "local" — a model
+ *  on this runner that loads on demand, `mb` what a load of it takes on the pool (its `source`: measured · computed ·
+ *  declared) — or "cloud", a cloud provider's. */
+export const LlmClaim = strictObject({
+  route: T.String(),
+  modelId: opt(T.String(), ""),
+  mb: opt(T.Integer(), 0),
+  source: opt(T.String(), ""),
+});
+
 export const RunnerResidentResponse = strictObject({
   router: opt(T.Boolean(), false),
   modelsMax: opt(T.Integer(), 2),
@@ -182,6 +205,11 @@ export const RunnerResidentResponse = strictObject({
   remainingMb: opt(T.Integer(), 0),
   models: opt(T.Array(ResidentModel), []),
   runtimeBookings: opt(T.Array(RuntimeBooking), []),
+  // the newest evictions, oldest first, and the kinds a line is running in — never evicted (round E, 2026-10-29)
+  evictions: opt(T.Array(Eviction), []),
+  busyKinds: opt(T.Array(T.String()), []),
+  // what the chat default takes when it loads on demand, or that it runs in the cloud; null: nothing to say
+  llmClaim: opt(nullable(LlmClaim), null),
 });
 
 // ─── Load request (POST /v1/llm-runner/load) ────────────────────────────

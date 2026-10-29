@@ -79,6 +79,20 @@ What a speech model costs, measured, is in JustVoice's register §2.
   by releasing it — no admission removes it. — *code, 2026-10-04* ·
   `llm_runner/runner/arbiter.py:326-370` (the candidate filter at 362, protected and busy kinds
   at 358).
+- **What an eviction records** (round E, 2026-10-29): `makeRoom` reads the victim's model (`holderOf`) BEFORE its
+  evictor runs — after it, nothing holds the key — and records `{seq, at, victim_key, victim_kind, reason, model_id,
+  for_kind}`; the runner's own admission evictions (a replaced embed, the count cap) record theirs with the model id
+  and `for_kind` "llm". An Unload never records. `seq` = max(last + 1, the clock's ms): a count from 1 again after a
+  restart read as long said in a window that outlived it. — *code + test, 2026-10-29* · `runner/arbiter.js`
+  `makeRoom`, `recordEviction`; `tests/arbiter.test.js`.
+- **The chat default's claim on `/resident`** (`llmClaim`, round E, 2026-10-29 — JustVoice's deleted
+  `/v1/engines/vram` `_onDemandClaim` fed it, from `previewFit`'s claim over the routing default and its own production
+  configs, the largest): the kit's is the routing default on this runner (`defaultLlmIdFn`, the embed guard's chat
+  baseline) through `_resolveClaim` (resident → measured median → computed → declared), shown while it isn't loaded,
+  loading or booked, kept 30 s (`LLM_CLAIM_TTL_S` — the ladder reads the GGUF header); "cloud" when the default's
+  provider is set Online (`local` false); null for a CPU-placed model (0 MB on the pool), Ollama or LM Studio, or nothing
+  set. A feature whose preset names another local model isn't counted. — *code + test, 2026-10-29* ·
+  `runner/lifecycle.js` `_llmClaim`, `llm/install.js` `chatCloudFn`; JustVoice 5b6f56a4 (the deleted route).
 - `process_tree_device_mem_mb(pid)` measures the dedicated graphics memory of a process **and
   its children** (Windows venv pythons are launcher shims whose child holds the memory). It asks
   nvidia-smi first; on Windows' WDDM driver model, where nvidia-smi answers N/A per process, it
@@ -2550,6 +2564,10 @@ English".
 
 ## 10 · Screens: names, announcements, contrast
 
+- **Quasar's Notify install replaces `Notify.create`** (*measured*, the template's jsdom, quasar 2.35.0, 2026-10-29): a
+  `vi.spyOn(quasar.Notify, "create")` made before a `mount` with the Quasar plugin records nothing — the install sets
+  `create` again. A test spies after its last mount (`kitRuntimes.test.js`, the memory cells' test).
+
 - **A model's answer as Markdown, safely** (*code + tested*, 2026-10-29, `ui/common/services/aiMarkdown.js`): marked
   doesn't sanitize (its README sends you to a sanitizer, DOMPurify recommended), and a model's text is untrusted — it
   can write HTML or a `javascript:` link. So a separate `Marked` instance (GFM, `breaks`) whose `html` renderer escapes
@@ -2623,6 +2641,12 @@ From just-house-paint's fifteenth review (2026-10-20: the built app on fake data
 
 What a kit job registry has to hold, from the apps that run long work. Not decided as kit tasks: facts for K9's
 design.
+
+- **A task's own line is its `stats`** (round E, 2026-10-29): the task store's `stats` (plain strings, `setStats`) is
+  the one per-task detail line — the strip, the AI tasks panel's running and lingering rows and its history all show
+  it, and it rides into history. `runServerJob`'s `note` (a string, or a function of each snapshot and the end's —
+  JustVoice's export saying what the file leaves out) is that line. — *code + test, 2026-10-29* ·
+  `ui/stores/aiTasks.js` `_setStats`, `components/AiTaskStrip.vue`, `AiStatusPanel.vue`; `ui/tests/server_job.test.js`.
 
 - **just-direct (the film app's tests, no app yet) — record, from its session 2026-10-28, measured on the
   family's 8 GB PC:**
@@ -2727,7 +2751,18 @@ What the kit's `audiocpp` runtime is built on — JustVoice's code (`server/src/
   on-demand companion (`onDemand`: the 1.1 GB aligner) registers on the first line that needs it. — *code (G2–G5,
   G11, G12)*.
 - **The memory strip** reads every non-AI booking from `/v1/llm-runner/resident` `runtimeBookings`, each with the model
-  holding it (`<kind>:<runtime>[:<placement>]` keys). — *code (G10)*.
+  holding it (`<kind>:<runtime>[:<placement>]` keys) — since 2026-10-29 as the booking's owner says (the arbiter's
+  `holderOf`: `reserve`'s `holderFn`, a runtime's `RuntimeService.holderOf`; was: a loop over `runtimeServices()` in
+  `resident()`). The same reading carries `evictions` (the arbiter's ring, newest 20 — `lifecycle.js`
+  `RESIDENT_EVICTIONS`), `busyKinds` and `llmClaim`; `useMemoryCells` says each new eviction once per window, marks a
+  busy kind's cells "busy" and words the claim. — *code + test, 2026-10-29* · `runner/lifecycle.js` `resident`,
+  `ui/composables/useMemoryCells.js`; `tests/lifecycle.test.js`, the template's `kitRuntimes.test.js`.
+- **A runtime model's Load from a screen** is `ui/services/runtimeLoad.js` `loadRuntimeModel` — the runtime tab's too
+  (round E, 2026-10-29). A model on disk loads in the POST (200); one that isn't answers 202 at once — the route's
+  `_beginLoad` record is set before it returns, so the very first `GET …/models` already reads `loading: "downloading"`.
+  The background load's end: `loading` "" with the model `running` (loaded), `loadError` (failed — `startLoad` records it
+  unless an Unload cancelled it), or neither (an Unload ended it). — *code + test, 2026-10-29* ·
+  `runner/runtime_service.js` `startLoad`, `_loadFields`.
 - **Clear models cache** in a real folder another family app uses (the registry's `otherAppsUsing`) removes only this
   app's rows' files, as through a linked cache; the whole `hf` only when the cache is this app's alone. — *code (B12)*.
 - **eSpeak NG** (phonemes; JustVoice also passes its paths as the Kitten family's session options) comes from PyPI's `espeakng_loader` 0.2.4 wheel for the
