@@ -76,11 +76,17 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            TTS in llama.cpp, watch 6/7, --log-jsonl, /metrics, the fixture-only probe arms, the imaging trigger.
         E + F DONE 2026-10-29 (the done sections deleted, each confirmed in code by that day's research; the KV surface's
         record in docs/plans/archive/2026-09-19-kv-context-surface.md). G. The apps' items go to their trackers.
+DECIDED 2026-10-29 (the user, on four questions, the answers as chosen): round E — "JustVoice session (Recommended)":
+        the kit's half here, then a JustVoice session the user starts moves JustVoice's side. The sync conflict (JustWrite's
+        close-out dropped 14 "changes waiting" and 15 the remove-device button for JustWrite at 12:20, after this list's
+        10:51 go) — "Keep both (Recommended)". The pin move — "Every engine the kit pins (Recommended)": llama.cpp and
+        stable-diffusion.cpp to their latest releases, sd.cpp re-checked with one render. The two routing bugs below —
+        "Fix both (Recommended)".
 STATE:  under way.
 
 ## Found while finishing the kit: two routing bugs [2026-10-29]
 STATE:  FINDING — code-verified 2026-10-29 (read, not run), while rewriting feature-model-system.md against the code.
-        OPEN — your call; not on the approved list, so nothing built.
+        DECIDED 2026-10-29 — "Fix both (Recommended)" (the recs below).
         1. A feature's Reset no longer restores the model-tab default (your decision 2026-07-16: "the model resets to
            the default set in the model tab"). The reset sets the model from the routing default
            (`llm/presets_api.js` ~261-270, only `if (d.model)`), but `modelApply.setAsDefault`
