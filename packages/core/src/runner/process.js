@@ -41,7 +41,7 @@
 // PIPE would instead have blocked the child once the OS buffer filled).
 
 import { koffi } from "./koffi.js";
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import { dirname, join } from "node:path";
@@ -1202,6 +1202,85 @@ export function _closeJob(job) {
   }
 }
 
+// ─── Engines a crash left (Mac and Linux) ────────────────────────────────────────────
+// Windows ends a child with its server (the job above); Mac and Linux have no such enclosure, so an engine whose
+// server was killed hard (a crash, a force quit) keeps running and holds the graphics card's memory until a reboot
+// (the kit's finish list, 2026-10-29). Every spawn with a log writes `<log>.pid`: the child's pid, its program, its
+// command line and the server that started it. The next spawn on that log — once that server is gone — ends what is
+// left: the child, only while its command line is still the one recorded (a pid the OS has since given to another
+// program, or to another app's engine, whose command names its own port and files, is never touched), and what it
+// started (the router's per-model children); SIGTERM, then SIGKILL after a grace.
+export const _SWEEP_GRACE_SECONDS = 3;
+
+const pidFileOf = (logPath) => (logPath ? `${logPath}.pid` : null);
+
+function isAlive(pid, kill) {
+  try {
+    kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e?.code === "EPERM"; // alive, another user's
+  }
+}
+
+/** Record a spawned child for the next start's sweep (Mac and Linux, a spawn with a log). Never throws. */
+export function _writePidFile(logPath, proc, argv, { platform = cfg.platform, selfPid = process.pid } = {}) {
+  const file = pidFileOf(logPath);
+  if (platform === "win32" || !file || !Number.isInteger(proc?.pid)) return;
+  try {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, JSON.stringify({ pid: proc.pid, exe: String(argv[0]), command: argv.map(String).join(" "), owner: selfPid }));
+  } catch (e) {
+    log.debug(`couldn't write ${file}: ${e?.message ?? e}`);
+  }
+}
+
+/**
+ * End the engine a crash left on this log (Mac and Linux): the pids it ended, [] when there was none. Its server
+ * still alive (this one, or another on the same data folder) leaves it be. `kill(pid, signal)` and `_sleep` are
+ * test seams.
+ */
+export async function _sweepLeftover(
+  logPath,
+  { platform = cfg.platform, kill = (pid, sig) => process.kill(pid, sig), selfPid = process.pid, _sleep = sleepS } = {},
+) {
+  const file = pidFileOf(logPath);
+  if (platform === "win32" || !file || !existsSync(file)) return [];
+  const forget = () => rmSync(file, { force: true });
+  let rec = null;
+  try {
+    rec = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    // unreadable: nothing in it to trust
+  }
+  if (!Number.isInteger(rec?.pid) || !rec.exe || !rec.command) {
+    forget();
+    return [];
+  }
+  if (rec.owner === selfPid || (Number.isInteger(rec.owner) && isAlive(rec.owner, kill))) return [];
+  if (!isAlive(rec.pid, kill) || (await hardware.processCommand(rec.pid)) !== rec.command) {
+    forget();
+    return [];
+  }
+  const doomed = await hardware.processTreePids(rec.pid); // the engine, root first, and what it started
+  const signal = (pid, sig) => {
+    try {
+      kill(pid, sig);
+    } catch {
+      // gone already
+    }
+  };
+  for (const pid of doomed) signal(pid, "SIGTERM");
+  for (let waited = 0; waited < _SWEEP_GRACE_SECONDS && doomed.some((p) => isAlive(p, kill)); waited += 0.25) await _sleep(0.25);
+  const stubborn = doomed.filter((p) => isAlive(p, kill));
+  for (const pid of stubborn) signal(pid, "SIGKILL");
+  forget();
+  log.warning(
+    `ended ${doomed.length} engine process(es) a crash left running (pid ${doomed.join(", ")}${stubborn.length ? `; ${stubborn.length} needed SIGKILL` : ""}): ${rec.exe}`,
+  );
+  return doomed;
+}
+
 // A spawn that fails because the OS cannot SEE a binary we know is on disk is retried: on
 // Windows a freshly installed engine is routinely still held by the real-time virus scanner,
 // and CreateProcess then answers ERROR_FILE_NOT_FOUND (2) or ERROR_ACCESS_DENIED (5) for a
@@ -1271,6 +1350,11 @@ function confirmSpawned(proc) {
  */
 export async function _spawnChild(popen, argv, logPath = null, { _sleep = sleepS } = {}) {
   const start = popen ?? ((a, o) => procs.popen(a, o));
+  try {
+    await self._sweepLeftover(logPath); // Mac and Linux: the engine a crash left on this log
+  } catch (e) {
+    log.warning(`couldn't check for an engine a crash left: ${e?.message ?? e}`); // a safety net never blocks a spawn
+  }
   let last = null;
   for (let attempt = 0; attempt < _SPAWN_ATTEMPTS; attempt++) {
     try {
@@ -1283,6 +1367,7 @@ export async function _spawnChild(popen, argv, logPath = null, { _sleep = sleepS
         proc.on("error", (e) => log.debug(`${argv[0]}: ${e?.message ?? e}`));
       }
       wireOutput(proc, logPath);
+      self._writePidFile(logPath, proc, argv);
       if (attempt) {
         log.info(`spawned ${argv[0]} on attempt ${attempt + 1} (${attempt} earlier attempt(s) could not see it)`);
       }

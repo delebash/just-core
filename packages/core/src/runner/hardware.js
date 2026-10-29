@@ -844,6 +844,20 @@ export async function processRssMb(pid) {
   }
 }
 
+/**
+ * A live process's command line — its program and arguments, space-joined as `ps` prints them — or null (gone,
+ * or Windows, where the kill-on-close job ends an engine with its server). POSIX `ps -ww` (no width cut), Mac and
+ * Linux alike: the check that a pid is still the engine a pidfile recorded (process.js `_sweepLeftover`).
+ */
+export async function processCommand(pid) {
+  if (self.platformKey() === "windows") return null;
+  try {
+    return (await runText(["ps", "-ww", "-o", "command=", "-p", String(pid)], 5)).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Process-TREE probes (2026-08-14, the launcher-shim fix) ──────────────────
 // A spawned pid is not necessarily the process that holds the memory: a Windows uv-venv
 // `Scripts\python.exe` is a ~4 MB TRAMPOLINE whose CHILD is the real interpreter (proven

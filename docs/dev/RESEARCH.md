@@ -324,6 +324,12 @@ sheet `docs/plans/2026-10-07-kit-in-javascript.md`):
   server; with our own Job Object through `koffi` (MIT) it died too (*measured*). llama-server's
   router mode starts per-model children (`runner/arbiter.py:4`, `process.py:382`), so the kit's
   spawn needs that job (today: ctypes, `runner/process.py:831-907`).
+- **Process trees on Mac and Linux** (2026-10-29, read in code, not run on a Mac or Linux box): no job
+  object — a server killed hard (crash, force quit) leaves its llama-server and the router's children
+  running, holding the card. The kit's spawn seam records `<log>.pid` (pid, program, command line,
+  owning server) and the next spawn on that log ends a dead server's engine tree, only while `ps -ww -o
+  command=` still prints the recorded command line (`-ww`: BSD and procps `ps` both cut at the
+  terminal width without it). `process.js` `_sweepLeftover`.
 - undici's header and body timeouts default to 300 s; `fetch` ignores `HTTP(S)_PROXY` unless
   `NODE_USE_ENV_PROXY=1`.
 - JavaScript's `\w`/`\b` are ASCII-only and it has no `casefold` — a naive regex port gives

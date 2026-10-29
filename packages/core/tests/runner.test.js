@@ -26,6 +26,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { model } from "../src/platform/models.js";
 import * as fit from "../src/runner/fit.js";
 import { GgufMeta } from "../src/runner/gguf.js";
+import * as hardware from "../src/runner/hardware.js";
 import * as lifecycle from "../src/runner/lifecycle.js";
 import * as processMod from "../src/runner/process.js";
 import {
@@ -918,6 +919,59 @@ test("spawn_child_seam_wiring_and_no_job_off_windows", async () => {
   await processMod._spawnChild(() => logged, ["exe"], logPath);
   await new Promise((r) => setTimeout(r, 100));
   expect(readFileSync(logPath, "utf8")).toBe("before\ninto the log");
+});
+
+// The finish list's C29 (2026-10-29): Mac and Linux have no kill-on-close job, so an engine whose server was killed
+// hard kept running and held the card. Every spawn with a log records `<log>.pid`; the next spawn on that log ends
+// what a dead server left — only while the pid still runs the recorded command line.
+test("a spawn on Mac/Linux ends the engine a crashed server left on its log, and nothing else", async () => {
+  processMod.cfg.platform = "linux";
+  const logPath = join(tmp(), "router.log");
+  const pidFile = `${logPath}.pid`;
+  const command = "/cache/b9999/llama-server --port 8081 --models-preset /data/runtime/models.ini";
+  const live = new Set([4100, 4101]); // the engine and its per-model child
+  const signals = [];
+  const kill = (pid, sig) => {
+    if (sig === 0) {
+      if (!live.has(pid)) throw Object.assign(new Error("ESRCH"), { code: "ESRCH" });
+      return;
+    }
+    signals.push([pid, sig]);
+    if (sig === "SIGTERM" && pid === 4100) live.delete(pid); // the child ignores SIGTERM
+    if (sig === "SIGKILL") live.delete(pid);
+  };
+  const record = (rec) => writeFileSync(pidFile, JSON.stringify({ pid: 4100, exe: "/cache/b9999/llama-server", command, owner: 999_001, ...rec }));
+  const commands = vi.spyOn(hardware, "processCommand").mockImplementation(async (pid) => (pid === 4100 ? command : "something else"));
+  vi.spyOn(hardware, "processTreePids").mockResolvedValue([4100, 4101]);
+  const sweep = () => processMod._sweepLeftover(logPath, { kill, selfPid: 1, _sleep: async () => {} });
+
+  // its server still runs (another server on this data folder): left be
+  record({ owner: 2 });
+  live.add(2);
+  expect(await sweep()).toEqual([]);
+  expect(signals).toEqual([]);
+  live.delete(2);
+
+  // the pid now runs another program: untouched, the record forgotten
+  commands.mockResolvedValueOnce("/usr/bin/vim notes.txt");
+  record();
+  expect(await sweep()).toEqual([]);
+  expect(signals).toEqual([]);
+  expect(existsSync(pidFile)).toBe(false);
+
+  // the server died, the engine runs: SIGTERM to the tree, SIGKILL to what outlived the grace
+  record();
+  expect(await sweep()).toEqual([4100, 4101]);
+  expect(signals).toEqual([[4100, "SIGTERM"], [4101, "SIGTERM"], [4101, "SIGKILL"]]);
+  expect(existsSync(pidFile)).toBe(false);
+
+  // Windows: the job ends the tree; no sweep
+  record();
+  expect(await processMod._sweepLeftover(logPath, { platform: "win32", kill })).toEqual([]);
+
+  // a spawn records its child for the next start
+  processMod._writePidFile(logPath, { pid: 5150 }, ["/cache/b9999/llama-server", "--port", "8082"], { platform: "linux", selfPid: 77 });
+  expect(JSON.parse(readFileSync(pidFile, "utf8"))).toEqual({ pid: 5150, exe: "/cache/b9999/llama-server", command: "/cache/b9999/llama-server --port 8082", owner: 77 });
 });
 
 test("win_job_degrades_gracefully_without_windll", () => {

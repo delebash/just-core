@@ -47,8 +47,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            26 BUILT (sync: remove a device from a cloud folder — just-sqlite-sync ccf3fb6 `DELETE folder/devices/:id`, syncs first;
            SyncPanel's Remove on a folder row, the confirm's words mine; the design's 60-day auto-prune dropped; both apps' help). 27 BUILT (sync "Changes waiting" = this device's
            changes not yet sent — just-sqlite-sync 7e0fc0d `unsent()`, status `waiting`; one line under the sync line, words mine). 28 BUILT (Claude's prompt cache on every request; the ledger prices writes and reads at each model's rates,
-           editable on the price table — column words mine). 29 Mac/Linux: a pidfile
-           sweep of engines a crash left. 30 round E (JustVoice's audio.cpp and jobs into the kit) BEFORE the release.
+           editable on the price table — column words mine). 29 BUILT (Mac/Linux: a pidfile
+           sweep of engines a crash left — process.js `_sweepLeftover` in the spawn seam; unit-tested only, no Mac or Linux box here). 30 round E (JustVoice's audio.cpp and jobs into the kit) BEFORE the release.
            31 BUILT (the log names a llama.cpp config.ini the engine reads). 32 the pin's skipped re-read (placement rules,
            request parsing) + one MoE and one dense check run. 33 re-test --fit with Gemma-4 MTP drafts (if broken:
            llama-fit-params first, then launch with its placement). 34 the speed-truth walks on JustWrite's real app.
