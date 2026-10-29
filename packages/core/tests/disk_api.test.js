@@ -166,10 +166,13 @@ test("a_wired_service_supplies_the_engine_roots", async () => {
   vi.spyOn(diskApi.deps, "configuredService").mockResolvedValue({
     cacheRoot: shared,
     runtimeRoot: join(shared, "llamacpp"),
+    // what Clear would remove here (round E's B12 — the dialog's words and size come from it)
+    clearModelsScope: async () => ({ scope: "own", ownBytes: 600 }),
   });
   vi.spyOn(diskApi.deps, "sharingApps").mockResolvedValue(["JustWrite"]);
   const body = await usage(tmp);
   expect(body).toMatchObject({ modelsCache: 1234, engineBuilds: 10, spawnLogs: 7, cacheShared: true, sharedWith: ["JustWrite"] });
+  expect(body).toMatchObject({ clearScope: "own", modelsCacheOwn: 600 });
   // and a wiring gap is never an error: the data dir is measured instead
   vi.spyOn(diskApi.deps, "configuredService").mockRejectedValue(new Error("no runner"));
   expect((await usage(tmp)).cacheShared).toBe(false);

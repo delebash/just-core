@@ -965,6 +965,22 @@ test("the provider form shows the timeout it saves, and picks the provider type 
   expect(document.body.querySelector("select.lu-input")).toBeNull(); // the hand-rolled <select> is gone
 });
 
+// Round E's B12: in a cache another family app uses, Clear takes only this app's models — the dialog says so and names
+// what that frees, not the whole cache's size (house-paint's session, 2026-10-29: it still said theirs went too).
+test("Clear models cache on a cache another app shares names this app's models and their size, and says theirs stay", async () => {
+  serve({ "/v1/disk/usage": { modelsCache: 9 * 1024 ** 3, modelsCacheOwn: 2 * 1024 ** 3, clearScope: "own", cacheShared: true, sharedWith: ["JustWrite"] } });
+  await mountHost(() => [h(AppDialog), h(StoragePanel, {})]);
+  await settle();
+  const label = [...document.querySelectorAll(".lu-storage__label")].find((l) => l.textContent.trim() === "Models cache");
+  const row = label.nextElementSibling;
+  await new DOMWrapper(row.querySelector("button")).trigger("click");
+  await settle();
+  const text = document.querySelector('[role="dialog"]').textContent;
+  expect(text).toContain(`This frees ${fmtBytes(2 * 1024 ** 3)} of downloaded model files.`);
+  expect(text).toContain("This cache is shared with JustWrite on this computer: only this app's models are cleared — theirs stay.");
+  expect(text).not.toContain("clears their models too");
+});
+
 test("a size and its unit never part: a no-break space between them", () => {
   expect(fmtBytes(5.0 * 1024 ** 3)).toBe("5.0 GB");
   expect(fmtBytes(300 * 1024 ** 2)).toBe("300 MB");

@@ -94,8 +94,13 @@ export const DiskUsageResponse = T.Object({
   // True when the engine cache is somewhere other than `<dataDir>/ai-cache` — a panel
   // offering "clear the models cache" needs to say WHOSE models those are.
   cacheShared: opt(T.Boolean(), false),
-  // The other installed apps on this cache (the family registry): a clear takes their models too.
+  // The other installed apps on this cache (the family registry).
   sharedWith: opt(T.Array(T.String()), []),
+  // What Clear models cache removes here (runner/lifecycle.js clearModelsScope — round E, B12): "all" the whole
+  // cache (this app's alone), "own" only this app's models (a linked cache, or one other apps use); and for "own"
+  // what that frees (null: the whole cache's size, modelsCache, is what goes).
+  clearScope: opt(T.Union([T.Literal("all"), T.Literal("own")]), "all"),
+  modelsCacheOwn: opt(T.Union([T.Integer(), T.Null()]), null),
   // Host-declared buckets — app stores the shared kit doesn't know about (JV's speech
   // cache / render cache). Counted into `total`; {} for hosts that declare none.
   extras: opt(T.Record(T.String(), T.Integer()), {}),
@@ -196,6 +201,14 @@ export function makeDiskRouter(dataDir, extraBuckets = null) {
       log.warning("could not read the family cache registry — sharedWith reported empty", e);
     }
 
+    let clear = { scope: "all", ownBytes: null };
+    try {
+      const svc = await deps.configuredService();
+      if (svc?.clearModelsScope) clear = await svc.clearModelsScope();
+    } catch (e) {
+      log.warning("could not read what Clear models cache would remove — reported as the whole cache", e);
+    }
+
     let diskFree = 0;
     let diskTotal = 0;
     try {
@@ -215,6 +228,8 @@ export function makeDiskRouter(dataDir, extraBuckets = null) {
       diskTotal,
       cacheShared: !samePath(aiCache, path.join(root, "ai-cache")),
       sharedWith,
+      clearScope: clear.scope,
+      modelsCacheOwn: clear.ownBytes,
       extras,
     });
   });

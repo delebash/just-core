@@ -356,6 +356,8 @@
       "clearModelsMessage": "This frees {size} of downloaded model files. Your models stay in the catalog and download again the next time they're used.",
       "clearModelsShared": "This cache is shared with the family's other apps on this computer: clearing it clears their models too.",
       "clearModelsSharedWith": "This cache is shared with {apps} on this computer: clearing it clears their models too.",
+      "clearModelsOwn": "This cache is shared: only this app's models are cleared — the rest stays.",
+      "clearModelsOwnWith": "This cache is shared with {apps} on this computer: only this app's models are cleared — theirs stay.",
       "clearModelsConfirm": "Clear models cache",
       "unloadFirst": "A model is loaded — unload it first (AI Settings → Unload), then try again.",
       "modelsBusy": "A model is downloading or working on an AI job — try again when it's done.",

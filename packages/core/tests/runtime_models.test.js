@@ -292,6 +292,9 @@ test("Clear models cache in a cache another family app uses takes only this app'
     mkdirSync(path.dirname(theirs), { recursive: true });
     writeFileSync(theirs, "JustVoice's model");
     expect(cacheRegistry.otherAppsUsing(root)).toEqual(["JustVoice"]);
+    // what the Storage panel's dialog says before it: only this app's models, and what they free — the same files and
+    // the same count as the clear (house-paint's session, 2026-10-29: it named the whole cache, theirs included)
+    expect(await runner().clearModelsScope()).toEqual({ scope: "own", ownBytes: DIFF.length + TEXT.length + VAE.length });
 
     const res = await runner().clearModelsCache();
     expect(res).toEqual({ ok: true, bytes: DIFF.length + TEXT.length + VAE.length });
@@ -301,6 +304,7 @@ test("Clear models cache in a cache another family app uses takes only this app'
     // the other app gone (its data folder removed): the cache is this app's alone — the whole folder goes
     rmSync(theirData, { recursive: true, force: true });
     expect(cacheRegistry.otherAppsUsing(root)).toEqual([]);
+    expect(await runner().clearModelsScope()).toEqual({ scope: "all", ownBytes: null });
     expect((await runner().clearModelsCache()).ok).toBe(true);
     expect(existsSync(theirs)).toBe(false);
     expect(existsSync(path.join(root, "hf"))).toBe(true); // made again, empty, for the next download

@@ -356,6 +356,8 @@
       "clearModelsMessage": "Esto libera {size} de archivos de modelos descargados. Tus modelos siguen en el catálogo y se descargan de nuevo la próxima vez que se usen.",
       "clearModelsShared": "Esta caché se comparte con las demás aplicaciones de la familia en este equipo: borrarla también borra sus modelos.",
       "clearModelsSharedWith": "Esta caché se comparte con {apps} en este equipo: borrarla también borra sus modelos.",
+      "clearModelsOwn": "Esta caché se comparte: solo se borran los modelos de esta aplicación; el resto se queda.",
+      "clearModelsOwnWith": "Esta caché se comparte con {apps} en este equipo: solo se borran los modelos de esta aplicación; los suyos se quedan.",
       "clearModelsConfirm": "Borrar la caché de modelos",
       "unloadFirst": "Hay un modelo cargado: descárgalo primero (Ajustes de IA → Descargar) y vuelve a intentarlo.",
       "modelsBusy": "Un modelo se está descargando o está haciendo un trabajo de IA: vuelve a intentarlo cuando termine.",

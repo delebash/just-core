@@ -87,7 +87,8 @@ test("Clear models on a linked hf folder: only each catalog row's own files go â
     { id: "never", hfRepo: "google/gemma-GGUF", quant: "Q4_K_M" }, // nothing of it downloaded here
     { id: "evil", hfRepo: `x/..${path.sep}..${path.sep}..${path.sep}victim`, quant: "Q4_K_M" },
   ];
-  const svc = { _cacheRoot: cache, _catalogFn: () => rows, catalog: () => rows, resident: async () => ({ models: [] }) };
+  // (`_clearPlan`: what Clear removes â€” the one decision, Clear's and the Storage panel's, 2026-10-29)
+  const svc = { _cacheRoot: cache, _catalogFn: () => rows, catalog: () => rows, resident: async () => ({ models: [] }), _clearPlan: RunnerService.prototype._clearPlan };
   const expected = onDisk(mine) + onDisk(shard);
   expect(await RunnerService.prototype.clearModelsCache.call(svc)).toEqual({ ok: true, bytes: expected });
   expect(lstatSync(path.join(cache, "hf")).isSymbolicLink()).toBe(true);
@@ -100,7 +101,7 @@ test("Clear models on a linked hf folder: only each catalog row's own files go â
   expect(readFileSync(path.join(far, "my-finetunes", "lora-final.safetensors"), "utf8")).toBe("MINE");
   expect(readFileSync(path.join(victim, "keep.txt"), "utf8")).toBe("outside the cache");
   // no catalog (a standalone runner): nothing of a linked folder is touched
-  const none = { _cacheRoot: cache, resident: async () => ({ models: [] }) };
+  const none = { _cacheRoot: cache, resident: async () => ({ models: [] }), _clearPlan: RunnerService.prototype._clearPlan };
   expect(await RunnerService.prototype.clearModelsCache.call(none)).toEqual({ ok: true, bytes: 0 });
   expect(existsSync(theirs.blob)).toBe(true);
   // a model's Delete on a linked repo folder: that model's own files; another quant in the folder stays, the link kept

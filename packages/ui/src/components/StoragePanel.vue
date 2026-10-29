@@ -293,16 +293,26 @@ async function useDefaultFromNowOn() {
   }
 }
 
-/** A cache shared with the family's other apps: clearing it clears theirs too — named when the kit's
- *  registry knows them (`sharedWith`; the cache's owner sees them too), else said plainly (`cacheShared`). */
+/** What Clear does to a shared cache, as the server decides it (`clearScope` — lifecycle.js clearModelsScope, round
+ *  E's B12): "own" — only this app's models go, the family's other apps' stay (named when the kit's registry knows
+ *  them, `sharedWith`); "all" — the whole cache goes, so a cache that lives elsewhere (`cacheShared`, no app
+ *  registered on it) still warns that its other users' models go too. */
 function sharedNote() {
-  const apps = diskUsage.value?.sharedWith || [];
+  const u = diskUsage.value || {};
+  const apps = u.sharedWith || [];
+  if (u.clearScope === "own") {
+    return apps.length
+      ? t("kit.storagePanel.clearModelsOwnWith", { apps: new Intl.ListFormat(locale.value, { type: "conjunction" }).format(apps) })
+      : t("kit.storagePanel.clearModelsOwn");
+  }
   if (apps.length) return t("kit.storagePanel.clearModelsSharedWith", { apps: new Intl.ListFormat(locale.value, { type: "conjunction" }).format(apps) });
-  return diskUsage.value?.cacheShared ? t("kit.storagePanel.clearModelsShared") : "";
+  return u.cacheShared ? t("kit.storagePanel.clearModelsShared") : "";
 }
 
 async function clearModelsCache() {
-  const size = fmtBytes(diskUsage.value?.modelsCache) || "0 MB";
+  // what goes: this app's own models when only they do (`modelsCacheOwn`), else the whole cache
+  const own = diskUsage.value?.clearScope === "own" && diskUsage.value?.modelsCacheOwn != null;
+  const size = fmtBytes(own ? diskUsage.value.modelsCacheOwn : diskUsage.value?.modelsCache) || "0 MB";
   const yes = await confirmDialog({
     title: t("kit.storagePanel.clearModelsTitle"),
     message: [t("kit.storagePanel.clearModelsMessage", { size }), sharedNote()].filter(Boolean).join(" "),

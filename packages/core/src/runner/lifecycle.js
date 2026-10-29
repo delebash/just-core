@@ -531,6 +531,22 @@ function rowFiles(hf, row) {
 /** Remove `files` of `hf` (files and links — a link goes, never what it points to), then the folders they leave empty
  *  inside their repo's `snapshots` (a snapshot's own folder and its subfolders — nothing above it); resolves the bytes
  *  freed, each file once (two names of one file — a hard link — counted once). */
+/** What removeFiles would free: each regular file inside `hf` once (by its file id), nothing removed. */
+async function filesBytes(files, hf) {
+  let bytes = 0;
+  const seen = new Set();
+  for (const f of files) {
+    if (!insideDir(hf, f)) continue;
+    const st = await fsp.lstat(f, { bigint: true }).catch(() => null);
+    if (!st?.isFile()) continue;
+    const key = `${st.dev}:${st.ino}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    bytes += Number(st.size);
+  }
+  return bytes;
+}
+
 async function removeFiles(files, hf) {
   let freed = 0;
   const seen = new Set();
@@ -1769,6 +1785,37 @@ export class RunnerService {
    * this app's own rows' files go — `<cache>/hf` whole only when the cache is this app's alone (round E, B12: JustWrite's
    * clear took JustVoice's chat models, and would have taken its speech models after the move).
    */
+  /** What Clear models cache removes here — the one decision, Clear's and the Storage panel's (its dialog's words and
+   *  size): `{scope: "all"}` the cache's whole hf folder (this app's alone), or `{scope: "own", files, others}` only
+   *  this app's own models' files (a linked folder, or one the family's other apps use — `others` names them). */
+  async _clearPlan() {
+    const hf = path.join(this._cacheRoot, "hf");
+    const st = await fsp.lstat(hf).catch(() => null);
+    let others = [];
+    try {
+      others = st && !st.isSymbolicLink() ? otherAppsUsing(this._cacheRoot) : [];
+    } catch (e) {
+      // the family registry unreadable: who else uses the cache can't be told — only this app's own files go
+      log.warning("could not read which apps share this cache — clearing only this app's own models", e);
+      others = ["(unknown)"];
+    }
+    if (!st?.isSymbolicLink() && !others.length) return { scope: "all", files: null, others };
+    const files = new Set();
+    for (const row of catalogRows(this)) for (const f of rowFiles(hf, row)) files.add(f);
+    for (const s of runtimeServices()) for (const f of s.modelFiles()) files.add(f);
+    return { scope: "own", files, others };
+  }
+
+  /** The Storage panel's reading of Clear models cache: `{scope: "all" | "own", ownBytes}` — `ownBytes` what an "own"
+   *  clear frees (this app's models, each file once, counted as Clear counts them), null for "all" (the whole cache's
+   *  size is the panel's own figure). house-paint's session, 2026-10-29: the dialog still said a shared cache's clear
+   *  took the other apps' models, and named the whole cache's size. */
+  async clearModelsScope() {
+    const plan = await this._clearPlan();
+    if (plan.scope === "all") return { scope: "all", ownBytes: null };
+    return { scope: "own", ownBytes: await filesBytes(plan.files, path.join(this._cacheRoot, "hf")) };
+  }
+
   async clearModelsCache() {
     const busy = new Set(["loaded", "sleeping", "loading", "downloading", "starting"]);
     const inUse = ((await this.resident()).models || []).filter((m) => busy.has(m.status)).map((m) => m.id);
@@ -1783,26 +1830,15 @@ export class RunnerService {
     // dedupLinks like the panel: rmtree removes BOTH names of a hardlinked blob, so the bytes
     // really do come back — but they come back once, and a `freed` that counted each name
     // would overstate the reclaim (2x on Windows).
-    const st = await fsp.lstat(hf).catch(() => null);
-    let others = [];
-    try {
-      others = st && !st.isSymbolicLink() ? otherAppsUsing(this._cacheRoot) : [];
-    } catch (e) {
-      // the family registry unreadable: who else uses the cache can't be told — only this app's own files go
-      log.warning("could not read which apps share this cache — clearing only this app's own models", e);
-      others = ["(unknown)"];
-    }
-    if (st?.isSymbolicLink() || others.length) {
+    const plan = await this._clearPlan();
+    if (plan.scope === "own") {
       // a link (a junction, a symbolic link) to a folder elsewhere — a drive's, the HF hub cache other tools share,
       // a user's own: only the files this app's catalog rows downloaded go (each row's own — rowFiles), counted alone
       // — never a whole repo folder, never another tool's quant in it, never the rest of the folder it points to
       // (2026-10-20: the eighteenth review's "the catalog's repos" still took other tools' files). The same for a real
       // folder the family's other apps use (round E, B12).
-      if (others.length) log.info(`Clear models cache: ${others.join(", ")} share this cache — only this app's own models go`);
-      const files = new Set();
-      for (const row of catalogRows(this)) for (const f of rowFiles(hf, row)) files.add(f);
-      for (const s of runtimes) for (const f of s.modelFiles()) files.add(f);
-      return { ok: true, bytes: await removeFiles(files, hf) };
+      if (plan.others.length) log.info(`Clear models cache: ${plan.others.join(", ")} share this cache — only this app's own models go`);
+      return { ok: true, bytes: await removeFiles(plan.files, hf) };
     }
     const freed = await dirSize(hf, null, true);
     await rmTree(hf);
