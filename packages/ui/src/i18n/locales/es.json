@@ -848,7 +848,7 @@
       },
       "title": "Clases de PC",
       "titleSub": "perfiles de PC con nombre — cada uno contiene la configuración de clase de PC por modelo",
-      "help": "Una clase de PC agrupa PC con memoria similar. Cada clase almacena un conjunto de interruptores de inicio por modelo, que se usan automáticamente en cada PC de esa clase, a menos que esa máquina tenga su propia configuración ajustada.",
+      "help": "Una clase de PC agrupa PC con memoria similar. Cada clase almacena un conjunto de interruptores de inicio por modelo, que se usan automáticamente en cada PC de esa clase, a menos que esa máquina tenga su propia configuración aplicada.",
       "helpOverride": "La detección elige tu clase; puedes cambiarla a continuación.",
       "hwNotDetected": "hardware no detectado",
       "notDetected": "no detectado",

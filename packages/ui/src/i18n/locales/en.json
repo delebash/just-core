@@ -848,7 +848,7 @@
       },
       "title": "PC classes",
       "titleSub": "named PC profiles — each holds the PC class config per model",
-      "help": "A PC class groups PCs with similar memory. Each class stores one set of launch switches per model, used automatically on every PC in that class — unless that machine has its own tuned config.",
+      "help": "A PC class groups PCs with similar memory. Each class stores one set of launch switches per model, used automatically on every PC in that class — unless that machine has its own applied config.",
       "helpOverride": "Detection picks your class; you can override it below.",
       "hwNotDetected": "hardware not detected",
       "notDetected": "not detected",

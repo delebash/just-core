@@ -65,7 +65,7 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            JustVoice has none. 40 BUILT (AppearancePanel's Language row removed; JustVoice onto LanguagePicker — its hand-off line). 41 BUILT (the stale
            docs and comments — the class key, the watch doc, two plan headers, serving-design's sleepers, the skill's
            no-standard list, app-structure's docgen lines, the Bonsai verdicts and licence clause into model-research;
-           the skill's TASKS pointers move with F, then install-skills). 42 "tuned config" → "applied config" in the PC classes help; the Add-model note's last
+           the skill's TASKS pointers move with F, then install-skills). 42 "tuned config" → "applied config" in the PC classes help BUILT; the Add-model note's last
            sentence: the user's words (asked).
         E. Removed: D5, D6, I3, the KV/context surface (record in its plans), the RAM probe's serial passes (kept),
            Linux CUDA builds (Vulkan there), the template's phone (out of new apps), the per-band 27B trial,
