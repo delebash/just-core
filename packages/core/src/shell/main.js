@@ -149,6 +149,14 @@ const START_WAIT_MS = 60_000;
 
 /** `home` with the access token a move carried, as the kit's sign-in address takes it (serverToken.js
  *  `adoptTokenFromAddress` — `?token=`, taken once and removed from the address). */
+/** A menu's words as written: on Windows and Linux Electron reads "&" in a label as the mnemonic mark — the next letter
+ *  underlined, the "&" gone ("Just AI i18n & DocGen" read "Just AI i18n  DocGen" in docgen's tray, 2026-10-29) — and
+ *  "&&" is a literal one (electronjs.org/docs/latest/api/menu-item, `label`); macOS shows a label as it is. Every
+ *  label the shell hands a menu goes through here. */
+export function menuLabel(text, platform = process.platform) {
+  return platform === "darwin" || typeof text !== "string" ? text : text.replace(/&/g, "&&");
+}
+
 export function withCarriedToken(home, token) {
   if (!token) return home;
   const u = new URL(home);
@@ -790,7 +798,7 @@ export function runDesktopApp(config) {
       },
       { label: L.quit || `🚪 Quit ${config.productName}`, click: () => quitApp() },
     ];
-    return Menu.buildFromTemplate(items);
+    return Menu.buildFromTemplate(items.map((item) => (item.label ? { ...item, label: menuLabel(item.label) } : item)));
   }
   function createTray() {
     const tray = new Tray(nativeImage.createFromPath(config.trayIcon || config.icon));
@@ -1150,7 +1158,7 @@ export function runDesktopApp(config) {
     // keeps electron-context-menu's English.
     setContextMenuLabels({ labels }) {
       for (const id of CONTEXT_MENU_LABEL_IDS) {
-        if (typeof labels?.[id] === "string" && labels[id]) state.contextMenuLabels[id] = labels[id];
+        if (typeof labels?.[id] === "string" && labels[id]) state.contextMenuLabels[id] = menuLabel(labels[id]);
       }
       return null;
     },

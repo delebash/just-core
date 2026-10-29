@@ -188,7 +188,7 @@ vi.mock("../src/shell/dataRoot.js", async (importOriginal) => {
   return { ...real, relocate: vi.fn(real.relocate), sweepUnfinishedMove: vi.fn(real.sweepUnfinishedMove) };
 });
 
-const { runDesktopApp, QUIT_WHILE_MOVING, WINDOW_TOKEN_KEY } = await import("../src/shell/main.js");
+const { runDesktopApp, menuLabel, QUIT_WHILE_MOVING, WINDOW_TOKEN_KEY } = await import("../src/shell/main.js");
 const dataRoot = await import("../src/shell/dataRoot.js");
 const relocate = vi.mocked(dataRoot.relocate);
 const sweep = vi.mocked(dataRoot.sweepUnfinishedMove);
@@ -644,4 +644,20 @@ test("Storage: the old copy with its size, removed when asked — only what the 
   expect(await invoke("storageRemoveOldCopy", { root: old })).toEqual([]);
   expect(existsSync(path.join(old, "app.db"))).toBe(false);
   expect(readFileSync(path.join(old, "mine.txt"), "utf8")).toBe("the user's");
+});
+
+// docgen's installed tray (2026-10-29, Windows UI Automation): "🚪 Quit Just AI i18n  DocGen" — Electron reads "&" in a
+// menu label as the mnemonic mark on Windows and Linux ("&&" is a literal one — electronjs.org/docs/latest/api/
+// menu-item, `label`), so the product's "&" underlined the next letter and vanished. macOS shows a label as it is.
+test("an \"&\" in a menu's words is shown, on every platform: the tray's and the right-click menu's", async () => {
+  expect(menuLabel("Quit Just AI i18n & DocGen", "win32")).toBe("Quit Just AI i18n && DocGen");
+  expect(menuLabel("Quit Just AI i18n & DocGen", "linux")).toBe("Quit Just AI i18n && DocGen");
+  expect(menuLabel("Quit Just AI i18n & DocGen", "darwin")).toBe("Quit Just AI i18n & DocGen");
+  const { shell } = await startShell();
+  await invoke("setTrayLabels", { labels: { quit: "🚪 Quit Just AI i18n & DocGen", about: "ℹ️ About Just AI i18n & DocGen" } });
+  const labels = rec.menus.at(-1).map((i) => i.label).filter(Boolean);
+  expect(labels).toContain(menuLabel("🚪 Quit Just AI i18n & DocGen"));
+  expect(labels).toContain(menuLabel("ℹ️ About Just AI i18n & DocGen"));
+  await invoke("setContextMenuLabels", { labels: { copy: "Copy & keep" } });
+  expect(shell.state.contextMenuLabels.copy).toBe(menuLabel("Copy & keep"));
 });
