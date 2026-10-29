@@ -63,6 +63,7 @@ export { default as HelpTrigger } from "./components/HelpTrigger.vue";
 export { configureHelp, openHelp, closeHelp, toggleHelp, helpState, helpConfig } from "./services/help.js";
 export { makeDocsHelpAdapter } from "./services/helpDocs.js";
 export { renderHelpMarkdown, slugifyHeading } from "./services/helpMarkdown.js";
+export { renderAiMarkdown } from "./services/aiMarkdown.js";
 
 // shared toasts — the imperative bridge (Quasar's Notify under the hood)
 export { pushToast, clearToasts } from "./services/toastBridge.js";

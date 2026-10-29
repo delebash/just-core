@@ -2433,6 +2433,14 @@ English".
 
 ## 10 · Screens: names, announcements, contrast
 
+- **A model's answer as Markdown, safely** (*code + tested*, 2026-10-29, `ui/common/services/aiMarkdown.js`): marked
+  doesn't sanitize (its README sends you to a sanitizer, DOMPurify recommended), and a model's text is untrusted — it
+  can write HTML or a `javascript:` link. So a separate `Marked` instance (GFM, `breaks`) whose `html` renderer escapes
+  raw HTML, then DOMPurify 3.4.17 (its own instance, `DOMPurify(window)`, `USE_PROFILES: { html: true }`) with an
+  `afterSanitizeAttributes` hook giving http(s) links target=_blank rel="noopener noreferrer". Tested in the
+  template's jsdom: an `<img onerror>` and a `<script>` show as text, a `javascript:` link loses its href. DOMPurify
+  is a kit peer exported through the barrel, so every app installs it (as `front-matter`).
+
 From just-house-paint's fifteenth review (2026-10-20: the built app on fake data at 960×700, 1366×768 and
 1920×1032, light and dark, the accessibility tree over CDP) and its fixes in the kit.
 

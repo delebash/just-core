@@ -24,9 +24,8 @@ STATE:  No app releases — JustWrite, JustVoice, docgen, house-paint — until 
         release together, each on the same kit commit. Dry runs only meanwhile (house-paint's 40823762045 green on
         6879a42, the kit at ddb1431 — publish skipped). Told: JustWrite's session (it relayed it), docgen's; JustVoice's
         when one runs.
-OPEN:   - the release workflows' actions target Node 20, which GitHub forces onto Node 24 (actions/checkout@v4,
-          setup-node@v4, upload-artifact@v4, download-artifact@v4 — the dry run's annotations, 2026-10-29): the
-          template's release.yml and every app's copy to the actions' Node 24 majors.
+OPEN:   - the workflows' actions at their latest majors (JustWrite's asks, 4); each app's roadmap and ideas listed with
+          recommendations for the user (5).
 
 ## Every app's website deploys by its own `npm run deploy` [2026-10-29]
 DECIDED: the user, verbatim (2026-10-28): "why would i run the website workflow from the app workflow this doesnt make
@@ -58,8 +57,21 @@ HELD:   1. Multi-window ("Open a Character page in one window and write in anoth
            dispatch checks the month's tokens before a call and refuses with a typed error the screen shows as
            "<feature>'s monthly budget is used up — raise it in AI → Usage". Tokens or cost, and the month boundary:
            this session decides (JustWrite leans tokens: local engines cost nothing).
-OPEN:   3. q-inner-loading in dark (below, b); renderAiMarkdown ("Found by JustWrite's real-model screenshots" 1);
-           website/sync-docs taking a `lede:` front-matter (docgen's item).
+STATE:  3. q-inner-loading in dark BUILT (5a429ad); renderAiMarkdown BUILT 2026-10-29 (`ui/common/services/aiMarkdown.js`:
+           marked, then DOMPurify — a new kit peer, installed in the template, house-paint and JustVoice; JustWrite and
+           docgen by their sessions; template src/services/kitAiMarkdown.test.js).
+OPEN:   3. website/sync-docs taking a `lede:` front-matter (docgen's item).
+        4. Every workflow on the actions' LATEST majors — the user, verbatim (2026-10-29, JustWrite's session): "why are
+           we using node 20 why dont we use whatever latest is for gituhb", then "i want this for all apps". As of
+           2026-10-29: actions/checkout @v7, actions/setup-node @v7, actions/upload-artifact @v7,
+           actions/download-artifact @v8 — read the release notes from v4 up (the artifact actions changed where a
+           download lands), prove it with a dry run; the template's release.yml, house-paint's, the kit's website/
+           deploy.yml and house-paint's site's; each other session gets the exact lines.
+        5. After the open fixes, each app (the kit, house-paint, JustVoice, docgen; JustWrite its own) lists everything
+           open beyond TASKS — its roadmap, IDEAS and any candidate pools — each with a recommendation, do it or remove
+           it, its reasons and the attack, for the user to decide. The user, verbatim (relayed): "i want all apps to
+           have the roadmap ideas ect listed and recommed do d0ont remove pas this to other session after they complete
+           there bug and current feature fixes". JustVoice's session gets 4 and 5 when one runs.
 
 ## Kit gaps from JustWrite's copies audit [2026-10-29]
 STATE:  OPEN — found by JustWrite's session. a) the page-lede look and c) EmptyState's message slot DROPPED
@@ -130,20 +142,6 @@ OPEN:   1. Retiring a device from a cloud folder: just-sqlite-sync's folder tran
            kit's `SyncPanel.vue` no control — a device no longer used stays in the folder for good.
         2. "Changes waiting" on the sync status line (the sync design §2) has no source: no engine route counts what
            another device hasn't received yet.
-
-## Found by JustWrite's real-model screenshots, for the kit [2026-10-28]
-WHY:    JustWrite's session, from v2.0.0 run for real at 1920×1009 (its screenshots), 2026-10-28.
-OPEN:   1. Model answers shown as Markdown, safely: Ask the book and Talk to a character print the model's answer as
-           plain text (justwrite-app `src/components/ChatPanel.vue:562`), so Gemma's `**…**` and `*` bullets show
-           literally. Standard: marked (already the kit's and the apps' dependency) — its docs say it doesn't sanitize
-           and recommend DOMPurify; model text can carry HTML and `javascript:` links. A kit `renderAiMarkdown(text)`
-           in @delebash/ui (marked → DOMPurify, external links target=_blank rel=noopener, no raw HTML), DOMPurify a
-           new kit dependency; `helpMarkdown.js` renders trusted docs only. JustWrite wires its chat bubble once it's
-           in (its tracker waits on the kit). Queued after house-paint's release (the user's focus, 2026-10-28).
-        2. The model catalog squeezed in the provider form — FIXED 2026-10-28 (found in house-paint too, before its
-           release): the built-in's Edit card spans the providers area, its own parts at the form width, the catalog's
-           bar and grid the room the data needs (ProviderForm `.lu-pform--catalog`, AiModelsArea `.lu-providers`);
-           measured in house-paint's built app: Model 117 → 859 px at 1920, 204 px at 1280, no sideways scroll.
 
 ## The model catalog's open calls, moved from JustWrite's tracker [2026-10-28]
 WHY:    JustWrite's user: "do the kit code to its session" — these lines were JustWrite's, but the code is the kit's
