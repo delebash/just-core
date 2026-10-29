@@ -26,3 +26,10 @@ test("a tab strip is one row with no gap between its tabs", () => {
   expect(css).toMatch(/:where\(\.ui-tabstrip\) \.q-tabs__content \{[^}]*gap: 0/);
   expect(css).not.toMatch(/:where\(\.ui-tabstrip\) \.q-tabs__arrow \{[^}]*display: none/);
 });
+
+// QInnerLoading paints rgba(255, 255, 255, .6) unless Quasar's Dark plugin is on, and the kit keeps it off — in the dark
+// theme a page loading under it (the template's Notes, house-paint's Home, Colors and House) turned a pale wash
+// (JustWrite's copies audit, 2026-10-29). The theme's own surface, dimmed the same, in either theme.
+test("a loading overlay is the theme's surface dimmed, not Quasar's white", () => {
+  expect(css).toMatch(/:where\(\.q-inner-loading:not\(\.q-inner-loading--dark\)\) \{[^}]*background: color-mix\(in srgb, var\(--surface[^)]*\) 60%, transparent\)/);
+});

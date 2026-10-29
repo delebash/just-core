@@ -61,6 +61,13 @@
 :where(.q-card--bordered) { border-color: var(--border, rgba(0, 0, 0, .12)); }
 :where(.q-card:not(.q-card--flat)) { box-shadow: var(--shadow-2, none); }
 
+/* ── Loading overlay (QInnerLoading) ───────────────────────────────────── */
+/* Quasar dims what loads under it with white at 60 % unless its Dark plugin is on — off here, so in the dark theme
+   a page loading (the template's Notes, house-paint's Home, Colors and House) turned a pale wash (JustWrite's copies
+   audit, 2026-10-29). The theme's surface dimmed the same instead; an explicit `dark` keeps Quasar's own. Zero
+   specificity: an app's own overlay rule wins. */
+:where(.q-inner-loading:not(.q-inner-loading--dark)) { background: color-mix(in srgb, var(--surface, #fff) 60%, transparent); }
+
 /* ── Tag (UiTag on QBadge) ─────────────────────────────────────────────── */
 /* Borderless soft tint by default (--tag-border-width: 0); a host that wants outlined pills
    (JustVoice) sets --tag-border-width: 1px → the border takes the intent's text colour. An intent
