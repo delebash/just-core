@@ -1674,14 +1674,14 @@ const ENGINE_SIGNS = [
 ];
 const ORT_HANDOFF = /\bonnx:\s*\{\s*load:\s*\(\)\s*=>\s*import\(\s*["']onnxruntime-node["']\s*\)/g;
 const ENGINE_KNOWN = new Map([
-  ["JustVoice", new Set([
-    "server/src/audio/dsp_client.js",
-    "server/src/engines/audiocpp/catalog.json",
-    "server/src/engines/audiocpp/espeak.js",
-    "server/src/engines/audiocpp/japanese.js",
-    "server/src/engines/audiocpp/release.js",
-    "server/src/engines/audiocpp/runtime.js",
-  ])],
+  // round E moved the rest into the kit (JustVoice 5b6f56a4); the catalog leaves as it becomes seed_audiocpp_catalog.json
+  ["JustVoice", new Set(["server/src/engines/audiocpp/catalog.json"])],
+]);
+// A program an app keeps by the user's decision — not an AI engine — started through the kit's own door: the named
+// signs only, for the named file; any other sign there still fails. JustVoice's DSP (the user, 2026-10-29: "the DSP
+// program stays the app's (shipped with it, started through the kit's spawnChild) — no kit work").
+const ENGINE_ALLOWED = new Map([
+  ["JustVoice", new Map([["server/src/audio/dsp_client.js", ["starts a native process (the kit's spawnChild)"]]])],
 ]);
 // A seed file holds a model's pinned files: database/seed*.js, seed_*.js — and seed_*.json, a catalog the app generates
 // from an engine's own and seeds its runtime_model rows from (JustVoice's audio.cpp catalog, round E, 2026-10-29). One
@@ -1693,7 +1693,8 @@ function checkEngines(app) {
     if (!/\.(js|json)$/.test(f)) continue; // a catalog .json can pin files too
     const rel = relative(app.dir, f).replace(/\\/g, "/");
     const code = readFileSync(f, "utf8").split(/\r?\n/).filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n").replace(ORT_HANDOFF, "onnx: { load: kitHandoff");
-    const what = ENGINE_SIGNS.filter(([re, why]) => re.test(code) && !(why.includes("SHA-256") && isSeedFile(rel))).map(([, why]) => why);
+    const allowed = ENGINE_ALLOWED.get(app.name)?.get(rel) ?? [];
+    const what = ENGINE_SIGNS.filter(([re, why]) => re.test(code) && !(why.includes("SHA-256") && isSeedFile(rel)) && !allowed.includes(why)).map(([, why]) => why);
     if (!what.length) continue;
     const msg = `${rel} ${what.join("; ")} — AI engines go through the kit's runtimes (family rules; the engines plan)`;
     if (ENGINE_KNOWN.get(app.name)?.has(rel)) info(app.name, `${msg} — known since 2026-10-24, moves into the kit in its round`);
