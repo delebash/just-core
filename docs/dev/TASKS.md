@@ -45,8 +45,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            editable; house-paint's finder records its encode by its session). 24 BUILT (If-Match in the kit — platform/versions.js; the template's notes on it; house-paint's
            outlines onto it by its session). 25 BUILT (UiSelect groups — JustVoice's picker moves onto it, its hand-off line).
            26 BUILT (sync: remove a device from a cloud folder — just-sqlite-sync ccf3fb6 `DELETE folder/devices/:id`, syncs first;
-           SyncPanel's Remove on a folder row, the confirm's words mine; the design's 60-day auto-prune dropped; both apps' help). 27 sync "Changes waiting" = this device's
-           changes not yet sent. 28 BUILT (Claude's prompt cache on every request; the ledger prices writes and reads at each model's rates,
+           SyncPanel's Remove on a folder row, the confirm's words mine; the design's 60-day auto-prune dropped; both apps' help). 27 BUILT (sync "Changes waiting" = this device's
+           changes not yet sent — just-sqlite-sync 7e0fc0d `unsent()`, status `waiting`; one line under the sync line, words mine). 28 BUILT (Claude's prompt cache on every request; the ledger prices writes and reads at each model's rates,
            editable on the price table — column words mine). 29 Mac/Linux: a pidfile
            sweep of engines a crash left. 30 round E (JustVoice's audio.cpp and jobs into the kit) BEFORE the release.
            31 BUILT (the log names a llama.cpp config.ini the engine reads). 32 the pin's skipped re-read (placement rules,
@@ -216,15 +216,6 @@ STATE:  The kit's, the template's and house-paint's DONE 2026-10-29 (the user's 
         docgen applied its own (its root lock: jsdom's undici 8.12.3, serialize-javascript 7.1.4; src-electron's
         fast-uri and @electron/get's undici) and dropped qrcode (only SyncPanel imports it; docgen has no sync) — so a
         renderer-peer check must count what an app's renderer imports, not every peer the kit lists.
-
-## Sync gaps, moved from JustWrite's tracker [2026-10-28]
-WHY:    JustWrite's "Sync — offline first…" OPEN line (its docs/dev/TASKS.md): both are the sync engine's or the kit's
-        code, so JustWrite has nothing to build. Queued after house-paint's release (the user's focus, 2026-10-28).
-OPEN:   1. Retiring a device from a cloud folder: just-sqlite-sync's folder transport has `removeDevice(id)`
-           (`src/transports/folder.js:211`, never this device's own), but its `src/app.js` has no route for it and the
-           kit's `SyncPanel.vue` no control — a device no longer used stays in the folder for good.
-        2. "Changes waiting" on the sync status line (the sync design §2) has no source: no engine route counts what
-           another device hasn't received yet.
 
 ## The model catalog's open calls, moved from JustWrite's tracker [2026-10-28]
 WHY:    JustWrite's user: "do the kit code to its session" — these lines were JustWrite's, but the code is the kit's

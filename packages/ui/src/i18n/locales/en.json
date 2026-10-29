@@ -1023,7 +1023,9 @@
       "status": {
         "synced": "Synced {ago} · from {from}",
         "never": "Not synced with another device yet",
-        "thisDevice": "This device: {name}."
+        "thisDevice": "This device: {name}.",
+        "waiting": "Changes waiting: {n}",
+        "waitingTitle": "Rows changed on this device that no other device or the cloud folder has yet"
       },
       "syncNow": "Sync now",
       "syncNowNeeds": "Choose a cloud folder or pair a device first.",

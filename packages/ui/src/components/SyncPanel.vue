@@ -314,6 +314,7 @@ onBeforeUnmount(() => clearInterval(timer));
       <div class="lu-sync-info">
         <b v-if="latest">{{ t('kit.sync.status.synced', { ago: ago(latest.lastSync), from: deviceLabel(latest) }) }}</b>
         <b v-else>{{ t('kit.sync.status.never') }}</b>
+        <span v-if="Number.isFinite(status?.waiting)" class="lu-muted" :title="t('kit.sync.status.waitingTitle')">{{ t('kit.sync.status.waiting', { n: status.waiting }) }}</span>
         <span class="lu-muted">{{ t('kit.sync.status.thisDevice', { name: status?.deviceName || "…" }) }}</span>
       </div>
       <div class="lu-sync-actions">

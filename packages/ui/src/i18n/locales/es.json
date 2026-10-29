@@ -1023,7 +1023,9 @@
       "status": {
         "synced": "Sincronizado {ago} · desde {from}",
         "never": "Aún no sincronizado con otro dispositivo",
-        "thisDevice": "Este dispositivo: {name}."
+        "thisDevice": "Este dispositivo: {name}.",
+        "waiting": "Cambios pendientes: {n}",
+        "waitingTitle": "Filas cambiadas en este dispositivo que ningún otro dispositivo ni la carpeta en la nube tiene aún"
       },
       "syncNow": "Sincronizar ahora",
       "syncNowNeeds": "Elige una carpeta en la nube o empareja un dispositivo primero.",
