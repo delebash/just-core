@@ -30,7 +30,8 @@ KIT 2026-10-29: every kit item done — the finish list and round E's kit half (
         pass green at 4d331e6 (core 1619, template e2e 15, the realrouter smoke 7 on JustWrite's data; house-paint e2e
         18, docgen e2e 19, JustWrite e2e 9 on e45086d). JustVoice's move onto it runs in its session
         (docs/plans/2026-10-29-round-e-onto-the-kit.md §4 there).
-OPEN:   - the workflows' actions at their latest majors (JustWrite's asks, 4); each app's roadmap and ideas listed with
+OPEN:   - the workflows' actions at their latest majors (JustWrite's asks, 4) — JustWrite's all on @v7 (2026-10-29, its
+          session); JustVoice's 18 lines on v4 are the last; each app's roadmap and ideas listed with
           recommendations for the user (5).
 CHECKED 2026-10-29, once after the day's kit changes (5a429ad, 1dcce91, be584a9, 2c76636, ca087d0): 21 steps green — kit
         core 1528 and lint, kit ui 77 and lint, the template's lint, i18n, server 62, unit 114, unpacked build and e2e 12/12;
