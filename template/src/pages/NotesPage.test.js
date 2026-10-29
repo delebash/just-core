@@ -75,6 +75,8 @@ function fakeFetch(input, init = {}) {
     return Promise.resolve(json({ content: '"Weekly shopping list."\n', model: "test", promptTokens: 9, completionTokens: 5 }));
   }
   if (m && method === "DELETE") {
+    // the note changed in another window since the list was read (the server's 412 — platform/versions.js)
+    if (server.changedElsewhere) return Promise.resolve(json({ type: "x/note-changed", title: "This note was changed in another window", status: 412, detail: "Your change wasn't saved — the note is shown as it is now" }, 412));
     server.notes = server.notes.filter((n) => n.id !== m[1]);
     return Promise.resolve(new Response(null, { status: 204 }));
   }
@@ -303,4 +305,20 @@ test("another window's change reads the list again, in place", async () => {
   await flushPromises();
   expect(server.calls.filter((c) => c === "GET /v1/notes").length).toBe(before + 1);
   expect(text()).toContain("From the phone");
+});
+
+// The finish list's C24: a delete made on an older version of the note (another window changed it) is refused 412 —
+// said in the server's words, the list read again as it is now; the version the list had goes with the delete.
+test("a delete of a note another window changed is refused in its words, and the list is read again", async () => {
+  server.notes = [{ id: "n1", title: "Old list", body: "", pinned: false, createdAt: "2026-10-17T10:00:00.000Z", updatedAt: "2026-10-17T10:00:00.000Z", version: '"v1"' }];
+  server.changedElsewhere = true;
+  await mountPage();
+  const reads = server.calls.filter((c) => c === "GET /v1/notes").length;
+  await click(document.querySelector('button[aria-label="Delete “Old list”"]'));
+  _resolveDialog(true);
+  await flushPromises();
+  expect(server.calls).toContain("DELETE /v1/notes/n1");
+  expect(reported.at(-1)?.status).toBe(412);
+  expect(server.calls.filter((c) => c === "GET /v1/notes").length).toBe(reads + 1);
+  server.changedElsewhere = false;
 });

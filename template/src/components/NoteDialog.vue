@@ -68,10 +68,18 @@ async function save() {
   serverErrors.value = {};
   try {
     const input = { title: draft.title, body: draft.body, pinned: draft.pinned };
-    const saved = isNew.value ? await notes.create(input) : await notes.update(props.note.id, input);
+    const saved = isNew.value ? await notes.create(input) : await notes.update(props.note.id, input, { version: props.note.version });
     emit("saved", saved, { created: isNew.value });
     modal.value?.close();
   } catch (e) {
+    // changed in another window since this note was opened (412 — the server's words say so): the list shows it as it
+    // is now, and the dialog closes on it
+    if (e?.status === 412) {
+      reportError(e);
+      notes.load().catch(() => {});
+      modal.value?.close();
+      return;
+    }
     const fields = fieldErrors(e);
     const mine = Object.fromEntries(Object.entries(fields).filter(([k]) => FIELDS.includes(k)));
     serverErrors.value = mine;

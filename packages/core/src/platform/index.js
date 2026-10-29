@@ -23,4 +23,5 @@ export { serveUi } from "./serve_ui.js";
 export { canonicalJson, defaultsFingerprints, fingerprint, retireSettings, upgradeSettings } from "./settings_upgrade.js";
 export { makeShutdownRouter, SHUTDOWN_PATH } from "./shutdown_api.js";
 export { openDatabase } from "./sql.js";
+export { checkIfMatch, etagOf } from "./versions.js";
 export { ChangeCounter, clientIdOf, makeSyncRevRouter } from "./window_changes.js";

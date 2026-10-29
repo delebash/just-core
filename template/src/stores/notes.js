@@ -8,6 +8,9 @@ import { del, get, patch as patchJson, post, postForm } from "@delebash/ui";
 import { defineStore } from "pinia";
 
 const path = (id) => `/v1/notes/${encodeURIComponent(id)}`;
+// a change or a delete made on a note sends the version it was made on (If-Match — the kit's platform/versions.js): the
+// server refuses one made on another (412, the note changed in another window); none sent — the pin toggle — always lands
+const ifMatch = (version) => (version ? [{ headers: { "If-Match": version } }] : []);
 
 /** The server's order (database/notes.js listNotes): pinned first, then the most recently changed. */
 export const sortNotes = (items) =>
@@ -44,13 +47,13 @@ export const useNotesStore = defineStore("notes", {
       this.items = sortNotes([note, ...this.items]);
       return note;
     },
-    async update(id, changes) {
-      const note = await patchJson(path(id), changes);
+    async update(id, changes, { version = null } = {}) {
+      const note = await patchJson(path(id), changes, ...ifMatch(version));
       this.items = sortNotes(this.items.map((n) => (n.id === id ? note : n)));
       return note;
     },
-    async remove(id) {
-      await del(path(id));
+    async remove(id, { version = null } = {}) {
+      await del(path(id), ...ifMatch(version));
       this.items = this.items.filter((n) => n.id !== id);
     },
   },

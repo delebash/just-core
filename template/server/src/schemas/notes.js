@@ -39,6 +39,8 @@ export const Note = T.Object({
   pinned: T.Boolean(),
   createdAt: T.String({ format: "date-time" }),
   updatedAt: T.String({ format: "date-time" }),
+  // its version (an ETag): a change sends it back as If-Match (platform/versions.js)
+  version: T.String(),
 });
 
 /** GET /v1/notes. */

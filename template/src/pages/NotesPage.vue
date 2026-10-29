@@ -109,9 +109,11 @@ async function remove(note) {
   });
   if (!yes) return;
   try {
-    await notes.remove(note.id);
+    await notes.remove(note.id, { version: note.version });
   } catch (e) {
     reportError(e);
+    // changed in another window since the list was read (412): the list as it is now
+    if (e?.status === 412) notes.load().catch(() => {});
   }
 }
 </script>

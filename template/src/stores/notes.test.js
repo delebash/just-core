@@ -93,3 +93,19 @@ describe("the notes store", () => {
     expect(store.items).toEqual([]);
   });
 });
+
+// The finish list's C24 (2026-10-29): a change or a delete made on a note sends the version it was made on (If-Match,
+// the kit's platform/versions.js); the pin toggle sends none (it always lands).
+test("a change and a delete send the note's version as If-Match; a call without one sends none", async () => {
+  api.get.mockResolvedValue({ items: [note("a", { version: '"v1"' })] });
+  const store = useNotesStore();
+  await store.load();
+  api.patch.mockResolvedValue(note("a", { title: "x", version: '"v2"' }));
+  await store.update("a", { title: "x" }, { version: '"v1"' });
+  expect(api.patch).toHaveBeenLastCalledWith("/v1/notes/a", { title: "x" }, { headers: { "If-Match": '"v1"' } });
+  await store.update("a", { pinned: true });
+  expect(api.patch).toHaveBeenLastCalledWith("/v1/notes/a", { pinned: true });
+  api.del.mockResolvedValue("");
+  await store.remove("a", { version: '"v2"' });
+  expect(api.del).toHaveBeenLastCalledWith("/v1/notes/a", { headers: { "If-Match": '"v2"' } });
+});

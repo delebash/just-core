@@ -34,17 +34,16 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            the router — and LoadRequest.jobId/profileSwitchesFn removed; the screenless data routes kept).
         A+. JustWrite's reports (2026-10-29, measured on its built app): an embedding row turns llama-server's prompt
            cache off (`cache-ram = 0` — the qwen3 embed child grew 2.3 → 6.5 GB and the chat load was refused) BUILT
-           6954fee; a stream's error frame carries the refusal whole BUILT 7a72c44. OPEN for the user's word: the chat rows
-           keep llama-server's 8 GB prompt cache, and the RAM door doesn't count what a resident embed could give back.
+           6954fee; a stream's error frame carries the refusal whole BUILT 7a72c44. Its two questions DECIDED (the user, "your rec
+           go" in JustWrite's session, relayed): both stay — the chat rows keep the 8 GB cache, the RAM door counts no pinned embed.
         B. docgen's: 19 + 20 BUILT (start-packaged: the launcher named for server/package.json; `--data-dir <folder>`,
            never removed — its first real run with the final pass; the e2e driver's dashed-id fix). 21 BUILT (the guard:
            docgen in check 17; JustWrite + docgen in the chrome and release checks — JustWrite's clipboard fixed,
            7ba14f7b; AUTO_KNOWN empty; checkRendererPeers).
         C. Features: 22 BUILT (a load's real progress from /models/sse, as the file's bytes; the stream reader
            moved to platform/lines.js — its real-engine run with the GPU runs). 23 a vision model's speed: one image's encode,
-           recorded by the app's adapter, s/image, bands fast ≤5 s · fine ≤20 s · slow ≤60 s, editable. 24 If-Match
-           in the kit (house-paint's check moved in; the template's notes and house-paint on it): "This note was changed
-           in another window" / "Your change wasn't saved — the note is shown as it is now". 25 BUILT (UiSelect groups — JustVoice's picker moves onto it, its hand-off line).
+           recorded by the app's adapter, s/image, bands fast ≤5 s · fine ≤20 s · slow ≤60 s, editable. 24 BUILT (If-Match in the kit — platform/versions.js; the template's notes on it; house-paint's
+           outlines onto it by its session). 25 BUILT (UiSelect groups — JustVoice's picker moves onto it, its hand-off line).
            26 sync: remove a device from a cloud folder (syncs first; the confirm names the device and says it comes
            back if it syncs again); the design's 60-day auto-prune dropped. 27 sync "Changes waiting" = this device's
            changes not yet sent. 28 BUILT (Claude's prompt cache on every request; the ledger prices writes and reads at each model's rates,

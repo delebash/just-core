@@ -32,6 +32,7 @@ describe("create", () => {
       pinned: false,
       createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
       updatedAt: note.createdAt,
+      version: expect.stringMatching(/^"[A-Za-z0-9_-]{22}"$/), // its version for If-Match (platform/versions.js)
     });
     expect((await create({ title: "Groceries" })).id).not.toBe(note.id);
   });
@@ -160,5 +161,31 @@ describe("import a file", () => {
     const long = await upload("x".repeat(20001));
     expect(long.status).toBe(422);
     expect(long.body.errors[0]).toMatchObject({ loc: ["body", "file"], type: "string_too_long", ctx: { max_length: 20000 } });
+  });
+});
+
+// The finish list's C24 (2026-10-29; the kit's platform/versions.js, RFC 9110 §13.1.1): two windows saved over each
+// other's note. A note carries its version; a change or a delete sends the version it was made on (If-Match) and one
+// made on another is refused 412 in the note's words; a write without If-Match (the pin toggle) still lands.
+describe("versions", () => {
+  test("a change made on an older version is refused 412; the current one, or none, lands", async () => {
+    const note = await create({ title: "Draft" });
+    expect(note.version).toMatch(/^"[A-Za-z0-9_-]{22}"$/);
+    const got = await client.get(`/v1/notes/${note.id}`);
+    expect(got.headers.get?.("etag") ?? got.headers.etag).toBe(note.version);
+    // the other window saves first
+    const other = (await client.patch(`/v1/notes/${note.id}`, { json: { body: "theirs" }, headers: { "if-match": note.version } })).json();
+    expect(other.version).not.toBe(note.version);
+    // this window's change, made on the old version
+    const stale = await client.patch(`/v1/notes/${note.id}`, { json: { body: "mine" }, headers: { "if-match": note.version } });
+    expect(stale.statusCode).toBe(412);
+    expect(stale.json()).toMatchObject({ status: 412, title: "This note was changed in another window", detail: "Your change wasn't saved — the note is shown as it is now" });
+    expect((await client.get(`/v1/notes/${note.id}`)).json().body).toBe("theirs");
+    // no If-Match: unconditional (the pin toggle)
+    expect((await client.patch(`/v1/notes/${note.id}`, { json: { pinned: true } })).statusCode).toBe(200);
+    // a delete on an old version is refused too; on the current one it lands
+    expect((await client.delete(`/v1/notes/${note.id}`, { headers: { "if-match": note.version } })).statusCode).toBe(412);
+    const now = (await client.get(`/v1/notes/${note.id}`)).json().version;
+    expect((await client.delete(`/v1/notes/${note.id}`, { headers: { "if-match": now } })).statusCode).toBe(204);
   });
 });

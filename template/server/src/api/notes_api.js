@@ -18,6 +18,7 @@
 import { Hono, input, uploadLimit } from "@delebash/core/platform";
 import { ApiError, notFound, RequestValidationError } from "@delebash/core/platform/errors";
 import { getLogger } from "@delebash/core/platform/log";
+import { checkIfMatch, etagOf } from "@delebash/core/platform/versions";
 import { getDb } from "../app_state.js";
 import * as notes from "../database/notes.js";
 import { SETTING_DEFAULTS } from "../database/seed.js";
@@ -28,6 +29,23 @@ const log = getLogger("family_template.notes");
 
 // The words a person reads in the toast (the kit's reportError shows a refusal's detail).
 const noSuchNote = (id) => notFound(`There is no note with the id ${id}.`);
+
+// A note's version (the kit's platform/versions.js — HTTP conditional requests, RFC 9110 §13.1.1): every answer carries
+// it, a change or a delete sends the one it was made on (If-Match), and one made on another is refused 412 — two
+// windows saved over each other's note (2026-10-29). No If-Match (the pin toggle): the write is unconditional.
+const versioned = (note) => ({ ...note, version: etagOf(note) });
+const NOTE_CHANGED = {
+  type: "note-changed",
+  title: "This note was changed in another window",
+  detail: "Your change wasn't saved — the note is shown as it is now",
+};
+/** The note `id` names, refused 412 when `ifMatch` names another version; 404 when there is none. */
+function current(id, ifMatch) {
+  const note = notes.getNote(getDb(), id);
+  if (!note) throw noSuchNote(id);
+  checkIfMatch(ifMatch, etagOf(note), NOTE_CHANGED);
+  return note;
+}
 
 // the largest file the import takes (the setting; its default before the seed has run)
 const maxImportKb = () => getSetting(getDb(), "notes.maxImportKilobytes") ?? SETTING_DEFAULTS["notes.maxImportKilobytes"];
@@ -43,7 +61,7 @@ export const titleFromFile = (name) =>
 export function router() {
   const app = new Hono();
 
-  app.get("/v1/notes", (c) => c.json({ items: notes.listNotes(getDb()) }));
+  app.get("/v1/notes", (c) => c.json({ items: notes.listNotes(getDb()).map(versioned) }));
 
   // a form's own bytes ride on top of the file's
   app.post("/v1/notes/import", uploadLimit(() => maxImportKb() * 1024 + 16 * 1024, { slug: "file-too-large", title: "File too large" }), async (c) => {
@@ -77,26 +95,32 @@ export function router() {
     const { id } = c.req.valid("param");
     const note = notes.getNote(getDb(), id);
     if (!note) throw noSuchNote(id);
-    return c.json(note);
+    const v = versioned(note);
+    c.header("ETag", v.version);
+    return c.json(v);
   });
 
   app.post("/v1/notes", input({ body: NoteIn }), (c) => {
     const note = notes.createNote(getDb(), c.req.valid("json"));
     // the id only — a note's words are the user's content and never reach the log
     log.debug(`note ${note.id} created`);
-    return c.json(note, 201);
+    return c.json(versioned(note), 201);
   });
 
   app.patch("/v1/notes/:id", input({ params: NoteParams, body: NotePatch }), (c) => {
     const { id } = c.req.valid("param");
+    current(id, c.req.header("if-match"));
     const note = notes.updateNote(getDb(), id, c.req.valid("json"));
     if (!note) throw noSuchNote(id);
     log.debug(`note ${id} changed`);
-    return c.json(note);
+    const v = versioned(note);
+    c.header("ETag", v.version);
+    return c.json(v);
   });
 
   app.delete("/v1/notes/:id", input({ params: NoteParams }), (c) => {
     const { id } = c.req.valid("param");
+    current(id, c.req.header("if-match"));
     if (!notes.deleteNote(getDb(), id)) throw noSuchNote(id);
     log.debug(`note ${id} deleted`);
     return c.body(null, 204);
