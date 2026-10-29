@@ -223,12 +223,14 @@ OPEN:   found by the checks, not caused by the rename: JustWrite's lint error
 
 ## What the kit's 2026-10-20 changes need in the apps [2026-10-20]
 STATE:  OPEN — kit 70e6df1 + 010360f (just-house-paint's fifteenth review). JustWrite's and JustVoice's sessions were told;
-        docgen has none, so for its next session (its smoke test's tabs DONE in ef66a54 — the AI page's
-        `.lu-subnav [role=tab]`, the AI-tasks panel as #ai-tasks-panel): its tokens.css lacks --border-field, --danger-ink, --info-ink,
-        --warn-ink and a dark --on-accent (the template's tokens.css has measured values); @internationalized/number is
-        a kit peer to install; a Change folder move keeps the old folder, removed from Settings → Storage (StoragePanel
-        or the shell's storageOldCopies / storageRemoveOldCopy) — an app that calls storageRelocate itself has no way to
-        remove it yet. JustWrite: 9 providerScope tests need a ResizeObserver stub (the AI page is on Quasar's tabs).
+        docgen's part DONE by its session (its smoke test's tabs in ef66a54; f7f2fc6: tokens.css's --border-field,
+        --danger-ink, --info-ink, --warn-ink and dark --on-accent at the template's values, with --danger-hue/--info-hue
+        defaults; the kit's peers @internationalized/number, dom-accessibility-api and qrcode installed — the last two
+        the guard never named, its builds found them in the kit's own node_modules; Storage is the kit's StoragePanel
+        with the template's native.js, the old copy removed from there). FOUND by docgen's session, open: the guard
+        checks the server tree's peers (checkServerPeers), not `packages/ui`'s in an app's renderer; docgen's Server and
+        About sections are hand-built where the template uses the kit's ServerPanel and AboutPanel (docgen's list).
+        JustWrite: 9 providerScope tests need a ResizeObserver stub (the AI page is on Quasar's tabs).
         The template's start-packaged.js now runs a temp copy of the unpacked build — every app's copy should.
         The twentieth review's kit changes (just-house-paint's): serve the built UI with platform `serveUi(app, uiDir)`
         in place of the hand-made `app.on([...writes], "/*", 405)` + `app.get("/*", serveStatic(...))` (the guard says
