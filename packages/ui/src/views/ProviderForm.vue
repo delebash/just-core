@@ -319,7 +319,7 @@ async function putReasoningRow(row) {
 </script>
 
 <template>
-  <div class="lu-pform">
+  <div class="lu-pform" :class="{ 'lu-pform--catalog': isBuiltin }">
     <div v-if="isNew" class="lu-pf-presets">
       <span class="lu-muted lu-pf-presets-h">{{ t('kit.provider.presetsHead') }}</span>
       <div class="lu-pf-chips">
@@ -477,6 +477,11 @@ async function putReasoningRow(row) {
    presentation now, for every provider including the built-in (2026-07-19: the
    promoted built-in section and its bare `permanent` variant are deleted). */
 .lu-pform { padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); margin-top: 8px; }
+/* The built-in's Edit holds the model catalog, a grid of the data's width: its card spans the providers area (the area
+   lets it — AiModelsArea's .lu-providers), the form's own parts keep the form width, and only the catalog's bar and
+   grid take the room (2026-10-28: in the form width the grid gave Model a ~117px strip and scrolled sideways). */
+.lu-pform--catalog > :not(.lu-mcat),
+.lu-pform--catalog > .lu-mcat > :not(.lu-mcat-bar):not(.lu-mcat-wrap):not(.lu-mcat-err):not(.lu-mcat-empty) { max-width: var(--w-edit, 880px); }
 .lu-pf-presets { margin-bottom: 12px; }
 .lu-pf-presets-h { display: block; font-size: 11px; margin-bottom: 6px; }
 .lu-pf-chips { display: flex; gap: 6px; flex-wrap: wrap; }

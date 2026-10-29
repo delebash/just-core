@@ -1080,7 +1080,9 @@ onMounted(() => {
 .lu-qs-band { padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 14px; max-width: var(--w-edit, 880px); }
 /* A readable width: at 1920px a provider row was ~1650px, its buttons a long way right of its name
    (the visual review, 2026-10-20). The rows, the scope strip and the add form take the list's. */
-.lu-providers { max-width: var(--w-edit, 880px); }
+/* The providers list at the form width — all but the built-in's open Edit, whose model catalog takes the room its
+   grid needs (ProviderForm's .lu-pform--catalog keeps its own form parts at this width). */
+.lu-providers > :not(.lu-pform--catalog) { max-width: var(--w-edit, 880px); }
 .lu-prow-ic { width: 36px; height: 36px; border-radius: 8px; background: var(--surface-3); color: var(--ink-2); display: grid; place-items: center; }
 .lu-prow-ic svg { width: 17px; height: 17px; }
 .lu-prow-info { min-width: 0; }

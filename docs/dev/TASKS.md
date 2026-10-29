@@ -31,11 +31,10 @@ OPEN:   1. Model answers shown as Markdown, safely: Ask the book and Talk to a c
            in @delebash/ui (marked → DOMPurify, external links target=_blank rel=noopener, no raw HTML), DOMPurify a
            new kit dependency; `helpMarkdown.js` renders trusted docs only. JustWrite wires its chat bubble once it's
            in (its tracker waits on the kit). Queued after house-paint's release (the user's focus, 2026-10-28).
-        2. The model catalog squeezed in the provider form: AI Settings → the Built-in provider's Edit puts
-           `LuModelCatalog` in the form's ~845 px column — the MODEL column wraps each row's name, badges and notes
-           into a ~95 px strip, FIT and STATUS sit mostly empty, the table scrolls sideways (its picture:
-           JustWrite's session scratchpad `shots/ai-models.png`). A layout bug (app-structure §11: size to content,
-           one scroller per area). Queued with 1.
+        2. The model catalog squeezed in the provider form — FIXED 2026-10-28 (found in house-paint too, before its
+           release): the built-in's Edit card spans the providers area, its own parts at the form width, the catalog's
+           bar and grid the room the data needs (ProviderForm `.lu-pform--catalog`, AiModelsArea `.lu-providers`);
+           measured in house-paint's built app: Model 117 → 859 px at 1920, 204 px at 1280, no sideways scroll.
 
 ## The model catalog's open calls, moved from JustWrite's tracker [2026-10-28]
 WHY:    JustWrite's user: "do the kit code to its session" — these lines were JustWrite's, but the code is the kit's
