@@ -13,8 +13,27 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## Two kit asks from docgen's session [2026-10-29]
+STATE:  OPEN — after the security updates and the website deploy model (this session's queue).
+        1. `runAction` with a chosen preset: docgen's escalation runs a feature with a preset the user picks
+           (`presetId`); RunRequest (`llm/prompts.js` ~301-332) has none, and passing provider/model/temperature as
+           overrides still mixes in the assigned preset's samplers/topP (~474-480). Ask: `RunRequest.presetId` — when
+           given, that preset resolves in place of the feature's assigned one (same think/samplers/extra handling),
+           with a test. Blocks docgen's move onto seeded prompt rows (the 2026-08-05 "DOCGEN CONVERGES TO TEMPLATE
+           ROWS"). Under json_mode `_effectiveThink` forces think off (~520-524) — fine for docgen's seeds.
+        2. A help doc's front-matter: `renderHelpMarkdown` (`ui/…/helpMarkdown.js` ~65-73) renders a leading `---` block
+           as text under an <hr> (the HelpDrawer, JustWrite's HelpPage/WhatsNew/Cheatsheet) — strip it before the H1
+           strip. docgen's research: the standard is a front-matter package (`front-matter`; gray-matter is Buffer-bound
+           in a browser), a hand-written fence strip is NOT STANDARD; plus a §19 row for a doc's lede and hint text.
+        Later: once docgen runs on rows, FeatureLab/FeatureWorkbench's promptless mode has no user left (JustVoice
+        keeps the sectioned one) — the kit's to retire.
+
 ## Security advisories in the kit's dependencies — found by docgen's session's npm audit [2026-10-28]
-STATE:  OPEN — the kit's to set; every app's build takes them.
+STATE:  The kit's, the template's and house-paint's DONE 2026-10-29 (the user's "your rec go"): packages/core
+        `undici: ^8.12.3` (its lock 8.12.3; the template's and house-paint's locks already resolve 8.12.2, outside
+        the advisory's range) and Electron 44.10.0 (packages/core's devDependency, the template's and house-paint's
+        src-electron) — installed with npm's and Electron's caches on F:, not C:. OPEN: JustWrite's, JustVoice's and
+        docgen's src-electron to 44.10.0, by their sessions (told 2026-10-29).
         - `undici` in `packages/core` (`"^8.11.2"`, the lock at 8.11.2) — inside 8.0.0–8.12.1: GHSA-2m5v-pch6-74hx
           (TLS certificate validation bypassed through dropped tls options in Agent, high), GHSA-4w7w-5xrc-9h26
           (cross-origin redirect cache poisoning), several DoS. Fix: the floor `^8.12.2`, the lock to 8.12.3 (npm's
