@@ -83,6 +83,17 @@ OPEN:   5. After the open fixes, each app (the kit, house-paint, JustVoice, docg
            it, its reasons and the attack, for the user to decide. The user, verbatim (relayed): "i want all apps to
            have the roadmap ideas ect listed and recommed do d0ont remove pas this to other session after they complete
            there bug and current feature fixes". JustVoice's session gets 4 and 5 when one runs.
+        MY RECS for the kit (shown 2026-10-29, waiting on the user's word) — IDEAS.md and the candidate pools (the llama.cpp
+        watch's open adoption candidates, the box-gated/parked block). Do: a vision model's speed on its chip and the
+        runtimes' bands on the AI page (the speed band's one gap); the template's notes get If-Match (two windows can
+        overwrite a note); the labeling law and the dismissal/drag invariants into app-structure (both ruled, in plan
+        docs only); real model-load progress from the router's /models/sse (watch 5); re-test --fit with Gemma-4 MTP
+        drafts on b11239 (one run). Remove: the leftover llama-server sweep on macOS/Linux (no user has hit it; ~400
+        lines a platform, untestable here); Ternary Bonsai 1 (measured 2.65 tok/s) and Bonsai 2 (fork-only); the b99xx
+        candidates (inside the pin); the MTP-variant repo steer; the unsupported-arch check (the engine refuses on
+        load); watch 6, 7, 9; the CPU-only band box test; the model watchlist; D5, D6, I3; the licence flag and the
+        provider SDK pivot. Already done, closed: watch 1–3 (update check, --load-mode, asset names) and 8 (the nested
+        json_schema form, openai_compat.js).
 
 ## Kit gaps from JustWrite's copies audit [2026-10-29]
 STATE:  OPEN — found by JustWrite's session. a) the page-lede look and c) EmptyState's message slot DROPPED
