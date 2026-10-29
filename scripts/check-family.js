@@ -906,6 +906,40 @@ function checkServerPeers(app) {
   }
 }
 
+// The renderer's peers (the finish list's B21, 2026-10-29): every peer the kit's UI names (packages/ui/package.json
+// `peerDependencies`) is in the app's own package.json — one the kit itself installs for its tools (dompurify,
+// front-matter) still resolved through the kit's node_modules by luck, and a build elsewhere didn't have it. An
+// optional peer (npm's peerDependenciesMeta — docs.npmjs.com/cli/v11/configuring-npm/package-json) is needed only when
+// the app uses the kit file that imports it (qrcode: SyncPanel).
+function checkRendererPeers(app) {
+  const pkgPath = join(app.dir, "package.json");
+  if (!existsSync(pkgPath)) return;
+  const pj = JSON.parse(readFileSync(pkgPath, "utf8"));
+  const declared = new Set([...Object.keys(pj.dependencies || {}), ...Object.keys(pj.devDependencies || {})]);
+  const ui = JSON.parse(readFileSync(join(KIT, "packages", "ui", "package.json"), "utf8"));
+  const meta = ui.peerDependenciesMeta || {};
+  const kitSrc = join(KIT, "packages", "ui", "src");
+  const report = RELEASE_REQUIRED.has(app.name) ? fail : info;
+  let appCode = null; // read once, when an optional peer asks
+  for (const peer of Object.keys(ui.peerDependencies || {})) {
+    if (declared.has(peer)) continue;
+    if (meta[peer]?.optional) {
+      const users = walk(kitSrc)
+        .filter((f) => /\.(vue|js)$/.test(f) && new RegExp(`from ["']${peer.replace(/[/.@-]/g, "\\$&")}["']`).test(readFileSync(f, "utf8")))
+        .map((f) => basename(f).replace(/\.(vue|js)$/, ""));
+      appCode ??= walk(join(app.dir, "src"))
+        .filter((f) => /\.(vue|js)$/.test(f) && !f.includes(".test.") && !f.includes("worker-bundle"))
+        .map((f) => readFileSync(f, "utf8"))
+        .join("\n");
+      const used = users.filter((u) => new RegExp(`\\b${u}\\b`).test(appCode));
+      if (!used.length) continue;
+      report(app.name, `package.json doesn't depend on ${peer}, which the kit's ${used.join(", ")} imports (an optional peer of packages/ui) — the app uses it, so a build elsewhere wouldn't find it`);
+      continue;
+    }
+    report(app.name, `package.json doesn't depend on ${peer}, a peer dependency of the kit's packages/ui — it resolves through the kit's own node_modules by luck, and a build elsewhere wouldn't find it`);
+  }
+}
+
 // NODE_USE_SYSTEM_CA set to 1: `set NODE_USE_SYSTEM_CA=1` (cmd), `NODE_USE_SYSTEM_CA=1` or the template's
 // `NODE_USE_SYSTEM_CA="${NODE_USE_SYSTEM_CA:-1}"` (a value the user set kept, else 1) in sh.
 const SETS_SYSTEM_CA = /\bNODE_USE_SYSTEM_CA=(?:1\b|"?\$\{NODE_USE_SYSTEM_CA:-1\}"?)/;
@@ -1240,9 +1274,9 @@ function checkI18nKit() {
 // The features an app starts are read from its code: every literal `feature: "…"`, and the
 // `action: "…"` of a file that calls runAiFeature (its feature defaults to the action). A key
 // built at run time can't be followed (advisory). It FAILS for the template, the apps made from
-// it and JustWrite (adopted 2026-10-19); JustVoice and docgen, which predate useSurfaceTask, get
-// advisories until their sessions adopt it — then promote them to fail(), as check 16 did.
-const SURFACE_TASK_REQUIRED = new Set(["template", "just-house-paint", "JustWrite"]);
+// it, JustWrite (adopted 2026-10-19) and docgen (adopted; promoted 2026-10-29); JustVoice, which predates
+// useSurfaceTask, gets advisories until its session adopts it — then promote it to fail(), as check 16 did.
+const SURFACE_TASK_REQUIRED = new Set(["template", "just-house-paint", "JustWrite", "docgen"]);
 function checkSurfaceTasks(app, files) {
   const started = new Map(); // feature → the first file that starts it
   const shown = new Set();
@@ -1290,9 +1324,9 @@ function checkSurfaceTasks(app, files) {
 // fonts are listed (the font picker offers them all); numbers and dates follow the app's language
 // (vue-i18n's n()/d() or a formatter given i18n's locale — never a bare toLocale*String() or
 // Intl.*Format(undefined); one that names its locale, as a prompt's "en-US" does, is the app's
-// choice). FAILS for the template and the apps made from it; advisory for the older apps (each has
-// its own way for some of these).
-const CHROME_REQUIRED = new Set(["template", "just-house-paint"]);
+// choice). FAILS for the template, the apps made from it, JustWrite and docgen (no findings left — promoted
+// 2026-10-29); advisory for JustVoice (it has its own way for some of these).
+const CHROME_REQUIRED = new Set(["template", "just-house-paint", "JustWrite", "docgen"]);
 function checkChrome(app, files) {
   const report = (msg) => (CHROME_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
   const src = files.filter((f) => /\.(vue|js)$/.test(f) && !f.includes(".test.") && !f.includes("worker-bundle"));
@@ -1328,9 +1362,9 @@ function checkChrome(app, files) {
 // the .blockmaps to the tag's GitHub release with the installers. The template carries the release
 // (.github/workflows/release.yml, manual only as JustWrite's; scripts/release.js and bump.js; the
 // `publish` config); an app turns `updates` on with its first release, and its releasesUrl must name
-// the repository the feed is published to. FAILS for the template and the apps made from it;
-// advisory for the older apps (JustWrite's workflow predates the feed; JustVoice's runs on a tag).
-const RELEASE_REQUIRED = new Set(["template", "just-house-paint"]);
+// the repository the feed is published to. FAILS for the template, the apps made from it, JustWrite and docgen
+// (both on the template's release since 2026-10-29, no findings left); advisory for JustVoice (its runs on a tag).
+const RELEASE_REQUIRED = new Set(["template", "just-house-paint", "JustWrite", "docgen"]);
 
 // ── CORS for the app's own origins only ───────────────────────────────────────
 // CORS for every origin, with loopback skipping auth, let any web page the user opened read this computer's
@@ -1546,9 +1580,7 @@ const AUTO_TRIGGER = /^(push|pull_request|pull_request_target|schedule|workflow_
 const STARTS_ANOTHER = /\/dispatches\b|\bgh\s+workflow\s+run\b/;
 // (JustVoice's release and CodeQL run by hand since 97002618)
 const AUTO_KNOWN = new Map([
-  // its notify-website job (the template's before 2026-10-29): its session moves to the template's release, which
-  // starts nothing, and its site's npm run deploy (JustWrite's moved in 407b3eb)
-  ["docgen", new Set([".github/workflows/release.yml"])],
+  // empty: docgen's release starts nothing since it moved onto the template's (2026-10-29)
 ]);
 function autoTriggers(text) {
   const lines = text.split(/\r?\n/).filter((l) => !/^\s*#/.test(l));
@@ -1751,6 +1783,7 @@ for (const app of [...APPS, TEMPLATE]) {
     checkRendererSkeleton(app);
     checkLauncher(app);
     checkServerPeers(app);
+    checkRendererPeers(app);
     checkDesktopMain(app);
     checkDevPorts(app);
     checkQuasar(app);

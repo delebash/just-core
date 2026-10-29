@@ -33,9 +33,9 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            hand-off line). 18 BUILT (declaredClaimFn, startRunner/Runner — its spawn diagnostics tests now on
            the router — and LoadRequest.jobId/profileSwitchesFn removed; the screenless data routes kept).
         B. docgen's: 19 + 20 BUILT (start-packaged: the launcher named for server/package.json; `--data-dir <folder>`,
-           never removed — its first real run with the final pass; the e2e driver's dashed-id fix). 21 the guard: docgen
-           fails check 17; docgen + JustWrite in the chrome checks, docgen in the release checks (JustWrite after its
-           clipboard fix); docgen's AUTO_KNOWN entry gone; a renderer-peers check.
+           never removed — its first real run with the final pass; the e2e driver's dashed-id fix). 21 BUILT (the guard:
+           docgen in check 17; JustWrite + docgen in the chrome and release checks — JustWrite's clipboard fixed,
+           7ba14f7b; AUTO_KNOWN empty; checkRendererPeers).
         C. Features: 22 real load % from /models/sse (T5, watch 5). 23 a vision model's speed: one image's encode,
            recorded by the app's adapter, s/image, bands fast ≤5 s · fine ≤20 s · slow ≤60 s, editable. 24 If-Match
            in the kit (house-paint's check moved in; the template's notes and house-paint on it): "This note was changed
