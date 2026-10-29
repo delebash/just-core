@@ -6,9 +6,10 @@
 import { expect, test } from "vitest";
 import * as seed from "../src/llm/seed.js";
 import * as stores from "../src/llm/stores.js";
-import { makeRuntimesRouter } from "../src/llm/runtimes_api.js";
+import { makeRuntimesRouter, runtimeProblem } from "../src/llm/runtimes_api.js";
 import { transcribeFeature, withSpeechModel } from "../src/llm/speech_dispatch.js";
 import { configureRuntimeServices } from "../src/runner/runtime_service.js";
+import { NotEnoughMemoryError } from "../src/runner/speech_placement.js";
 import { createServer } from "../src/platform/server.js";
 import { freshDb } from "./helpers.js";
 
@@ -163,4 +164,17 @@ test("the routes: load where asked, unload, what's loaded; the settings route ta
   expect((await put({ settings: { nope: 1 } })).status).toBe(400);
   expect((await put({ settings: { cpu_min_realtime: "fast" } })).status).toBe(400);
   expect((await put({ bandsByKind: { image: { fast: 1, fine: 2, slow: 3 } } })).status).toBe(400);
+});
+
+// The routes' refusals, exported: app code that runs a runtime outside them (JustVoice's speech door) words a refusal the
+// same way — never a second mapping (JustVoice's session, 2026-10-29).
+test("runtimeProblem words a runtime's refusal as the routes do; anything else comes back as it was", () => {
+  const mem = runtimeProblem(new NotEnoughMemoryError("not enough memory to load kokoro", { where: "card", neededMb: 900, freeMb: 400 }));
+  expect(mem).toMatchObject({ statusCode: 409, slug: "not-enough-memory", extra: { where: "card", neededMb: 900, freeMb: 400 } });
+  const terms = runtimeProblem(Object.assign(new Error("accept its licence first"), { termsRequired: { modelId: "xtts" } }));
+  expect(terms).toMatchObject({ statusCode: 403, slug: "terms-required", extra: { modelId: "xtts" } });
+  const cancelled = runtimeProblem(Object.assign(new Error("cancelled"), { loadCancelled: { modelId: "kokoro" } }));
+  expect(cancelled).toMatchObject({ statusCode: 409, slug: "load-cancelled" });
+  const other = new Error("boom");
+  expect(runtimeProblem(other)).toBe(other);
 });

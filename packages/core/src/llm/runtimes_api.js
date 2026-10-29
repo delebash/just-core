@@ -39,8 +39,10 @@ const PlacementIn = T.Object({ placement: T.Union([T.Literal("auto"), T.Literal(
  *  (507 "disk-full", with `needBytes`/`freeBytes` for the screen's words), busy (409 "engine-busy" · "model-busy"), a load
  *  refused for memory (409 "not-enough-memory" — runner/speech_placement.js, its words the detail; `where` card or
  *  system, `neededMb`, `freeMb`), the app's licence gate (403 "terms-required" with `modelId` — the app shows its terms;
- *  round E, G5), a load an Unload cancelled (409 "load-cancelled" with `modelId` — G12). */
-function asProblem(e) {
+ *  round E, G5), a load an Unload cancelled (409 "load-cancelled" with `modelId` — G12). Exported: app code that runs a
+ *  runtime outside these routes (withSpeechModel, transcribeFeature — JustVoice's speech door) words a refusal the same
+ *  way, never a second mapping (JustVoice's session, 2026-10-29). Anything else comes back as it was. */
+export function runtimeProblem(e) {
   if (e?.notFound) return notFound(e.message);
   if (e?.termsRequired) return new ApiError(403, "terms-required", "Terms not accepted", e.message, { modelId: e.termsRequired.modelId });
   if (e?.loadCancelled) return new ApiError(409, "load-cancelled", "The load was cancelled", e.message, { modelId: e.loadCancelled.modelId });
@@ -59,7 +61,7 @@ async function call(fn) {
   try {
     return await fn();
   } catch (e) {
-    throw asProblem(e);
+    throw runtimeProblem(e);
   }
 }
 
