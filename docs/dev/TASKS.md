@@ -28,8 +28,12 @@ STATE:  The kit's half BUILT 2026-10-29: `website/` (sync-docs.js, deploy.js, de
 
 ## Kit asks from JustWrite's session, for its roadmap [2026-10-29]
 GO:     JustWrite's user (relayed by its session): "do it all … just complete the app"; this session's user: "go ndo it
-        all stop asking me stop stoping". Taken in this order, after house-paint's release (told JustWrite 2026-10-29).
-OPEN:   1. Multi-window ("Open a Character page in one window and write in another"): shell/main.js's
+        all stop asking me stop stoping". Then JustWrite's session (2026-10-29): hold 1 and 2 until it confirms (its user is
+        deciding whether roadmap items get built); "JustWrite is not doing the rest of the copies audit, so drop the
+        page-lede look and the EmptyState message slot"; and the user there: "why whould we release house paint if we
+        are still doing kit work, wouldnt that mean houspaint gets old kit?" — so 3 goes BEFORE house-paint's release
+        (q-inner-loading's dark wash is on three of its pages), the release paused until then.
+HELD:   1. Multi-window ("Open a Character page in one window and write in another"): shell/main.js's
            setWindowOpenHandler denies every non-http URL — allow a same-origin app://<id>/… URL as a new BrowserWindow
            with the same webPreferences (preload, contextIsolation, sandbox) and the context menu, through Electron's
            `{ action: "allow", overrideBrowserWindowOptions }` (electronjs.org/docs/latest/api/window-open); the app
@@ -39,21 +43,14 @@ OPEN:   1. Multi-window ("Open a Character page in one window and write in anoth
            dispatch checks the month's tokens before a call and refuses with a typed error the screen shows as
            "<feature>'s monthly budget is used up — raise it in AI → Usage". Tokens or cost, and the month boundary:
            this session decides (JustWrite leans tokens: local engines cost nothing).
-        3. The queued ones, below and in "Found by JustWrite's real-model screenshots": renderAiMarkdown; the one
-           page-lede look; EmptyState's message slot; q-inner-loading in dark; website/sync-docs taking a `lede:`
-           front-matter (docgen's item).
+OPEN:   3. q-inner-loading in dark (below, b); renderAiMarkdown ("Found by JustWrite's real-model screenshots" 1);
+           website/sync-docs taking a `lede:` front-matter (docgen's item).
 
 ## Kit gaps from JustWrite's copies audit [2026-10-29]
-STATE:  OPEN — found by JustWrite's session; the kit decides each, the apps adopt.
-        a) One page-lede look: JustWrite has 15 pages with an intro paragraph in the window lede's look
-           (`.ui-modal__lede`: muted, bold terms in --ink-2 600; JustWrite at 14px); the kit's `.page__lede` is
-           another (--ink-2 text, max-width 32em, no strong rule). Moving JustWrite onto it as it stands restyles 15
-           pages — the kit decides the one look first.
+STATE:  OPEN — found by JustWrite's session. a) the page-lede look and c) EmptyState's message slot DROPPED
+        (2026-10-29, JustWrite's user: JustWrite isn't doing the rest of the copies audit; the kit needs neither).
         b) q-inner-loading in dark mode: Quasar paints its overlay #fff9 unless Quasar's own Dark is on, and nothing in
            the kit sets Dark with the theme — the template's NotesPage loading state is a pale wash in dark mode.
-        c) EmptyState has no message slot: an empty text with <kbd>/<strong> (JustWrite's Markers, its events list)
-           can't move onto it.
-        Candidate: JustWrite's `.result-stamp` (mono 10.5px muted) for the "made … ago" lines in AI windows.
 
 ## Kit asks from docgen's session [2026-10-29]
 STATE:  1 BUILT 2026-10-29 (RunRequest `presetId` — preset_resolve `presetById`; an unknown one a 404 naming it; test
