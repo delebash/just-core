@@ -33,9 +33,12 @@ after(async () => {
   await d.close();
 });
 
-/** axe's violations on what the window shows now, as lines a failure can be read from. */
+/** axe's violations on what the window shows now, as lines a failure can be read from. Legacy mode: axe otherwise
+ *  gathers its results in a blank page it opens, and Playwright's Electron opens none ("Target.createTarget: Not
+ *  supported" — measured by docgen's session on its built app, 2026-10-29); legacy mode skips that page and only
+ *  loses cross-origin frames, which the app has none of (axe-core-npm's playwright README, setLegacyMode). */
 async function violations() {
-  const { violations: found } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  const { violations: found } = await new AxeBuilder({ page }).withTags(TAGS).setLegacyMode().analyze();
   return found.map((v) => `${v.id} (${v.impact}): ${v.help} — ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
 }
 

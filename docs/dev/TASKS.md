@@ -123,8 +123,9 @@ DECIDED: the user, verbatim (relayed from JustWrite's session): "i want all apps
         recommed do d0ont remove pas this to other session after they complete there bug and current feature fixes".
 STATE:  OPEN — each app (house-paint, JustVoice, docgen; JustWrite its own) lists everything open beyond TASKS — its
         roadmap, IDEAS and any candidate pools — each with a recommendation, do it or remove it, its reasons and the
-        attack, for the user to decide. House-paint's DONE 2026-10-29 (its TASKS has the user's words). The kit's:
-        "Finish the kit" above. JustVoice's session gets it when one runs; docgen's has it.
+        attack, for the user to decide. House-paint's DONE 2026-10-29 (its TASKS has the user's words); docgen's DONE 2026-10-29 (the user on its whole
+        list: "your rec on all go"; no roadmap file, IDEAS.md empty). The kit's:
+        "Finish the kit" above. JustVoice's session gets it when one runs.
         (The rest of that day's asks from JustWrite's session — multi-window, token budgets, q-inner-loading in dark,
         renderAiMarkdown, the website's lede, the workflows' latest majors — are built or cancelled: git history.)
 

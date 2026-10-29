@@ -1283,9 +1283,10 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 
 - **JustWrite's `/v1/settings`** still mixes operator rows with the renderer document behind the
   mapped `/v1/prefs` door (recorded 2026-08-08, not re-checked).
-- **§15–§18 in JustWrite, JustVoice and docgen** (recorded 2026-10-18): the kit gives all three the
+- **§15–§18 in JustWrite and JustVoice** (recorded 2026-10-18; docgen meets them since its dd459c0 — its forms on
+  `schemaRules` + `fieldErrors`, its table on `migrate`, §17's states, §18's route tests): the kit gives both the
   request ids, the 422 limits and the family 500 at once; their forms predate `schemaRules` /
-  `fieldErrors`. JustWrite's and docgen's boot files call `installErrorReporting`; JustVoice's doesn't yet
-  (re-checked 2026-10-29; docgen answers with the kit's problem+json through `createServer`).
+  `fieldErrors`. JustWrite's boot file calls `installErrorReporting`; JustVoice's doesn't yet (re-checked
+  2026-10-29).
 - **§16 in JustWrite and JustVoice** (recorded 2026-10-18): both drop and reseed rather than migrate
   (JW `docs/dev/ARCHITECTURE.md` "Storage policy"; JV `database/session.js`).
