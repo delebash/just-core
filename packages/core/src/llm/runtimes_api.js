@@ -7,15 +7,20 @@ import { ApiError, notFound } from "../platform/errors.js";
 import { opt, T } from "../platform/models.js";
 import { input } from "../platform/server.js";
 import { getRuntimeService, runtimeServices } from "../runner/runtime_service.js";
-import { idleKey } from "../runner/runtimes.js";
+import { bandKey, idleKey } from "../runner/runtimes.js";
 import { runtimeFeatureReadiness } from "./image_dispatch.js";
 import * as seed from "./seed.js";
 import * as stores from "./stores.js";
 
 const IdParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }) });
 const InstallIn = T.Object({ gpu: opt(T.String({ maxLength: 32 })), force: opt(T.Boolean()) });
-// a runtime's own settings on its tab: how long it waits idle before it lets go of its memory (0: never; a day at most)
-const SettingsIn = T.Object({ idleSeconds: T.Integer({ minimum: 0, maximum: 86400 }) });
+// a runtime's own settings on its tab: how long it waits idle before it lets go of its memory (0: never; a day at most),
+// and its kind's speed bands in the kind's unit (2026-10-29: seeded, and nowhere to change them) — each above 0
+const Band = T.Number({ exclusiveMinimum: 0, maximum: 1e6 });
+const SettingsIn = T.Object({
+  idleSeconds: opt(T.Integer({ minimum: 0, maximum: 86400 })),
+  bands: opt(T.Object({ fast: Band, fine: Band, slow: Band })),
+});
 const FeatureParams = T.Object({ key: T.String({ minLength: 1, maxLength: 128 }) });
 const ModelParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }), modelId: T.String({ minLength: 1, maxLength: 128 }) });
 
@@ -75,7 +80,13 @@ export function makeRuntimesRouter() {
   });
   app.put("/v1/ai/runtimes/:id/settings", input({ params: IdParams, body: SettingsIn }), async (c) => {
     const svc = serviceOf(c);
-    stores.getRunnerConfigStore().setSetting(idleKey(svc.rt.id), String(c.req.valid("json").idleSeconds));
+    const body = c.req.valid("json");
+    const store = stores.getRunnerConfigStore();
+    if (body.bands) {
+      if (!svc.status().bands) throw new ApiError(400, "no-speed-bands", "This engine has no speed bands", `${svc.rt.label} rates no speed`);
+      for (const which of ["fast", "fine", "slow"]) store.setSetting(bandKey(svc.rt.kind, which), String(body.bands[which]));
+    }
+    if (body.idleSeconds != null) store.setSetting(idleKey(svc.rt.id), String(body.idleSeconds));
     return c.json(await checked(svc));
   });
   app.post("/v1/ai/runtimes/:id/engine/install/cancel", input({ params: IdParams }), (c) => c.json(serviceOf(c).cancelInstall()));

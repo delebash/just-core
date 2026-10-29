@@ -17,6 +17,7 @@ import UiButton from "../common/components/UiButton.vue";
 import UiField from "../common/components/UiField.vue";
 import UiInput from "../common/components/UiInput.vue";
 import { confirmDialog } from "../common/services/dialog.js";
+import { committedNumber } from "../common/components/numberBox.js";
 import { fmtBytes } from "../common/services/downloadRate.js";
 import { kitT } from "../common/services/kitI18n.js";
 import { fitLabel, fitWarning, speedBandLabel } from "../common/services/modelPick.js";
@@ -43,6 +44,7 @@ async function load() {
     const [e, m] = await Promise.all([request(`${base}/engine/status`), request(`${base}/models`)]);
     engine.value = e;
     if (idleMinutes.value === null && e?.idleSeconds != null) idleMinutes.value = Math.round(e.idleSeconds / 60);
+    if (bandDrafts.fast === null && e?.bands) Object.assign(bandDrafts, { fast: e.bands.fast, fine: e.bands.fine, slow: e.bands.slow });
     models.value = m.models || [];
     loadFailed.value = false;
   } catch {
@@ -94,6 +96,34 @@ async function saveIdle() {
     reportError(e);
   }
 }
+
+// its kind's speed bands in the kind's unit (seeded band_*:<kind>, 2026-10-29: editable here) — each above 0
+const bandDrafts = reactive({ fast: null, fine: null, slow: null });
+function bandsBody() {
+  const out = {};
+  for (const which of ["fast", "fine", "slow"]) {
+    const n = committedNumber(bandDrafts[which], { step: 0.1 });
+    if (n === null || n <= 0) return null;
+    out[which] = n;
+  }
+  return out;
+}
+const bandsChanged = computed(() => {
+  const b = bandsBody();
+  const e = engine.value?.bands;
+  return !!(b && e) && (b.fast !== e.fast || b.fine !== e.fine || b.slow !== e.slow);
+});
+async function saveBands() {
+  const bands = bandsBody();
+  if (!bands) return;
+  try {
+    engine.value = await request(`${base}/settings`, { method: "PUT", body: { bands } });
+    Object.assign(bandDrafts, { fast: engine.value.bands.fast, fine: engine.value.bands.fine, slow: engine.value.bands.slow });
+  } catch (e) {
+    reportError(e);
+  }
+}
+const unitWords = (unit) => (unit === "s/image" ? t("kit.runtimes.bands.unitSecondsPerImage") : unit);
 
 const size = (n) => fmtBytes(n || 0);
 const need = () => engineNeedWords(engine.value?.need);
@@ -197,6 +227,20 @@ defineExpose({ refresh: load });
             <UiButton intent="secondary" size="small" :disabled="!idleChanged" :label="t('kit.common.save')" @click="saveIdle" />
           </div>
         </UiField>
+        <UiField v-if="engine.bands" :label="t('kit.runtimes.bands.label', { unit: unitWords(engine.bands.unit) })" :hint="t('kit.runtimes.bands.hint')" :for="`lu-rt-${runtimeId}-band-fast`">
+          <div class="lu-rt-idle">
+            <label class="lu-rt-band">{{ t('kit.runtimes.bands.fast') }}
+              <UiInput :id="`lu-rt-${runtimeId}-band-fast`" v-model="bandDrafts.fast" type="number" width="token" />
+            </label>
+            <label class="lu-rt-band">{{ t('kit.runtimes.bands.fine') }}
+              <UiInput :id="`lu-rt-${runtimeId}-band-fine`" v-model="bandDrafts.fine" type="number" width="token" />
+            </label>
+            <label class="lu-rt-band">{{ t('kit.runtimes.bands.slow') }}
+              <UiInput :id="`lu-rt-${runtimeId}-band-slow`" v-model="bandDrafts.slow" type="number" width="token" />
+            </label>
+            <UiButton intent="secondary" size="small" :disabled="!bandsChanged" :label="t('kit.common.save')" @click="saveBands" />
+          </div>
+        </UiField>
         <div v-if="!engine.inProcess" class="lu-rt-actions">
           <UiButton
             v-if="!engine.installed" intent="primary" size="small" focusable-when-disabled
@@ -243,6 +287,7 @@ defineExpose({ refresh: load });
 .lu-rt-note { margin: 0; }
 .lu-rt-actions { display: flex; gap: 8px; }
 .lu-rt-idle { display: flex; align-items: center; gap: 8px; }
+.lu-rt-band { display: inline-flex; align-items: center; gap: 6px; }
 .lu-rt-model { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px solid var(--border); }
 .lu-rt-model-row { display: flex; align-items: center; gap: 12px; }
 .lu-rt-model-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }

@@ -38,7 +38,7 @@ function fakeFetch(input, init = {}) {
   }
   if (p === "/v1/ai/runtimes/sdcpp/models") return Promise.resolve(json({ models: server.models }));
   if (p === "/v1/ai/runtimes/sdcpp/settings" && method === "PUT") {
-    server.engine = { ...server.engine, idleSeconds: body.idleSeconds };
+    server.engine = { ...server.engine, ...(body.idleSeconds != null ? { idleSeconds: body.idleSeconds } : {}), ...(body.bands ? { bands: { ...server.engine.bands, ...body.bands } } : {}) };
     return Promise.resolve(json(server.engine));
   }
   // the in-process ONNX runtime (round C): part of the app
@@ -76,7 +76,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   server = {
     calls: [],
-    engine: { id: "sdcpp", kind: "image", label: "stable-diffusion.cpp", build: "master-1004-a85db96", installed: false, running: "", idleSeconds: 300, downloadBytes: 907e6, need: null, status: "", downloaded: 0, total: 0 },
+    engine: { id: "sdcpp", kind: "image", label: "stable-diffusion.cpp", build: "master-1004-a85db96", installed: false, running: "", idleSeconds: 300, bands: { fast: 30, fine: 120, slow: 300, unit: "s/image", lowerIsFaster: true }, downloadBytes: 907e6, need: null, status: "", downloaded: 0, total: 0 },
     models: [{ id: "tiny", name: "Tiny", license: "MIT", bytes: 10, onDisk: false, running: false, status: "", downloaded: 0, total: 0 }],
     presets: [{ id: "photo", name: "Photo", model: "tiny", kind: "image", builtIn: true, params: { steps: 4, sampler: "euler" } }],
     visionPresets: [{ id: "parts", name: "Part finder", model: "seg", kind: "vision", builtIn: true, params: { executionProvider: "auto" } }],
@@ -259,4 +259,20 @@ test("a vision feature's preset pane: its kind's presets, where it runs in words
   await click("Save");
   await settle();
   expect(server.calls.find(([m, u]) => m === "PUT" && u === "/v1/ai/engine-presets/parts")[2].params).toEqual({ executionProvider: "cpu" });
+});
+
+// The finish list's A13 (2026-10-29): a runtime's speed bands, seeded in its kind's unit, are edited on its tab.
+test("a runtime's speed bands: shown in its unit, Save sends the three lines", async () => {
+  wrapper = mount(LuRuntimeTab, { props: { runtimeId: "sdcpp" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  expect(document.body.textContent).toContain("Speed bands (seconds per image)");
+  const fast = document.body.querySelector("#lu-rt-sdcpp-band-fast");
+  expect(fast.value).toBe("30");
+  fast.value = "20";
+  fast.dispatchEvent(new Event("input"));
+  await settle();
+  const saves = [...document.body.querySelectorAll("button")].filter((b) => b.textContent.trim() === "Save");
+  saves.at(-1).click();
+  await settle();
+  expect(server.calls.find(([m, u, b]) => m === "PUT" && u === "/v1/ai/runtimes/sdcpp/settings" && b?.bands)[2]).toEqual({ bands: { fast: 20, fine: 120, slow: 300 } });
 });

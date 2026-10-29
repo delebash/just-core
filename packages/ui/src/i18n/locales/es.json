@@ -2129,6 +2129,14 @@
       "idle": {
         "label": "Liberar tras inactividad (minutos)",
         "hint": "Cuánto tiempo mantiene un modelo en memoria sin trabajo antes de liberarlo; 0 lo mantiene."
+      },
+      "bands": {
+        "label": "Bandas de velocidad ({unit})",
+        "hint": "Un modelo en cada línea o por debajo se etiqueta \"rápido\", \"aceptable\" o \"lento\"; uno más lento, \"muy lento\". Menos es más rápido.",
+        "fast": "Rápido con ≤",
+        "fine": "Aceptable con ≤",
+        "slow": "Lento con ≤",
+        "unitSecondsPerImage": "segundos por imagen"
       }
     },
     "jobs": {

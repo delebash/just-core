@@ -225,6 +225,8 @@ export class RuntimeService {
       serverExe: "",
       running: this._loaded?.modelId ?? "",
       idleSeconds: Number(cfg.idleSeconds ?? this.rt.defaults.idleSeconds ?? 0),
+      // its kind's speed bands in the kind's unit (seeded band_*:<kind>, edited on its tab — 2026-10-29); null: none
+      bands: cfg.bands ? { fast: cfg.bands.fast, fine: cfg.bands.fine, slow: cfg.bands.slow, unit: cfg.bands.unit, lowerIsFaster: !!cfg.bands.lowerIsFaster } : null,
       downloadBytes: 0,
       need: a && !a.ok ? { reason: a.reason || "cant-load", missing: a.missing, files: a.files, url: a.url, detail: a.detail } : null,
       ...idle(),
@@ -270,6 +272,8 @@ export class RuntimeService {
       running: this._server?.handle.isAlive() ? this._server.modelKey : "",
       // how long it waits idle before it lets go of its memory (a seeded setting; 0: never)
       idleSeconds: Number(cfg.idleSeconds ?? this.rt.defaults.idleSeconds ?? 0),
+      // its kind's speed bands in the kind's unit (seeded band_*:<kind>, edited on its tab — 2026-10-29); null: none
+      bands: cfg.bands ? { fast: cfg.bands.fast, fine: cfg.bands.fine, slow: cfg.bands.slow, unit: cfg.bands.unit, lowerIsFaster: !!cfg.bands.lowerIsFaster } : null,
       downloadBytes: (asset?.assetBytes || 0) + (asset?.runtimeBytes || 0),
       need: unmetNeed(asset, this._systemFn(), this.rt.label),
       ...this._state,
