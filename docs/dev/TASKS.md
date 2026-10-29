@@ -55,7 +55,7 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            LAST before the final tests: the engine pin moves to the latest release (32 and 33 run on it).
         D. Docs: 35 BUILT (the kit's AGENTS.md (CLAUDE.md → @AGENTS.md), just-sqlite-sync's too; the guard checks both copies). 36 BUILT (app-structure: an
            accessibility standard (WCAG 2.2 AA) with a template test — §17, e2e/tests/a11y.test.js on axe; "installers
-           are unsigned" family-wide — §Q.2 and the template's getting-started; no performance budgets — §18). 37 the labeling law and the dismissal rules into §17/§19. 38 feature-model-system.md
+           are unsigned" family-wide — §Q.2 and the template's getting-started; no performance budgets — §18). 37 BUILT (the labeling law and the dismissal rules into §17/§19, from the code; the two IDEAS entries closed). 38 feature-model-system.md
            against the JavaScript. 39 REVERSED by the user (2026-10-29, in JustWrite's session,
            relayed): "what is husky and the ci i dont want tests just running or things just running on commit in
            gituhb unless we need it often you take up so much time running tests after each little change i dont like

@@ -1148,6 +1148,16 @@ JustWrite and JustVoice drop and reseed instead of migrating (an open deviation,
 - **Forms** — §15. One primary button per form, on the right of the button row; Cancel beside it.
 - **Destructive actions:** an irreversible one asks first through the kit's `confirmDialog` (naming
   what is lost); a reversible one acts at once and offers Undo in its toast.
+- **Closing a modal or a panel** (the kit's code, `ui/common/components/AppModal.vue`, `HelpDrawer.vue`,
+  `ui/components/AiStatusPanel.vue`): a **modal** (`AppModal`) closes with Esc and its ✕, never with a click
+  outside it (`dismissable` opts a light picker in); one whose work is under way and can't be left takes
+  `closable: false`, which blocks Esc and hides the ✕. A **panel** (the help drawer, the AI status panel — a QDialog
+  at an edge, no dim) closes with Esc or a click outside, and the focus goes back to what opened it.
+- **Dragging a modal:** by its header, on by default; it opens centred every time (the dragged place is not kept);
+  a panel fixed to an edge takes `draggable: false`.
+- **A switch says what it is** (the labeling law, 2026-07-16): a row on a switches surface is a real launch switch,
+  or it says it isn't — a per-request value carries the kit's note under its row (`KnobGrid`'s `perRequest`:
+  "sent with every request …, not a launch flag").
 - **Sizes** (the user's global rule): every control is sized to its content — a row ends where its
   content ends, nothing stretches to the page width; prose fields are about 60 characters wide
   (`--w-prose`); a button on a row of labelled fields aligns with the inputs. Type, spacing and
@@ -1250,6 +1260,9 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | The server's audio or video played in the window | `<audio crossorigin="anonymous" :src="…">` (or `<video>`) at the server's address — the request carries the app's Origin, so the server's `resourceIsolation` passes it, and it still streams with a Range (measured, Electron 44.10, 2026-10-29); a file the window holds whole (an image) is `ui/…/useServerImage` | a plain `<audio src>` (no Origin: refused, or the server left unguarded); a `mediaPaths` hole in the guard |
 | Another window of the app (a page beside the one in use) | `window.open(router.resolve(to).href, "_blank", "noopener")` — the kit's shell opens the app's own page as a window of the app (its preload, sandbox, menu and unsaved-work box; `shell/main.js` `guardPage`), a browser opens a tab; `noopener` so the new page starts fresh (no copy of this one's sessionStorage). Closing the main window closes the others, each asking about its unsaved work; on the phone there are no windows — hide the item there | an IPC command, a `BrowserWindow` in the app |
 | A toast · a confirm | `ui/common/services/toastBridge.js` `pushToast` · `ui/common/services/dialog.js` `confirmDialog` | — |
+| A modal (Esc and ✕ close it, a click outside doesn't; drag by its header) | `ui/common/components/AppModal.vue` (`closable`, `dismissable`, `draggable` — §17) | a QDialog of the screen's own |
+| A panel at the window's edge (Esc or a click outside closes it) | Quasar's `QDialog` with `position`, as `AiStatusPanel` and `HelpDrawer` (no dim, the focus back to its opener) | a hand-made overlay, document listeners |
+| Engine switches, a row each | `ui/components/KnobGrid.vue` (a `perRequest` row carries the per-request note — §17's labeling law) | a switch with no note that isn't a launch flag |
 | A size in bytes | `ui/common/services/downloadRate.js` `fmtBytes` | — |
 | A model's fit and speed, in words | `ui/common/services/modelPick.js` `fitLabel`, `speedBandLabel`, `fitWarning` + the `.lu-fit` chip (`ui/common/styles.css`) | notes of a screen's own |
 | A runtime's screens | `LuRuntimeTab` (the AI page), `LuEngineNeeded` (in place), `LuRuntimePresetPane` (Routing: an image or a vision feature's preset) | an app's install card |

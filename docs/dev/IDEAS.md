@@ -80,16 +80,6 @@ The holding pen for unscheduled ideas about the shared stack — same charter as
   CUDA no-free-VRAM query · b9905 quantized KV for DeepSeek-V4 · b9967 null
   sampling params · b9910/b9964 spec-decode fixes. None forces a change; adopt
   opportunistically at the next pin bump.
-- **2026-08-04 · The labeling law (lift into the kit's design contract):** a row in
-  a switches surface must be a real engine switch or SAY it isn't. Ruled in
-  `docs/plans/archive/2026-07-16-reasoning-budget-house-layering.md:631`; currently lives
-  only in that plan doc.
-- **2026-08-04 · Dismissal + drag invariants (kit-wide, lift from build records):**
-  panels get outside-click/Esc dismissal, modals never do
-  (`archive/2026-07-19-panel-dismiss-and-no-dim.md`); modals are draggable by default, the
-  dragged position resets every open, HelpDrawer opts out
-  (`2026-07-19-modal-scrim-and-drag.md`). Candidates for a §-invariants block in
-  `docs/app-structure.md` §4 or the kit README.
 - **2026-08-04 · `_ENGINE_UNSUPPORTED_ARCHS` is an append-list ritual**
   (`llm_runner/runner/models.py:190-197`) — "add a line when a new unsupported arch
   surfaces" has no reminder anywhere; consider a check that flags catalog rows whose
