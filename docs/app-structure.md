@@ -1249,7 +1249,7 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | What the data folder holds (Storage) | `platform/disk_api.js` `makeDiskRouter` | — |
 | **Server** | | |
 | A refusal | `platform/errors.js` `ApiError`, `notFound` | hand-built JSON |
-| A kit runtime's refusal, run outside its routes (withSpeechModel, transcribeFeature — not-enough-memory, terms-required, load-cancelled, busy, disk-full …) | `llm/runtimes_api.js` `runtimeProblem(e)` — the routes' own mapping | a second mapping in the app |
+| A kit runtime's refusal, run outside its routes (withSpeechModel, transcribeFeature — engine-not-installed, not-enough-memory, terms-required, load-cancelled, busy, disk-full …) | `llm/runtimes_api.js` `runtimeProblem(e)` — the routes' own mapping | a second mapping in the app |
 | A route's input | `platform/server.js` `input` with `platform/models.js` `T` | checks by hand |
 | Settings that change between versions | `platform/settings_upgrade.js` `upgradeSettings`, `defaultsFingerprints`; a setting moved into the kit (a preset's param, a runner setting) `retireSettings` | a one-off copy at start |
 | An app's AI seed revised between versions (a catalog row's text, a prompt) | `installLlm` `modelCatalogHeals` `{rowId: {field: [old values]}}` · `featurePromptHeals` `{key: [old system texts]}` (`llm/seed.js`, the kit's own QC-43a rule): swapped only while the row still holds an exact old seed | overwriting the row whatever it holds, a data reset |

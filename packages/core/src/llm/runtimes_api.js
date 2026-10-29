@@ -46,6 +46,9 @@ export function runtimeProblem(e) {
   if (e?.notFound) return notFound(e.message);
   if (e?.termsRequired) return new ApiError(403, "terms-required", "Terms not accepted", e.message, { modelId: e.termsRequired.modelId });
   if (e?.loadCancelled) return new ApiError(409, "load-cancelled", "The load was cancelled", e.message, { modelId: e.loadCancelled.modelId });
+  // the engine not installed: a refusal the screen acts on (Install), not a server error — the image door's own code
+  // (image_dispatch.js; JustVoice's session, 2026-10-29: a transcription before audio.cpp's install answered 500)
+  if (e?.notInstalled) return new ApiError(409, "engine-not-installed", "The engine isn't installed", e.message, { runtime: e.runtime ?? null });
   if (e?.need) return new ApiError(409, "engine-cant-run-here", "This computer can't run this engine yet", e.need.detail, { need: e.need });
   if (e?.diskFull) return new ApiError(507, "disk-full", "Not enough room on the drive", e.message, e.diskFull);
   if (e?.busy) return new ApiError(409, e.busy, e.busy === "model-busy" ? "The model is busy" : "The engine is busy", e.message);

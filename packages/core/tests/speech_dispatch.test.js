@@ -175,6 +175,9 @@ test("runtimeProblem words a runtime's refusal as the routes do; anything else c
   expect(terms).toMatchObject({ statusCode: 403, slug: "terms-required", extra: { modelId: "xtts" } });
   const cancelled = runtimeProblem(Object.assign(new Error("cancelled"), { loadCancelled: { modelId: "kokoro" } }));
   expect(cancelled).toMatchObject({ statusCode: 409, slug: "load-cancelled" });
+  // the engine not installed: the screen's Install, not a 500 (JustVoice's session, 2026-10-29)
+  const missing = runtimeProblem(Object.assign(new Error("audio.cpp isn't installed"), { notInstalled: true, runtime: "audiocpp" }));
+  expect(missing).toMatchObject({ statusCode: 409, slug: "engine-not-installed", extra: { runtime: "audiocpp" } });
   const other = new Error("boom");
   expect(runtimeProblem(other)).toBe(other);
 });

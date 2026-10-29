@@ -1011,7 +1011,7 @@ export class RuntimeService {
     if (!this._spec) throw new TypeError(`${this.rt.id} has no server`);
     await this.stopServer();
     const exe = this.installedExe();
-    if (!exe) throw Object.assign(new Error(`${this.rt.label} isn't installed`), { notInstalled: true });
+    if (!exe) throw Object.assign(new Error(`${this.rt.label} isn't installed`), { notInstalled: true, runtime: this.rt.id });
     mkdirSync(this._logDir, { recursive: true });
     mkdirSync(this._stateDir, { recursive: true });
     const blankPage = path.join(this._stateDir, `${this.rt.id}-blank.html`);
@@ -1550,7 +1550,7 @@ export class RuntimeService {
     const row = this._model(modelId);
     const kind = row.kind;
     const exe = this.installedExe();
-    if (!exe) throw Object.assign(new Error(`${this.rt.label} isn't installed`), { notInstalled: true });
+    if (!exe) throw Object.assign(new Error(`${this.rt.label} isn't installed`), { notInstalled: true, runtime: this.rt.id });
     const cfg = this._configFn();
     if (!this._exeOverride?.() && !buildHas(this.rt, cfg.pinnedBuild, "model_management")) {
       throw refusal(`${this.rt.label} ${cfg.pinnedBuild} can't load models while it runs — update it`, { need: { reason: "update-engine" } });
