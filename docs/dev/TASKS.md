@@ -26,6 +26,11 @@ STATE:  No app releases — JustWrite, JustVoice, docgen, house-paint — until 
         when one runs.
 OPEN:   - the workflows' actions at their latest majors (JustWrite's asks, 4); each app's roadmap and ideas listed with
           recommendations for the user (5).
+FOR JUSTVOICE'S SESSION, when one runs (none since these landed): this release rule; its release.yml on the actions'
+        latest majors (JustWrite's asks 4, the template's lines); its roadmap and ideas listed with recommendations (5);
+        its e2e onto the template's e2e/lib/driver.js shape (scripts/e2e.js today — docgen's session found the apps
+        differ, 2026-10-29); its 8 bare `element.click()` tests (the guard's CLICK_KNOWN). DOMPurify is installed there
+        already (7c383a1d).
 
 ## Every app's website deploys by its own `npm run deploy` [2026-10-29]
 DECIDED: the user, verbatim (2026-10-28): "why would i run the website workflow from the app workflow this doesnt make
@@ -59,15 +64,21 @@ HELD:   1. Multi-window ("Open a Character page in one window and write in anoth
            this session decides (JustWrite leans tokens: local engines cost nothing).
 STATE:  3. q-inner-loading in dark BUILT (5a429ad); renderAiMarkdown BUILT 2026-10-29 (`ui/common/services/aiMarkdown.js`:
            marked, then DOMPurify — a new kit peer, installed in the template, house-paint and JustVoice; JustWrite and
-           docgen by their sessions; template src/services/kitAiMarkdown.test.js).
-OPEN:   3. website/sync-docs taking a `lede:` front-matter (docgen's item).
-        4. Every workflow on the actions' LATEST majors — the user, verbatim (2026-10-29, JustWrite's session): "why are
-           we using node 20 why dont we use whatever latest is for gituhb", then "i want this for all apps". As of
-           2026-10-29: actions/checkout @v7, actions/setup-node @v7, actions/upload-artifact @v7,
-           actions/download-artifact @v8 — read the release notes from v4 up (the artifact actions changed where a
-           download lands), prove it with a dry run; the template's release.yml, house-paint's, the kit's website/
-           deploy.yml and house-paint's site's; each other session gets the exact lines.
-        5. After the open fixes, each app (the kit, house-paint, JustVoice, docgen; JustWrite its own) lists everything
+           docgen by their sessions; template src/services/kitAiMarkdown.test.js); website/sync-docs taking a `lede:`
+           front-matter BUILT 2026-10-29 (2c76636: the block never reaches the page, `lede:` the page's description;
+           packages/ui/tests/website_sync_docs.test.js; check 26 asks a site for front-matter; house-paint's site has it).
+STATE:  4. Every workflow on the actions' LATEST majors BUILT 2026-10-29 (be584a9) — the user, verbatim (JustWrite's
+           session): "why are we using node 20 why dont we use whatever latest is for gituhb", "i want this for all apps",
+           then the go on the rec: GitHub's own actions by major tag (checkout @v7, setup-node @v7, upload-artifact @v7,
+           download-artifact @v8; the Pages ones configure-pages @v6, upload-pages-artifact @v5, deploy-pages @v5);
+           node-version stays the Node the app runs on (24, Electron 44's) and moves with the Electron major; runners
+           unchanged (the Linux build on ubuntu-22.04 for an older glibc); no Dependabot — pins refreshed when a
+           workflow is touched, with a dry run. Proven: house-paint's release dry run 40825316897 green on all three
+           builds and the Linux user check (download-artifact @v8 by name), no Node 20 warning left; the site's
+           40825323627 built and uploaded (deploy skipped — the new `publish` input). Not reached by a dry run: the
+           publish job's pattern download (merge-multiple), which download-artifact's v5–v8 notes leave unchanged.
+           JustWrite and docgen sent the lines; JustVoice's below.
+OPEN:   5. After the open fixes, each app (the kit, house-paint, JustVoice, docgen; JustWrite its own) lists everything
            open beyond TASKS — its roadmap, IDEAS and any candidate pools — each with a recommendation, do it or remove
            it, its reasons and the attack, for the user to decide. The user, verbatim (relayed): "i want all apps to
            have the roadmap ideas ect listed and recommed do d0ont remove pas this to other session after they complete
