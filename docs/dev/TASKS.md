@@ -13,6 +13,15 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## Sync gaps, moved from JustWrite's tracker [2026-10-28]
+WHY:    JustWrite's "Sync — offline first…" OPEN line (its docs/dev/TASKS.md): both are the sync engine's or the kit's
+        code, so JustWrite has nothing to build. Queued after house-paint's release (the user's focus, 2026-10-28).
+OPEN:   1. Retiring a device from a cloud folder: just-sqlite-sync's folder transport has `removeDevice(id)`
+           (`src/transports/folder.js:211`, never this device's own), but its `src/app.js` has no route for it and the
+           kit's `SyncPanel.vue` no control — a device no longer used stays in the folder for good.
+        2. "Changes waiting" on the sync status line (the sync design §2) has no source: no engine route counts what
+           another device hasn't received yet.
+
 ## Found by JustWrite's real-model screenshots, for the kit [2026-10-28]
 WHY:    JustWrite's session, from v2.0.0 run for real at 1920×1009 (its screenshots), 2026-10-28.
 OPEN:   1. Model answers shown as Markdown, safely: Ask the book and Talk to a character print the model's answer as
