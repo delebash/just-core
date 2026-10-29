@@ -327,12 +327,12 @@ onBeforeUnmount(() => clearInterval(timer));
       <b>{{ t('kit.sync.device.title') }}</b>
       <label class="lu-sync-field">
         <span>{{ t('kit.sync.device.name') }}</span>
-        <UiInput v-model="nameDraft" size="small" width="name" @blur="saveName" @keydown.enter="saveName" />
+        <UiInput v-model="nameDraft" size="small" width="name" :aria-label="t('kit.sync.device.name')" @blur="saveName" @keydown.enter="saveName" />
       </label>
       <span class="lu-muted">{{ t('kit.sync.device.nameHint') }}</span>
       <label class="lu-sync-field">
         <span>{{ t('kit.sync.device.every') }}</span>
-        <UiNumber v-model="minutesDraft" :min="0" size="small" width="token" @blur="saveMinutes" />
+        <UiNumber v-model="minutesDraft" :min="0" size="small" width="token" :aria-label="`${t('kit.sync.device.every')} (${t('kit.sync.device.minutes')})`" @blur="saveMinutes" />
         <span>{{ t('kit.sync.device.minutes') }}</span>
       </label>
       <span class="lu-muted">{{ t('kit.sync.device.zero') }}</span>
@@ -397,13 +397,13 @@ onBeforeUnmount(() => clearInterval(timer));
       <span class="lu-muted">{{ t('kit.sync.hand.hint') }}</span>
       <div v-if="units.length" class="lu-sync-units">
         <label v-for="u in units" :key="u.id" class="lu-sync-unit">
-          <UiCheckbox v-model="picked[u.id]" /><span>{{ u.title || u.id }}</span>
+          <UiCheckbox v-model="picked[u.id]" :aria-label="u.title || u.id" /><span>{{ u.title || u.id }}</span>
         </label>
       </div>
       <span v-else class="lu-muted"><em>{{ t('kit.sync.hand.none', { units: noun.many }) }}</em></span>
       <span class="lu-muted">{{ t('kit.sync.hand.ticked', { units: noun.many }) }}</span>
       <label class="lu-sync-toggle">
-        <UiCheckbox v-model="encrypt" /><span>{{ t('kit.sync.hand.encrypt') }}</span>
+        <UiCheckbox v-model="encrypt" :aria-label="t('kit.sync.hand.encrypt')" /><span>{{ t('kit.sync.hand.encrypt') }}</span>
       </label>
       <div class="lu-sync-actions">
         <UiButton intent="primary" size="small" :loading="busy === 'export'" :disabled="!pickedIds.length" @click="exportFile">{{ t('kit.sync.hand.export') }}</UiButton>

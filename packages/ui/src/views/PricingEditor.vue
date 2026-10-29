@@ -92,10 +92,10 @@ onMounted(load);
       <tbody>
         <tr v-for="r in rows" :key="r.modelId">
           <td class="lu-price-id">{{ r.modelId }}</td>
-          <td><UiInput v-model="r.inputPerM" type="number" width="token" /></td>
-          <td><UiInput v-model="r.outputPerM" type="number" width="token" /></td>
-          <td><UiInput v-model="r.cacheWritePerM" type="number" width="token" /></td>
-          <td><UiInput v-model="r.cacheReadPerM" type="number" width="token" /></td>
+          <td><UiInput v-model="r.inputPerM" type="number" width="token" :aria-label="`${t('kit.pricing.col.input')} — ${r.modelId}`" /></td>
+          <td><UiInput v-model="r.outputPerM" type="number" width="token" :aria-label="`${t('kit.pricing.col.output')} — ${r.modelId}`" /></td>
+          <td><UiInput v-model="r.cacheWritePerM" type="number" width="token" :aria-label="`${t('kit.pricing.col.cacheWrite')} — ${r.modelId}`" /></td>
+          <td><UiInput v-model="r.cacheReadPerM" type="number" width="token" :aria-label="`${t('kit.pricing.col.cacheRead')} — ${r.modelId}`" /></td>
           <td>
             <div class="lu-price-act">
               <UiButton v-if="isEdited(r)" intent="primary" size="small" :loading="busy === r.modelId" @click="saveRow(r)">{{ t('kit.common.save') }}</UiButton>
@@ -105,10 +105,10 @@ onMounted(load);
         </tr>
         <tr class="ui-formgrid-add lu-price-add">
           <td><UiInput v-model="draft.modelId" :placeholder="t('kit.pricing.idExample', { id: MODEL_ID_EXAMPLE })" /></td>
-          <td><UiInput v-model="draft.inputPerM" type="number" placeholder="0" width="token" /></td>
-          <td><UiInput v-model="draft.outputPerM" type="number" placeholder="0" width="token" /></td>
-          <td><UiInput v-model="draft.cacheWritePerM" type="number" placeholder="0" width="token" /></td>
-          <td><UiInput v-model="draft.cacheReadPerM" type="number" placeholder="0" width="token" /></td>
+          <td><UiInput v-model="draft.inputPerM" type="number" placeholder="0" width="token" :aria-label="t('kit.pricing.col.input')" /></td>
+          <td><UiInput v-model="draft.outputPerM" type="number" placeholder="0" width="token" :aria-label="t('kit.pricing.col.output')" /></td>
+          <td><UiInput v-model="draft.cacheWritePerM" type="number" placeholder="0" width="token" :aria-label="t('kit.pricing.col.cacheWrite')" /></td>
+          <td><UiInput v-model="draft.cacheReadPerM" type="number" placeholder="0" width="token" :aria-label="t('kit.pricing.col.cacheRead')" /></td>
           <td><div class="lu-price-act"><UiButton intent="secondary" size="small" :loading="busy === '__add'" @click="addRow">{{ t('kit.pricing.add') }}</UiButton></div></td>
         </tr>
       </tbody>

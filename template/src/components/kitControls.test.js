@@ -32,6 +32,7 @@ import {
   StoragePanel,
   UiBanner,
   UiButton,
+  UiCheckbox,
   UiSlider,
   useAiTasksNav,
   closeHelp,
@@ -567,6 +568,15 @@ test("Appearance's selects are named by their rows' titles, not their values", a
   expect(names).toEqual(["Theme", "Interface size", "UI font"]);
 });
 
+// A checkbox in a <label> beside its words: QCheckbox's focusable root is a role="checkbox" div, which no <label>
+// names — its aria-label does (JustWrite's axe run, 2026-10-29: SyncPanel's and ConfigColumn's had none).
+test("a checkbox inside a label is named by its aria-label, the root that takes the focus", async () => {
+  await mountHost(() => h("label", [h(UiCheckbox, { modelValue: false, "aria-label": "Encrypt the file" }), h("span", "Encrypt the file")]));
+  const box = document.querySelector('[role="checkbox"]');
+  expect(box.getAttribute("tabindex")).toBe("0");
+  expect(computeAccessibleName(box)).toBe("Encrypt the file");
+});
+
 test("a slider's number box is named as the slider, never with its value", async () => {
   await mountHost(() => h("label", [h("span", "Texture"), h(UiSlider, { modelValue: 1, min: 0, max: 1, step: 0.05, ariaLabel: "Texture" })]));
   expect(computeAccessibleName(document.querySelector(".ui-slider-number input"))).toBe("Texture");
@@ -928,6 +938,8 @@ test("the price table: Save only on an edited row, one row's save keeps another'
   const saves = () => [...document.body.querySelectorAll("button")].filter((b) => b.textContent.trim() === "Save");
   const boxes = () => [...document.body.querySelectorAll(".lu-price-tbl tbody tr")].slice(0, 2).map((tr) => tr.querySelectorAll("input"));
   expect(saves()).toHaveLength(0); // nothing edited, no primary button on every row
+  // each price box named by its column and its row's model (JustWrite's axe run, 2026-10-29 — a cell names nothing)
+  expect(computeAccessibleName(boxes()[1][0])).toBe("Input $/1M — gpt-b");
   // a <td> set to flex stops being a table cell: the buttons' row is a div inside it
   expect(document.body.querySelector("td > .lu-price-act")).not.toBeNull();
   expect(document.body.querySelector("td.lu-price-act")).toBeNull();

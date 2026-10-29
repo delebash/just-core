@@ -167,7 +167,7 @@ onMounted(async () => {
     <div v-if="!isServer && enginePath" class="lu-muted lu-console-path">{{ t('kit.console.spawnLog', { path: enginePath }) }}</div>
     <div v-if="stale" class="lu-console-stale">{{ t('kit.console.stale') }}</div>
     <div class="lu-console-boxwrap">
-      <div ref="box" class="lu-logbox lu-console-box" role="log" @scroll="onScroll">
+      <div ref="box" class="lu-logbox lu-console-box" role="log" tabindex="0" :aria-label="t('kit.aiTabs.console')" @scroll="onScroll">
         <template v-if="hasContent">
           <div v-for="(r, i) in rows" :key="i" class="lu-logline" :class="logLineClass(r.level)">{{ r.line }}</div>
         </template>

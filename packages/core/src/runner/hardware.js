@@ -930,10 +930,21 @@ export function _treeFromPairs(pid, pairs) {
   return out;
 }
 
-/** The pid plus every live descendant, root first. Never throws; unknowable ⇒ [pid]. */
+// when the process table last came back empty and said so — once a minute at most
+let _emptyTableSaidAt = 0;
+
+/** The pid plus every live descendant, root first. Never throws; unknowable ⇒ [pid] — and the log says so: without
+ *  the table a process's own children (this app's engines) read as other programs (a render's note once named
+ *  house-paint's own llama-server so, 2026-10-29 — not reproduced; this line names the cause if it recurs). */
 export async function processTreePids(pid) {
   const pairs = await self._pidPpidPairs();
-  if (!pairs || !pairs.length) return [pid];
+  if (!pairs || !pairs.length) {
+    if (Date.now() - _emptyTableSaidAt > 60_000) {
+      _emptyTableSaidAt = Date.now();
+      log.warning(`the process table came back empty — pid ${pid}'s own children can't be told from other programs`);
+    }
+    return [pid];
+  }
   return _treeFromPairs(pid, pairs);
 }
 

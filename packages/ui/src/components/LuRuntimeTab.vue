@@ -328,13 +328,13 @@ defineExpose({ refresh: load });
         <UiField v-if="engine.bands" :label="t('kit.runtimes.bands.label', { unit: unitWords(engine.bands.unit) })" :hint="t(engine.bands.lowerIsFaster === false ? 'kit.runtimes.bands.hintHigher' : 'kit.runtimes.bands.hint')" :for="`lu-rt-${runtimeId}-band-fast`">
           <div class="lu-rt-idle">
             <label class="lu-rt-band">{{ bandWord("fast") }}
-              <UiInput :id="`lu-rt-${runtimeId}-band-fast`" v-model="bandDrafts.fast" type="number" width="token" />
+              <UiInput :id="`lu-rt-${runtimeId}-band-fast`" v-model="bandDrafts.fast" type="number" width="token" :aria-label="bandWord('fast')" />
             </label>
             <label class="lu-rt-band">{{ bandWord("fine") }}
-              <UiInput :id="`lu-rt-${runtimeId}-band-fine`" v-model="bandDrafts.fine" type="number" width="token" />
+              <UiInput :id="`lu-rt-${runtimeId}-band-fine`" v-model="bandDrafts.fine" type="number" width="token" :aria-label="bandWord('fine')" />
             </label>
             <label class="lu-rt-band">{{ bandWord("slow") }}
-              <UiInput :id="`lu-rt-${runtimeId}-band-slow`" v-model="bandDrafts.slow" type="number" width="token" />
+              <UiInput :id="`lu-rt-${runtimeId}-band-slow`" v-model="bandDrafts.slow" type="number" width="token" :aria-label="bandWord('slow')" />
             </label>
             <UiButton intent="secondary" size="small" :disabled="!bandsChanged" :label="t('kit.common.save')" @click="saveBands" />
           </div>

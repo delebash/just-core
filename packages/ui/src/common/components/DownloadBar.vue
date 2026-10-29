@@ -71,7 +71,7 @@ defineProps({
 .lu-dlbar-spacer { flex: 1; }
 .lu-dlbar-ok {
   font-size: 11px; font-weight: 800; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--success, #3a7d63);
+  text-transform: uppercase; color: var(--success-ink, var(--success, #3a7d63));
 }
 .lu-dlbar-err { font-size: 11.5px; }
 </style>

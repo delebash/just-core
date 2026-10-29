@@ -170,7 +170,7 @@ onMounted(() => {
       <UiButton intent="danger" size="small" :loading="busy === 'deleteAll'" :title="t('kit.logs.delAll.buttonTitle')" @click="deleteAll">{{ t('kit.logs.delAll.confirm') }}</UiButton>
     </div>
     <div v-if="err" class="lu-error">{{ err }}</div>
-    <div class="lu-logs-pre lu-logbox" role="log">
+    <div class="lu-logs-pre lu-logbox" role="log" tabindex="0" :aria-label="t('kit.storage.serverLogs')">
       <template v-if="rows.length && text">
         <div v-for="(r, i) in rows" :key="i" class="lu-logline" :class="logLineClass(r.level)">{{ r.line }}</div>
       </template>

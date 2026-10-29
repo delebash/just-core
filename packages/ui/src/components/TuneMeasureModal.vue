@@ -669,7 +669,7 @@ onBeforeUnmount(stopAutoPoll);
 .lu-tune-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .lu-tune-libs { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .lu-tune-unk { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; }
-.lu-tune-applied { font-size: 12px; color: var(--success, #3a7d63); font-weight: 600; }
+.lu-tune-applied { font-size: 12px; color: var(--success-ink, var(--success, #3a7d63)); font-weight: 600; }
 .lu-tune-status { font-size: 12.5px; color: var(--ink-2); }
 .lu-tune-result { padding: 12px 14px; background: var(--accent-soft); border: 1px solid var(--accent-line, var(--accent)); border-radius: var(--r-sm, 8px); }
 .lu-tune-tps { font-size: 13px; color: var(--ink-2); }

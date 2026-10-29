@@ -113,6 +113,16 @@ FOUND 2026-10-29 (for the user's word at the end, not built): (a) sd.cpp master-
         the same day, the user's real data): 7 the Usage tab's price boxes (PricingEditor.vue 95–109, UiInput in table cells)
         unnamed; 8 a toast's caption at Quasar's 70 % opacity — but the kit resets it (quasar/theme.css:749 `.ui-toast
         .q-notification__caption { opacity: 1 }`, every kit toast carries ui-toast — toastBridge.js:136): likely axe mid fade-in.
+DECIDED 2026-10-29 (the user, verbatim, on the FOUND items and the laptop): "no lpatop not avail" — item 7's walk dropped;
+        "dont do stuff after relase that is so stupid!!!!!!!!!!!!!!" — item 34's walks run now (JustWrite's session);
+        "just do it think on your recs adverserily i dont want to manualyy check anything i want this projuect done" — my
+        recs, each attacked first: (a) a bare A/B in house-paint's session, the same sd-server request and mask on
+        master-1004 and master-1024 — if 1024 leaves unpainted what 1004 paints, the release pins 1004; (b) a warning when
+        the process table comes back empty (the own-process filter can't tell its children then) — no behavior change; (c)
+        the speech bands stay 5× / 2× / 1× (JustVoice's measured speeds, its CPU bar 2.0); (d) JustWrite's 1–7 in the kit,
+        none moving anything on screen but 6: names by aria-label where a control sits in a <label> of its own (1, 3, 4,
+        7), the breadcrumb's hit box 24 px by padding and an equal negative margin (2), the log boxes focusable and named
+        (5), --success-ink for success TEXT (6); 8 withdrawn by JustWrite (the kit resets the caption).
 STATE:  under way.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]

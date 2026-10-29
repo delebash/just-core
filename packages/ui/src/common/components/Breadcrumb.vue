@@ -33,8 +33,10 @@ function activate(seg) {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--muted);
 }
+/* a 24 px hit box (WCAG 2.5.8 — the link's text is 15.8 px tall), its padding taken back by an equal negative margin:
+   nothing on screen moves (JustWrite's axe run, 2026-10-29) */
 .breadcrumb-link {
-  appearance: none; background: none; border: 0; padding: 0; cursor: pointer;
+  appearance: none; background: none; border: 0; padding: 4.5px 0; margin: -4.5px 0; cursor: pointer;
   font: inherit; letter-spacing: inherit; text-transform: inherit;
   color: var(--muted);
 }

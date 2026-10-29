@@ -25,7 +25,7 @@
 // column's model; the column itself carries only what a TASK owns: samplers, tokens,
 // JSON, reasoning. The old per-column switch grid wrote preset rows that nothing
 // applied at load — deleted, not rebuilt.
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import { request } from "../client.js";
@@ -63,6 +63,8 @@ let _labColSeq = 1;
 // magic behind the curtains": there is no min(), the resolved value IS the budget).
 const varHint = "{{variable}}"; // shown literally in the UI (avoids a nested {{ }} in the template)
 const { t } = useI18n();
+// each label's control by id — unique per column (several compare side by side): axe's "label" rule (WCAG 4.1.2)
+const uid = `cc-${useId()}`;
 
 const props = defineProps({
   action: { type: String, default: "" },
@@ -690,27 +692,27 @@ defineExpose({ run, cancel });
 
     <!-- Prompt (system + user) -->
     <template v-if="promptEditable">
-      <div class="cc-field"><label>{{ t('kit.configColumn.system') }}</label>
-        <textarea class="lu-input cc-ta" rows="5" :value="modelValue?.system || ''"
+      <div class="cc-field"><label :for="`${uid}-system`">{{ t('kit.configColumn.system') }}</label>
+        <textarea :id="`${uid}-system`" class="lu-input cc-ta" rows="5" :value="modelValue?.system || ''"
           @input="patch('system', $event.target.value)" /></div>
-      <div class="cc-field"><label>{{ t('kit.configColumn.instruction') }} <span class="lu-muted">— {{ t('kit.configColumn.instructionHint', { hint: varHint }) }}</span></label>
-        <textarea class="lu-input cc-ta" rows="3" :value="modelValue?.userTemplate || ''"
+      <div class="cc-field"><label :for="`${uid}-instruction`">{{ t('kit.configColumn.instruction') }} <span class="lu-muted">— {{ t('kit.configColumn.instructionHint', { hint: varHint }) }}</span></label>
+        <textarea :id="`${uid}-instruction`" class="lu-input cc-ta" rows="3" :value="modelValue?.userTemplate || ''"
           @input="patch('userTemplate', $event.target.value)" /></div>
     </template>
 
     <!-- Plane-2 per-call params -->
     <div class="cc-params">
-      <div class="cc-field cc-num"><label>{{ t('kit.configColumn.temp') }}</label>
-        <UiInput :model-value="modelValue?.temperature" type="number" @update:model-value="patch('temperature', $event)" /></div>
-      <div class="cc-field cc-num"><label>{{ t('kit.configColumn.topP') }} <span class="lu-muted">{{ t('kit.configColumn.topPHint') }}</span></label>
-        <UiInput :model-value="modelValue?.topP" type="number" @update:model-value="patch('topP', $event)" /></div>
-      <div class="cc-field cc-num"><label>{{ t('kit.configColumn.maxTok') }} <span class="lu-muted">{{ t('kit.configColumn.maxTokHint') }}</span></label>
-        <UiInput :model-value="modelValue?.maxTokens" type="number" @update:model-value="patch('maxTokens', $event)" /></div>
-      <div class="cc-field cc-reason"><label>{{ t('kit.configColumn.reasoning') }}</label>
-        <UiSelect :model-value="modelValue?.reasoningEffort || ''" :options="REASONING_OPTIONS"
+      <div class="cc-field cc-num"><label :for="`${uid}-temp`">{{ t('kit.configColumn.temp') }}</label>
+        <UiInput :id="`${uid}-temp`" :model-value="modelValue?.temperature" type="number" @update:model-value="patch('temperature', $event)" /></div>
+      <div class="cc-field cc-num"><label :for="`${uid}-topp`">{{ t('kit.configColumn.topP') }} <span class="lu-muted">{{ t('kit.configColumn.topPHint') }}</span></label>
+        <UiInput :id="`${uid}-topp`" :model-value="modelValue?.topP" type="number" @update:model-value="patch('topP', $event)" /></div>
+      <div class="cc-field cc-num"><label :for="`${uid}-maxtok`">{{ t('kit.configColumn.maxTok') }} <span class="lu-muted">{{ t('kit.configColumn.maxTokHint') }}</span></label>
+        <UiInput :id="`${uid}-maxtok`" :model-value="modelValue?.maxTokens" type="number" @update:model-value="patch('maxTokens', $event)" /></div>
+      <div class="cc-field cc-reason"><label :for="`${uid}-reason`">{{ t('kit.configColumn.reasoning') }}</label>
+        <UiSelect :id="`${uid}-reason`" :model-value="modelValue?.reasoningEffort || ''" :options="REASONING_OPTIONS"
           @update:model-value="patch('reasoningEffort', $event)" /></div>
       <div class="cc-field cc-json">
-        <label v-if="jsonToggle" class="cc-chk" :title="t('kit.configColumn.jsonTitle')"><UiCheckbox :model-value="!!modelValue?.jsonMode" @update:model-value="onJsonToggle" /><span>{{ t('kit.configColumn.json') }}</span></label>
+        <label v-if="jsonToggle" class="cc-chk" :title="t('kit.configColumn.jsonTitle')"><UiCheckbox :model-value="!!modelValue?.jsonMode" :aria-label="t('kit.configColumn.json')" @update:model-value="onJsonToggle" /><span>{{ t('kit.configColumn.json') }}</span></label>
       </div>
     </div>
 
@@ -736,7 +738,7 @@ defineExpose({ run, cancel });
 
         <!-- Sampler ORDER — the chain the samplers apply in (off = engine default). -->
         <div class="cc-samporder">
-          <label class="cc-chk"><UiCheckbox :model-value="orderOn" @update:model-value="toggleOrder" /><span class="lu-muted">{{ t('kit.configColumn.customOrder') }}</span></label>
+          <label class="cc-chk"><UiCheckbox :model-value="orderOn" :aria-label="t('kit.configColumn.customOrder')" @update:model-value="toggleOrder" /><span class="lu-muted">{{ t('kit.configColumn.customOrder') }}</span></label>
           <div v-if="orderOn" class="cc-samporder-list">
             <div v-for="(name, i) in orderList" :key="name" class="cc-samporder-row">
               <span class="cc-samporder-name"><span class="lu-muted">{{ i + 1 }}.</span> {{ name }}</span>
@@ -768,7 +770,7 @@ defineExpose({ run, cancel });
           <UiButton v-if="exactTokens == null" intent="ghost" size="small" :loading="counting"
             :title="t('kit.configColumn.countTitle')" @click="countExact">{{ t('kit.configColumn.count') }}</UiButton>
           <span class="cc-spacer" />
-          <label class="cc-win">{{ t('kit.configColumn.window') }} <span class="lu-muted" :title="windowSource === 'assumed' ? t('kit.configColumn.windowAssumedTitle') : t('kit.configColumn.windowModelTitle')">({{ t(`kit.configColumn.windowSource.${windowSource}`) }})</span> <UiInput :model-value="window" type="number" class="cc-win-in" @update:model-value="window = $event" /></label>
+          <label class="cc-win" :for="`${uid}-window`">{{ t('kit.configColumn.window') }} <span class="lu-muted" :title="windowSource === 'assumed' ? t('kit.configColumn.windowAssumedTitle') : t('kit.configColumn.windowModelTitle')">({{ t(`kit.configColumn.windowSource.${windowSource}`) }})</span> <UiInput :id="`${uid}-window`" :model-value="window" type="number" class="cc-win-in" @update:model-value="window = $event" /></label>
         </div>
         <div v-if="overBudget" class="cc-budget cc-budget-over">
           {{ t('kit.configColumn.over', { prompt: promptTok, out: outReserve || 0, used: budgetUsed, window }) }}
@@ -828,7 +830,7 @@ defineExpose({ run, cancel });
 .cc-presets { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
 .cc-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); cursor: pointer; }
 .cc-name-in { max-width: 150px; }
-.cc-inprod { font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--success, #3a7d63); white-space: nowrap; }
+.cc-inprod { font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--success-ink, var(--success, #3a7d63)); white-space: nowrap; }
 .cc-prod { margin-left: auto; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 3px 9px; background: var(--accent); color: var(--on-accent, #fff); }
 .cc-params { display: flex; gap: 14px 18px; align-items: flex-end; flex-wrap: wrap; }
 .cc-num { max-width: 92px; }
