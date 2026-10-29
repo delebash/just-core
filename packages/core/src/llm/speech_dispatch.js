@@ -46,9 +46,14 @@ export async function transcribeFeature(featureKey, body, { timeout = null } = {
   if (!runtime) throw new ApiError(409, "no-stt-adapter", "This transcription provider can't run yet", `no runtime for ${provider.providerType}`);
   const asked = preset.params?.placement;
   const placement = asked && asked !== "auto" ? asked : undefined;
-  const shaped = (await getRuntimeService(runtime)?.transcriptionRequest?.(preset.model, body)) ?? { body, timeout: null };
-  const req = shaped.body ?? body;
-  const audioS = inputSeconds(req) ?? inputSeconds(body);
-  const limit = timeout ?? shaped.timeout ?? null;
-  return withSpeechModel(runtime, preset.model, { placement, line: () => ({ audioS }) }, (server) => server.transcribe({ model: preset.model, ...req }, limit));
+  let audioS = null;
+  // The app's shaping runs INSIDE the line, under the kind's activity lock: JustVoice's hook writes a 16 kHz copy of the
+  // recording (audio.cpp's JSON transcription takes only a path), and another request's conversion could delete that
+  // copy while this one waited for the lock (JustVoice's session, building on G1, 2026-10-29).
+  return withSpeechModel(runtime, preset.model, { placement, line: () => ({ audioS }) }, async (server) => {
+    const shaped = (await getRuntimeService(runtime)?.transcriptionRequest?.(preset.model, body)) ?? { body, timeout: null };
+    const req = shaped.body ?? body;
+    audioS = inputSeconds(req) ?? inputSeconds(body);
+    return server.transcribe({ model: preset.model, ...req }, timeout ?? shaped.timeout ?? null);
+  });
 }

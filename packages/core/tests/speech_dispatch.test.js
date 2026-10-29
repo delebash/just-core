@@ -116,14 +116,22 @@ test("a transcription goes as the app's hook shapes it, with the limit it gives;
   seed.seedLlm();
   const { svc, calls } = fakeSpeechRuntime();
   const asked = [];
+  const order = [];
   svc.useModel = async function (modelId, opts, fn) {
     asked.push(opts);
+    order.push("line starts"); // the kind's activity lock is held from here (runtime_service.js useModel)
     return fn(this.serverFor(modelId), { modelId, placement: "cpu", kind: "stt" });
   };
-  svc.transcriptionRequest = async (modelId, body) => ({ body: { ...body, language: "English", converted: modelId }, timeout: 21 });
+  svc.transcriptionRequest = async (modelId, body) => {
+    order.push("hook shapes");
+    return { body: { ...body, language: "English", converted: modelId }, timeout: 21 };
+  };
   configureRuntimeServices([["audiocpp", svc]]);
   await transcribeFeature("dictation.transcribe", { language: "en", wav_b64: "x" });
   expect(calls[0]).toEqual(["transcribe", "stt-parakeet", { model: "stt-parakeet", language: "English", wav_b64: "x", converted: "stt-parakeet" }, 21]);
+  // the hook runs INSIDE the line, under its lock: JustVoice's converted copy can't be another request's to delete
+  // (JustVoice's session, 2026-10-29)
+  expect(order).toEqual(["line starts", "hook shapes"]);
   expect(asked[0]).toMatchObject({ placement: undefined, needs: [] });
   // the caller's own limit wins over the hook's
   await transcribeFeature("dictation.transcribe", { language: "en" }, { timeout: 5 });
