@@ -1683,7 +1683,10 @@ const ENGINE_KNOWN = new Map([
     "server/src/engines/audiocpp/runtime.js",
   ])],
 ]);
-const isSeedFile = (rel) => /(^|\/)(database\/seed[^/]*|seed_[^/]*)\.js$/.test(rel);
+// A seed file holds a model's pinned files: database/seed*.js, seed_*.js — and seed_*.json, a catalog the app generates
+// from an engine's own and seeds its runtime_model rows from (JustVoice's audio.cpp catalog, round E, 2026-10-29). One
+// rule by name, never a per-file exemption.
+const isSeedFile = (rel) => /(^|\/)(database\/seed[^/]*\.js|seed_[^/]*\.(js|json))$/.test(rel);
 function checkEngines(app) {
   const root = join(app.dir, "server", "src");
   for (const f of notIgnored(app.dir, walk(root))) {
