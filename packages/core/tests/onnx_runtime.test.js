@@ -295,4 +295,10 @@ test("a vision run records one image's encode as seconds per image; the vision k
   });
   expect(recorded).toHaveLength(1);
   expect(recorded[0][1]).toMatchObject({ kind: "vision", secPerImage: 13.5, source: "speed" });
+  // a run on the CPU records the CPU (house-paint's note, 2026-10-29: one row stood for both providers, so switching
+  // "Runs on" overwrote DirectML's speed with the CPU's)
+  await svc.withModel("tiny-seg", { adapter: adapterOf(), params: { executionProvider: "cpu" } }, async (_inst, { recordSpeed }) => {
+    recordSpeed(40);
+  });
+  expect(recorded[1][1]).toMatchObject({ secPerImage: 40, backend: "cpu", label: expect.stringContaining("(cpu)") });
 });

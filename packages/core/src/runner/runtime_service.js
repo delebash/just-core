@@ -455,22 +455,25 @@ export class RuntimeService {
   }
 
   /** One job's speed on this box and build into the kit's measurement ledger — what the band reads from then on.
-   *  `fields` in the kind's unit (`{secPerImage}` for an image). Best effort: never fails the job. */
+   *  `fields` in the kind's unit (`{secPerImage}` for an image); `fields.backend` what it ran on, when a run says (an
+   *  in-process model's provider — a CPU run is never DirectML's speed), else the build this computer picks. Best
+   *  effort: never fails the job. */
   recordSpeed(modelId, fields) {
     if (!this._measurements) return;
     try {
       const { hw, asset } = this._pick();
+      const backend = fields.backend ?? asset?.gpu ?? "";
       this._measurements.record(this._ledgerId(modelId), {
         machineKey: hardware.machineKey(hw),
         source: "speed",
-        label: `${this.rt.label} (${asset?.gpu || "no build"})`,
+        label: `${this.rt.label} (${backend || "no build"})`,
         tokensPerSec: 0,
         vramTotalMb: 0,
         at: Date.now(),
         rows: [],
         kind: this.rt.kind,
-        backend: asset?.gpu ?? "",
         ...fields,
+        backend,
       });
     } catch (e) {
       log.warning(`${this.rt.id}: couldn't record ${modelId}'s speed: ${e?.message || e}`);
@@ -784,8 +787,8 @@ export class RuntimeService {
     clearTimeout(this._idleTimer);
     try {
       // the work records its speed itself — the kit can't time it (an app keeps an image's encode): one image's encode in
-      // seconds, the vision kind's unit (2026-10-29)
-      return await fn(held.instance, { recordSpeed: (secPerImage) => this.recordSpeed(modelId, { secPerImage }) });
+      // seconds, the vision kind's unit (2026-10-29), on the provider this run used (`held.ep`: "Runs on" can differ)
+      return await fn(held.instance, { recordSpeed: (secPerImage) => this.recordSpeed(modelId, { secPerImage, backend: held.ep }) });
     } finally {
       held.jobs--;
       arb.busyEnd(this.rt.kind);
