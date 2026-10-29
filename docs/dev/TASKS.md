@@ -181,6 +181,11 @@ BUILT:  2026-10-29, tests written, none run (git: "Round E, E1" … "E8"): E1 th
         (`runtimeExeOverrides`); E6 transcription a kit feature on an stt preset (`params.placement`), speech through
         `withSpeechModel`, the load/unload/loaded routes, declared settings and each kind's bands on the settings
         route; E7 `jobs.forget(id)` and `onForget`; E8 the runtime tab for such an engine (kinds, Load where asked and
-        why, Unload, add-ons, settings, the app's slots). app-structure §19 rows, RESEARCH §12. Open: E5 (placement
-        and measured booking), then JustVoice's move by its session.
+        why, Unload, add-ons, settings, the app's slots). app-structure §19 rows, RESEARCH §12. E5 (2026-10-29): JustVoice's placement and measured booking ported
+        (`runner/speech_placement.js`; `RuntimeService` load with Auto, the card's admission, the CPU retry, the after-line
+        pass) with its locks (`useModel`: a line holds its kind; a load or unload waits); the ledger's card word is the
+        build's own (cuda12), an stt model's ledger id is stt; a development build carries its backend and version;
+        `installLlm` `runtimeSpeech`. Open: JustVoice's move by its session (seed `spec.minVramGb`, `refSpeed.cpu`,
+        `spec.unloadStopsProcess`; pass its hooks). Left out of the port, as JustVoice had them: fetching a missing model on
+        Load (the kit refuses, "isn't downloaded"), cancelling a load.
 

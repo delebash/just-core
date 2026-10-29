@@ -131,7 +131,9 @@ test("loadModel registers a model and its companions in its kind's server; one m
   const { DEFAULT_AUDIOCPP_BUILD } = await import("../src/runner/config.js");
   const { RuntimeService } = await import("../src/runner/runtime_service.js");
   const dir = mkdtempSync(path.join(tmpdir(), "kit-ac-svc-"));
+  const { VramArbiter } = await import("../src/runner/arbiter.js");
   let pin = DEFAULT_AUDIOCPP_BUILD;
+  const arb = new VramArbiter(() => ({ platform: "windows", gpus: [], runtimes: {} }));
   const svc = new RuntimeService({
     id: "audiocpp",
     cacheRoot: dir,
@@ -139,6 +141,14 @@ test("loadModel registers a model and its companions in its kind's server; one m
     hardwareFn: () => ({ platform: "windows", gpus: [], runtimes: {} }),
     logDir: path.join(dir, "logs"),
     stateDir: path.join(dir, "state"),
+    // its own arbiter and quiet probes: no real card read, no wait for memory to drain
+    arbiter: () => arb,
+    speech: {
+      probes: { usedPoolMb: async () => null, deviceMb: async () => null, sharedMb: async () => null, rssMb: async () => null },
+      memory: { freeMb: () => 16384, totalMb: () => 32768 },
+      sleep: async () => {},
+      llmFn: async () => null,
+    },
   });
   const record = [];
   svc._pool = new AudioCppPool({ configDir: path.join(dir, "config"), logDir: path.join(dir, "logs"), settingsFn: () => ({ start_timeout_s: 10, request_timeout_s: 10 }), envFn: () => svc.extrasEnv(), spawn: fakeSpawn(record) });
@@ -153,7 +163,10 @@ test("loadModel registers a model and its companions in its kind's server; one m
   svc.modelFor = (id) => ({ key: id, files: { model: `/m/${id}.gguf`, codec: `/m/${id}-codec.gguf` } });
 
   // a model with eSpeak's paths and the user's own option, on the card
-  expect(await svc.loadModel("kitten", { sessionOptions: { "kitten_tts.voice": "bella" } })).toEqual({ modelId: "kitten", placement: "gpu", kind: "tts" });
+  // Auto on graphics that share this machine's memory: the card (the CPU would free none of it), and it says so
+  expect(await svc.loadModel("kitten", { sessionOptions: { "kitten_tts.voice": "bella" } })).toEqual({
+    modelId: "kitten", placement: "gpu", kind: "tts", reason: "the graphics share this machine's memory, so the CPU would free none of it",
+  });
   const loads = (i) => record[i].calls.filter(([, u]) => u === "/v1/models/load").map(([, , b]) => JSON.parse(b));
   expect(loads(0)[0]).toMatchObject({
     id: "kitten", family: "kitten_tts", task: "tts", path: "/m/kitten.gguf",

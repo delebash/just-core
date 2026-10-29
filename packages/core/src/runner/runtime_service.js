@@ -18,12 +18,13 @@ import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "nod
 import { rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { AsyncEvent, background } from "../platform/asyncutil.js";
+import { AsyncEvent, background, Mutex } from "../platform/asyncutil.js";
 import { freeBytes, lacksRoom } from "../platform/disk_room.js";
 import { ApiError } from "../platform/errors.js";
 import { getLogger } from "../platform/log.js";
+import { pyRound } from "../platform/py.js";
 import { getArbiter } from "./arbiter.js";
-import { AudioCppPool, ModelEntry, physicalCores, sideEnv } from "./audiocpp.js";
+import { AudioCppError, AudioCppPool, backendOf, ModelEntry, physicalCores, sideEnv } from "./audiocpp.js";
 import * as binary from "./binary.js";
 import { buildsInUse, recordBuild } from "./cache_registry.js";
 import * as fit from "./fit.js";
@@ -32,9 +33,12 @@ import * as models from "./models.js";
 import * as onnx from "./onnx.js";
 import * as processMod from "./process.js";
 import { installArchive, installed as extraInstalled } from "./runtime_extras.js";
-import { buildHas, runtimeOf } from "./runtimes.js";
+import { buildHas, kindsOf, runtimeOf } from "./runtimes.js";
+import { fmtGb, SpeechPlacement } from "./speech_placement.js";
 
 const log = getLogger("llm_runner.runner.runtime_service");
+// a runtime build's folder words (runtime_binary.gpu — binary.runtimeVariantDir): the card's backend in the ledger
+const VARIANT_WORDS = new Set(["cuda12", "cuda13", "vulkan", "metal", "cpu", "rocm", "hip"]);
 
 /**
  * What this computer lacks to run `asset` (a runtime row with its `requires`), or null:
@@ -116,7 +120,9 @@ export class RuntimeService {
    * (the spawn logs folder llama-server's logs share — Storage counts and clears them together); `stateDir` where the
    * app's own generated files go (its blank page — the app's runtime root); `measurements` the kit's measurement
    * ledger (`{list(modelId), record(modelId, row)}` — llm/stores.js ModelMeasurementStore; null: nothing recorded,
-   * nothing measured). The rest are seams for tests (`freeBytesFn(dir)` a drive's free room).
+   * nothing measured). A runtime whose models are registered (audio.cpp): `speech` — its placement's options
+   * (runner/speech_placement.js SpeechPlacement): the app's `warm`, `pieceLength`, `loadOptionsKey`; seams `llmFn`,
+   * `probes`, `memory`, `sleep`, `now`. The rest are seams for tests (`freeBytesFn(dir)` a drive's free room).
    */
   constructor({
     id,
@@ -142,6 +148,7 @@ export class RuntimeService {
     ort = null,
     dmlDeviceIdFn = () => onnx.bestDmlAdapter(hardware.dxgiAdapters?.() ?? []),
     ortCheck = onnx.ortRuntimeCheck,
+    speech = {},
   }) {
     const rt = runtimeOf(id);
     if (!rt?.defaults) throw new TypeError(`no kit runtime "${id}" with build rows`);
@@ -192,7 +199,31 @@ export class RuntimeService {
         settingsFn: () => this._configFn().settings ?? {},
         envFn: () => this.extrasEnv(),
       });
-      this._held = new Map(); // modelId → { placement, kind, ids }
+      // modelId → { modelId, placement, kind, ids, device, reason, optsKey, pid, stopsProcess, ramPeakMb, speedRecorded,
+      // priceAtFirstLine, ramProbing }
+      this._held = new Map();
+      // JustVoice's locks (its manager.js): one load or unload at a time, and each kind's activity lock — held around a
+      // line on its model and around a load or unload of the kind, so a load never takes a model away mid-line. Lock
+      // order: the kind's activity, then the load lock. modelId → lines running on it now (busyModels).
+      this._loadLock = new Mutex();
+      this._activity = new Map();
+      this._inUse = new Map();
+      // where each model loads and what it books on the card — the kit's (round E, "Kit code, every runtime")
+      this._placement = new SpeechPlacement({
+        label: this.rt.label,
+        ledger: this._measurements,
+        ledgerId: (modelId) => this._ledgerId(modelId),
+        arbiter: () => this._arbiter(),
+        hardwareFn: () => this._hardwareFn(),
+        settingsFn: () => this._configFn().settings ?? {},
+        safetyMarginMbFn: () => this._configFn().safetyMarginMb,
+        cardBackendFn: () => this._cardBackend(),
+        buildFn: () => this._buildTag(),
+        cpuThreadsFn: () => this._cpuThreads(),
+        occupantFn: (kind) => this._occupant(kind),
+        instanceKey: (kind, placement) => this._instanceKey(kind, placement),
+        ...speech,
+      });
     }
   }
 
@@ -213,8 +244,8 @@ export class RuntimeService {
   /** The installed server's path for this box, or null — never downloads (an in-process runtime has none). */
   installedExe() {
     if (this.rt.inProcess) return null;
-    const dev = this._exeOverride?.();
-    if (dev) return dev;
+    const dev = this._dev();
+    if (dev) return dev.exe;
     const { cfg, asset } = this._pick();
     return asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null;
   }
@@ -284,12 +315,19 @@ export class RuntimeService {
   status() {
     if (this.rt.inProcess) return this._inProcessStatus();
     const { cfg, hw, asset } = this._pick();
-    const exe = asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null;
+    // an app's development build stands in for the installed one (exeOverride — JustVoice's `npm run dev`)
+    const dev = this._dev();
+    const exe = dev?.exe ?? (asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null);
+    const kinds = kindsOf(this.rt);
     return {
       id: this.rt.id,
       kind: this.rt.kind,
+      // several kinds (audio.cpp: tts, stt): each one's bands, in the kind's unit
+      ...(kinds.length > 1 ? { kinds, bandsByKind: cfg.bandsByKind ?? null } : {}),
+      // the settings the runtime declares (audio.cpp's build, threads, timeouts …), as set here
+      ...(this.rt.defaults.settings ? { settings: { ...this.rt.defaults.settings, ...(cfg.settings ?? {}) } } : {}),
       label: this.rt.label,
-      build: cfg.pinnedBuild,
+      build: dev ? dev.version || "dev" : cfg.pinnedBuild,
       // the build this kit is tested with (its shipped rows) when it is newer than the pin here — seeding is
       // insert-if-missing, so an existing install keeps its pin until the user presses Update (llama.cpp's "tested" offer)
       updateTo: buildOrder(this.rt.defaults?.pinnedBuild) > buildOrder(cfg.pinnedBuild) ? this.rt.defaults.pinnedBuild : "",
@@ -460,7 +498,16 @@ export class RuntimeService {
 
   /** The ledger's id for one of this runtime's models (JustVoice's speech rows' `<kind>:<engine>:<variant>` shape). */
   _ledgerId(modelId) {
-    return `${this.rt.kind}:${this.rt.id}:${modelId}`;
+    return `${this._kindOf(modelId)}:${this.rt.id}:${modelId}`;
+  }
+
+  /** Model `modelId`'s kind — its row's own (audio.cpp's rows are tts or stt), else the runtime's. */
+  _kindOf(modelId) {
+    try {
+      return this._model(modelId).kind || this.rt.kind;
+    } catch {
+      return this.rt.kind; // its row is gone
+    }
   }
 
   /**
@@ -483,7 +530,8 @@ export class RuntimeService {
       minVramOverride: peak || null,
       minRamOverride: (onCard ? ram : ram + peak) || null,
     });
-    const bands = cfg.bands;
+    // its own kind's bands (audio.cpp: tts and stt each have theirs)
+    const bands = cfg.bandsByKind?.[m.kind] ?? cfg.bands;
     const field = bands?.unit === "s/image" ? "secPerImage" : "realtimeX";
     let rows = [];
     try {
@@ -492,9 +540,11 @@ export class RuntimeService {
       rows = []; // no ledger wired (a bare test)
     }
     const mkey = hardware.machineKey(hw);
-    const row = rows.find((r) => r.machineKey === mkey && (r.backend || "") === (asset?.gpu || "") && Number(r[field]) > 0);
+    // where it runs: a loaded model of a runtime that registers them reads its placement's numbers (the CPU's own)
+    const ranOn = this._held?.get(m.id)?.placement === "cpu" ? "cpu" : asset?.gpu || "";
+    const row = rows.find((r) => r.machineKey === mkey && (r.backend || "") === ranOn && Number(r[field]) > 0);
     const measured = row ? Number(row[field]) : null;
-    const predicted = asset ? Number(m.refSpeed?.[asset.gpu]) || null : null;
+    const predicted = ranOn ? Number(m.refSpeed?.[ranOn]) || null : null;
     return {
       fit: fitWord,
       minRamMb: ram || null,
@@ -525,7 +575,7 @@ export class RuntimeService {
         vramTotalMb: 0,
         at: Date.now(),
         rows: [],
-        kind: this.rt.kind,
+        kind: this._kindOf(modelId),
         ...fields,
         backend,
       });
@@ -571,7 +621,7 @@ export class RuntimeService {
         license: m.license,
         bytes: m.files.reduce((a, f) => a + Number(f.bytes || 0), 0),
         onDisk: this._here(m),
-        running: (this._server?.handle.isAlive() && this._server.modelKey === m.id) || this._loaded?.modelId === m.id,
+        running: (this._server?.handle.isAlive() && this._server.modelKey === m.id) || this._loaded?.modelId === m.id || !!this._held?.has(m.id),
         ...this._rating(m, cfg, hw, asset),
         ...state,
       };
@@ -623,6 +673,7 @@ export class RuntimeService {
     const m = this._model(id);
     if (this.busyModels().includes(id)) throw refusal(`${m.name} is downloading or running a job — delete it once that has finished`, { busy: "model-busy" });
     if (this._server?.modelKey === id || this._loaded?.modelId === id) await this.stopServer();
+    if (this._held?.has(id)) await this.unloadModel(id);
     const others = new Set(this._modelsFn().filter((x) => x.id !== id).flatMap((x) => x.files.map((f) => f.sha256)));
     for (const f of m.files) {
       if (others.has(f.sha256)) continue;
@@ -658,6 +709,7 @@ export class RuntimeService {
     for (const id of this._adopting) if (!ids.includes(id)) ids.push(id);
     if (this._jobs > 0 && this._server?.modelKey && !ids.includes(this._server.modelKey)) ids.push(this._server.modelKey);
     if (this._loaded?.jobs > 0 && !ids.includes(this._loaded.modelId)) ids.push(this._loaded.modelId);
+    for (const id of this._inUse?.keys() ?? []) if (!ids.includes(id)) ids.push(id);
     return ids;
   }
 
@@ -790,8 +842,9 @@ export class RuntimeService {
     clearTimeout(this._idleTimer);
     if (this.rt.inProcess) return this._releaseLoaded();
     if (this._pool) {
+      // every server's booking goes with its models
       this._held.clear();
-      this._arbiter().release(this._booking().key);
+      for (const kind of kindsOf(this.rt)) for (const p of this.rt.placements ?? ["gpu", "cpu"]) this._arbiter().release(this._instanceKey(kind, p));
       return this._pool.stop();
     }
     const s = this._server;
@@ -897,15 +950,151 @@ export class RuntimeService {
     return [main, ...(spec.companions ?? []).map((c) => new ModelEntry(`${row.id}::${c.role}`, c.family, c.task, at(c.slot)))];
   }
 
+  /** A server's booking with the arbiter: `<kind>:<runtime>:<placement>` — one model per kind, so a server's measured
+   *  memory is its one model's. */
+  _instanceKey(kind, placement) {
+    return `${kind}:${this.rt.id}:${placement}`;
+  }
+
+  /** The card's backend, the ledger's word for it: the installed build's own (its folder — cuda12, cuda13, vulkan, metal;
+   *  "cpu" for the CPU build: the word _rating and recordSpeed use), a development build's own backend, or the settings'
+   *  choice (`backend`) when it names another; null when nothing is installed. */
+  _cardBackend() {
+    const exe = this.installedExe();
+    if (!exe) return null;
+    const dev = this._dev();
+    const folder = path.basename(path.dirname(String(exe))).toLowerCase();
+    const built = dev ? dev.backend || backendOf(exe) : VARIANT_WORDS.has(folder) ? folder : backendOf(exe);
+    const set = String(this._configFn().settings?.backend ?? "auto").toLowerCase();
+    return set === "auto" || built.startsWith(set) ? built : set;
+  }
+
+  /** An app's development build in place of the installed one (exeOverride — JustVoice's `npm run dev` runs its
+   *  checkout's): the override answers a path, or `{exe, backend, version}` (its backend "cuda" | "vulkan" | "metal" |
+   *  "cpu" from its build's CMake cache; its version "dev · <commit>"), or null. → `{exe, backend, version}` or null. */
+  _dev() {
+    const d = this._exeOverride?.();
+    if (!d) return null;
+    if (typeof d === "string") return { exe: d, backend: null, version: "" };
+    return d.exe ? { exe: String(d.exe), backend: d.backend ? String(d.backend) : null, version: String(d.version ?? "") } : null;
+  }
+
+  /** The build a measurement belongs to: the pinned build, or a development build's version ("dev" when it says none). */
+  _buildTag() {
+    const dev = this._dev();
+    return dev ? dev.version || "dev" : String(this._configFn().pinnedBuild ?? "");
+  }
+
+  /** The CPU server's threads: the setting, else this machine's physical cores. */
+  async _cpuThreads() {
+    const n = Number(this._configFn().settings?.cpu_threads);
+    return n > 0 ? n : await physicalCores();
+  }
+
+  /** The kind's model now — `{modelId, placement, device, row}` — or null. */
+  _occupant(kind) {
+    for (const [modelId, h] of this._held ?? []) {
+      if (h.kind !== kind) continue;
+      let row = null;
+      try {
+        row = this._model(modelId);
+      } catch {
+        row = null; // its row is gone
+      }
+      return { modelId, placement: h.placement, device: h.device, row };
+    }
+    return null;
+  }
+
+  /** The model a server holds: its `_held` record, or null. */
+  _heldOn(kind, placement) {
+    for (const h of this._held?.values() ?? []) if (h.kind === kind && h.placement === placement) return h;
+    return null;
+  }
+
+  /** Book a server's model at `mb` with its honest provenance ("measured" | "computed"); `evictFn` unloads it. */
+  _reserveInstance(kind, placement, mb, source) {
+    this._arbiter().reserve(this._instanceKey(kind, placement), Math.trunc(mb), {
+      kind,
+      evictFn: () => this._evictInstance(kind, placement),
+      source,
+      // What evicting it gives back in system memory — an AI model's load credits it (the kit's RAM door, 2026-10-12).
+      ramFn: async () => {
+        const h = this._heldOn(kind, placement);
+        return h ? this._placement.rssMb(h.pid) : null;
+      },
+    });
+  }
+
+  /** The evictor `makeRoom` runs for one of the servers' bookings: its model leaves (`makeRoom` releases the booking).
+   *  No lock: makeRoom never evicts a busy kind, and a kind is busy from the moment a line, a load or an unload is asked
+   *  for it (_asKind) — so nothing runs on this model now, and taking the load lock here would wait on the very load
+   *  whose room this makes. */
+  async _evictInstance(kind, placement) {
+    const h = this._heldOn(kind, placement);
+    if (h) await this._unloadHeld(h.modelId, { release: false });
+  }
+
+  /** A failed or spilled load's model leaves its server (best effort — what registered of it). */
+  async _dropEntries(srv, row, entries) {
+    if (this._held.get(row.id)?.placement === srv.placement) this._held.delete(row.id);
+    try {
+      // a family whose memory only its process's end frees (spec.unloadStopsProcess): its process holds no other model
+      if (row.spec?.unloadStopsProcess) await srv.stop();
+      else await srv.unload(entries.map((e) => e.id).filter((id) => srv.hasModel(id)));
+    } catch (e) {
+      log.warning(`${this.rt.id}: ${row.id} didn't unload cleanly: ${e?.message || e}`);
+    }
+  }
+
+  /** `modelId` and its companions leave their server, its booking with them (`release` false: another load already
+   *  holds the key), and the answer waits for the card to show the memory freed — a load right after reads the card
+   *  free. `heldMb`: what it held, when the key was booked again since. False when no server holds it. */
+  async _unloadHeld(modelId, { release = true, heldMb = null } = {}) {
+    const h = this._held?.get(modelId);
+    if (!h) return false;
+    const sp = this._placement;
+    const key = this._instanceKey(h.kind, h.placement);
+    const held = heldMb ?? Math.trunc(this._arbiter().reservedMb(key) || 0);
+    const beforeUsed = held > 0 ? await sp.usedPoolMb() : null;
+    this._held.delete(modelId);
+    const srv = this._pool.get(h.placement, h.kind);
+    try {
+      if (h.stopsProcess) await srv.stop();
+      else await srv.unload(h.ids);
+    } catch (e) {
+      if (!(e instanceof AudioCppError)) throw e;
+      log.warning(`${this.rt.id}: unloading ${modelId} failed: ${e.message}`);
+    }
+    if (release) this._arbiter().release(key);
+    await sp.waitForDrain(beforeUsed, held);
+    return true;
+  }
+
   /**
-   * Load `modelId` into its kind's server on `placement` ("gpu": the build's own backend; "cpu": the same build on the
-   * CPU), registering it and its companions (the fork's model_management — nothing restarts). The kind's previous model
-   * leaves first — and this one from the other placement when it moves. Refused when the engine isn't installed or its
-   * build can't register models (an older build: update it).
+   * Load `modelId` into its kind's server, registering it and its companions (the fork's model_management — nothing
+   * restarts), on `placement` — the user's choice for this model: "auto" (the kit decides — runner/speech_placement.js),
+   * "gpu" (the build's own backend) or "cpu" (the same build on the CPU). Before anything moves: the memory checks, and
+   * for a model with a price measured here the card's admission and an early booking. The kind's previous model leaves
+   * first — and this one from the other placement when it moves. A card load books what its server measured; a model
+   * with no price on the card yet calibrates (the app's warm-up speaks a full-length piece) and its peak is recorded. An
+   * Auto card load that fails or spills into system memory runs on the CPU instead, and that is remembered. →
+   * `{modelId, placement, kind, reason}` — `reason` why it runs there, in words. Refused when the engine isn't installed,
+   * its build can't register models (an older build: update it), or memory is short (NotEnoughMemoryError).
+   * `cardFailed` (internal): this load's try on the graphics card failed or spilled — how — so this is its retry on the
+   * CPU (decided 2026-10-12).
    */
-  async loadModel(modelId, { placement = "gpu", sessionOptions = {} } = {}) {
+  async loadModel(modelId, opts = {}) {
     if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
+    const kind = this._model(modelId).kind;
+    return this._asKind(kind, () => this._loadLock.run(() => this._load(modelId, opts)));
+  }
+
+  /** loadModel's work, under the kind's activity lock and the load lock. */
+  async _load(modelId, { placement = "auto", sessionOptions = {}, cardFailed = "" } = {}) {
     if (this._removing) throw refusal(`${this.rt.label} is being removed — try again when it's done`, { busy: "engine-busy" });
+    const choice = placement == null || placement === "" ? "auto" : String(placement);
+    if (!["auto", ...(this.rt.placements ?? [])].includes(choice)) throw new TypeError(`unknown placement "${placement}"`);
     const row = this._model(modelId);
     const kind = row.kind;
     const exe = this.installedExe();
@@ -914,36 +1103,400 @@ export class RuntimeService {
     if (!this._exeOverride?.() && !buildHas(this.rt, cfg.pinnedBuild, "model_management")) {
       throw refusal(`${this.rt.label} ${cfg.pinnedBuild} can't load models while it runs — update it`, { need: { reason: "update-engine" } });
     }
+    // its files here, or "isn't downloaded" — before anything moves
     const entries = this.entriesFor(modelId, { sessionOptions });
-    for (const [id, h] of [...this._held]) {
-      if (h.kind === kind && (id !== modelId || h.placement !== placement)) await this.unloadModel(id);
+    const sp = this._placement;
+    const arb = this._arbiter();
+    // Where it runs (CPU placement, 2026-10-02): decided before anything moves.
+    const decided = await sp.placementFor(row, { choice, cardFailed: Boolean(cardFailed) });
+    const where = decided.placement;
+    let why = decided.reason;
+    // Auto put it on the card (not the user's pin): if that load fails or spills into system memory, it runs on the CPU
+    // instead (decided 2026-10-12).
+    const autoCard = !cardFailed && choice === "auto" && where === "gpu";
+    // You pinned it to the card: it is never refused for memory — when it may not fit, or spills, its reason says so
+    // (decided 2026-10-16, "do 1 and 2").
+    const pinnedCard = where === "gpu" && choice === "gpu";
+    const optsKey = JSON.stringify(entries.map((e) => e.toConfig()));
+    const srv = this._pool.get(where, kind);
+    // Already loaded there with the same options: nothing to check, fetch or measure.
+    const mine = this._held.get(modelId);
+    if (mine && mine.placement === where && mine.optsKey === optsKey && srv.isRunning() && srv.hasModel(modelId)) {
+      return { modelId, placement: where, kind, reason: mine.reason };
     }
-    const s = cfg.settings ?? {};
-    const cpuThreads = Number(s.cpu_threads) > 0 ? Number(s.cpu_threads) : await physicalCores();
-    const srv = this._pool.get(placement, kind);
-    await srv.ensure(exe, [], {
-      device: Number(s.gpu ?? 0) || 0,
-      threads: placement === "cpu" ? cpuThreads : Math.max(1, Number(s.gpu_threads ?? 4) || 4),
-      backend: placement === "cpu" ? "cpu" : s.backend && s.backend !== "auto" ? s.backend : null,
-      managed: true,
-    });
-    for (const e of entries) await srv.register(e);
-    this._held.set(modelId, { placement, kind, ids: entries.map((e) => e.id) });
-    return { modelId, placement, kind };
+    const device = where === "cpu" ? "cpu" : sp.cardBackend();
+    const key = this._instanceKey(kind, where);
+    // The kind's model now and its server's booking, read before this load books anything — one model per kind and a
+    // key per server, so the two can share a key.
+    const occ = this._occupant(kind);
+    const occKey = occ ? this._instanceKey(kind, occ.placement) : null;
+    const occBooking = occKey ? arb.reservationOf(occKey) : null;
+    const occMb = Math.trunc(occBooking?.vram_mb ?? 0);
+    let earlyMb = 0; // a prior-measured booking made BEFORE the load confirms
+    let replaced = false; // the kind's previous model has left
+    try {
+      // Refuse before changing anything (audit §13.3, §5 B2): the price and the memory checks come FIRST — before the AI
+      // model is unloaded. A known price admits and books EARLY; the check credits what the kind's current model gives
+      // back (§5 B5). A model never measured here gets no arithmetic: it loads, calibrates, is measured.
+      // A load on the card while an AI model is on it may push the AI model off — the card's admission makes room for a
+      // measured model that doesn't fit beside it, Auto's third step unloads it — and that gives the AI model's memory
+      // back. Credited here, so this check never refuses what the next steps make room for; checked again without it
+      // right before the model registers (JustVoice's TASKS "The two-day review's fixes", 2026-10-12).
+      const aiCreditMb = where !== "cpu" && (await sp.aiModelOnCard()) ? await sp.aiModelsRamMb() : 0;
+      await sp.admitSystemMemory(row, device, aiCreditMb);
+      const books = await sp.booksMemory(device);
+      const price = books ? sp.priceMb(row, device) : 0;
+      if (price > 0) {
+        const short = await sp.admitMemory(row, price, occMb, { pinned: pinnedCard, exclude: key });
+        if (short) {
+          why =
+            `your choice — it took about ${fmtGb(short.needed / 1024)} GB here before and about ` +
+            `${fmtGb(short.free / 1024)} GB of the card is free, so it may spill into this machine's ` +
+            "memory and run slowly";
+        }
+        this._reserveInstance(kind, where, price, "measured");
+        earlyMb = price;
+      }
+      // Auto's third step, for a model never measured on the card; it waits for the AI model's memory to drain before
+      // the load reads the card.
+      if (decided.unloadAi && !price) await sp.unloadAiModel(modelId);
+      // The memory check again, without the credit: whatever was going to make room has, so this reading is exact — the
+      // last refusal before the model registers.
+      if (aiCreditMb > 0) await sp.admitSystemMemory(row, device);
+      // A load with no price on the card measures one: its warm-up is a full-length piece.
+      const calibrate = books && !price;
+      // The kind's previous model leaves first — and this one from the other placement when it moves — and its memory
+      // drains before this one's is read.
+      for (const [id, h] of [...this._held]) {
+        if (h.kind !== kind || (id === modelId && h.placement === where)) continue;
+        const k = this._instanceKey(kind, h.placement);
+        await this._unloadHeld(id, { release: !(earlyMb && k === key), heldMb: k === occKey ? occMb : null });
+        replaced = true;
+      }
+      const s = cfg.settings ?? {};
+      await srv.ensure(exe, [], {
+        device: Number(s.gpu ?? 0) || 0,
+        threads: where === "cpu" ? await this._cpuThreads() : Math.max(1, Number(s.gpu_threads ?? 4) || 4),
+        backend: where === "cpu" ? "cpu" : s.backend && s.backend !== "auto" ? s.backend : null,
+        managed: true,
+      });
+      const pid = srv.pid;
+      // The card as this model finds it: the previous model gone and drained — its memory is never this one's.
+      const poolBefore = books ? await sp.usedPoolMb() : null;
+      // The process's shared GPU memory before the model arrives: what fits leaves it as it was.
+      const sharedBefore = autoCard || pinnedCard ? await sp.sharedMb(pid) : null;
+      let calibrated = false;
+      try {
+        for (const e of entries) await srv.register(e);
+        // Speak once now, so a Load means loaded and its memory is measured (the app's warm-up: a full-length piece when
+        // it calibrates). A failure fails the load with the runtime's own words (audit §5 B4).
+        calibrated = Boolean(await sp.warm({ server: srv, row, modelId, entries, calibrate }));
+      } catch (e) {
+        log.warning(`${this.rt.id}: ${modelId} didn't load on the ${where === "cpu" ? "CPU" : "graphics card"}: ${e?.message || e}`);
+        await this._dropEntries(srv, row, entries);
+        // Defensive — a release is idempotent, and a reservation nobody releases is a lying ledger.
+        arb.release(key);
+        earlyMb = 0;
+        if (autoCard) {
+          log.warning(`${this.rt.id}: ${modelId} didn't load on the graphics card — trying the CPU`);
+          return await this._load(modelId, { placement: choice, sessionOptions, cardFailed: "failed" });
+        }
+        throw e;
+      }
+      // Loaded, but into system memory: NVIDIA's Windows driver can satisfy an allocation the card has no room for from
+      // shared memory instead of failing (JustVoice's RESEARCH §10.14), and the model then runs slowly. That is a failed
+      // card load too.
+      if (sharedBefore !== null) {
+        const sharedAfter = await sp.sharedMb(pid);
+        const spilled = sharedAfter !== null ? sharedAfter - sharedBefore : 0;
+        if (sharedAfter !== null && spilled > sp.spillMb() && pinnedCard) {
+          // Your pin holds: it stays on the card, and says what that costs.
+          log.warning(`${this.rt.id}: ${modelId} spilled ${spilled} MB into system memory — kept on the card, your choice`);
+          why =
+            `your choice — about ${fmtGb(spilled / 1024)} GB of it spilled into this machine's memory, so ` +
+            "it runs slowly; Auto would run it on the CPU";
+        } else if (sharedAfter !== null && spilled > sp.spillMb()) {
+          log.warning(`${this.rt.id}: ${modelId} spilled ${spilled} MB of graphics memory into system memory — trying the CPU`);
+          await this._dropEntries(srv, row, entries);
+          arb.release(key);
+          earlyMb = 0;
+          return await this._load(modelId, { placement: choice, sessionOptions, cardFailed: "spilled" });
+        }
+      }
+      const held = {
+        modelId,
+        placement: where,
+        kind,
+        ids: entries.map((e) => e.id),
+        device,
+        reason: why,
+        optsKey,
+        pid,
+        // a family whose memory only its process's end frees: its unload stops the process (spec.unloadStopsProcess)
+        stopsProcess: Boolean(row.spec?.unloadStopsProcess),
+        ramPeakMb: 0,
+        speedRecorded: false,
+        priceAtFirstLine: null,
+        ramProbing: false,
+      };
+      this._held.set(modelId, held);
+      // The CPU took what the card couldn't: remembered, so the next load goes straight here.
+      if (cardFailed) sp.recordCardFailure(row, cardFailed);
+      // Book the CONFIRMED load at its MEASURED footprint — the per-process probe of the kind's own server. A known price
+      // stays the booking's floor. What is RECORDED as this model's peak (§13.3): a calibrated load's measurement, or
+      // any measurement above the price. Probe miss → the device-wide delta, booked "computed". Approved 2026-10-12:
+      // "save the fallback card number for models whose probe fails", so Auto learns a model fits (OmniVoice: audio.cpp
+      // says 10 GB, the card took 1.2 GB). A model that can speak without a clip calibrates on its load (the app's
+      // warm-up); one that speaks only from a clip can't, so its first line sets its price instead — its process's
+      // reading after the line, or the whole card's difference since before the load (noteLine). An EARLY booking keeps
+      // the price instead.
+      if (books) {
+        const measured = await sp.procMemMb(pid);
+        if (calibrate && !calibrated && sp.prices(pid)) held.priceAtFirstLine = { poolBefore, device };
+        if (measured) {
+          this._reserveInstance(kind, where, Math.max(measured, earlyMb), "measured");
+          if ((calibrated || (earlyMb && measured > earlyMb)) && sp.prices(pid)) sp.recordPeak(row, measured, device);
+        } else if (!earlyMb) {
+          const after = await sp.usedPoolMb();
+          const delta = after !== null && poolBefore !== null ? Math.max(0, after - poolBefore) : 0;
+          if (delta > 0) {
+            this._reserveInstance(kind, where, delta, "computed");
+            if (calibrated && sp.prices(pid)) sp.recordPeak(row, delta, device, "the whole card's difference");
+          }
+        }
+      }
+      // The system memory this model holds once loaded — its server's process (4(b)); its lines can raise it (noteLine).
+      const ramMb = await sp.rssMb(pid);
+      if (ramMb) {
+        held.ramPeakMb = ramMb;
+        if (sp.prices(pid)) sp.recordRam(row, ramMb, device);
+      }
+      log.info(`${this.rt.id}: ${modelId} loaded on the ${where === "cpu" ? "CPU" : "graphics card"} (pid ${pid ?? "?"}) — ${why}`);
+      return { modelId, placement: where, kind, reason: why };
+    } catch (e) {
+      // Never leak the EARLY booking on a failed load; release is idempotent. A key the kind's previous model still
+      // holds (it hadn't left yet) gets its own booking back.
+      if (earlyMb) {
+        if (!replaced && occBooking && occKey === key && this._held.has(occ.modelId)) this._reserveInstance(kind, occ.placement, occMb, occBooking.source);
+        else arb.release(key);
+      }
+      throw e;
+    }
   }
 
-  /** Let `modelId` (and its companions) go from the server holding it; false when none does. */
+  /** Let `modelId` (and its companions) go from the server holding it, its booking with it — after any line on it ends;
+   *  false when none does. */
   async unloadModel(modelId) {
     const h = this._held?.get(modelId);
     if (!h) return false;
-    this._held.delete(modelId);
-    await this._pool.get(h.placement, h.kind).unload(h.ids);
-    return true;
+    return this._asKind(h.kind, () => this._loadLock.run(() => this._unloadHeld(modelId)));
   }
 
-  /** What each kind holds now: `[{modelId, placement, kind}]`. */
+  /** The kind's activity lock, made on first use. */
+  _activityOf(kind) {
+    let m = this._activity.get(kind);
+    if (!m) this._activity.set(kind, (m = new Mutex()));
+    return m;
+  }
+
+  /** `work` under the kind's activity lock, the kind busy on the arbiter from now until it ends — its servers are
+   *  never evicted meanwhile (makeRoom skips a busy kind), queued or running. */
+  async _asKind(kind, work) {
+    const arb = this._arbiter();
+    arb.busyBegin(kind);
+    try {
+      return await this._activityOf(kind).run(work);
+    } finally {
+      arb.busyEnd(kind);
+    }
+  }
+
+  /**
+   * Run one line on `modelId` — `fn(server, held)`, `server` the one holding it, `held` `{modelId, placement, kind,
+   * reason}` — loaded first when it isn't where asked (`placement` "auto": wherever it is, else the kit decides) or
+   * holds other `sessionOptions`. The kind's activity lock is held throughout, so no load takes the model away
+   * mid-line (JustVoice's manager.js), and the kind is busy on the arbiter. Then its after-line pass (noteLine) with
+   * `line(result)` → `{text, audioS}` (what the line said and its audio's seconds; no `line`: only its time).
+   */
+  async useModel(modelId, { placement = "auto", sessionOptions = undefined, line = null } = {}, fn) {
+    if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
+    const kind = this._model(modelId).kind;
+    return this._asKind(kind, async () => {
+      const h = this._held.get(modelId);
+      const srv = h ? this._pool.get(h.placement, h.kind) : null;
+      // held where asked, with these options, by a server still running it (a process that ended loads it again)
+      const here =
+        h &&
+        (!placement || placement === "auto" || h.placement === placement) &&
+        (sessionOptions === undefined || h.optsKey === this._optsKey(modelId, sessionOptions)) &&
+        srv.isRunning() &&
+        srv.hasModel(modelId);
+      const held = here
+        ? { modelId, placement: h.placement, kind: h.kind, reason: h.reason ?? "" }
+        : await this._loadLock.run(() => this._load(modelId, { placement, ...(sessionOptions !== undefined ? { sessionOptions } : {}) }));
+      this._inUse.set(modelId, (this._inUse.get(modelId) ?? 0) + 1);
+      const t0 = performance.now();
+      try {
+        const result = await fn(this.serverFor(modelId), held);
+        let said = {};
+        try {
+          said = line ? (line(result) ?? {}) : {};
+        } catch {
+          said = {}; // what the line said is a nicety; the line itself succeeded
+        }
+        await this.noteLine(modelId, { ...said, wallS: (performance.now() - t0) / 1000, ok: true });
+        return result;
+      } catch (e) {
+        await this.noteLine(modelId, { wallS: (performance.now() - t0) / 1000, ok: false });
+        throw e;
+      } finally {
+        const n = (this._inUse.get(modelId) ?? 1) - 1;
+        if (n > 0) this._inUse.set(modelId, n);
+        else this._inUse.delete(modelId);
+      }
+    });
+  }
+
+  /** The options a load of `modelId` with `sessionOptions` registers — what a held model is compared on. */
+  _optsKey(modelId, sessionOptions) {
+    return JSON.stringify(this.entriesFor(modelId, { sessionOptions }).map((e) => e.toConfig()));
+  }
+
+  /** What each kind holds now: `[{modelId, placement, kind, reason}]` — `reason` why it runs there, in words. */
   loaded() {
-    return [...(this._held ?? [])].map(([modelId, h]) => ({ modelId, placement: h.placement, kind: h.kind }));
+    return [...(this._held ?? [])].map(([modelId, h]) => ({ modelId, placement: h.placement, kind: h.kind, reason: h.reason ?? "" }));
+  }
+
+  /** Where `modelId` runs, or would: `{placement, reason}` — a loaded model's own, else the placement's verdict now for
+   *  the user's `placement` choice (the row's "Runs on"). */
+  async placementOf(modelId, { placement = "auto" } = {}) {
+    if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
+    const h = this._held.get(modelId);
+    if (h) return { placement: h.placement, reason: h.reason ?? "" };
+    const { placement: where, reason } = await this._placement.placementFor(this._model(modelId), { choice: placement || "auto" });
+    return { placement: where, reason };
+  }
+
+  /** `modelId`'s peak on this machine's graphics card, MB, from an earlier load — null when none measured it. */
+  measuredMbFor(modelId) {
+    return this._placement ? this._placement.measuredMbFor(this._model(modelId)) : null;
+  }
+
+  /** "Try the card again": forget that a card load of `modelId` failed or spilled here (its price and CPU speed stay).
+   *  → the rows forgotten. */
+  forgetCardFailure(modelId) {
+    return this._placement ? this._placement.forgetCardFailure(this._model(modelId)) : 0;
+  }
+
+  /**
+   * After one line (speech) or clip (transcription) on `modelId` — the job calls it while the line still holds the
+   * model: `text` the line's text, `audioS` its audio's seconds (null: none came back), `wallS` how long it took, `ok`
+   * whether it succeeded. A speech line that ran away marks its process unpriced; a model its load couldn't measure (it
+   * speaks only from a clip) is priced on its first line that spoke (§7 answer 5); the first line of 2 s or more on the
+   * CPU after each load records its real-time factor; and the memory high-water is read again in the background
+   * (raise-only — a speech model allocates at generate(), not load). Best effort: never fails the work.
+   */
+  async noteLine(modelId, { text = "", audioS = null, wallS = 0, ok = true } = {}) {
+    const h = this._held?.get(modelId);
+    if (!h) return;
+    try {
+      if (h.kind === "tts") this._placement.noteRunaway(h.pid, modelId, text, audioS);
+      if (ok) await this._priceFirstLine(modelId, h);
+      if (ok) await this._recordCpuSpeed(modelId, h, audioS, wallS);
+    } catch (e) {
+      log.debug(`${this.rt.id}: after-line pass for ${modelId} failed: ${e?.message || e}`);
+    }
+    // High-water true-up: generate() is where a speech model's memory peaks — TTL-absorbed, raise-only, never blocks the
+    // line.
+    background(`${h.kind}-highwater`, () => this._highWater(modelId), log);
+  }
+
+  /** The price of a model its load couldn't measure, saved after its first line that spoke: the process's reading
+   *  after the line, else — a probe that reads nothing — the whole card's difference since before its load. Booked too,
+   *  and never below what is booked. Not after a runaway line. */
+  async _priceFirstLine(modelId, h) {
+    const first = h.priceAtFirstLine;
+    if (!first) return;
+    h.priceAtFirstLine = null;
+    const sp = this._placement;
+    try {
+      if (this._held.get(modelId) !== h || !sp.prices(h.pid)) return;
+      const row = this._model(modelId);
+      const mb = await sp.procMemMb(h.pid);
+      const cur = Math.trunc(this._arbiter().reservedMb(this._instanceKey(h.kind, h.placement)) || 0);
+      if (mb) {
+        this._reserveInstance(h.kind, h.placement, Math.max(mb, cur), "measured");
+        sp.recordPeak(row, Math.max(mb, cur), first.device);
+        return;
+      }
+      if (first.poolBefore === null || first.poolBefore === undefined) return;
+      const after = await sp.usedPoolMb();
+      const delta = after !== null ? Math.max(0, after - first.poolBefore) : 0;
+      if (delta <= 0) return;
+      if (delta > cur) this._reserveInstance(h.kind, h.placement, delta, "computed");
+      sp.recordPeak(row, delta, first.device, "the whole card's difference");
+    } catch (e) {
+      log.debug(`${this.rt.id}: first-line price failed for ${modelId}: ${e?.message || e}`);
+    }
+  }
+
+  /** The first line (or clip) a CPU-placed model handles after each load records its real-time factor in the ledger —
+   *  from then on Auto reads THIS machine's number, at the CPU-threads setting it ran at. */
+  async _recordCpuSpeed(modelId, h, audioS, wallS) {
+    if (h.placement !== "cpu" || h.speedRecorded) return;
+    if (!audioS || audioS < 2.0 || !(wallS > 0)) return;
+    h.speedRecorded = true;
+    const threads = String(await this._cpuThreads());
+    this.recordSpeed(modelId, {
+      label: `CPU real-time factor (${threads} threads)`,
+      rows: [{ flagName: "threads", flagValue: threads }],
+      kind: h.kind,
+      realtimeX: pyRound(audioS / wallS, 2),
+      backend: "cpu",
+    });
+  }
+
+  /** The raise-only HIGH-WATER re-probe after a line: the server's system memory, then its card memory — a reading
+   *  above the booking books it and, unless its process ran a runaway line, records it as the model's peak. Never lowers
+   *  a booking; best-effort. */
+  async _highWater(modelId) {
+    const h = this._held?.get(modelId);
+    if (!h) return;
+    const sp = this._placement;
+    // System memory first: the card's probe below returns early for a CPU-placed model.
+    await this._bumpRam(modelId, h).catch(() => {});
+    // The kind's own process (audit §13.2): its whole measurement is this model's.
+    const mb = await sp.procMemMb(h.pid, { fresh: false });
+    if (!mb) return;
+    try {
+      const cur = this._arbiter().reservedMb(this._instanceKey(h.kind, h.placement));
+      if (cur === null || mb > cur) {
+        // The probe ran while a load could swap the model: still this one's?
+        if (this._held.get(modelId) !== h) return;
+        // cur null = "not measured yet": the first measured probe CREATES the booking — only where the device books.
+        if (cur === null && !(await sp.booksMemory(h.device))) return;
+        this._reserveInstance(h.kind, h.placement, mb, "measured");
+        if (sp.prices(h.pid)) sp.recordPeak(this._model(modelId), mb, h.device);
+      }
+    } catch {
+      // best-effort
+    }
+  }
+
+  /** The raise-only high-water for system memory: the server read again, a reading above this load's highest
+   *  recorded. One probe at a time per model (it can shell out for a second or two). */
+  async _bumpRam(modelId, h) {
+    const sp = this._placement;
+    if (h.ramProbing || !sp.prices(h.pid)) return;
+    h.ramProbing = true;
+    try {
+      const mb = await sp.rssMb(h.pid);
+      if (!mb || mb <= (h.ramPeakMb || 0) || this._held.get(modelId) !== h) return;
+      h.ramPeakMb = mb;
+      sp.recordRam(this._model(modelId), mb, h.device);
+    } finally {
+      h.ramProbing = false;
+    }
   }
 
   /** The running server holding `modelId` — speech, transcription and alignment go through it. */

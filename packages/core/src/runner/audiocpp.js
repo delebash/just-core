@@ -113,6 +113,38 @@ export function sideEnv({ espeakDir = null, unidicDir = null } = {}) {
 }
 
 /** The backend a build runs: its folder's gpu name (`…/<build>/<gpu>/audiocpp_server`) as audio.cpp names backends. */
+/** A WAV's length in seconds from its header (its data chunk over the fmt chunk's byte rate), or null when it isn't
+ *  one (JustVoice's manager.js _wavSeconds). */
+export function wavSeconds(data) {
+  const b = Buffer.from(data ?? []);
+  if (b.length < 12 || b.toString("latin1", 0, 4) !== "RIFF" || b.toString("latin1", 8, 12) !== "WAVE") return null;
+  let i = 12;
+  let rate = null;
+  let size = null;
+  while (i + 8 <= b.length) {
+    const cid = b.toString("latin1", i, i + 4);
+    const n = b.readUInt32LE(i + 4);
+    if (cid === "fmt " && i + 20 <= b.length) rate = b.readUInt32LE(i + 16);
+    else if (cid === "data") {
+      size = Math.min(n, b.length - i - 8);
+      break;
+    }
+    i += 8 + n + (n & 1);
+  }
+  return rate && size ? size / rate : null;
+}
+
+/** A transcription request's audio length in seconds — its `wav_b64` or its `audio_path` — or null. */
+export function inputSeconds(body) {
+  try {
+    if (body?.audio_path) return wavSeconds(readFileSync(body.audio_path));
+    if (body?.wav_b64) return wavSeconds(Buffer.from(String(body.wav_b64), "base64"));
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function backendOf(exe) {
   const gpu = path.basename(path.dirname(String(exe))).toLowerCase();
   if (gpu.startsWith("cuda")) return "cuda";

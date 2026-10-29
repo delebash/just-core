@@ -308,9 +308,9 @@ function speechRoute(p, method, body) {
   if (at === "/models") return json({ models: S.models });
   const load = at.match(/^/models/([^/]+)/(load|unload)$/);
   if (load?.[2] === "load") {
-    const held = { modelId: load[1], placement: "cpu", kind: S.models.find((m) => m.id === load[1]).kind };
+    const held = { modelId: load[1], placement: "cpu", kind: S.models.find((m) => m.id === load[1]).kind, reason: "fast enough on the CPU" };
     S.engine = { ...S.engine, loaded: [...S.engine.loaded, held] };
-    return json({ ...held, reason: "fast enough on the CPU" });
+    return json(held);
   }
   if (load?.[2] === "unload") {
     S.engine = { ...S.engine, loaded: S.engine.loaded.filter((l) => l.modelId !== load[1]) };

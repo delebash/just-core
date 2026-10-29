@@ -34,13 +34,18 @@ const FeatureParams = T.Object({ key: T.String({ minLength: 1, maxLength: 128 })
 const ModelParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }), modelId: T.String({ minLength: 1, maxLength: 128 }) });
 
 /** A service refusal in the routes' shape: no such model (404), what this computer lacks (409), no room on the drive
- *  (507 "disk-full", with `needBytes`/`freeBytes` for the screen's words), busy (409 "engine-busy" · "model-busy"). */
+ *  (507 "disk-full", with `needBytes`/`freeBytes` for the screen's words), busy (409 "engine-busy" · "model-busy"), a load
+ *  refused for memory (409 "not-enough-memory" — runner/speech_placement.js, its words the detail; `where` card or
+ *  system, `neededMb`, `freeMb`). */
 function asProblem(e) {
   if (e?.notFound) return notFound(e.message);
   if (e?.need) return new ApiError(409, "engine-cant-run-here", "This computer can't run this engine yet", e.need.detail, { need: e.need });
   if (e?.diskFull) return new ApiError(507, "disk-full", "Not enough room on the drive", e.message, e.diskFull);
   if (e?.busy) return new ApiError(409, e.busy, e.busy === "model-busy" ? "The model is busy" : "The engine is busy", e.message);
   if (e?.nothingToInstall) return new ApiError(409, "nothing-to-install", "This engine is part of the app", e.message);
+  if (e?.name === "NotEnoughMemoryError") {
+    return new ApiError(409, "not-enough-memory", "Not enough memory", e.message, { where: e.where, neededMb: e.neededMb, freeMb: e.freeMb });
+  }
   return e;
 }
 

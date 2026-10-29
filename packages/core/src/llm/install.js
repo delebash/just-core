@@ -47,7 +47,7 @@ import { makeRoutingRouter } from "./routing_api.js";
 import { makeRunnerConfigRouter } from "./runner_config_api.js";
 import { makeRuntimesRouter } from "./runtimes_api.js";
 import { runtimeOf } from "../runner/runtimes.js";
-import { configureRuntimeServices, RuntimeService } from "../runner/runtime_service.js";
+import { configureRuntimeServices, getRuntimeService, RuntimeService } from "../runner/runtime_service.js";
 import { AUDIOCPP_PROBE_ARGVS } from "../runner/audiocpp.js";
 import { SDCPP_PROBE_ARGVS, SDCPP_SERVER } from "../runner/sdcpp.js";
 import * as seed from "./seed.js";
@@ -226,9 +226,14 @@ export async function installLlm(
     // the in-process ONNX runtime's module, the APP's onnxruntime-node (the engines plan's D2): `{ load: () =>
     // import("onnxruntime-node"), binDir }` — `binDir` where its native files are (the runtime check looks there)
     onnx = null,
-    // `{ <runtime id>: () => a program path or null }`: a server program to run instead of the installed build — an
-    // app's development build (JustVoice's `npm run dev` runs its audio.cpp checkout's own — round E)
+    // `{ <runtime id>: () => a program path, {exe, backend, version}, or null }`: a server program to run instead of the
+    // installed build — an app's development build (JustVoice's `npm run dev` runs its audio.cpp checkout's own — round E;
+    // its backend from the build's CMake cache, its version "dev · <commit>")
     runtimeExeOverrides = {},
+    // `{ <runtime id>: {warm, pieceLength, loadOptionsKey} }`: a runtime that registers its models (audio.cpp) — the app's
+    // warm-up after a load (`warm({server, row, modelId, entries, calibrate})` → whether it calibrated), a model's piece
+    // length and its load-option set, both parts of its measured price (runner/speech_placement.js — round E, E5)
+    runtimeSpeech = {},
     classTunesSeed = [],
     classTuneIdentity = {},
     embedTemplates = [],
@@ -280,7 +285,11 @@ export async function installLlm(
   if (app) mountLlmRouters(app, { featurePrompts, config, allowKeyReveal, dataDir, product });
   // 6. point the bundled runner's catalog/switches at the shared DB.
   if (runnerCatalog) {
-    wireRunnerCatalog(dataDir, { cacheRoot, product, speechModelsFn, runtimes, onnx });
+    // the AI model's memory refusal names the speech models loaded (the app's list, else the kit's audio.cpp's own)
+    const speechModels =
+      speechModelsFn ??
+      (runtimes.includes("audiocpp") ? () => (getRuntimeService("audiocpp")?.loaded() ?? []).map((l) => ({ id: l.modelId, placement: l.placement })) : null);
+    wireRunnerCatalog(dataDir, { cacheRoot, product, speechModelsFn: speechModels, runtimes, onnx });
     // Seed-vs-file self-heal: re-derive catalog facts from ALREADY-DOWNLOADED GGUFs whose
     // rows never got the identify pass. A background task — boot never waits on file reads.
     background(
@@ -509,6 +518,7 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
         // an in-process runtime's engine: the app's module
         ort: id === "onnx" ? onnx : null,
         exeOverride: runtimeExeOverrides?.[id] ?? null,
+        speech: runtimeSpeech?.[id] ?? {},
       }),
     ]),
   );

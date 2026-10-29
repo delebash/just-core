@@ -236,14 +236,12 @@ const shown = computed(() => {
 const registers = computed(() => Array.isArray(engine.value?.loaded));
 const loadedOf = (m) => engine.value?.loaded?.find((l) => l.modelId === m.id) ?? null;
 const placements = reactive({}); // model id → "auto" | "gpu" | "cpu"
-const reasons = reactive({}); // model id → why its last load went where it did
 const loadingId = ref("");
 const placementOptions = computed(() => ["auto", "gpu", "cpu"].map((v) => ({ value: v, label: t(`kit.runtimes.placement.${v}`) })));
 async function loadModel(m) {
   loadingId.value = m.id;
   try {
-    const r = await request(`${base}/models/${encodeURIComponent(m.id)}/load`, { method: "POST", body: { placement: placements[m.id] || "auto" } });
-    reasons[m.id] = r?.reason || "";
+    await request(`${base}/models/${encodeURIComponent(m.id)}/load`, { method: "POST", body: { placement: placements[m.id] || "auto" } });
   } catch (e) {
     reportError(refusalProblem(e, m.name, t) || e);
   } finally {
@@ -254,7 +252,6 @@ async function loadModel(m) {
 async function unloadModel(m) {
   try {
     await request(`${base}/models/${encodeURIComponent(m.id)}/unload`, { method: "POST", body: {} });
-    delete reasons[m.id];
   } catch (e) {
     reportError(e);
   }
@@ -429,7 +426,7 @@ defineExpose({ refresh: load });
               <UiButton intent="secondary" size="small" :disabled="!!loadedOf(m)" :label="t('kit.runtimes.model.delete')" @click="removeModel(m)" />
             </template>
           </div>
-          <span v-if="loadedOf(m)" class="lu-rt-line">{{ t(`kit.runtimes.loadedOn.${loadedOf(m).placement}`) }}<template v-if="reasons[m.id]"> — {{ reasons[m.id] }}</template></span>
+          <span v-if="loadedOf(m)" class="lu-rt-line">{{ t(`kit.runtimes.loadedOn.${loadedOf(m).placement}`) }}<template v-if="loadedOf(m).reason"> — {{ loadedOf(m).reason }}</template></span>
           <slot name="model" :model="m" :loaded="loadedOf(m)" />
           <UiBanner v-if="fitWarning(m)" intent="warning" class="lu-rt-note">{{ fitWarning(m) }}</UiBanner>
           <DownloadBar v-if="taskFor(m.id).state" :task="taskFor(m.id)" :title="m.name" />

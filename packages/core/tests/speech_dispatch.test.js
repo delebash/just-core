@@ -1,25 +1,33 @@
 // SPDX-License-Identifier: MIT
 // Speech through the kit (round E, 2026-10-29 — the user: "transcription a kit feature on an stt preset; speech (tts) no
-// preset, the voice chooses"): a transcription feature runs its stt preset's model where the preset says, loaded first
-// when it isn't, its kind busy for the call; speech reuses a loaded model; the routes load, unload and list, and the
-// settings route takes a kind's bands and the runtime's declared settings.
+// preset, the voice chooses"): a transcription feature runs its stt preset's model where the preset says, through the
+// runtime's useModel (its locks and loads: speech_placement.test.js), its audio's length for the after-line pass; the
+// routes load, unload and list, and the settings route takes a kind's bands and the runtime's declared settings.
 import { expect, test } from "vitest";
 import * as seed from "../src/llm/seed.js";
 import * as stores from "../src/llm/stores.js";
 import { makeRuntimesRouter } from "../src/llm/runtimes_api.js";
 import { transcribeFeature, withSpeechModel } from "../src/llm/speech_dispatch.js";
-import { getArbiter } from "../src/runner/arbiter.js";
 import { configureRuntimeServices } from "../src/runner/runtime_service.js";
 import { createServer } from "../src/platform/server.js";
 import { freshDb } from "./helpers.js";
 
-/** A register runtime's surface, faked: what it loaded where, and its servers' calls. */
+/** A register runtime's surface, faked: what it loaded where, the lines it ran (and what each said), its servers'
+ *  calls. Its useModel loads the way the service's does: not loaded, elsewhere than asked, or other options. */
 function fakeSpeechRuntime() {
   const held = new Map();
   const calls = [];
   const svc = {
     rt: { id: "audiocpp", label: "audio.cpp", kind: "tts", kinds: ["tts", "stt"], defaults: { settings: { cpu_min_realtime: 2, backend: "auto" } } },
     loads: [],
+    lines: [],
+    async useModel(modelId, { placement = "auto", sessionOptions, line } = {}, fn) {
+      const h = held.get(modelId);
+      const at = h && (placement === "auto" || h.placement === placement) && sessionOptions === undefined ? { modelId, ...h } : await this.loadModel(modelId, { placement });
+      const result = await fn(this.serverFor(modelId), at);
+      this.lines.push(line ? line(result) : null);
+      return result;
+    },
     status: () => ({ id: "audiocpp" }),
     loaded: () => [...held].map(([modelId, h]) => ({ modelId, ...h })),
     async loadModel(modelId, { placement = "auto" } = {}) {
@@ -35,7 +43,7 @@ function fakeSpeechRuntime() {
     serverFor(modelId) {
       return {
         transcribe: async (body) => {
-          calls.push(["transcribe", modelId, body, getArbiter().busyKinds?.() ?? null]);
+          calls.push(["transcribe", modelId, body]);
           return { text: "hello" };
         },
         speech: async (body) => [Buffer.from("RIFF"), { body }],
@@ -59,9 +67,25 @@ test("transcription runs its stt preset's model where the preset says, loaded fi
   const { svc, calls } = fakeSpeechRuntime();
   configureRuntimeServices([["audiocpp", svc]]);
 
-  expect(await transcribeFeature("dictation.transcribe", { language: "en", wav_b64: "AAAA" })).toEqual({ text: "hello" });
+  // a second of 16 kHz mono 16-bit audio: its length goes to the after-line pass (the CPU's real-time factor)
+  const clip = Buffer.alloc(44 + 32000);
+  clip.write("RIFF", 0, "latin1");
+  clip.writeUInt32LE(36 + 32000, 4);
+  clip.write("WAVEfmt ", 8, "latin1");
+  clip.writeUInt32LE(16, 16);
+  clip.writeUInt16LE(1, 20);
+  clip.writeUInt16LE(1, 22);
+  clip.writeUInt32LE(16000, 24);
+  clip.writeUInt32LE(32000, 28);
+  clip.writeUInt16LE(2, 32);
+  clip.writeUInt16LE(16, 34);
+  clip.write("data", 36, "latin1");
+  clip.writeUInt32LE(32000, 40);
+  const wav_b64 = clip.toString("base64");
+  expect(await transcribeFeature("dictation.transcribe", { language: "en", wav_b64 })).toEqual({ text: "hello" });
   expect(svc.loads).toEqual([["stt-parakeet", "cpu"]]);
-  expect(calls[0].slice(0, 3)).toEqual(["transcribe", "stt-parakeet", { model: "stt-parakeet", language: "en", wav_b64: "AAAA" }]);
+  expect(calls[0]).toEqual(["transcribe", "stt-parakeet", { model: "stt-parakeet", language: "en", wav_b64 }]);
+  expect(svc.lines[0]).toEqual({ audioS: 1 });
   // again: loaded already where asked — no second load
   await transcribeFeature("dictation.transcribe", { language: "en" });
   expect(svc.loads).toHaveLength(1);
