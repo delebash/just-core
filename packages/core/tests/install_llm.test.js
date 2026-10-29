@@ -345,3 +345,13 @@ test("a_class_tune_that_can_bind_to_nothing_warns_and_is_retired", async () => {
   // The seeded residue is gone; the user's own row survives untouched.
   expect(flags).toEqual([["igpu-mem32", false]]);
 });
+
+// The finish list's A3: the family registry learns which engine builds this install uses, at boot — what another app's
+// update or uninstall keeps in a shared cache.
+test("installLlm records the engine builds this app uses in the family registry", async () => {
+  const { readFileSync: read } = await import("node:fs");
+  await mountedApp({ product: "Demo", runtimes: ["sdcpp"] });
+  const apps = JSON.parse(read(join(tmp, "family", "caches.json"), "utf8")).apps;
+  const mine = apps.find((a) => a.product === "Demo");
+  expect(mine.builds).toEqual({ llamacpp: stores.buildRunnerConfig().llamacpp.pinnedBuild, sdcpp: stores.getRunnerConfigStore().getRuntimeConfig("sdcpp").pinnedBuild });
+});

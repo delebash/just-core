@@ -10,6 +10,7 @@ import path from "node:path";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { DEFAULT_SDCPP_BINARIES, DEFAULT_SDCPP_BUILD, binaryAsset } from "../src/runner/config.js";
 import { runtimeVariantDir } from "../src/runner/binary.js";
+import * as cacheRegistry from "../src/runner/cache_registry.js";
 import { RunnerStartError, startFailure } from "../src/runner/process.js";
 import { configureRuntimeServices, RuntimeService, unmetNeed } from "../src/runner/runtime_service.js";
 import { makeRuntimesRouter } from "../src/llm/runtimes_api.js";
@@ -232,4 +233,29 @@ test("the routes: no room is a 507 with the sizes for the screen's words", async
   const r = await app.request("/v1/ai/runtimes/sdcpp/engine/install", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
   expect(r.status).toBe(507);
   expect(await r.json()).toMatchObject({ type: "t/disk-full", title: "Not enough room on the drive", needBytes: need, freeBytes: 1e9 });
+});
+
+// The finish list's A3: a runtime's builds in a cache another app shares — the sweep and the removal keep what a live
+// install of the family still uses (the family registry), and the removal says for whom.
+test("a shared cache keeps the runtime builds another app uses: the install's sweep and the removal", async () => {
+  process.env.JUST_AI_HOME = path.join(root, "family");
+  try {
+    const other = path.join(root, "hp-data");
+    mkdirSync(other, { recursive: true });
+    cacheRegistry.register("just-house-paint", root, other, { sdcpp: "b-old" });
+    const mine = path.join(root, "app-data");
+    mkdirSync(mine, { recursive: true });
+    cacheRegistry.register("JustVoice", root, mine, {});
+    const dir = (b) => path.join(root, "sdcpp", b);
+    for (const b of ["b-old", "b-stale"]) mkdirSync(dir(b), { recursive: true });
+    const svc = service({ acquire: fakeAcquire().fn });
+    svc.install();
+    await until(() => svc.status().installed);
+    expect([existsSync(dir(DEFAULT_SDCPP_BUILD)), existsSync(dir("b-old")), existsSync(dir("b-stale"))]).toEqual([true, true, false]);
+    const out = await svc.uninstall();
+    expect([existsSync(dir(DEFAULT_SDCPP_BUILD)), existsSync(dir("b-old"))]).toEqual([false, true]);
+    expect(out.keptFor).toEqual(["just-house-paint"]);
+  } finally {
+    delete process.env.JUST_AI_HOME;
+  }
 });

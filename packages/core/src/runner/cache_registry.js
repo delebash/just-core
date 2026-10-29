@@ -226,18 +226,70 @@ const nowIso = () => `${new Date().toISOString().slice(0, 19)}+00:00`;
  * somewhere it no longer does — seen live. The data dir identifies the install; the cache
  * root is only what that install currently says about itself.
  */
-export function register(product, cacheRoot, dataDir = null) {
-  if (!product || !cacheRoot || !writesAllowed()) return;
+export function register(product, cacheRoot, dataDir = null, builds = null) {
+  if (!product || !cacheRoot) return;
+  const where = dataDir ? pyPath(dataDir) : "";
+  thisInstall = { product, dataDir: where };
+  if (!writesAllowed()) return;
   if (ephemeralBlocked(cacheRoot)) {
     log.debug(
       `not registering ${cacheRoot} — a cache under the OS temp dir is a scratch install, not a sibling worth offering`,
     );
     return;
   }
-  const where = dataDir ? pyPath(dataDir) : "";
   const entry = { product, cacheRoot: pyPath(cacheRoot), dataDir: where, lastSeen: nowIso() };
+  // the engine builds this install uses (`{<engine folder>: <build>}`, 2026-10-29): what the family's other apps'
+  // sweeps keep (`buildsInUse`); none given keeps what the row said
+  const old = read().find((e) => e.product === product && (e.dataDir || "") === where);
+  if (isJsonObject(builds)) entry.builds = { ...builds };
+  else if (isJsonObject(old?.builds)) entry.builds = old.builds;
   const apps = read().filter((e) => !(e.product === product && (e.dataDir || "") === where));
   apps.push(entry);
+  writeRegistry(apps);
+}
+
+// This process's install — its last `register` — left out when its sweeps ask what the family's OTHER apps use.
+let thisInstall = null;
+
+/** This install now uses `build` of the engine in `folder` (null: none — it was removed). Best-effort, as register. */
+export function recordBuild(folder, build) {
+  if (!thisInstall || !writesAllowed()) return;
+  const apps = read();
+  const mine = apps.find((e) => e.product === thisInstall.product && (e.dataDir || "") === thisInstall.dataDir);
+  if (!mine) return;
+  const builds = isJsonObject(mine.builds) ? { ...mine.builds } : {};
+  if (build) builds[folder] = build;
+  else delete builds[folder];
+  mine.builds = builds;
+  writeRegistry(apps);
+}
+
+/**
+ * What the family's OTHER installs that use cache `root` — live ones, their data folder still on disk (sharingApps'
+ * rule) — use of the engine in `folder` (`llamacpp`, `sdcpp` …): `{builds: Map<build, [product]>, unknown: [product]}`.
+ * An install whose row records no builds at all (one that booted on a kit before 2026-10-29) is `unknown`: which
+ * build it runs can't be told, so a sweep keeps every build. A row with builds but none for `folder` doesn't use it.
+ */
+export function buildsInUse(root, folder) {
+  const want = pyPath(root);
+  const builds = new Map();
+  const unknown = [];
+  for (const e of read()) {
+    const where = e.dataDir ? pyPath(e.dataDir) : "";
+    if (pyPath(e.cacheRoot) !== want || !where || !isDir(where)) continue;
+    if (thisInstall && e.product === thisInstall.product && where === thisInstall.dataDir) continue;
+    const product = get(e, "product", "");
+    if (!isJsonObject(e.builds)) {
+      if (product && !unknown.includes(product)) unknown.push(product);
+      continue;
+    }
+    const build = e.builds[folder];
+    if (build) builds.set(build, [...new Set([...(builds.get(build) || []), product])]);
+  }
+  return { builds, unknown };
+}
+
+function writeRegistry(apps) {
   const path = registryPath();
   try {
     mkdirSync(dirname(path), { recursive: true });

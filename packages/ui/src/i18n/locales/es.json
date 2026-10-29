@@ -1421,6 +1421,7 @@
       "removeTitle": "¿Eliminar el motor?",
       "removeBody": "Elimina los binarios llama.cpp instalados. Tus modelos descargados se conservan; reinstala el motor en cualquier momento para volver a usarlos.",
       "removeConfirm": "Desinstalar",
+      "keptFor": "Se conserva para {apps}: allí todavía se usa.",
       "restartTitle": "¿Reiniciar el motor para aplicar los cambios?",
       "restartBody": "El nuevo backend de aceleración surtirá efecto la próxima vez que se inicie el motor. Reinicia ahora para cambiar inmediatamente — cualquier modelo cargado se quitará de la memoria y una generación en curso se detendrá — o déjalo así y se aplicará en la próxima carga de modelo.",
       "restartConfirm": "Reiniciar motor",

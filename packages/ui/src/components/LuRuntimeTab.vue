@@ -20,6 +20,7 @@ import { confirmDialog } from "../common/services/dialog.js";
 import { fmtBytes } from "../common/services/downloadRate.js";
 import { kitT } from "../common/services/kitI18n.js";
 import { fitLabel, fitWarning, speedBandLabel } from "../common/services/modelPick.js";
+import { pushToast } from "../common/services/toastBridge.js";
 import { reportError } from "../common/services/reportError.js";
 import { createDownloadTask, readEngineStatus, readRuntimeModelStatus, runtimeEngineChannel, runtimeModelChannel } from "../composables/useDownloadTask.js";
 import { engineNeedWords, refusalProblem } from "../services/runtimeWords.js";
@@ -128,8 +129,10 @@ async function removeEngine() {
   });
   if (!ok) return;
   try {
-    await request(`${base}/engine`, { method: "DELETE" });
+    const r = await request(`${base}/engine`, { method: "DELETE" });
     engineTask.reset(); // its last install's bar goes with it
+    // a build another app of the family uses stays in a shared cache — said
+    if (r?.keptFor?.length) pushToast({ message: t("kit.engine.keptFor", { apps: r.keptFor.join(", ") }), kind: "info" });
   } catch (e) {
     reportError(refusalProblem(e, engineName(), t) || e);
   }

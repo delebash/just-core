@@ -46,6 +46,7 @@ import { makeReasoningMapRouter } from "./reasoning_map_api.js";
 import { makeRoutingRouter } from "./routing_api.js";
 import { makeRunnerConfigRouter } from "./runner_config_api.js";
 import { makeRuntimesRouter } from "./runtimes_api.js";
+import { runtimeOf } from "../runner/runtimes.js";
 import { configureRuntimeServices, RuntimeService } from "../runner/runtime_service.js";
 import { SDCPP_PROBE_ARGVS, SDCPP_SERVER } from "../runner/sdcpp.js";
 import * as seed from "./seed.js";
@@ -419,8 +420,21 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
   const [resolvedCache, runtimeRoot, shared] = resolveCacheRoots(dataDir, cacheRoot, stored);
   if (shared) log.info(`engine cache SHARED at ${resolvedCache} (this app's generated state stays in ${runtimeRoot})`);
   if (resolvedCache && dataDir) {
-    // Tell the rest of the family where this app keeps its cache (a path, never contents).
-    cacheRegistry.register(product || baseName(dataDir), resolvedCache, dataDir);
+    // Tell the rest of the family where this app keeps its cache (a path, never contents), and which engine builds it
+    // uses — what another app's update or uninstall keeps in a shared cache (2026-10-29)
+    let builds = null;
+    try {
+      const store = stores.getRunnerConfigStore();
+      builds = { llamacpp: stores.buildRunnerConfig().llamacpp.pinnedBuild };
+      for (const id of runtimes || []) {
+        const folder = runtimeOf(id)?.folder;
+        const pin = folder && store.getRuntimeConfig(id)?.pinnedBuild;
+        if (pin) builds[folder] = pin;
+      }
+    } catch (e) {
+      log.warning("engine cache: the builds this app uses couldn't be read for the family registry", e);
+    }
+    cacheRegistry.register(product || baseName(dataDir), resolvedCache, dataDir, builds);
   }
 
   const recordProbe = (gbps, machineKeyStr, modelId, label) =>

@@ -2069,6 +2069,15 @@ review):
 
 ## 4 · The AI cache (shared between apps)
 
+- **An engine build in a shared cache is kept while another live install uses it** (2026-10-29, the finish list's
+  A3). Pins differ by app — an install keeps its pin until its owner updates (`llm/seed.js`) — and the update's sweep
+  kept only its own pin, so JustWrite's update took the build JustVoice ran from; the uninstall (llama.cpp's and a
+  runtime's) took every build. Each install now records `builds: {<engine folder>: <build>}` in the family registry
+  at boot and after an install (`cache_registry.register` / `recordBuild`); a sweep or uninstall keeps every build
+  another live install records (`buildsInUse` — live: its data folder on disk, sharingApps' rule), keeps them all
+  while one never recorded any (an older kit), and an uninstall answers `keptFor` (the screen: "Kept for {apps} —
+  still in use there."). — *code + test, 2026-10-29* · `tests/lifecycle.test.js`, `tests/runtime_service.test.js`,
+  `tests/install_llm.test.js`.
 - The cache choice is a stored setting (`runner_setting` row `cache_root`, "" = the app's own
   `<data>/ai-cache`); startup takes an explicit host root, else the stored choice, else the own
   folder (`llm/install.py` `resolve_cache_roots`). No host passes an explicit root (JV

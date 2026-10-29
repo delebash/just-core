@@ -20,8 +20,7 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
         apps and final testing after all features and bugs are fixed". The list (recs as shown, evidence file:line per
         item in the session's research notes) — close = delete each line as it lands:
         A. Bugs: 1 BUILT (multi-window + the own-page check; the template's e2e test runs with the final pass).
-           2 BUILT (one-pool fit). 3 an engine update/uninstall deletes another app's build in a shared cache —
-           keep every live sharer's pin; an uninstall says "kept for <app>". 4 the router loads any named model
+           2 BUILT (one-pool fit). 3 BUILT (a shared cache keeps the builds other apps use). 4 the router loads any named model
            unbooked — every path to the local engine books first, then `--no-models-autoload` by build. 5 the
            embeddings route books memory. 6 an empty idle box turns idle-unload off. 7 a streamed token holding
            U+2028/2029/0085 is lost — split lines on CR/LF only. 8 auto-tune stays "running" when the service throws.

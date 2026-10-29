@@ -30,6 +30,7 @@ import { model } from "../src/platform/models.js";
 import { RuntimeError, ValueError } from "../src/platform/py.js";
 import { VramArbiter } from "../src/runner/arbiter.js";
 import * as binary from "../src/runner/binary.js";
+import * as cacheRegistry from "../src/runner/cache_registry.js";
 import { defaultConfig } from "../src/runner/config.js";
 import { DownloadCancelled } from "../src/runner/download.js";
 import * as fitMod from "../src/runner/fit.js";
@@ -3822,4 +3823,53 @@ test("a_wake_checks_ram_for_a_model_booked_at_0_mb_on_the_card", async () => {
   const door = vi.spyOn(svc, "_admitRam");
   await svc._admitWake("cpu-model");
   expect(door).toHaveBeenCalledWith("cpu-model", ramNeed, { creditMb: 0, wake: true });
+});
+
+// A cache the family's apps share (2026-10-29, the finish list's A3): JustWrite's engine update swept every build but its
+// own pin — the build JustVoice still ran from went with it, and an uninstall took them all. Each install now records the
+// build it uses in the family registry; an update sweeps only what no other live install uses, an uninstall keeps theirs
+// and says for whom, and an install that never said (an older kit) keeps everything.
+test("a shared cache keeps the builds the family's other apps use — the update's sweep and the uninstall", async () => {
+  const t = tmp();
+  vi.stubEnv("JUST_AI_HOME", join(t, "family"));
+  try {
+    const pin = defaultConfig().llamacpp.pinnedBuild;
+    const jvData = join(t, "jv-data");
+    mkdirSync(jvData, { recursive: true });
+    cacheRegistry.register("JustVoice", t, jvData, { llamacpp: "b0003" });
+    const jwData = join(t, "jw-data");
+    mkdirSync(jwData, { recursive: true });
+    cacheRegistry.register("JustWrite", t, jwData, { llamacpp: "b0001" }); // this process's install, last
+    const dir = (b) => join(t, "llamacpp", b);
+    for (const b of ["b0001", "b0002", "b0003"]) mkdirSync(dir(b), { recursive: true });
+    const svc = new RunnerService(t, { configFn: defaultConfig, hardwareFn: winCudaHw, acquireBinary: () => (mkdirSync(dir(pin), { recursive: true }), dir(pin)), arbiter: new VramArbiter() });
+    await svc.installEngine({ replaceBuild: "b0001" });
+    await svc._engineThread.join(5);
+    expect(svc._engineState.status).toBe("installed");
+    // ours: the new pin recorded, the old ones gone; JustVoice's b0003 kept
+    expect([existsSync(dir(pin)), existsSync(dir("b0001")), existsSync(dir("b0002")), existsSync(dir("b0003"))]).toEqual([true, false, false, true]);
+    expect(cacheRegistry.buildsInUse(t, "llamacpp").builds.get("b0003")).toEqual(["JustVoice"]);
+    // the uninstall removes ours and keeps theirs, saying for whom
+    const out = await svc.uninstallEngine();
+    expect(existsSync(dir(pin))).toBe(false);
+    expect(existsSync(dir("b0003"))).toBe(true);
+    expect(out.keptFor).toEqual(["JustVoice"]);
+    // an install on an older kit names no build: nothing of anyone's is swept
+    const oldData = join(t, "dg-data");
+    mkdirSync(oldData, { recursive: true });
+    cacheRegistry.register("docgen", t, oldData); // no builds — and now the last register: this process again below
+    cacheRegistry.register("JustWrite", t, jwData, { llamacpp: pin });
+    mkdirSync(dir("b0004"), { recursive: true });
+    await svc.installEngine();
+    await svc._engineThread.join(5);
+    expect(existsSync(dir("b0004"))).toBe(true);
+    // and JustVoice gone from this computer (its data folder removed): its build is no one's
+    rmSync(jvData, { recursive: true, force: true });
+    rmSync(oldData, { recursive: true, force: true });
+    await svc.installEngine();
+    await svc._engineThread.join(5);
+    expect([existsSync(dir("b0003")), existsSync(dir("b0004")), existsSync(dir(pin))]).toEqual([false, false, true]);
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

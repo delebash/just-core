@@ -105,7 +105,7 @@ import { pyFixed } from "../platform/pyjson.js";
 import { EVICT_MIN_MB as ARBITER_EVICT_MIN_MB, getArbiter } from "./arbiter.js";
 import * as bandwidth from "./bandwidth.js";
 import * as binary from "./binary.js";
-import { pyPath } from "./cache_registry.js";
+import { buildsInUse, pyPath, recordBuild } from "./cache_registry.js";
 import { DEFAULT_DOWNLOAD_MAX_CONCURRENT, DEFAULT_PINNED_BUILD, defaultConfig, MAX_DOWNLOAD_CONCURRENT } from "./config.js";
 import { DownloadCancelled } from "./download.js";
 import * as fitMod from "./fit.js";
@@ -1661,11 +1661,22 @@ export class RunnerService {
     const root = path.join(this.cacheRoot, "llamacpp");
     const removed = [];
     const stuck = [];
+    // a build another live install of the family uses stays, and the answer says for whom (`keptFor`); an install that
+    // never said which build it uses keeps them all
+    const others = buildsInUse(this.cacheRoot, "llamacpp");
+    const keptFor = new Set();
     if (isDir(root)) {
       for (const d of childDirs(root).filter((d) => path.basename(d) !== "logs")) {
+        const users = others.unknown.length ? others.unknown : others.builds.get(path.basename(d)) || [];
+        if (users.length) {
+          for (const u of users) keptFor.add(u);
+          continue;
+        }
         ((await self._rmtreeWithRetry(d)) ? removed : stuck).push(path.basename(d));
       }
     }
+    recordBuild("llamacpp", null);
+    if (keptFor.size) log.info(`engine uninstall: builds kept for ${[...keptFor].join(", ")}, which still use them`);
     this._engineState = _engineIdle();
     if (removed.length) log.info(`engine uninstall: removed build(s) ${pySorted(removed).join(", ")}`);
     if (stuck.length) {
@@ -1673,9 +1684,10 @@ export class RunnerService {
       return {
         ...this.engineStatus(),
         error: `could not remove ${pySorted(stuck).join(", ")} — files in use; close any running model and try again`,
+        keptFor: [...keptFor],
       };
     }
-    return this.engineStatus();
+    return { ...this.engineStatus(), keptFor: [...keptFor] };
   }
 
   // ── Reclaim disk: the runner owns its cache, so it owns these deletes (the SIZES are
@@ -3062,8 +3074,13 @@ export class RunnerService {
       // the NEW build anyway (it respawns lazily at the next load). BEST-EFFORT: cleanup never
       // fails a completed install.
       const root = path.join(this.cacheRoot, "llamacpp");
-      const keep = new Set([config.llamacpp.pinnedBuild, "logs"]);
-      const stale = isDir(root) ? childDirs(root).filter((d) => !keep.has(path.basename(d))) : [];
+      // In a cache the family's apps share, a build another live install still uses stays (2026-10-29: JustWrite's
+      // update swept the build JustVoice ran from) — and when one of them never said which (an older kit), all stay.
+      recordBuild("llamacpp", config.llamacpp.pinnedBuild);
+      const others = buildsInUse(this.cacheRoot, "llamacpp");
+      const keep = new Set([config.llamacpp.pinnedBuild, "logs", ...others.builds.keys()]);
+      if (others.unknown.length) log.info(`engine update: old builds kept — ${others.unknown.join(", ")} share this cache and never said which build they use`);
+      const stale = isDir(root) && !others.unknown.length ? childDirs(root).filter((d) => !keep.has(path.basename(d))) : [];
       if (stale.length) {
         try {
           this._engineState.detail = "removing old builds";

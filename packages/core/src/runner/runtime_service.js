@@ -24,6 +24,7 @@ import { ApiError } from "../platform/errors.js";
 import { getLogger } from "../platform/log.js";
 import { getArbiter } from "./arbiter.js";
 import * as binary from "./binary.js";
+import { buildsInUse, recordBuild } from "./cache_registry.js";
 import * as fit from "./fit.js";
 import * as hardware from "./hardware.js";
 import * as models from "./models.js";
@@ -327,9 +328,14 @@ export class RuntimeService {
    *  the old build", the user's 2026-07-07), for a superseded pin or an app's own earlier build moved into the cache.
    *  A server runs only from the pinned build, so none holds them. Best effort: a build still held stays, logged. */
   async _sweepStaleBuilds(keep) {
+    // in a cache the family's apps share, a build another live install uses stays — all of them while one never said
+    // which (cache_registry `buildsInUse`, 2026-10-29)
+    recordBuild(this.rt.folder, keep);
+    const others = buildsInUse(this.cacheRoot, this.rt.folder);
+    if (others.unknown.length) return log.info(`${this.rt.id}: old builds kept — ${others.unknown.join(", ")} share this cache and never said which build they use`);
     let stale = [];
     try {
-      stale = readdirSync(this.root, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== keep);
+      stale = readdirSync(this.root, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== keep && !others.builds.has(d.name));
     } catch {
       return; // no runtime folder
     }
@@ -361,12 +367,23 @@ export class RuntimeService {
         await Promise.race([this._task.promise, new Promise((r) => setTimeout(r, 30_000).unref?.())]);
       }
       await this._beforeRemove();
-      await rm(this.root, { recursive: true, force: true, maxRetries: os.platform() === "win32" ? 5 : 0, retryDelay: 200 });
+      // a build another live install of the family uses stays, and the answer says for whom (`keptFor`)
+      const others = buildsInUse(this.cacheRoot, this.rt.folder);
+      const keptFor = new Set(others.unknown);
+      const builds = others.unknown.length || !existsSync(this.root) ? [] : readdirSync(this.root, { withFileTypes: true }).filter((d) => d.isDirectory());
+      for (const d of builds) {
+        const users = others.builds.get(d.name) || [];
+        for (const u of users) keptFor.add(u);
+        if (!users.length) await rm(path.join(this.root, d.name), { recursive: true, force: true, maxRetries: os.platform() === "win32" ? 5 : 0, retryDelay: 200 });
+      }
+      if (!keptFor.size) await rm(this.root, { recursive: true, force: true, maxRetries: os.platform() === "win32" ? 5 : 0, retryDelay: 200 });
+      else log.info(`${this.rt.id}: builds kept for ${[...keptFor].join(", ")}, which still use them`);
+      recordBuild(this.rt.folder, null);
       this._state = idle();
+      return { ...this.status(), keptFor: [...keptFor] };
     } finally {
       this._removing = false;
     }
-    return this.status();
   }
 
   // ── the models (pinned file sets in the kit's HF cache: `<cacheRoot>/hf`) ──────────────────────────

@@ -16,6 +16,7 @@ import { confirmDialog } from "../common/services/dialog.js";
 import { kitT } from "../common/services/kitI18n.js";
 import { createRateTracker, progressCaption, rateSuffix } from "../common/services/downloadRate.js";
 import { applyBuildToUrl, planBinaries, shouldRollback } from "../common/services/engineUrl.js";
+import { pushToast } from "../common/services/toastBridge.js";
 
 const st = ref(null); // engine_status() payload
 const busy = ref(false); // an install/uninstall POST in flight
@@ -137,6 +138,8 @@ async function uninstall() {
   try {
     const r = await request("/v1/llm-runner/engine/uninstall", { method: "POST" });
     if (r?.error) error.value = r.error;
+    // a build another app of the family uses stays in a shared cache — said, so a folder still there isn't a surprise
+    if (r?.keptFor?.length) pushToast({ message: kitT("kit.engine.keptFor", { apps: r.keptFor.join(", ") }), kind: "info" });
     await refreshEngine();
   } catch (e) {
     error.value = e.message || kitT("kit.engine.err.uninstall");

@@ -1421,6 +1421,7 @@
       "removeTitle": "Remove the engine?",
       "removeBody": "Deletes the installed llama.cpp binaries. Your downloaded models are kept — reinstall the engine any time to use them again.",
       "removeConfirm": "Uninstall",
+      "keptFor": "Kept for {apps} — still in use there.",
       "restartTitle": "Restart the engine to apply?",
       "restartBody": "The new acceleration backend takes effect the next time the engine starts. Restart now to switch immediately — any loaded model unloads and a running generation stops — or leave it and it applies on the next model load.",
       "restartConfirm": "Restart engine",
