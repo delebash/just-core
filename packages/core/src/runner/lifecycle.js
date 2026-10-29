@@ -81,6 +81,7 @@ import path from "node:path";
 import { AsyncEvent, background, Mutex, sleep } from "../platform/asyncutil.js";
 import * as http from "../platform/http.js";
 import { HttpStatusError } from "../platform/http.js";
+import { iterLines } from "../platform/lines.js";
 import { getLogger } from "../platform/log.js";
 import {
   cpSlice,
@@ -338,6 +339,15 @@ function isFile(p) {
     return statSync(p).isFile();
   } catch {
     return false;
+  }
+}
+
+/** A file's size in bytes; 0 when it can't be read (a load's progress then shows none). */
+function fileBytes(p) {
+  try {
+    return p ? statSync(String(p)).size : 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -727,6 +737,28 @@ export async function _defaultRouterModels(url) {
 }
 
 /**
+ * GET {url}/models/sse → the router's event stream (a fetch body), or null when it has none (an engine without it
+ * answers 404). Each frame `data: {"model", "event", …}` — a load's `status_change` carries the child's
+ * `progress: {stages, current, value}` (llama.cpp b11239 server-models.cpp / server-context.cpp). Injected in tests.
+ */
+export async function _defaultRouterSse(url, signal) {
+  const resp = await http.fetch(`${rstrip(url, "/")}/models/sse`, { signal });
+  if (!resp.ok) return null;
+  return resp.body;
+}
+
+/**
+ * One fraction of a load from a child's progress `{stages, current, value}`: the stages it loads (the model, then a
+ * draft or MTP model, then a vision projector), each 0→1, folded so the bar fills once — (the current stage's index +
+ * its value) / the number of stages. null when the frame carries none.
+ */
+export function _loadFraction(progress) {
+  if (!progress || !Array.isArray(progress.stages) || !progress.stages.length || typeof progress.value !== "number") return null;
+  const i = Math.max(0, progress.stages.indexOf(progress.current));
+  return Math.min(1, Math.max(0, (i + Math.min(1, Math.max(0, progress.value))) / progress.stages.length));
+}
+
+/**
  * Map the router's `GET /models` response to a Map `model_id → {value[, meta]}`. Status is
  * NESTED at `data[].status.value` on b9644 (box-verified 2026-07-04, NOT a flat string); a
  * flat `status` string is tolerated too for a hypothetical other build. `meta` (n_params /
@@ -1087,6 +1119,7 @@ export class RunnerService {
       routerLoad = (...a) => self._defaultRouterLoad(...a),
       routerUnload = (...a) => self._defaultRouterUnload(...a),
       routerModels = (...a) => self._defaultRouterModels(...a),
+      routerSse = (...a) => self._defaultRouterSse(...a),
       usedVramFn = () => hardware.usedDeviceMemMb(),
       now = monotonic,
       sleep: sleepFn = sleepS,
@@ -1136,6 +1169,7 @@ export class RunnerService {
     this._routerLoad = routerLoad;
     this._routerUnload = routerUnload;
     this._routerModels = routerModels;
+    this._routerSse = routerSse;
     this._usedVramFn = usedVramFn;
     // Pass 2 (2026-07-22): {flag_name → "cuda,rocm,…"} for knobs NOT applicable on every
     // engine family (host-wired from knob_catalog; null = no filtering — standalone/tests
@@ -4363,8 +4397,52 @@ export class RunnerService {
    * observed), or 'timeout'. Caller holds the router lock. `_now`/`_sleep`/`_routerModels` are
    * injected in tests so this polls deterministically offline.
    */
-  async _confirmLoad(modelId, logOffset = null) {
+  async _confirmLoad(modelId, logOffset = null, { bytes = 0 } = {}) {
     const deadline = this._now() + this._loadPollTimeout;
+    // the load's own progress, while this waits (the poll stays the judge of loaded or failed)
+    const following = this._followLoadProgress(modelId, bytes);
+    try {
+      return await this._confirmLoadPoll(modelId, logOffset, deadline);
+    } finally {
+      following.stop();
+    }
+  }
+
+  /**
+   * Feed a load's real progress to its row while the router loads it (2026-10-29, T5 — the bar read 0/0 until the model
+   * was in): the router's /models/sse frames for `modelId`, folded across its stages (`_loadFraction`), as the model
+   * file's `bytes` — the row's existing bar and its one caption ("5.2 GB / 14 GB"). No stream (an older engine), no
+   * size, or a dropped stream: the row stays as it was. Returns {stop} — the confirm ends it.
+   */
+  _followLoadProgress(modelId, bytes) {
+    const ctrl = new AbortController();
+    const router = this._router;
+    if (!bytes || router == null) return { stop: () => {} };
+    (async () => {
+      const body = await this._routerSse(router.url, ctrl.signal);
+      if (!body) return;
+      for await (const line of iterLines(body)) {
+        if (ctrl.signal.aborted) break;
+        if (!line.startsWith("data:")) continue;
+        let frame;
+        try {
+          frame = JSON.parse(line.slice(5).trim());
+        } catch {
+          continue;
+        }
+        if (frame?.model !== modelId) continue;
+        const frac = _loadFraction(frame.progress ?? frame.data?.progress);
+        const st = this._resident.get(modelId);
+        if (frac == null || st?.status !== "starting") continue;
+        Object.assign(st, { downloaded: Math.round(frac * bytes), total: bytes });
+      }
+    })().catch(() => {
+      // a stream that fails or is cut: the poll still decides; the bar keeps its last reading
+    });
+    return { stop: () => ctrl.abort() };
+  }
+
+  async _confirmLoadPoll(modelId, logOffset, deadline) {
     for (;;) {
       const router = this._router;
       if (router == null || !router.isAlive()) return "failed"; // the router itself is gone
@@ -4457,7 +4535,7 @@ export class RunnerService {
         if (!(exc instanceof RuntimeError) || !errText(exc).toLowerCase().includes("already running")) throw exc;
         log.info(`router says ${entry.modelId} is already running — adopting`);
       }
-      const outcome = await this._confirmLoad(entry.modelId, logOffset);
+      const outcome = await this._confirmLoad(entry.modelId, logOffset, { bytes: fileBytes(entry.ggufPath) });
       if (outcome === "loaded") {
         // Defect C (T3): record the entry AS FINALLY LOADED — after any explicit-placement
         // retry / OOM-shed rebind above — so re-emits and bounce-reloads reproduce THIS config,

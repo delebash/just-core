@@ -186,6 +186,7 @@ export function serviceFor(
     routerLoad = null,
     routerUnload = null,
     routerModels = null,
+    routerSse = null,
     now = null,
     sleep = null,
     identifyFn = null,
@@ -255,6 +256,8 @@ export function serviceFor(
     routerLoad: routerLoad || ((_url, mid) => unloadedIds.delete(mid)),
     routerUnload: routerUnload || defaultUnload,
     routerModels: routerModels || allLoaded,
+    // no /models/sse unless a test hands one (an older engine has none)
+    routerSse: routerSse || (async () => null),
     usedVramFn: usedVramFn || (() => null),
     // A FRESH arbiter per service isolates each test's ledger (the default is the shared
     // process singleton, which would leak reservations between tests).

@@ -36,7 +36,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            never removed — its first real run with the final pass; the e2e driver's dashed-id fix). 21 BUILT (the guard:
            docgen in check 17; JustWrite + docgen in the chrome and release checks — JustWrite's clipboard fixed,
            7ba14f7b; AUTO_KNOWN empty; checkRendererPeers).
-        C. Features: 22 real load % from /models/sse (T5, watch 5). 23 a vision model's speed: one image's encode,
+        C. Features: 22 BUILT (a load's real progress from /models/sse, as the file's bytes; the stream reader
+           moved to platform/lines.js — its real-engine run with the GPU runs). 23 a vision model's speed: one image's encode,
            recorded by the app's adapter, s/image, bands fast ≤5 s · fine ≤20 s · slow ≤60 s, editable. 24 If-Match
            in the kit (house-paint's check moved in; the template's notes and house-paint on it): "This note was changed
            in another window" / "Your change wasn't saved — the note is shown as it is now". 25 UiSelect option groups.

@@ -3915,3 +3915,32 @@ test("tokenize_falls_back_to_router_authority_when_ledger_stale", async () => {
   expect(out2.ok).toBe(false);
   expect(out2.error).toContain("no model running");
 });
+
+// The finish list's C22 (T5, watch 5 — 2026-10-29): a load showed "starting" at 0/0 until it was in. The router's
+// /models/sse sends each child's progress ({stages, current, value}: the model, then a draft or MTP model, then a vision
+// projector, each 0→1 — b11239 server-context.cpp); folded into one fraction of the model file's bytes, it fills the
+// row's existing bar ("Loading · 5.2 GB / 14 GB"). A stream that never comes (an older engine) leaves the bar as it was.
+test("a load's progress comes from the router's /models/sse, as the model file's bytes", async () => {
+  let loaded = false;
+  let push;
+  const sse = new ReadableStream({
+    start(c) {
+      push = (o) => c.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(o)}\n\n`));
+    },
+  });
+  const svc = serviceFor(tmp(), {
+    routerModels: () => ({ object: "list", data: [{ id: TEST_MODEL.id, status: { value: loaded ? "loaded" : "loading" } }] }),
+    routerSse: async () => sse,
+  });
+  await svc.load(TEST_MODEL.id);
+  await vi.waitFor(() => expect(svc._resident.get(TEST_MODEL.id)?.status).toBe("starting"));
+  push({ model: "other", event: "status_change", progress: { stages: ["text_model"], current: "text_model", value: 0.9 } });
+  push({ model: TEST_MODEL.id, event: "status_change", status: "loading", progress: { stages: ["text_model", "spec_model"], current: "text_model", value: 0.5 } });
+  // halfway through the first of two stages: a quarter of the 1024-byte file
+  await vi.waitFor(() => expect(svc.opProgress()[TEST_MODEL.id]).toMatchObject({ done: 256, total: 1024 }));
+  push({ model: TEST_MODEL.id, event: "status_change", status: "loading", progress: { stages: ["text_model", "spec_model"], current: "spec_model", value: 0.5 } });
+  await vi.waitFor(() => expect(svc.opProgress()[TEST_MODEL.id]).toMatchObject({ done: 768, total: 1024 }));
+  loaded = true;
+  await join5(svc);
+  expect(svc.status().status).toBe("running");
+});
