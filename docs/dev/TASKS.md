@@ -29,8 +29,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            13 BUILT (a runtime's speed bands on its tab — words "Speed bands (seconds per image)", "Fast/Fine/Slow
            at ≤" mine). 14 BUILT (Count and Measure share `_servingModel`). 15 BUILT (the local adapters' errors through
            adapterHttpError; §19 row). 16 BUILT (shared_cache's two tests on fixed fixtures).
-           17 a guard check for resourceIsolation + a §19 row: streamed server audio uses `crossorigin="anonymous"`
-           (JustVoice moves its audio). 18 dead code: declared_claim_fn, startRunner/Runner, LoadRequest.jobId/
+           17 BUILT (the guard's checkResourceIsolation; §19's media row, measured; JustVoice's move in its
+           hand-off line). 18 dead code: declared_claim_fn, startRunner/Runner, LoadRequest.jobId/
            profileSwitchesFn; the screenless CRUD routes stay as data doors.
         B. docgen's: 19 start-packaged reads the launcher name from server/package.json. 20 start-packaged `--data-dir
            <folder>`: the packaged build on the real data folder, never removed by its cleanup. 21 the guard: docgen
@@ -90,7 +90,10 @@ FOR JUSTVOICE'S SESSION, when one runs (none since these landed): this release r
         latest majors (JustWrite's asks 4, the template's lines); its roadmap and ideas listed with recommendations (5);
         its e2e onto the template's e2e/lib/driver.js shape (scripts/e2e.js today — docgen's session found the apps
         differ, 2026-10-29); its 8 bare `element.click()` tests (the guard's CLICK_KNOWN). DOMPurify is installed there
-        already (7c383a1d).
+        already (7c383a1d). From "Finish the kit" (2026-10-29): mount the kit's `resourceIsolation` beside csrfOrigin and
+        play its server's audio with `crossorigin="anonymous"` (its ~25 `<audio>` / `new Audio` uses — app-structure §19;
+        the guard's ISOLATION_KNOWN until then); no commit hooks (the family's ruling); AGENTS.md (its CLAUDE.md is 207
+        lines) and installErrorReporting in its boot; its UiServerImage override of the token (`jt:token`, src/boot/jv.js).
 
 ## Every app's website deploys by its own `npm run deploy` [2026-10-29]
 DECIDED: the user, verbatim (2026-10-28): "why would i run the website workflow from the app workflow this doesnt make

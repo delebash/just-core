@@ -1349,6 +1349,28 @@ function checkCorsOrigins(app) {
   }
 }
 
+// ── a read another web page can make ──────────────────────────────────────────
+// Loopback skips auth, so any web page the user opens could make an app's server work for it — an <img> of
+// /v1/data/backup built a full backup on every load (the twentieth review). The kit's resourceIsolation refuses a
+// cross-site read that carries no app Origin (platform/csrf.js); every app mounts it beside csrfOrigin. Media the window
+// plays from its server takes crossorigin="anonymous", whose request carries the app's Origin and still streams
+// (app-structure §19; measured in Electron 44.10, 2026-10-29). JustVoice's <audio> loads without it — advisory there
+// until its session moves them (the finish list's A17).
+const ISOLATION_KNOWN = new Set(["JustVoice"]);
+function checkResourceIsolation(app) {
+  const src = join(app.dir, "server", "src");
+  if (!existsSync(src)) return;
+  const code = walk(src)
+    .filter((p) => p.endsWith(".js"))
+    .map(codeOf)
+    .join("\n");
+  if (!/\bcsrfOrigin\s*\(/.test(code) || /\bresourceIsolation\s*\(/.test(code)) return;
+  (ISOLATION_KNOWN.has(app.name) ? info : fail)(
+    app.name,
+    "server/src mounts csrfOrigin but not resourceIsolation — any web page could make this server work for it (an <img> of /v1/data/backup); mount the kit's resourceIsolation beside csrfOrigin (platform/csrf.js), and play the server's media with crossorigin=\"anonymous\" (app-structure §19)",
+  );
+}
+
 // ── a restore keeps the server's access tokens ────────────────────────────────
 // The tokens are the server's, not the data's: a restore that brings a backup's `auth` row — or none —
 // opens an exposed headless server, or locks every client out (the template's data_admin.js `keepAuth`,
@@ -1746,6 +1768,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkServesUi(app);
   checkConnectionReasons(app);
   checkCorsOrigins(app);
+  checkResourceIsolation(app);
   checkClipboard(app.name, app.dir, files, RELEASE_REQUIRED.has(app.name));
   checkOneSaveDoor(app, files);
   checkOneShellDoor(app, files);

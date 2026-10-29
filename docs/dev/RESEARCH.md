@@ -189,6 +189,13 @@ the same on both; JustVoice's
   - reaches `http://127.0.0.1` with `fetch` and SSE, with `Origin: app://<host>`, cross-site;
   - a JSON `POST` sends a CORS preflight;
   - no Local Network Access block.
+- **`<audio crossorigin="anonymous">` from an `app://` window carries the app's Origin and still streams** (probe in
+  Electron 44.10.0, 2026-10-29, `app` standard + secure, a sandboxed window; *measured*): a plain `<audio src>` at
+  `http://127.0.0.1:<port>` arrives `Sec-Fetch-Site: cross-site`, `Sec-Fetch-Mode: no-cors`, `Sec-Fetch-Dest: audio`,
+  `Range: bytes=0-` and NO Origin — the kit's `resourceIsolation` refuses it (why JustVoice runs without the guard);
+  with `crossorigin="anonymous"` it arrives `Origin: app://<id>`, `Sec-Fetch-Mode: cors`, the same Range, and plays
+  (`canplaythrough`) once the server answers `Access-Control-Allow-Origin` for that origin. So the guard stays on and
+  media streams: app-structure §19's row; the guard's `checkResourceIsolation` (JustVoice advisory until it moves).
 - **An `app://` URL's origin, and a second window** (2026-10-29; web-fc's probe in Electron 44.10.0, a main window
   with preload, contextIsolation and sandbox, `app` registered standard and secure; *measured*):
   - Node's `new URL("app://x/").origin` is `"null"` — the WHATWG opaque origin of every scheme but http(s), ws(s), ftp
