@@ -418,11 +418,11 @@ export class AutoTuner {
    */
   async _run(modelId, base, saveFn, save) {
     const gen = this._gen; // this run's generation — compared in `cancelled` (see below)
-    // Outside the job boundary, as in Python: a serviceFn that throws ends the task with the
-    // state left "running" (Python's thread died the same way; background() logs it).
-    const svc = await this._serviceFn();
     const failedNcmoe = []; // MoE VRAM need is monotonic: below a failed value never fits
     try {
+      // inside the job boundary (2026-10-29): fetched outside it, as Python did, a service that couldn't be had left the
+      // tune "running" for good, and every later Start was refused as one already running
+      const svc = await this._serviceFn();
       const budgetRestore = async () => {
         // The time box aborted a trial load IN FLIGHT — the router is still chewing that
         // trial's switches. Tear down + restore the applied model with its DB-resolved

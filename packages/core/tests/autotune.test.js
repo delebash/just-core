@@ -659,3 +659,24 @@ test("budget_zero_means_uncapped", async () => {
   expect(st.budgetSeconds).toBe(0);
   expect(st.detail || "").not.toContain("time budget");
 });
+
+// The finish list's A8 (2026-10-29): the service was fetched outside the job boundary (copied from Python, whose thread
+// died the same way), so a service that couldn't be had left the tune "running" for good — and every later Start
+// refused as "an auto-tune is already running".
+test("a service that can't be had ends the tune in error, and a new one may start", async () => {
+  let fail = true;
+  const svc = new FakeService({});
+  const tuner = new AutoTuner(
+    () => {
+      if (fail) throw new Error("the runner service isn't ready");
+      return svc;
+    },
+    { sleep: () => {} },
+  );
+  const st = await runToEnd(tuner, "m", BASE);
+  expect(st.status).toBe("error");
+  expect(st.error).toContain("the runner service isn't ready");
+  fail = false;
+  expect(tuner.start("m", BASE).status).toBe("running");
+  await tuner._task;
+});
