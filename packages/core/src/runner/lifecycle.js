@@ -1165,6 +1165,7 @@ export class RunnerService {
     this._releaseAssetsFn = releaseAssetsFn || ((b) => self._fetchLlamacppReleaseAssets(b));
     this._readMeta = readMeta;
     this._startRouter = startRouter;
+    this._configFilesSaid = new Set(); // the llama.cpp config.ini files the log has named (once each)
     this._findPort = findPort;
     this._routerLoad = routerLoad;
     this._routerUnload = routerUnload;
@@ -4282,6 +4283,12 @@ export class RunnerService {
     // rebuild it from DEFAULT_PORT.
     const port = await this._findPort(DEFAULT_HOST, DEFAULT_PORT);
     if (port !== DEFAULT_PORT) log.info(`engine port ${DEFAULT_PORT} is taken — starting the router on ${port} instead`);
+    // a llama.cpp config.ini on this computer applies to every engine start before the app's own settings — said once
+    for (const f of processMod.llamaConfigFiles()) {
+      if (!isFile(f) || this._configFilesSaid.has(f)) continue;
+      this._configFilesSaid.add(f);
+      log.warning(`llama.cpp reads ${f} on every start, before the app's own settings — anything set there (a GPU layer count, a context size) applies to the app's models too; remove it unless you meant it for them`);
+    }
     this._router = await this._startRouter(serverExe, {
       modelsDir: path.join(this._cacheRoot, "hf"),
       modelsPreset: path.join(this._runtimeRoot, "models.ini"),

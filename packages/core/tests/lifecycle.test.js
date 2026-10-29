@@ -3944,3 +3944,18 @@ test("a load's progress comes from the router's /models/sse, as the model file's
   await join5(svc);
   expect(svc.status().status).toBe("running");
 });
+
+test("a llama.cpp config.ini on this computer is named in the log when the engine starts", async () => {
+  const t = tmp();
+  const appdata = join(t, "appdata");
+  mkdirSync(join(appdata, "llama.cpp"), { recursive: true });
+  writeFileSync(join(appdata, "llama.cpp", "config.ini"), "[*]\nn-gpu-layers = 0\n");
+  vi.spyOn(processMod, "llamaConfigFiles").mockReturnValue([join(t, "nope", "config.ini"), join(appdata, "llama.cpp", "config.ini")]);
+  const logs = captureLogs();
+  const svc = serviceFor(t);
+  await svc.load(TEST_MODEL.id);
+  await join5(svc);
+  const warned = logs.filter((r) => r.levelname === "WARNING" && r.msg.includes("config.ini"));
+  expect(warned.length).toBe(1);
+  expect(warned[0].msg).toContain(join(appdata, "llama.cpp", "config.ini"));
+});

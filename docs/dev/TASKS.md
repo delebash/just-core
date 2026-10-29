@@ -49,7 +49,7 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            back if it syncs again); the design's 60-day auto-prune dropped. 27 sync "Changes waiting" = this device's
            changes not yet sent. 28 Claude prompt caching, the ledger counting cache tokens. 29 Mac/Linux: a pidfile
            sweep of engines a crash left. 30 round E (JustVoice's audio.cpp and jobs into the kit) BEFORE the release.
-           31 a log warning for a machine-wide llama.cpp config.ini. 32 the pin's skipped re-read (placement rules,
+           31 BUILT (the log names a llama.cpp config.ini the engine reads). 32 the pin's skipped re-read (placement rules,
            request parsing) + one MoE and one dense check run. 33 re-test --fit with Gemma-4 MTP drafts (if broken:
            llama-fit-params first, then launch with its placement). 34 the speed-truth walks on JustWrite's real app.
            LAST before the final tests: the engine pin moves to the latest release (32 and 33 run on it).

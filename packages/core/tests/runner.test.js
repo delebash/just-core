@@ -1062,3 +1062,19 @@ test("an embedding row turns the prompt cache off; a chat row and a row that set
   expect(block("embed2")).toContain("cache-ram = 64");
   expect(block("embed2")).not.toContain("cache-ram = 0");
 });
+
+// The finish list's C31 (2026-10-29; the llama.cpp watch): llama.cpp reads a machine-wide or user-wide config.ini on
+// every start, before its arguments (common/arg.cpp common_params_apply_system_config at b11239) — a user's own
+// n-gpu-layers there silently applies to the app's untuned models, whose placement the kit leaves to the engine. No
+// switch turns it off, so the kit says so in its log when one exists. The paths it reads:
+test("the llama.cpp config files the engine reads on each platform", () => {
+  expect(processMod.llamaConfigFiles({ platform: "win32", env: { PROGRAMDATA: "C:/ProgramData", APPDATA: "C:/Users/u/AppData/Roaming" }, home: "C:/Users/u" })).toEqual([
+    join("C:/ProgramData", "llama.cpp", "config.ini"),
+    join("C:/Users/u/AppData/Roaming", "llama.cpp", "config.ini"),
+  ]);
+  expect(processMod.llamaConfigFiles({ platform: "linux", env: {}, home: "/home/u" })).toEqual([
+    join("/etc", "llama.cpp", "config.ini"),
+    join("/home/u", ".config", "llama.cpp", "config.ini"),
+  ]);
+  expect(processMod.llamaConfigFiles({ platform: "linux", env: { XDG_CONFIG_HOME: "/x" }, home: "/home/u" }).at(-1)).toBe(join("/x", "llama.cpp", "config.ini"));
+});

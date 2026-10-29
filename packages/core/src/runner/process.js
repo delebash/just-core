@@ -44,7 +44,7 @@ import { koffi } from "./koffi.js";
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { sleep, withTimeout } from "../platform/asyncutil.js";
 import * as http from "../platform/http.js";
@@ -544,6 +544,19 @@ export function emitModelsIni(entries, { engineBuild = "" } = {}) {
     blocks.push(section.filter((s) => s).join("\n"));
   }
   return blocks.length ? `${blocks.join("\n\n")}\n` : "";
+}
+
+/**
+ * The config files llama.cpp reads on every start, before its arguments — machine-wide, then the user's
+ * (common/arg.cpp `common_params_apply_system_config` at b11239: `%PROGRAMDATA%` / `%APPDATA%` on Windows, `/etc` and
+ * `$XDG_CONFIG_HOME` or `~/.config` elsewhere; each `llama.cpp/config.ini`). No switch turns it off: a user's own
+ * `n-gpu-layers` there applies to the app's untuned models, whose placement the kit leaves to the engine — the router's
+ * spawn names any that exists in the log (2026-10-29, the llama.cpp watch).
+ */
+export function llamaConfigFiles({ platform = process.platform, env = process.env, home = os.homedir() } = {}) {
+  const at = (dir) => join(dir, "llama.cpp", "config.ini");
+  if (platform === "win32") return [env.PROGRAMDATA, env.APPDATA].filter(Boolean).map(at);
+  return [at("/etc"), at(env.XDG_CONFIG_HOME || join(home, ".config"))];
 }
 
 /**
