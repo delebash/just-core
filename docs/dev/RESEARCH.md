@@ -2179,6 +2179,11 @@ review):
   runtime import it. A test that patches `subprocess.run` / `Popen` still reaches its fake — the
   wrappers look `subprocess` up at call time. — *measured + code, 2026-10-07* · JustVoice
   `docs/dev/RESEARCH.md` §3 (the mastering failure that found it).
+- **Windows 11 build 26300 lists almost no listeners:** `netstat -ano` showed six LISTENING sockets machine-wide
+  and none of a socket plainly listening on 127.0.0.1; `Get-NetTCPConnection -LocalPort` still found it with its
+  owning process, but its State read empty and `-State Listen` found nothing. Outside the sandbox the same. The shell's
+  stale-server listing falls back to the cmdlet when netstat finds nothing (`shell/stale_server.js`). — *measured,
+  2026-10-29* (the final pass).
 
 ---
 
@@ -2605,6 +2610,14 @@ From just-house-paint's fifteenth review (2026-10-20: the built app on fake data
   fills it): the ring is drawn inset. — *measured, screenshots*.
 - **Dragging needs a single-pointer way** (WCAG 2.5.7): a box drawn on the photo by two clicks as well as a
   drag, pan buttons while zoomed; a freehand path (brush, eraser) is 2.1.1's exception. — *2026-10-20*.
+- **A label names no Quasar checkbox:** QCheckbox's focusable root is a `role="checkbox"` div; a wrapping `<label>`
+  names only its hidden native input, so axe's aria-toggle-field-name fires. The root takes a caller's `aria-label`
+  (Vue's attribute fallthrough overrides QCheckbox's own `aria-label: props.label`). QInput's root is itself a
+  `<label>`: a row's wrapping `<label>` around one names nothing — `for` + the control's `id`, or its `aria-label`.
+  — *JustWrite's axe run on its real data + code, 2026-10-29*.
+- **axe reads colours mid-transition:** a scan right after a theme switch or a route change measured a nav row's
+  fading colours (the template's dark run) and a toast's fade-in (JustWrite's). The e2e waits for every finite
+  animation first (`document.getAnimations()` … `.finished`). — *measured, 2026-10-29*.
 
 ## 11 · Long server jobs (the engines plan's K9)
 

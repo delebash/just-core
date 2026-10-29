@@ -123,6 +123,15 @@ DECIDED 2026-10-29 (the user, verbatim, on the FOUND items and the laptop): "no 
         none moving anything on screen but 6: names by aria-label where a control sits in a <label> of its own (1, 3, 4,
         7), the breadcrumb's hit box 24 px by padding and an equal negative margin (2), the log boxes focusable and named
         (5), --success-ink for success TEXT (6); 8 withdrawn by JustWrite (the kit resets the caption).
+THE FINAL PASS 2026-10-29 (run once, every suite, on main): core 1593 passed (fixed on the way: installLlm's runtime
+        options reached no service; a load's refusal said "busy: tts"; the listing of a server on a port where netstat
+        sees nothing — Windows 26300; two tests); ui lint, check:pickers; template lint, i18n, server 63, unit 126,
+        build:unpacked, e2e 15 (axe light and dark, each scan after the animations end); the guard clean; house-paint
+        server 392, unit 196; docgen server 223, unit 52, build, e2e 19; JustVoice server 1384, unit 261, build — its
+        e2e loads all 11 views with no JS error, the rest of its script stale since its own 228a28ee (its e2e move is in
+        its hand-off); JustWrite lint, server 196, unit 807; just-sqlite-sync 75. Waiting on the card: JustWrite's C34
+        walks and 12B auto-tune, house-paint's A/B, then the realrouter smoke (JustWrite's app closed); JustWrite's
+        and house-paint's own build + e2e from their sessions (their apps are up there).
 STATE:  under way.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]
