@@ -13,6 +13,19 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## Every app's website deploys by its own `npm run deploy` [2026-10-29]
+DECIDED: the user, verbatim (2026-10-28): "why would i run the website workflow from the app workflow this doesnt make
+        sense"; "to me we should just have a command like npm run deploy for each app website and it runs its own
+        workflow"; "and each app it should all work the same"; "i dont ever want an automatic build of anything"; then
+        "your rec go do it stop asking me just think adverserial on your recs and do it go" (2026-10-29).
+STATE:  The kit's half BUILT 2026-10-29: `website/` (sync-docs.js, deploy.js, deploy.yml, README — the one way, copied
+        as they are); the template's release starts nothing (notify-website and WEBSITE_REPO gone; docs.tar.gz still
+        attached); the guard's check 25 counts a dispatch or a call from another workflow and a workflow starting
+        another, check 26 checks every site beside the kit; §19's row. House-paint and its site on it. OPEN, by their
+        sessions (told 2026-10-29): JustWrite's release (its notify-website, its token) and justwrite-website (push and
+        dispatch triggers, .mjs scripts); docgen's release (the template's old notify job) and its site — each on the
+        guard's known list until then.
+
 ## Two kit asks from docgen's session [2026-10-29]
 STATE:  OPEN — after the security updates and the website deploy model (this session's queue).
         1. `runAction` with a chosen preset: docgen's escalation runs a feature with a preset the user picks

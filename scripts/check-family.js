@@ -1511,12 +1511,20 @@ function checkEsModules(name, dir, roots = ["."]) {
 }
 
 // ── check 25 · nothing builds by itself (the user, 2026-10-28) ──────────────────────────────────────────────
-// "i dont ever want an automatic build of anything i only want stuff to build when i say so": a GitHub workflow
-// starts by hand (workflow_dispatch) or from a run the user started (repository_dispatch, workflow_call) — never on
-// a push, a pull request, a schedule or another workflow's run. JustVoice's two from before the rule are listed by
-// name (AUTO_KNOWN) until its session changes them; any other fails.
-const AUTO_TRIGGER = /^(push|pull_request|pull_request_target|schedule|workflow_run)\b/;
-const AUTO_KNOWN = new Map([["JustVoice", new Set([".github/workflows/release.yml", ".github/workflows/codeql.yml"])]]);
+// "i dont ever want an automatic build of anything i only want stuff to build when i say so"; "other github
+// workflows shouldnt be running other workflows": a GitHub workflow starts by hand (workflow_dispatch) — never on a
+// push, a pull request, a schedule, another workflow's run, a dispatch or a call from another workflow; and no
+// workflow starts another (a repository_dispatch POST, `gh workflow run`). The ones from before the rule are listed by
+// name (AUTO_KNOWN) until their sessions change them; any other fails.
+const AUTO_TRIGGER = /^(push|pull_request|pull_request_target|schedule|workflow_run|repository_dispatch|workflow_call)\b/;
+const STARTS_ANOTHER = /\/dispatches\b|\bgh\s+workflow\s+run\b/;
+const AUTO_KNOWN = new Map([
+  ["JustVoice", new Set([".github/workflows/release.yml", ".github/workflows/codeql.yml"])],
+  // their notify-website jobs (JustWrite's own; docgen's the template's before 2026-10-29): their sessions move to the
+  // template's release, which starts nothing, and their sites' npm run deploy
+  ["JustWrite", new Set([".github/workflows/release.yml"])],
+  ["docgen", new Set([".github/workflows/release.yml"])],
+]);
 function autoTriggers(text) {
   const lines = text.split(/\r?\n/).filter((l) => !/^\s*#/.test(l));
   const at = lines.findIndex((l) => /^(on|"on"|'on'):/.test(l));
@@ -1535,11 +1543,56 @@ function checkNoAutoBuilds(name, dir) {
   for (const f of existsSync(flows) ? readdirSync(flows) : []) {
     if (!/\.ya?ml$/.test(f)) continue;
     const rel = `.github/workflows/${f}`;
-    const auto = autoTriggers(readFileSync(join(flows, f), "utf8"));
-    if (!auto.length) continue;
-    const msg = `${rel} starts by itself (${auto.join(", ")}) — a workflow runs only when the user says so: workflow_dispatch, or a release's repository_dispatch (the user's rule, 2026-10-28)`;
-    if (AUTO_KNOWN.get(name)?.has(rel)) info(name, `${msg} — on the guard's known list (AUTO_KNOWN); its session changes it`);
-    else fail(name, msg);
+    const text = readFileSync(join(flows, f), "utf8");
+    const auto = autoTriggers(text);
+    const code = text.split(/\r?\n/).filter((l) => !/^\s*#/.test(l)).join("\n");
+    const msgs = [];
+    if (auto.length) msgs.push(`${rel} starts by itself (${auto.join(", ")}) — a workflow runs only when the user says so: workflow_dispatch (the user's rule, 2026-10-28)`);
+    if (STARTS_ANOTHER.test(code)) msgs.push(`${rel} starts another workflow (a repository_dispatch POST or gh workflow run) — no workflow runs another; a website deploys by its own npm run deploy (the user's rule, 2026-10-28)`);
+    for (const msg of msgs) {
+      if (AUTO_KNOWN.get(name)?.has(rel)) info(name, `${msg} — on the guard's known list (AUTO_KNOWN); its session changes it`);
+      else fail(name, msg);
+    }
+  }
+}
+
+// ── check 26 · every app's website is built the one way (the user, 2026-10-28: "each app it should all work the same")
+// A family app's website (its own repository beside the kit) carries the kit's website/ files as they are —
+// scripts/sync-docs.js, scripts/deploy.js, .github/workflows/deploy.yml — runs `npm run deploy` (node scripts/deploy.js)
+// and names its app and itself in package.json `justSite` { appRepo, siteRepo }; its workflows build nothing by
+// themselves (check 25). A site not cloned here is skipped. JustWrite's and docgen's sites from before the rule are
+// listed (WEBSITE_KNOWN) until their sessions adopt the files.
+const WEBSITES = [
+  { name: "JustWrite website", dir: join(FAMILY, "justwrite-website") },
+  { name: "just-house-paint website", dir: join(FAMILY, "just-house-paint-website") },
+  { name: "docgen website", dir: join(FAMILY, "just-ai-i18n-docgen-website") },
+];
+const WEBSITE_FILES = ["scripts/sync-docs.js", "scripts/deploy.js", ".github/workflows/deploy.yml"];
+const WEBSITE_KNOWN = new Set(["JustWrite website", "docgen website"]);
+const sameText = (a, b) => a.replace(/\r\n/g, "\n") === b.replace(/\r\n/g, "\n");
+function checkWebsite(site) {
+  if (!existsSync(site.dir)) return;
+  const report = (msg) => (WEBSITE_KNOWN.has(site.name) ? info : fail)(site.name, WEBSITE_KNOWN.has(site.name) ? `${msg} — on the guard's known list (WEBSITE_KNOWN); its session adopts the kit's website/` : msg);
+  for (const f of WEBSITE_FILES) {
+    const theirs = join(site.dir, f);
+    if (!existsSync(theirs)) report(`no ${f} — the kit's website/${f}, as it is`);
+    else if (!sameText(readFileSync(theirs, "utf8"), readFileSync(join(KIT, "website", f), "utf8"))) report(`${f} isn't the kit's website/${f} — copy it as it is`);
+  }
+  let pj = {};
+  try {
+    pj = JSON.parse(readFileSync(join(site.dir, "package.json"), "utf8"));
+  } catch {
+    report("no package.json");
+  }
+  if (pj.scripts?.deploy !== "node scripts/deploy.js") report('package.json has no "deploy": "node scripts/deploy.js" — the site deploys by npm run deploy');
+  if (!pj.justSite?.appRepo || !pj.justSite?.siteRepo) report("package.json has no justSite { appRepo, siteRepo } — the scripts read the app's and the site's repositories there");
+  // its other workflows: nothing by itself, nothing started from elsewhere (check 25's rule)
+  const flows = join(site.dir, ".github", "workflows");
+  for (const f of existsSync(flows) ? readdirSync(flows) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    const text = readFileSync(join(flows, f), "utf8");
+    const auto = autoTriggers(text);
+    if (auto.length) report(`.github/workflows/${f} starts by itself (${auto.join(", ")}) — the site builds only when the user runs npm run deploy`);
   }
 }
 
@@ -1711,6 +1764,7 @@ checkI18nKit();
 checkResearchRegister("kit", KIT);
 checkEsModules("kit", KIT, ["packages", "scripts", "skills"]);
 checkNoAutoBuilds("kit", KIT);
+for (const site of WEBSITES) checkWebsite(site);
 // The /new-just-app skill runs from Claude Code's user skills folder (install-skills.js
 // `userSkillsDir`) — advisory when that copy differs from the kit's.
 // A stale installed skill makes apps from old rules (2026-10-24): a failure, not a note.

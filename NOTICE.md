@@ -3,6 +3,13 @@
 Code in this repository that was copied or ported from another project, with its licence. The full
 licence notice of each is kept in the file named; the family rule is `docs/family-rules.md`.
 
+## The family's website parts (`website/`)
+
+- **`website/scripts/sync-docs.js`** and **`website/.github/workflows/deploy.yml`** — from justwrite-website's
+  `scripts/sync-docs.mjs` and `deploy.yml` (the docs from the app's release into Starlight's collection; the Pages
+  build), made generic (the site's `package.json` `justSite`) and run by hand only. MIT License, Copyright (c) 2026
+  JustWrite contributors.
+
 ## The UI kit (`ui/`)
 
 - **`packages/ui/src/common/components/tableRows.js`** — UiTable's global filter, sort functions, automatic
