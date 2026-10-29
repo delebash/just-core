@@ -96,6 +96,13 @@ What a speech model costs, measured, is in JustVoice's register §2.
   recommended nothing on the laptop that ran the E4B at 9.8 tok/s. The fit now scores a one-pool box against the pool
   (`hardware.budgetTotalMb`), the budget the launch already used (`process.js` `computeFit`'s arch arm). — *code +
   test, 2026-10-29* · `runner/api.js` `fitVram`; `tests/runner_models.test.js` `one_pool_boxes_fit_against_the_shared_pool`.
+- **The router loads a model a request names unless told not to** (llama.cpp b11239 `tools/server/server-models.cpp`,
+  *read* 2026-10-29): `--models-autoload` is on by default (`llama-server --help`), and `router_validate_model` then
+  loads any listed model a request names — past the kit's admission. With `--no-models-autoload` an unloaded model is
+  refused ("model is not loaded") while a SLEEPING one still passes (`is_running()` = LOADED, LOADING or SLEEPING —
+  server-models.h) and wakes. The flag came with router mode (#17470, 2025-12-01; its test in #17722). The kit's
+  router runs with it since 2026-10-29, and the embeddings route makes its model ready first (`ensureLocalModelFor`),
+  as a run does. — *source + code, 2026-10-29* · `runner/process.js` `composeRouterArgv`, `llm/api.js`.
 
 ---
 

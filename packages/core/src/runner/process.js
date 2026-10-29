@@ -502,7 +502,7 @@ export function probeArgvs(engineBuild) {
     "--version",
   ]);
   out.push([
-    "--models-dir", ".", "--models-preset", "models.ini", "--models-max", "2",
+    "--models-dir", ".", "--models-preset", "models.ini", "--models-max", "2", "--no-models-autoload",
     "--sleep-idle-seconds", "600", "--host", "127.0.0.1", "--port", "1",
     "--embeddings", "--pooling", "mean", "--version",
   ]);
@@ -556,10 +556,16 @@ export function composeRouterArgv({
   port = DEFAULT_PORT,
   extra = [],
 } = {}) {
+  // `--no-models-autoload` (2026-10-29): the router never loads a model on its own — upstream's default loads any model
+  // a request names, past the kit's admission (a 2nd app's probe, an embedding after Unload: the over-booking the arbiter
+  // exists for). Refused there ("model is not loaded"), every load goes through POST /models/load; a sleeping child still
+  // wakes on a request (server-models.h `is_running` counts SLEEPING), booked by `_admitWake`. In every router build —
+  // the flag came with router mode (llama.cpp #17470, 2025-12).
   let argv = [
     "--models-dir", String(modelsDir),
     "--models-preset", String(modelsPreset),
     "--models-max", pyStr(modelsMax),
+    "--no-models-autoload",
     "--host", host, "--port", pyStr(port),
   ];
   if (sleepIdleSeconds != null && sleepIdleSeconds > 0) argv = [...argv, "--sleep-idle-seconds", pyStr(sleepIdleSeconds)];

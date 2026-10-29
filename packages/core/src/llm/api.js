@@ -14,7 +14,9 @@ import { getLogger } from "../platform/log.js";
 import { model, nullable, opt, T } from "../platform/models.js";
 import { cpSlice, errText, isJsonObject, truthy, ValueError } from "../platform/py.js";
 import { input } from "../platform/server.js";
+import { ensureLocalModelFor } from "./dispatch.js";
 import { applyRules } from "./model_list_rules.js";
+import { aiRunHttpError } from "./prompts.js";
 import { construct, getLlmRegistry } from "./registry.js";
 import { LLMProviderConfig } from "./schema.js";
 import { getLedger } from "./usage.js";
@@ -265,6 +267,14 @@ export function router() {
       throw new HttpError(400, `provider ${body.providerId} does not support embeddings`);
     }
     const texts = applyEmbedTemplate(body.model, body.taskType, body.input);
+    // On the built-in engine the model is made ready first, through the runner's admission — a run's own step
+    // (prompts.js ensureLocalReady); asked straight, the router loaded it past the memory arbiter (2026-10-29). One that
+    // can't be is a 503 in the engine's words (aiRunHttpError).
+    try {
+      await ensureLocalModelFor(adapter, body.model);
+    } catch (e) {
+      throw aiRunHttpError(e) ?? e;
+    }
     let vectors;
     try {
       vectors = await adapter.embed(texts, { model: body.model || null, taskType: body.taskType });

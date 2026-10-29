@@ -157,3 +157,33 @@ test("ai_usage_reflects_ledger", async () => {
   expect((await (await c.get("/v1/ai-usage")).json()).total_calls).toBe(0);
   reg._adapters = new Map();
 });
+
+// The finish list's A5: an embedding on the built-in engine books its model first, as a run does (prompts.js
+// ensureLocalReady) — the route called the router straight, which loaded the model past the memory arbiter (or failed:
+// "the bundled llama.cpp engine isn't running"). A model that can't be made ready answers 503 in the engine's words.
+test("embeddings on the built-in engine make the model ready first; one that can't be is a 503 in its words", async () => {
+  const { setEnsureLocalModel, getEnsureLocalModel } = await import("../src/llm/dispatch.js");
+  const saved = getEnsureLocalModel();
+  const reg = getLlmRegistry();
+  reg._adapters = new Map();
+  const local = new FakeEmbedAdapter();
+  local.provider_id = "local-llamacpp";
+  local.provider_type = "local-llamacpp";
+  reg.register(local);
+  const ensured = [];
+  try {
+    setEnsureLocalModel(async (id) => ensured.push(id));
+    const r = await client().post("/v1/ai/embeddings", { providerId: "local-llamacpp", model: "qwen3-embed", input: ["a"] });
+    expect(r.status).toBe(200);
+    expect(ensured).toEqual(["qwen3-embed"]);
+    setEnsureLocalModel(async () => {
+      throw Object.assign(new Error("Not enough memory to load qwen3-embed"), { localNotReady: true });
+    });
+    const refused = await client().post("/v1/ai/embeddings", { providerId: "local-llamacpp", model: "qwen3-embed", input: ["a"] });
+    expect(refused.status).toBe(503);
+    expect((await refused.json()).detail).toContain("Not enough memory to load qwen3-embed");
+  } finally {
+    setEnsureLocalModel(saved);
+    reg._adapters = new Map();
+  }
+});

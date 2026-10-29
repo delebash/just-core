@@ -469,7 +469,7 @@ test("probe_argvs_cover_every_emitted_key", () => {
     const argvs = probeArgvs(build);
     expect(argvs.every((a) => a[a.length - 1] === "--version")).toBe(true);
     const seen = new Set(argvs.flat().filter((tok) => tok.startsWith("-")));
-    const missing = [...fixed, ...valueFlags, ...loading].filter((f) => !seen.has(f));
+    const missing = [...fixed, ...valueFlags, ...loading, "--no-models-autoload"].filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
     // and never the spelling the OTHER era uses
     expect(seen.has("--load-mode")).toBe(build === "b10964");
@@ -629,6 +629,10 @@ test("compose_router_argv_no_model_flag", () => {
   expect(argv[argv.indexOf("--models-max") + 1]).toBe("2");
   expect(argv[argv.indexOf("--sleep-idle-seconds") + 1]).toBe("900");
   expect(argv[argv.indexOf("--models-dir") + 1]).toBe("/hf");
+  // the router never loads a model on its own (2026-10-29, the finish list A4): a request naming an unloaded model is
+  // refused ("model is not loaded") — every load goes through the kit's admission (POST /models/load); a SLEEPING child
+  // still wakes on a request (server-models.h is_running), booked by the kit's _admitWake
+  expect(argv).toContain("--no-models-autoload");
 });
 
 test("compose_router_argv_omits_ttl_when_unset", () => {
