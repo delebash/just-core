@@ -13,6 +13,21 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## The family releases together, once every app and all kit work are done [2026-10-29]
+DECIDED: the user, verbatim (2026-10-29, in JustWrite's session, relayed): "you dont understand we have several apps i
+        want all kit work done for all apps before we release any app, i want to relase all apps that we are working on
+        now but not until all kit work is done by each app that means each app is complete bugs fixed featrues done all
+        tasks ideas done or removed from list". Before it, there: "why whould we release house paint if we are still
+        doing kit work, wouldnt that mean houspaint gets old kit?"
+STATE:  No app releases — JustWrite, JustVoice, docgen, house-paint — until each is complete (bugs fixed, features done,
+        every TASKS line and IDEAS entry done or removed) and every kit item for every app here is done; then all
+        release together, each on the same kit commit. Dry runs only meanwhile (house-paint's 40823762045 green on
+        6879a42, the kit at ddb1431 — publish skipped). Told: JustWrite's session (it relayed it), docgen's; JustVoice's
+        when one runs.
+OPEN:   - the release workflows' actions target Node 20, which GitHub forces onto Node 24 (actions/checkout@v4,
+          setup-node@v4, upload-artifact@v4, download-artifact@v4 — the dry run's annotations, 2026-10-29): the
+          template's release.yml and every app's copy to the actions' Node 24 majors.
+
 ## Every app's website deploys by its own `npm run deploy` [2026-10-29]
 DECIDED: the user, verbatim (2026-10-28): "why would i run the website workflow from the app workflow this doesnt make
         sense"; "to me we should just have a command like npm run deploy for each app website and it runs its own
