@@ -28,7 +28,7 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            at the pin's move).
            13 BUILT (a runtime's speed bands on its tab — words "Speed bands (seconds per image)", "Fast/Fine/Slow
            at ≤" mine). 14 BUILT (Count and Measure share `_servingModel`). 15 BUILT (the local adapters' errors through
-           adapterHttpError; §19 row). 16 shared_cache's two stale-fixture tests.
+           adapterHttpError; §19 row). 16 BUILT (shared_cache's two tests on fixed fixtures).
            17 a guard check for resourceIsolation + a §19 row: streamed server audio uses `crossorigin="anonymous"`
            (JustVoice moves its audio). 18 dead code: declared_claim_fn, startRunner/Runner, LoadRequest.jobId/
            profileSwitchesFn; the screenless CRUD routes stay as data doors.

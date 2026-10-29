@@ -19,14 +19,10 @@
 // restored after each test) and the real `resolveCacheRoots` here; tests/cache_api.test.js
 // checks the same router against fakes.
 //
-// FAILING IN PYTHON TODAY, failing the same way here (build sheet rule 21 — `test.fails`, so
-// the suite stays green and the stale test stays visible): `discovery_reports_a_sibling_with_
-// what_is_in_it` and `the_wizard_is_offered_the_way_back`. Both fixtures put the model
-// somewhere other than `snapshots/` (an empty `models--…` folder; a `blob` file beside
-// `snapshots/`), and since the 2026-10-06 counting change a repo counts only from a finished
-// file in `snapshots/` — so `models` is [] where the tests expect the repo. Fix in both
-// languages: write the file at `hf/models--<org>--<repo>/snapshots/<sha>/m.gguf`. (Build sheet
-// §6 records the wizard one; the discovery one is the same cause.)
+// `discovery_reports_a_sibling_with_what_is_in_it` and `the_wizard_is_offered_the_way_back` were `test.fails` from
+// the port until 2026-10-29: their fixtures put the model outside `snapshots/`, and since the 2026-10-06 counting
+// change a repo counts only from a finished file there. The fixtures now write it at
+// `hf/models--<org>--<repo>/snapshots/<sha>/m.gguf`.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -137,14 +133,15 @@ test("an_app_registers_itself_so_the_next_one_can_find_it", () => {
   expect(readApps(home).length).toBe(1);
 });
 
-test.fails("discovery_reports_a_sibling_with_what_is_in_it", () => {
-  // FAILS in Python today too — see the header: the model folder below is empty, so it
-  // doesn't count since the 2026-10-06 change (`models` is []).
+test("discovery_reports_a_sibling_with_what_is_in_it", () => {
   familyHome();
   const jw = join(tmp, "jw", "ai-cache");
   mkdirSync(join(jw, "llamacpp", "b10107"), { recursive: true });
   writeFileSync(join(jw, "llamacpp", "b10107", "llama-server.exe"), Buffer.alloc(100, "x"));
-  mkdirSync(join(jw, "hf", "models--unsloth--gemma-4-26B-A4B-it-qat-GGUF"), { recursive: true });
+  // a repo counts from a finished file in snapshots/ (the 2026-10-06 counting change)
+  const snap = join(jw, "hf", "models--unsloth--gemma-4-26B-A4B-it-qat-GGUF", "snapshots", "sha");
+  mkdirSync(snap, { recursive: true });
+  writeFileSync(join(snap, "m.gguf"), Buffer.alloc(0));
   cacheRegistry.register("JustWrite", jw, join(tmp, "jw"));
 
   const found = cacheRegistry.discover(join(tmp, "mine", "ai-cache"));
@@ -301,8 +298,9 @@ test("a_corrupt_registry_reads_as_an_empty_one", () => {
  * fixture; `afterEach` restores the singleton). */
 function wiredFixture() {
   const shared = join(tmp, "jw", "ai-cache");
-  mkdirSync(join(shared, "hf", "models--org--big"), { recursive: true });
-  writeFileSync(join(shared, "hf", "models--org--big", "blob"), Buffer.alloc(9000, "x"));
+  // the model's file in snapshots/, where a repo counts from (the 2026-10-06 counting change)
+  mkdirSync(join(shared, "hf", "models--org--big", "snapshots", "sha"), { recursive: true });
+  writeFileSync(join(shared, "hf", "models--org--big", "snapshots", "sha", "m.gguf"), Buffer.alloc(9000, "x"));
   mkdirSync(join(shared, "llamacpp", "b10107"), { recursive: true });
   const svc = new RunnerService(shared, { runtimeRoot: join(tmp, "mine", "ai-runtime") });
   lifecycle.state.service = svc;
@@ -319,9 +317,7 @@ function cacheApp(dataDir) {
 const put = (app, url, payload) =>
   app.request(url, { method: "PUT", body: JSON.stringify(payload), headers: { "content-type": "application/json" } });
 
-test.fails("the_wizard_is_offered_the_way_back", async () => {
-  // FAILS in Python today too (build sheet §6): the fixture's `blob` sits outside
-  // `snapshots/`, so `current.models` is [] since the 2026-10-06 change.
+test("the_wizard_is_offered_the_way_back", async () => {
   familyHome();
   const wired = wiredFixture();
   cacheRegistry.register("JustWrite", wired.shared, join(tmp, "jw"));
