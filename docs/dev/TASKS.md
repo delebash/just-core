@@ -26,6 +26,11 @@ STATE:  No app releases — JustWrite, JustVoice, docgen, house-paint — until 
         when one runs.
 OPEN:   - the workflows' actions at their latest majors (JustWrite's asks, 4); each app's roadmap and ideas listed with
           recommendations for the user (5).
+CHECKED 2026-10-29, once after the day's kit changes (5a429ad, 1dcce91, be584a9, 2c76636, ca087d0): 21 steps green — kit
+        core 1528 and lint, kit ui 77 and lint, the template's lint, i18n, server 62, unit 114, unpacked build and e2e 12/12;
+        house-paint's lint, i18n, server 391, unit 195, unpacked build and e2e 16/16; JustVoice server 1384, unit 261;
+        JustWrite server 195; docgen server 194; the guard at zero. JustWrite's and docgen's renderer suites run in their
+        sessions once they install dompurify.
 FOR JUSTVOICE'S SESSION, when one runs (none since these landed): this release rule; its release.yml on the actions'
         latest majors (JustWrite's asks 4, the template's lines); its roadmap and ideas listed with recommendations (5);
         its e2e onto the template's e2e/lib/driver.js shape (scripts/e2e.js today — docgen's session found the apps
