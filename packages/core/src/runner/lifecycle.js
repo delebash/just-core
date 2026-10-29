@@ -103,10 +103,10 @@ import {
   ValueError,
 } from "../platform/py.js";
 import { pyFixed } from "../platform/pyjson.js";
-import { EVICT_MIN_MB as ARBITER_EVICT_MIN_MB, getArbiter } from "./arbiter.js";
+import { EVICT_MIN_MB as ARBITER_EVICT_MIN_MB, getArbiter, runtimeBookings } from "./arbiter.js";
 import * as bandwidth from "./bandwidth.js";
 import * as binary from "./binary.js";
-import { buildsInUse, pyPath, recordBuild } from "./cache_registry.js";
+import { buildsInUse, otherAppsUsing, pyPath, recordBuild } from "./cache_registry.js";
 import { DEFAULT_DOWNLOAD_MAX_CONCURRENT, DEFAULT_PINNED_BUILD, DEFAULT_UPDATE_CHECK_MINUTES, defaultConfig, MAX_DOWNLOAD_CONCURRENT } from "./config.js";
 import { DownloadCancelled } from "./download.js";
 import * as fitMod from "./fit.js";
@@ -1764,6 +1764,10 @@ export class RunnerService {
    * Every kind's models (docs/plans/2026-10-24-engines-the-llama-way.md, K11): the kit runtimes' model rows
    * (runtime_service.js) live in the same `hf`. One downloading or running a job refuses ("models busy"); an idle
    * runtime server is stopped first — its files are going — and through a linked cache only their own files go.
+   *
+   * A cache the family's other apps use too (cache_registry `otherAppsUsing`) is cleared the linked cache's way: only
+   * this app's own rows' files go — `<cache>/hf` whole only when the cache is this app's alone (round E, B12: JustWrite's
+   * clear took JustVoice's chat models, and would have taken its speech models after the move).
    */
   async clearModelsCache() {
     const busy = new Set(["loaded", "sleeping", "loading", "downloading", "starting"]);
@@ -1780,11 +1784,21 @@ export class RunnerService {
     // really do come back — but they come back once, and a `freed` that counted each name
     // would overstate the reclaim (2x on Windows).
     const st = await fsp.lstat(hf).catch(() => null);
-    if (st?.isSymbolicLink()) {
+    let others = [];
+    try {
+      others = st && !st.isSymbolicLink() ? otherAppsUsing(this._cacheRoot) : [];
+    } catch (e) {
+      // the family registry unreadable: who else uses the cache can't be told — only this app's own files go
+      log.warning("could not read which apps share this cache — clearing only this app's own models", e);
+      others = ["(unknown)"];
+    }
+    if (st?.isSymbolicLink() || others.length) {
       // a link (a junction, a symbolic link) to a folder elsewhere — a drive's, the HF hub cache other tools share,
       // a user's own: only the files this app's catalog rows downloaded go (each row's own — rowFiles), counted alone
       // — never a whole repo folder, never another tool's quant in it, never the rest of the folder it points to
-      // (2026-10-20: the eighteenth review's "the catalog's repos" still took other tools' files)
+      // (2026-10-20: the eighteenth review's "the catalog's repos" still took other tools' files). The same for a real
+      // folder the family's other apps use (round E, B12).
+      if (others.length) log.info(`Clear models cache: ${others.join(", ")} share this cache — only this app's own models go`);
       const files = new Set();
       for (const row of catalogRows(this)) for (const f of rowFiles(hf, row)) files.add(f);
       for (const s of runtimes) for (const f of s.modelFiles()) files.add(f);
@@ -2687,6 +2701,15 @@ export class RunnerService {
       committed_mb: snap.committed_mb,
       remaining_mb: snap.remaining_mb,
       models: [],
+      // every other kind's booking — speech, transcription, an image or vision runtime's — for the memory strip, which
+      // read only the AI models here (round E, G10)
+      runtime_bookings: runtimeBookings(snap.reservations, (key) => {
+        for (const s of runtimeServices()) {
+          const id = s.holderOf?.(key);
+          if (id) return id;
+        }
+        return "";
+      }),
     };
     const rows = [];
     const byId = new Map();
@@ -2739,10 +2762,12 @@ export class RunnerService {
       }
       if (row == null) {
         rows.push({ id: mid, status: s, vram_mb: this._arbiter.reservedMb(mid) });
-      } else if (s === "stopping" || !["loaded", "sleeping", "loading"].includes(row.status)) {
+      } else if (s === "stopping" || s === "cancelling" || !["loaded", "sleeping", "loading"].includes(row.status)) {
         // T2b: while the child is genuinely tearing down (router still "loaded"), "stopping"
         // overrides that active listing so a stale "● loaded" can't re-invite a second Unload
-        // click. Bounded: cleared the moment the router agrees (above).
+        // click. Bounded: cleared the moment the router agrees (above). A load cancelled once the
+        // router had loaded its child is the same teardown: "cancelling" until its cleanup has
+        // unloaded it (the realrouter smoke's stop_stays_stopped read "loaded" there, 2026-10-29).
         row.status = s;
       }
     }
@@ -3297,6 +3322,24 @@ export class RunnerService {
           await this._routerUnload(router.url, modelId);
         } catch (e) {
           log.warning(`cancel: unload of just-spawned ${modelId} failed`, e); // the pop below still runs
+        }
+        // Confirmed, as stop()'s unload is (bounded, 3 s): the POST can return while the child is still exiting, and
+        // popping then let the router's "loaded" show through — the realrouter smoke's stop_stays_stopped read the
+        // model back at once (2026-10-29 on b11239). Meanwhile resident() shows "cancelling" over the router's listing.
+        const deadline = this._now() + 3.0;
+        for (;;) {
+          let live = null;
+          try {
+            live = _parseRouterModels(await this._routerModels(router.url)).get(modelId)?.value ?? null;
+          } catch {
+            break; // the router went away: nothing left to unload
+          }
+          if (!["loaded", "sleeping", "loading"].includes(live)) break;
+          if (this._now() >= deadline) {
+            log.warning(`cancel: the router still lists ${modelId} as ${live} after its unload`);
+            break;
+          }
+          await this._sleep(this._loadPollInterval);
         }
       }
     }

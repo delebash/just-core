@@ -75,7 +75,9 @@ test("autotune_records_every_ok_trial_with_its_switches", async () => {
   });
   expect(st.status).toBe("done");
   const okTrials = st.trials.filter((t) => t.ok);
-  expect(recorded.map(([, t]) => t.label)).toEqual(okTrials.map((t) => t.label));
+  // each OK trial as it lands, then what the model runs with from now — nothing saved: its current launch, the baseline
+  // (the chip reads the newest row — 2026-10-29)
+  expect(recorded.map(([, t]) => t.label)).toEqual([...okTrials.map((t) => t.label), "baseline"]);
   expect(recorded.every(([mid]) => mid === "m")).toBe(true);
   // the recorded trial carries the exact switches that produced the number
   const baseRec = recorded.map(([, t]) => t).find((t) => t.label === "baseline");

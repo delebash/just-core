@@ -437,6 +437,25 @@ export function sharingApps(root, dataDir = null) {
 }
 
 /**
+ * The family's OTHER live installs that use cache `root` — `sharingApps` with this process's own install (its last
+ * `register`, product and data folder) left out, as `buildsInUse` leaves it: [] when the cache is this app's alone.
+ * What "Clear models cache" asks before it removes `<root>/hf` whole (round E, B12: JustWrite's clear took JustVoice's
+ * models from the cache they share).
+ */
+export function otherAppsUsing(root) {
+  const want = pyPath(root);
+  const out = [];
+  for (const e of read()) {
+    const where = e.dataDir ? pyPath(e.dataDir) : "";
+    if (pyPath(e.cacheRoot) !== want || !where || !isDir(where)) continue;
+    if (thisInstall && e.product === thisInstall.product && where === thisInstall.dataDir) continue;
+    const product = get(e, "product", "");
+    if (product && !out.includes(product)) out.push(product);
+  }
+  return out;
+}
+
+/**
  * Every cache root this box knows about except the excluded ones, summarized.
  *
  * `exclude` takes one path or several — a caller normally excludes BOTH the cache in use and

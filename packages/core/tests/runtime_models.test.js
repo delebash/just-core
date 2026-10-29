@@ -237,6 +237,78 @@ test("Clear models cache through a linked cache takes only this app's runtime-mo
   }
 });
 
+// Round E, G5: a model whose licence the user must accept first — the app's gate refuses, nothing downloads, and the
+// route answers 403 terms-required with the model for the app's terms dialog.
+test("the app's licence gate refuses a download before anything starts: 403 terms-required with the model", async () => {
+  appSeed([FLUX]);
+  const urls = fakeHub();
+  let accepted = false;
+  const asked = [];
+  const svc = service({
+    speech: {
+      beforeDownload: (row) => {
+        asked.push(row.id);
+        return accepted ? null : `Accept ${row.name}'s licence before downloading its models.`;
+      },
+    },
+  });
+  configureRuntimeServices([["sdcpp", svc]]);
+  const app = createServer({ typeBase: "t/" });
+  app.route("/", makeRuntimesRouter());
+  const r = await app.request("/v1/ai/runtimes/sdcpp/models/flux2-klein-4b/download", { method: "POST" });
+  expect(r.status).toBe(403);
+  expect(await r.json()).toMatchObject({ type: "t/terms-required", title: "Terms not accepted", detail: "Accept FLUX.2 [klein] 4B's licence before downloading its models.", modelId: "flux2-klein-4b" });
+  expect(urls).toEqual([]);
+  expect(svc.modelsStatus()[0].status).toBe("");
+  // a gate that throws refuses the same way; one that answers with a promise is the app's mistake, said
+  const thrower = service({ speech: { beforeDownload: () => { throw new Error("terms first"); } } });
+  expect(() => thrower.downloadModel("flux2-klein-4b")).toThrow(expect.objectContaining({ termsRequired: { modelId: "flux2-klein-4b" }, message: "terms first" }));
+  expect(() => service({ speech: { beforeDownload: async () => null } }).downloadModel("flux2-klein-4b")).toThrow(/must answer at once/);
+  // accepted: it downloads
+  accepted = true;
+  expect((await app.request("/v1/ai/runtimes/sdcpp/models/flux2-klein-4b/download", { method: "POST" })).status).toBe(202);
+  await until(() => svc.modelsStatus()[0].status === "downloaded");
+  expect(asked).toEqual(["flux2-klein-4b", "flux2-klein-4b"]);
+});
+
+// Round E, B12: JustWrite's and JustVoice's caches are real folders another app may share — a Clear there took the other
+// app's models (JustWrite's clear would have taken JustVoice's chat models, and its speech models after the move).
+test("Clear models cache in a cache another family app uses takes only this app's own files; alone, the whole folder", async () => {
+  process.env.JUST_AI_HOME = path.join(root, "family");
+  const cacheRegistry = await import("../src/runner/cache_registry.js");
+  try {
+    const theirData = path.join(root, "jv-data");
+    const myData = path.join(root, "jw-data");
+    for (const d of [theirData, myData]) mkdirSync(d, { recursive: true });
+    cacheRegistry.register("JustVoice", root, theirData, {});
+    cacheRegistry.register("JustWrite", root, myData, {}); // this process's own install
+    appSeed([FLUX]);
+    fakeHub();
+    const { svc } = serving();
+    svc.downloadModel("flux2-klein-4b");
+    await until(() => svc.modelsStatus()[0].status === "downloaded");
+    const m = svc.modelFor("flux2-klein-4b");
+    const theirs = path.join(root, "hf", "models--audio-cpp--audio.cpp-gguf", "snapshots", "f861648", "kokoro.gguf");
+    mkdirSync(path.dirname(theirs), { recursive: true });
+    writeFileSync(theirs, "JustVoice's model");
+    expect(cacheRegistry.otherAppsUsing(root)).toEqual(["JustVoice"]);
+
+    const res = await runner().clearModelsCache();
+    expect(res).toEqual({ ok: true, bytes: DIFF.length + TEXT.length + VAE.length });
+    expect(existsSync(m.files.diffusion_model)).toBe(false);
+    expect(readFileSync(theirs, "utf8")).toBe("JustVoice's model"); // the other app's model stays
+
+    // the other app gone (its data folder removed): the cache is this app's alone — the whole folder goes
+    rmSync(theirData, { recursive: true, force: true });
+    expect(cacheRegistry.otherAppsUsing(root)).toEqual([]);
+    expect((await runner().clearModelsCache()).ok).toBe(true);
+    expect(existsSync(theirs)).toBe(false);
+    expect(existsSync(path.join(root, "hf"))).toBe(true); // made again, empty, for the next download
+  } finally {
+    delete process.env.JUST_AI_HOME;
+  }
+});
+
 test("linkSnapshot: a symlink, else a hard link, else a copy — the bytes the same either way", () => {
   const blob = path.join(root, "blob");
   writeFileSync(blob, "bytes");

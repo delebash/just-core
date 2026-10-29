@@ -368,8 +368,9 @@ const columnConfig = computed(() => {
           <label>{{ humanizeVar(k) }}
             <span v-if="varCfg(k).counters" class="lu-muted lu-fw-varcount">{{ counterText(vars[k]) }}</span>
           </label>
-          <component :is="varCfg(k).editor" v-if="varCfg(k).editor" v-model="vars[k]" />
-          <UiTextarea v-else v-model="vars[k]" auto-resize :rows="2" />
+          <!-- named as the variable (the <label> above names no control — JustWrite's axe run on Routing, 2026-10-29) -->
+          <component :is="varCfg(k).editor" v-if="varCfg(k).editor" v-model="vars[k]" :aria-label="humanizeVar(k)" />
+          <UiTextarea v-else v-model="vars[k]" auto-resize :rows="2" :aria-label="humanizeVar(k)" />
         </div>
       </template>
       <!-- A prompt row's variables can come from the app's own pages too (docgen's context, glossary and notes,

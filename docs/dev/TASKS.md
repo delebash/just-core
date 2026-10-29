@@ -137,6 +137,25 @@ RESULT (a) 2026-10-29, house-paint's session: master-1024 STAYS — the app's ow
         1004↔1024 0.00 inside the union mask (158,290 px), 0 % past 5 ΔE, every part and shutter piece alike; the PNGs
         byte-identical across builds (final fc0ab344…, = the in-app render) though the builds differ (sd-server.exe
         7dc541a8… vs 39cbd076…). The light shutter pair comes out on 1004 too: the website's picture had other inputs.
+RESULT 34, JustWrite's session on its built app and real data (b11960): Quick-setup Apply 5 s, its after-Apply measure
+        read 12.1 tok/s — the same 26B idle reads 33.5, 39.0, 39.3: the probe ran beside Apply's and the embedding's
+        loads (FIXED: QuickSetup's measure waits for every load to settle, then a warm-up it never records); the
+        uncurated check 26.93 GB/s (29.18 on 2026-09-19). Item 5: the 12B's auto-tune walk saved ngl 40 at 20.5 tok/s
+        (--fit 18.3; 48 layers can't fit while Windows holds ~830 MB) — FIXED: the chip read the last trial's 18.5, now
+        the saved winner (else the baseline) is recorded last; a trial past the 4-min cap says "most likely more than
+        the card's memory holds", not "load timed out". The realrouter smoke on JustWrite's data: 7 passed (Bonsai not
+        on disk) after its fix — a stop that cancelled a load left the router's child loaded and the model read
+        "loaded": the cancel now confirms its unload and resident() shows "cancelling" meanwhile.
+FOUND AND BUILT 2026-10-29 — JustVoice's plan §3 (JustVoice 5f8e6d90, docs/plans/2026-10-29-round-e-onto-the-kit.md),
+        the kit's audio.cpp half read against JustVoice's code; under the user's "just do it think on your recs
+        adverserily …", the plan's recs as written (JustVoice's user approved the same, 15510bbe): B1–B13 fixed (B12 a
+        shared cache's Clear removed the other apps' files; B9 macOS Intel back — its drop was mine, not the user's;
+        B11 one card-need field, the row's peakVramMb), B14 dropped (the per-line high-water raises); G1–G12 built —
+        runtimeSpeech hooks transcribe/sessionOptions/beforeDownload, the saved placement and Try the card again, Load
+        downloads first (202), terms-required, groups and filters, AiModelsArea's runtimeTabs, settingsUi controls, the
+        per-kind bands, Reinstall, `changed`, the strip's runtime bookings (useMemoryCells), on-demand companions, a
+        load cancelled by Unload. JustWrite's last axe items on Routing fixed (FeatureLab's variables, KnobGrid's rows,
+        the breadcrumb above its neighbours). New words mine, listed in the final report.
 STATE:  under way.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]

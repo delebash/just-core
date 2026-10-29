@@ -226,7 +226,9 @@ export class AutoTuner {
       if (st.status === "error") return [false, st.error || "load failed"];
       await this._sleep(POLL_INTERVAL);
     }
-    return [false, "load timed out"];
+    // a load that outlasts the cap: past the card's memory, most likely (its spill into shared memory is slow) — said so,
+    // not a bare timeout that reads as neither refused nor measured (JustWrite's 12B walk, 2026-10-29: ngl 46)
+    return [false, `didn't load within ${Math.round(LOAD_TIMEOUT / 60)} min — most likely more than the card's memory holds`];
   }
 
   /**
@@ -580,6 +582,17 @@ export class AutoTuner {
           // a save failure must not void the sweep
           log.warning("auto-tune save failed", exc);
           this._set({ error: `tuned OK but save failed: ${errStr(exc)}` });
+        }
+      }
+      // The chip reads a model's NEWEST measurement: what the model runs with from now — the saved winner, else the
+      // current launch (the baseline trial) — is written again as the newest row, so the chip shows its speed, not the
+      // last trial's (JustWrite's 12B, 2026-10-29: "Tuned by auto-tune" read the F16 draft's 18.5, the winner ran 20.5).
+      const kept = saved ? best : this.status().trials.find((t) => t.label === "baseline" && t.ok);
+      if (kept && this._recordFn !== null) {
+        try {
+          await this._recordFn(modelId, kept);
+        } catch (e) {
+          log.warning("auto-tune winner record failed", e); // history is an enrichment
         }
       }
       if (this._budgetHit) {

@@ -143,6 +143,9 @@ export {
 export { default as LuRuntimeTab } from "./components/LuRuntimeTab.vue";
 export { default as LuRuntimePresetPane } from "./components/LuRuntimePresetPane.vue";
 export { default as LuEngineNeeded } from "./components/LuEngineNeeded.vue";
+// The live memory cells the AI page's strip shows — used, free, the chat models, each runtime's booking, other apps —
+// for an app's Home to show the same (round E, G10): never a reading of the app's own.
+export { useMemoryCells } from "./composables/useMemoryCells.js";
 
 // views
 export { default as ProviderForm } from "./views/ProviderForm.vue";

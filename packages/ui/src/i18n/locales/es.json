@@ -698,6 +698,10 @@
         "asleep": "en reposo",
         "llmTitle": "La memoria reservada por el ejecutor de IA para sus modelos cargados",
         "asleepTitle": "Inactivo, por lo que su memoria ha sido liberada; se recargará en la próxima solicitud",
+        "kindWhere": "{kind} · {where}",
+        "about": "~{size}",
+        "bookingMeasured": "Medido en este equipo al cargarse",
+        "bookingEstimated": "Una estimación: lo que el modelo dice necesitar, hasta que una carga aquí lo mida",
         "otherApps": "Otras aplicaciones",
         "otherAppsTitle": "Memoria retenida por procesos que esta aplicación no gestiona (navegador, compositor de escritorio, juegos)",
         "hide": "ocultar",
@@ -2067,11 +2071,16 @@
         "label": "Dónde se ejecuta {name}",
         "auto": "Automático",
         "gpu": "Tarjeta gráfica",
-        "cpu": "CPU"
+        "cpu": "CPU",
+        "tryCard": "Probar la tarjeta otra vez"
       },
       "loadedOn": {
         "gpu": "Cargado en la tarjeta gráfica",
         "cpu": "Cargado en la CPU"
+      },
+      "wouldLoadOn": {
+        "gpu": "Se cargaría en la tarjeta gráfica",
+        "cpu": "Se cargaría en la CPU"
       },
       "addonsTitle": "Complementos",
       "addon": {
@@ -2084,8 +2093,8 @@
       },
       "settingsTitle": "Ajustes del motor",
       "settings": {
-        "backend": "Versión (auto, cuda, vulkan, cpu, metal)",
-        "gpu": "Tarjeta gráfica (0 es la primera)",
+        "backend": "Versión",
+        "gpu": "Tarjeta gráfica",
         "cpu_threads": "Hilos de CPU (0: uno por núcleo)",
         "cpu_min_realtime": "Suficientemente rápido en la CPU desde (× tiempo real)",
         "spill_mb": "Cuenta como desbordado pasados (MB de memoria compartida)",
@@ -2096,13 +2105,21 @@
         "start_timeout_s": "Tiempo de inicio máximo (segundos)",
         "request_timeout_s": "Tiempo máximo por solicitud (segundos)"
       },
+      "settingOf": "de {n}",
       "modelsTitle": "Modelos",
       "noModels": "Esta aplicación no trae modelos para este motor.",
+      "noMatch": "Ningún modelo coincide con lo elegido.",
       "modelGone": "Este modelo ya no está en la aplicación.",
+      "group": {
+        "count": "{n} modelo | {n} modelos",
+        "countOnDisk": "{n} modelo, {k} en este equipo | {n} modelos, {k} en este equipo"
+      },
       "model": {
         "running": "en ejecución",
         "onDisk": "en este equipo",
         "notDownloaded": "sin descargar",
+        "loading": "cargando…",
+        "downloadingToLoad": "descargando, después se carga",
         "download": "Descargar ({size})",
         "delete": "Borrar",
         "load": "Cargar",
@@ -2180,6 +2197,7 @@
       },
       "bands": {
         "label": "Bandas de velocidad ({unit})",
+        "labelKind": "Bandas de velocidad: {kind} ({unit})",
         "hint": "Un modelo en cada línea o por debajo se etiqueta \"rápido\", \"aceptable\" o \"lento\"; uno más lento, \"muy lento\". Menos es más rápido.",
         "fast": "Rápido con ≤",
         "fine": "Aceptable con ≤",

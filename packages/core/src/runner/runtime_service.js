@@ -24,7 +24,7 @@ import { ApiError } from "../platform/errors.js";
 import { getLogger } from "../platform/log.js";
 import { pyRound } from "../platform/py.js";
 import { getArbiter } from "./arbiter.js";
-import { AudioCppError, AudioCppPool, backendOf, ModelEntry, physicalCores, sideEnv } from "./audiocpp.js";
+import { AudioCppError, AudioCppPool, backendOf, ModelEntry, physicalCores, physicalCoresKnown, sideEnv } from "./audiocpp.js";
 import * as binary from "./binary.js";
 import { buildsInUse, recordBuild } from "./cache_registry.js";
 import * as fit from "./fit.js";
@@ -33,12 +33,44 @@ import * as models from "./models.js";
 import * as onnx from "./onnx.js";
 import * as processMod from "./process.js";
 import { installArchive, installed as extraInstalled } from "./runtime_extras.js";
-import { buildHas, kindsOf, runtimeOf } from "./runtimes.js";
+import { buildHas, kindsOf, runtimeOf, settingsUiOf } from "./runtimes.js";
 import { fmtGb, SpeechPlacement } from "./speech_placement.js";
 
 const log = getLogger("llm_runner.runner.runtime_service");
 // a runtime build's folder words (runtime_binary.gpu — binary.runtimeVariantDir): the card's backend in the ledger
 const VARIANT_WORDS = new Set(["cuda12", "cuda13", "vulkan", "metal", "cpu", "rocm", "hip"]);
+// How long the model list's "where it would load" verdicts stand before they are read again (its tab polls every second
+// or two; a load, an unload or a new choice reads them at once) — round E, G2.
+const VERDICT_TTL_MS = 3000;
+
+// The speech servers stop when the app quits (round E, B7 — JustVoice armed `process.once("exit", killAllSync)`):
+// Windows' kill-on-close Job Object covers them, Mac and Linux kept them until the next spawn's leftover sweep. One
+// listener for every service, never one each (a test run makes hundreds of services).
+const killsOnExit = new Set();
+let exitArmed = false;
+function killOnExit(kill) {
+  killsOnExit.add(kill);
+  if (exitArmed) return;
+  exitArmed = true;
+  process.once("exit", killRuntimeServersSync);
+}
+
+/** Kill every speech server of every runtime that registers its models, without waiting — what the app's exit runs. */
+export function killRuntimeServersSync() {
+  for (const k of killsOnExit) {
+    try {
+      k();
+    } catch {
+      // already gone
+    }
+  }
+}
+
+/** The user's Auto / GPU / CPU per model kept in memory — a service no app wired a store to (a bare test). */
+function memoryChoices() {
+  const m = new Map();
+  return { get: (id) => m.get(id) ?? null, set: (id, v) => m.set(id, v) };
+}
 
 /**
  * What this computer lacks to run `asset` (a runtime row with its `requires`), or null:
@@ -92,8 +124,12 @@ const UNPACK_ROOM = 5;
 
 const gb = (n) => `${(n / 1e9).toFixed(1)} GB`;
 
-/** A refusal the routes answer in their shape: `fields` one of `{diskFull: {needBytes, freeBytes}}`, `{busy: code}`. */
+/** A refusal the routes answer in their shape: `fields` one of `{diskFull: {needBytes, freeBytes}}`, `{busy: code}`,
+ *  `{termsRequired: {modelId}}`, `{loadCancelled: {modelId}}`. */
 const refusal = (message, fields) => Object.assign(new Error(message), fields);
+
+/** An Unload during a load stopped it (round E, G12): the routes' 409 "load-cancelled". */
+const loadCancelled = (m) => refusal(`the load of ${m?.name ?? m?.id ?? "the model"} was cancelled`, { loadCancelled: { modelId: m?.id ?? "" } });
 
 /** No room for `label`'s download: the error the routes answer 507 "disk-full" with the sizes. */
 const noRoom = (label, short) =>
@@ -122,7 +158,10 @@ export class RuntimeService {
    * ledger (`{list(modelId), record(modelId, row)}` — llm/stores.js ModelMeasurementStore; null: nothing recorded,
    * nothing measured). A runtime whose models are registered (audio.cpp): `speech` — its placement's options
    * (runner/speech_placement.js SpeechPlacement): the app's `warm`, `pieceLength`, `loadOptionsKey`; seams `llmFn`,
-   * `probes`, `memory`, `sleep`, `now`. The rest are seams for tests (`freeBytesFn(dir)` a drive's free room).
+   * `probes`, `memory`, `sleep`, `now` — and the app's hooks of its own (installLlm `runtimeSpeech`): `transcribe(body,
+   * row)` (transcriptionRequest), `sessionOptions(row)` (_savedOptions), `beforeDownload(row)` (_gate);
+   * `placementChoices` `{get(modelId), set(modelId, choice)}` the user's Auto / GPU / CPU per model, saved (installLlm:
+   * runner settings; none: in memory). The rest are seams for tests (`freeBytesFn(dir)` a drive's free room).
    */
   constructor({
     id,
@@ -149,6 +188,7 @@ export class RuntimeService {
     dmlDeviceIdFn = () => onnx.bestDmlAdapter(hardware.dxgiAdapters?.() ?? []),
     ortCheck = onnx.ortRuntimeCheck,
     speech = {},
+    placementChoices = null,
   }) {
     const rt = runtimeOf(id);
     if (!rt?.defaults) throw new TypeError(`no kit runtime "${id}" with build rows`);
@@ -174,7 +214,10 @@ export class RuntimeService {
     this._spec = server;
     this._logDir = logDir || cacheRoot;
     this._stateDir = stateDir || this._logDir;
-    this._beforeRemove = beforeRemove ?? (() => this.stopServer());
+    // the servers stop once no line runs and no load is under way (round E, B6)
+    this._beforeRemove = beforeRemove ?? (() => this._quiesced(() => this.stopServer()));
+    // the app's hooks (installLlm `runtimeSpeech`): the placement's, and transcribe, sessionOptions, beforeDownload
+    this._speech = speech ?? {};
     this._acquire = acquire;
     this._startServer = startServer;
     this._findPort = findPort;
@@ -208,6 +251,20 @@ export class RuntimeService {
       this._loadLock = new Mutex();
       this._activity = new Map();
       this._inUse = new Map();
+      // booking key → loads of its server under way: its booking is pinned until the model registers (round E, B10)
+      this._loadingKeys = new Map();
+      // modelId → its load under way `{event, n, phase, download}`: an Unload sets `event` (G12); `phase` "downloading"
+      // | "loading" (G4); `download` the cancel of the download it started
+      this._loads = new Map();
+      // modelId → why its last load in the background failed (G4) — the model list's `loadError`
+      this._loadErrors = new Map();
+      // the model list's "where it would load" verdicts: modelId → `{where, reason, cardFailed}`, read at `_verdictsAt`
+      this._verdicts = new Map();
+      this._verdictsAt = 0;
+      this._verdictTask = null;
+      this._choices = placementChoices ?? memoryChoices();
+      // the servers stop when the app quits (B7) — whichever pool the service holds then
+      killOnExit(() => this._pool?.killAllSync?.());
       // where each model loads and what it books on the card — the kit's (round E, "Kit code, every runtime")
       this._placement = new SpeechPlacement({
         label: this.rt.label,
@@ -238,7 +295,15 @@ export class RuntimeService {
     // in-process: no build — the "asset" is the execution provider its models ask for first (auto: DirectML on
     // Windows), what a model's rating reads (its card memory, its reference speed per provider)
     if (this.rt.inProcess) return { cfg, hw, asset: { gpu: onnx.resolveProvider("auto"), inProcess: true } };
-    return { cfg, hw, asset: binary.selectRuntimeAsset(cfg.binaries, hw) };
+    // the `backend` setting picks the build when it names one this box can run (JustVoice's selectedAsset — round E, B2:
+    // the setting said it "pins that build", and Vulkan chosen on an NVIDIA box started the CUDA build as Vulkan)
+    return { cfg, hw, asset: binary.selectRuntimeAsset(cfg.binaries, hw, this._preferredBackend(cfg)) };
+  }
+
+  /** The `backend` setting's family when it names one ("cuda", "vulkan", "cpu", "metal"), else "" — Auto. */
+  _preferredBackend(cfg = this._configFn()) {
+    const b = String(cfg.settings?.backend ?? "").trim().toLowerCase();
+    return b === "auto" ? "" : b;
   }
 
   /** The installed server's path for this box, or null — never downloads (an in-process runtime has none). */
@@ -293,7 +358,7 @@ export class RuntimeService {
   _assetFor(gpu) {
     const { cfg, hw, asset } = this._pick();
     if (gpu == null) return asset;
-    return (cfg.binaries || []).find((b) => b.platform === hw.platform && b.gpu === gpu) ?? null;
+    return binary.runtimeRowFor(cfg.binaries, hw, gpu);
   }
 
   /** What installing `asset` lacks on the drive: null, or `{needBytes, freeBytes}`. At most it holds its archives and
@@ -324,8 +389,9 @@ export class RuntimeService {
       kind: this.rt.kind,
       // several kinds (audio.cpp: tts, stt): each one's bands, in the kind's unit
       ...(kinds.length > 1 ? { kinds, bandsByKind: cfg.bandsByKind ?? null } : {}),
-      // the settings the runtime declares (audio.cpp's build, threads, timeouts …), as set here
-      ...(this.rt.defaults.settings ? { settings: { ...this.rt.defaults.settings, ...(cfg.settings ?? {}) } } : {}),
+      // the settings the runtime declares (audio.cpp's build, threads, timeouts …), as set here, and how its tab shows each
+      // on this machine (round E, G8)
+      ...(this.rt.defaults.settings ? { settings: { ...this.rt.defaults.settings, ...(cfg.settings ?? {}) }, settingsUi: this.settingsUi(cfg, hw) } : {}),
       label: this.rt.label,
       build: dev ? dev.version || "dev" : cfg.pinnedBuild,
       // the build this kit is tested with (its shipped rows) when it is newer than the pin here — seeding is
@@ -335,7 +401,9 @@ export class RuntimeService {
       gpu: asset?.gpu ?? "",
       installed: exe != null,
       serverExe: exe ? String(exe) : "",
-      running: this._server?.handle.isAlive() ? this._server.modelKey : "",
+      // what runs: the single server's model, or the models a pool's servers hold (round E, B13 — a pool never sets
+      // `_server`, so it said "" with models loaded)
+      running: this._pool ? this.loaded().map((l) => l.modelId).join(", ") : this._server?.handle.isAlive() ? this._server.modelKey : "",
       // how long it waits idle before it lets go of its memory (a seeded setting; 0: never)
       idleSeconds: Number(cfg.idleSeconds ?? this.rt.defaults.idleSeconds ?? 0),
       // its kind's speed bands in the kind's unit (seeded band_*:<kind>, edited on its tab — 2026-10-29); null: none
@@ -348,6 +416,28 @@ export class RuntimeService {
       ...(this._pool ? { loaded: this.loaded() } : {}),
       ...this._state,
     };
+  }
+
+  /** How the tab shows each declared setting on this machine (runtimes.js settingsUiOf — round E, G8): the build
+   *  families this machine's rows offer that it can run, its cards by name, its physical cores (once known —
+   *  prepareStatus), and whether a card load's spill can be read here (a process's shared graphics memory: NVIDIA on
+   *  Windows, through typeperf). */
+  settingsUi(cfg = this._configFn(), hw = this._hardwareFn()) {
+    const runnable = new Set(binary._gpuPreference(hw ?? {}));
+    const families = (cfg.binaries || []).filter((b) => b.source !== "docker" && runnable.has(b.gpu) && binary.rowFitsBox(b, hw ?? {})).map((b) => binary.gpuFamily(b.gpu));
+    this._typeperf ??= hw?.platform === "windows" ? Boolean(hardware.which("typeperf")) : false;
+    return settingsUiOf(this.rt, {
+      backends: [...new Set(families)],
+      gpus: (hw?.gpus ?? []).map((g) => String(g.name ?? "")),
+      cores: physicalCoresKnown(),
+      sharedMemoryRead: hw?.platform === "windows" && Boolean(hw?.runtimes?.cuda) && this._typeperf,
+    });
+  }
+
+  /** What a status needs read before it answers (the routes await it): this machine's physical cores, the CPU threads'
+   *  "of" (detected once; a program runs for it). */
+  async prepareStatus() {
+    if (this._pool) await physicalCores().catch(() => null);
   }
 
   // ── the engine ─────────────────────────────────────────────────────────────────────────────────
@@ -380,10 +470,25 @@ export class RuntimeService {
   async _run(gpu, force, onFailure = null) {
     try {
       const cfg = this._configFn();
+      const drop = this.rt.defaults.dropFiles ?? [];
+      let swapped = false;
       await this._acquire(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, cfg.binaries, this._hardwareFn(), {
         gpu,
         force,
+        // the build the `backend` setting picks (B2)
+        preferredGpu: this._preferredBackend(cfg),
         probeArgvs: this._probeArgvs,
+        // the files the runtime never runs stay out (its Python scripts — B8)
+        dropFiles: drop.length ? (rel) => drop.some((end) => rel.toLowerCase().endsWith(end)) : null,
+        // Install, Update and Reinstall stop the running servers before the new build goes in, once the line in flight
+        // has ended (round E, B3 — JustVoice's manager.js stopped them): a held model would go on serving from the old
+        // process, its measurements filed under the new build, and Windows won't replace a running program's files.
+        aroundSwap: (swap) =>
+          this._quiesced(async () => {
+            await this.stopServer();
+            await swap();
+            swapped = true;
+          }),
         onProgress: (downloaded, total) => {
           this._state.downloaded = downloaded;
           this._state.total = total || 0;
@@ -392,9 +497,11 @@ export class RuntimeService {
       });
       // the build's extras (eSpeak NG beside audio.cpp), into its own folder — a build installs whole or not at all
       const asset = this._assetFor(gpu) ?? this._pick().asset;
+      let extrasNew = false;
       if (asset?.extras?.length) {
         const dir = this._extrasDir(cfg.pinnedBuild, asset);
         for (const extra of asset.extras) {
+          if (extraInstalled(dir, extra)) continue;
           await installArchive(dir, extra, {
             onProgress: (downloaded, total) => {
               this._state.downloaded = downloaded;
@@ -402,8 +509,11 @@ export class RuntimeService {
             },
             cancelCheck: () => this._cancel.isSet(),
           });
+          extrasNew = true;
         }
       }
+      // a server started between the swap and the extras ran without them: it starts again with them
+      if ((swapped || extrasNew) && this._serversRunning()) await this._quiesced(() => this.stopServer());
       this._state = { ...idle(), status: "installed" };
       await this._sweepStaleBuilds(cfg.pinnedBuild);
     } catch (e) {
@@ -451,10 +561,11 @@ export class RuntimeService {
   }
 
   /** Remove every installed build of this runtime (its server stops first; an install in flight is cancelled, as
-   *  llama.cpp's is). Refused `{busy}` while a job runs on it — a job takes minutes, and removal would lose it. */
+   *  llama.cpp's is). Refused `{busy}` while a job runs on it — a job takes minutes, and removal would lose it — or a
+   *  line runs on one of its models (`_inUse`: the jobs counter never moved for them — round E, B6). */
   async uninstall() {
     if (this.rt.inProcess) throw refusal(`${this.rt.label} is part of this app — it is removed with the app`, { nothingToInstall: true });
-    if (this._jobs > 0) throw refusal(`${this.rt.label} is running a job — remove it once the job has finished`, { busy: "engine-busy" });
+    if (this._jobs > 0 || (this._inUse?.size ?? 0) > 0) throw refusal(`${this.rt.label} is running a job — remove it once the job has finished`, { busy: "engine-busy" });
     this._removing = true;
     try {
       if (this._task?.isAlive()) {
@@ -609,38 +720,142 @@ export class RuntimeService {
   }
 
   /** Each model: its size, whether all its files are here (`onDisk`), whether the server runs it, how it runs here (its
-   *  `fit` and `speedBand` — `_rating`), its download's progress (`status`, `downloaded` bytes of `total`). */
+   *  `fit` and `speedBand` — `_rating`), its download's progress (`status`, `downloaded` bytes of `total`). A runtime
+   *  that registers its models adds the user's saved choice (`placementChoice`), where it would load now and why
+   *  (`placement`: `{where, reason, cardFailed}` — a downloaded model's; read by refreshPlacements), its load under way
+   *  (`loading`: "downloading" | "loading" | "") and why its last load in the background failed (`loadError`) — round E,
+   *  G2 and G4. */
   modelsStatus() {
     const { cfg, hw, asset } = this._pick();
+    if (this._pool) this._dropDead();
     return this._modelsFn().map((m) => {
-      const { cancel, ...state } = this._modelState.get(m.id) ?? { status: "", error: "", downloaded: 0, total: 0 };
+      const { cancel, done, ...state } = this._modelState.get(m.id) ?? { status: "", error: "", downloaded: 0, total: 0 };
+      const onDisk = this._here(m);
       return {
         id: m.id,
         name: m.name,
         kind: m.kind,
         license: m.license,
         bytes: m.files.reduce((a, f) => a + Number(f.bytes || 0), 0),
-        onDisk: this._here(m),
+        onDisk,
         running: (this._server?.handle.isAlive() && this._server.modelKey === m.id) || this._loaded?.modelId === m.id || !!this._held?.has(m.id),
         ...this._rating(m, cfg, hw, asset),
+        ...(this._pool ? this._loadFields(m, onDisk) : {}),
         ...state,
       };
     });
   }
 
+  /** A register runtime's model row's own fields (modelsStatus). */
+  _loadFields(m, onDisk) {
+    const h = this._held.get(m.id);
+    let placement = null;
+    if (h) placement = { where: h.placement, reason: h.reason ?? "", cardFailed: this._placement.failedOnCard(m) };
+    else if (onDisk) placement = this._verdicts.get(m.id) ?? null;
+    return { placementChoice: this.placementChoice(m.id), placement, loading: this._loads.get(m.id)?.phase ?? "", loadError: this._loadErrors.get(m.id) ?? "" };
+  }
+
+  /** A model's row as the model list has it, with where it would load read fresh enough (refreshPlacements). */
+  async modelRow(id) {
+    this._model(id); // an unknown model: 404
+    await this.refreshPlacements();
+    return this.modelsStatus().find((x) => x.id === id);
+  }
+
+  /**
+   * Where each downloaded model would load now and why — the model list's `placement` — for the user's saved choice: the
+   * placement's verdict (runner/speech_placement.js placementFor), its readings taken once for every model
+   * (snapshotView), kept for a few seconds — the tab reads the list on every poll (round E, G2). A loaded model says
+   * where it is (modelsStatus); one not downloaded says nothing.
+   */
+  async refreshPlacements({ force = false } = {}) {
+    if (!this._pool) return;
+    if (!force && Date.now() - this._verdictsAt < VERDICT_TTL_MS) return;
+    this._verdictTask ??= (async () => {
+      const view = this._placement.snapshotView();
+      const verdicts = new Map();
+      for (const m of this._modelsFn()) {
+        if (this._held.has(m.id) || !this._onDisk(m)) continue;
+        try {
+          const v = await view.placementFor(m, { choice: this.placementChoice(m.id) });
+          verdicts.set(m.id, { where: v.placement, reason: v.reason, cardFailed: view.failedOnCard(m) });
+        } catch (e) {
+          log.debug(`${this.rt.id}: where ${m.id} would load couldn't be read: ${e?.message || e}`);
+        }
+      }
+      this._verdicts = verdicts;
+      this._verdictsAt = Date.now();
+    })().finally(() => {
+      this._verdictTask = null;
+    });
+    await this._verdictTask;
+  }
+
+  /** The user's Auto / GPU / CPU for `modelId`, as saved — "auto" when never chosen: what every load without a placement
+   *  of its own reads (round E, G2). */
+  placementChoice(modelId) {
+    let v = "";
+    try {
+      v = String(this._choices?.get(modelId) ?? "").trim();
+    } catch {
+      v = ""; // an unreadable store reads as Auto
+    }
+    return ["auto", ...(this.rt.placements ?? [])].includes(v) ? v : "auto";
+  }
+
+  /** Save the user's Auto / GPU / CPU for `modelId` (a runner setting — installLlm's `placementChoices`); the next load
+   *  without a placement of its own reads it. → the model's row. */
+  async savePlacement(modelId, placement) {
+    if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
+    this._model(modelId);
+    const v = String(placement ?? "");
+    if (!["auto", ...(this.rt.placements ?? [])].includes(v)) throw new TypeError(`unknown placement "${placement}"`);
+    this._choices.set(modelId, v);
+    this._verdictsAt = 0;
+    return this.modelRow(modelId);
+  }
+
+  /** "Try the card again" on a model's row: forgetCardFailure, → the model's row (round E, G2). */
+  async tryCardAgain(modelId) {
+    if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
+    this.forgetCardFailure(modelId);
+    return this.modelRow(modelId);
+  }
+
+  /** The app's licence gate before a model downloads (`runtimeSpeech.<id>.beforeDownload(row)` — round E, G5): it throws
+   *  or answers a problem (a string, or `{detail}`) while the user hasn't accepted the model's terms → refused
+   *  `{termsRequired: {modelId}}` (the routes' 403 "terms-required"), nothing started. It answers at once (an app's
+   *  database read is synchronous); a promise is refused as the app's mistake. */
+  _gate(m) {
+    const hook = this._speech?.beforeDownload;
+    if (typeof hook !== "function") return;
+    let problem;
+    try {
+      problem = hook(m);
+    } catch (e) {
+      problem = e?.detail || e?.message || String(e);
+    }
+    if (typeof problem?.then === "function") throw new TypeError(`${this.rt.id}: beforeDownload must answer at once, not with a promise`);
+    if (!problem) return;
+    const detail = typeof problem === "string" ? problem : problem.detail || problem.message || `Accept ${m.name}'s terms before downloading it`;
+    throw refusal(detail, { termsRequired: { modelId: m.id } });
+  }
+
   /** Start a model's download in the background (its progress in modelsStatus()); throws `{diskFull}` when it wouldn't
-   *  fit the drive. */
+   *  fit the drive, `{termsRequired}` while the app's licence gate says no (G5). */
   downloadModel(id) {
     const m = this._model(id);
     const st = this._modelState.get(id);
     if (st?.status === "downloading") return this.modelsStatus().find((x) => x.id === id);
     if (this._adopting.has(id)) throw refusal(`${m.name} is being moved into the models cache — try again in a moment`, { busy: "model-busy" });
+    this._gate(m);
     const short = this._modelRoom(m);
     if (short) throw noRoom(m.name, short);
     const cancel = new AsyncEvent();
-    const state = { status: "downloading", error: "", downloaded: 0, total: 0, cancel };
+    const state = { status: "downloading", error: "", downloaded: 0, total: 0, cancel, done: null };
     this._modelState.set(id, state);
-    background(`${this.rt.id} model ${id}`, async () => {
+    // `done`: what a load that waits for this download awaits (G4)
+    state.done = background(`${this.rt.id} model ${id}`, async () => {
       try {
         await models.acquireFileSet(m.files, {
           cacheRoot: this.hfRoot,
@@ -710,6 +925,8 @@ export class RuntimeService {
     if (this._jobs > 0 && this._server?.modelKey && !ids.includes(this._server.modelKey)) ids.push(this._server.modelKey);
     if (this._loaded?.jobs > 0 && !ids.includes(this._loaded.modelId)) ids.push(this._loaded.modelId);
     for (const id of this._inUse?.keys() ?? []) if (!ids.includes(id)) ids.push(id);
+    // a load under way reads its files (round E, G4)
+    for (const id of this._loads?.keys() ?? []) if (!ids.includes(id)) ids.push(id);
     return ids;
   }
 
@@ -737,6 +954,17 @@ export class RuntimeService {
     const m = this._model(id);
     if (!this._here(m)) throw Object.assign(new Error(`${m.name} isn't downloaded`), { notDownloaded: true });
     return { key: m.id, files: Object.fromEntries(m.files.map((f) => [f.slot, this._fileAt(f)])), peakVramMb: m.peakVramMb };
+  }
+
+  /** Whether model row `m`'s files are all here, as a server would start on them (modelFor's own check). */
+  _onDisk(m) {
+    try {
+      this.modelFor(m.id);
+      return true;
+    } catch (e) {
+      if (e?.notDownloaded) return false;
+      throw e;
+    }
   }
 
   // ── the server ─────────────────────────────────────────────────────────────────────────────────
@@ -844,6 +1072,7 @@ export class RuntimeService {
     if (this._pool) {
       // every server's booking goes with its models
       this._held.clear();
+      this._verdictsAt = 0;
       for (const kind of kindsOf(this.rt)) for (const p of this.rt.placements ?? ["gpu", "cpu"]) this._arbiter().release(this._instanceKey(kind, p));
       return this._pool.stop();
     }
@@ -911,7 +1140,8 @@ export class RuntimeService {
           },
         });
         this._addonState.set(id, { status: "installed", error: "", downloaded: 0, total: 0 });
-        if (this._pool) await this.stopServer(); // the environment changed: the servers start again with it
+        // the environment changed: the servers start again with it — once no line runs (round E, B6)
+        if (this._pool) await this._quiesced(() => this.stopServer());
       } catch (e) {
         this._addonState.set(id, { status: "error", error: String(e?.message || e), downloaded: 0, total: 0 });
       }
@@ -919,21 +1149,48 @@ export class RuntimeService {
     return this.addons();
   }
 
-  /** Remove add-on `id` (its servers start again without it). */
+  /** Remove add-on `id` (its servers start again without it — once no line runs: round E, B6). */
   async removeAddon(id) {
     const a = (this.rt.defaults.addons ?? []).find((x) => x.id === id);
     if (!a) throw refusal(`${this.rt.label} has no add-on "${id}"`, { notFound: true });
-    if (this._pool) await this.stopServer();
-    await rm(path.join(this.addonsDir, a.into), { recursive: true, force: true });
+    const remove = () => rm(path.join(this.addonsDir, a.into), { recursive: true, force: true });
+    if (this._pool) {
+      await this._quiesced(async () => {
+        await this.stopServer();
+        await remove();
+      });
+    } else await remove();
     this._addonState?.delete(id);
     return this.addons();
+  }
+
+  /** `work` once no line runs and no load or unload is under way, and none starts until it's done: every kind's activity
+   *  lock, then the load lock (the order every load takes them in) — around a stop of the servers an install, an add-on or
+   *  a removal makes, so it never cuts a line in flight (round E, B3/B6; JustVoice's manager.js). A runtime with one server
+   *  waits for its jobs to end instead (runJob has no lock). */
+  async _quiesced(work) {
+    if (!this._pool) {
+      while (this._jobs > 0) await new Promise((done) => (this._jobsDrained ??= []).push(done));
+      return work();
+    }
+    const kinds = kindsOf(this.rt);
+    const hold = (i) => (i < kinds.length ? this._asKind(kinds[i], () => hold(i + 1)) : this._loadLock.run(work));
+    return hold(0);
+  }
+
+  /** Whether any of the runtime's servers runs now. */
+  _serversRunning() {
+    if (this._pool) return (this._pool.servers?.() ?? []).some((s) => s.isRunning());
+    return Boolean(this._server?.handle.isAlive());
   }
 
   /** The server entries that load `modelId`: the model itself and each companion (`<id>::<role>`), from its row's
    *  `spec` and its downloaded files — `{family, task, modelSlot?, sessionOptions?, sessionFiles?, companions?,
    *  espeak?}` (sessionFiles: an option whose value is one of its files' paths; espeak: eSpeak NG's paths as the
-   *  family's session options). `sessionOptions`: the user's own for this model (the app's options panel). */
-  entriesFor(modelId, { sessionOptions = {} } = {}) {
+   *  family's session options). `sessionOptions`: the user's own for this model (the app's options panel). A companion
+   *  with `onDemand` (the aligner — 1.1 GB most captures never use) registers only when a line needs it: it is left out
+   *  unless `needs` names its role (round E, G11; JustVoice registered it on the first alignment). */
+  entriesFor(modelId, { sessionOptions = {}, needs = [] } = {}) {
     const row = this._model(modelId);
     const { files } = this.modelFor(modelId);
     const spec = row.spec ?? {};
@@ -947,7 +1204,14 @@ export class RuntimeService {
     }
     const pairs = Object.entries(opts).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
     const main = new ModelEntry(row.id, spec.family, spec.task, at(spec.modelSlot ?? "model") ?? Object.values(files)[0], pairs);
-    return [main, ...(spec.companions ?? []).map((c) => new ModelEntry(`${row.id}::${c.role}`, c.family, c.task, at(c.slot)))];
+    const companions = (spec.companions ?? []).filter((c) => !c.onDemand || (needs ?? []).includes(c.role));
+    return [main, ...companions.map((c) => new ModelEntry(`${row.id}::${c.role}`, c.family, c.task, at(c.slot)))];
+  }
+
+  /** `modelId`'s on-demand companions named by `roles`, as their server registers them (entriesFor). */
+  companionEntries(modelId, roles) {
+    const ids = new Set((roles ?? []).map((r) => `${modelId}::${r}`));
+    return this.entriesFor(modelId, { needs: roles }).filter((e) => ids.has(e.id));
   }
 
   /** A server's booking with the arbiter: `<kind>:<runtime>:<placement>` — one model per kind, so a server's measured
@@ -967,6 +1231,41 @@ export class RuntimeService {
     const built = dev ? dev.backend || backendOf(exe) : VARIANT_WORDS.has(folder) ? folder : backendOf(exe);
     const set = String(this._configFn().settings?.backend ?? "auto").toLowerCase();
     return set === "auto" || built.startsWith(set) ? built : set;
+  }
+
+  /** The backend the card's server runs (its config's `backend` — round E, B1): the `backend` setting when it names one
+   *  and the build runs it — a development build (built with what its CMake cache says; the user's setting stands), or an
+   *  installed build of that family (`_pick` chose it; a family this box can't run picks another build, whose own backend
+   *  stands) — else a development build's own backend (its folder says nothing: `backendOf` read "…/build/jv-dev/bin" as
+   *  "cpu", so `npm run dev` started the GPU servers on the CPU), else the installed build's folder (backendOf). */
+  _serverBackend(exe) {
+    const dev = this._dev();
+    const built = dev?.backend || backendOf(exe);
+    const set = this._preferredBackend();
+    if (set && (dev || binary.gpuFamily(built) === set)) return set;
+    return built;
+  }
+
+  /** A development build stands in (exeOverride) and the extras of the build row this machine would pick — eSpeak NG —
+   *  aren't here: they install into that row's `_extras` before its first load, so `extrasEnv` finds them (round E, B4 —
+   *  until then only a full release install brought them, and Kokoro read whatever eSpeak NG the system had: the
+   *  2026-10-04 bug). Best effort: a failure is logged, and the next load tries again. */
+  async _ensureDevExtras() {
+    if (!this._dev()) return;
+    const { cfg, asset } = this._pick();
+    if (!asset?.extras?.length) return;
+    const dir = this._extrasDir(cfg.pinnedBuild, asset);
+    const missing = asset.extras.filter((x) => !extraInstalled(dir, x));
+    if (!missing.length) return;
+    this._devExtras ??= (async () => {
+      for (const x of missing) await installArchive(dir, x);
+      log.info(`${this.rt.id}: ${missing.map((x) => x.name).join(", ")} installed for the development build`);
+    })()
+      .catch((e) => log.warning(`${this.rt.id}: the development build's ${missing.map((x) => x.name).join(", ")} couldn't be installed: ${e?.message || e}`))
+      .finally(() => {
+        this._devExtras = null;
+      });
+    await this._devExtras;
   }
 
   /** An app's development build in place of the installed one (exeOverride — JustVoice's `npm run dev` runs its
@@ -1012,10 +1311,13 @@ export class RuntimeService {
     return null;
   }
 
-  /** Book a server's model at `mb` with its honest provenance ("measured" | "computed"); `evictFn` unloads it. */
+  /** Book a server's model at `mb` with its honest provenance ("measured" | "computed"); `evictFn` unloads it. Pinned
+   *  while a load of that server is under way (_holdKey). */
   _reserveInstance(kind, placement, mb, source) {
-    this._arbiter().reserve(this._instanceKey(kind, placement), Math.trunc(mb), {
+    const key = this._instanceKey(kind, placement);
+    this._arbiter().reserve(key, Math.trunc(mb), {
       kind,
+      pinned: this._loadingKeys?.has(key) ?? false,
       evictFn: () => this._evictInstance(kind, placement),
       source,
       // What evicting it gives back in system memory — an AI model's load credits it (the kit's RAM door, 2026-10-12).
@@ -1024,6 +1326,48 @@ export class RuntimeService {
         return h ? this._placement.rssMb(h.pid) : null;
       },
     });
+  }
+
+  /** A load of the (kind, placement) server is under way: that server's booking — the early one the load makes, the kind's
+   *  model it replaces, a background high-water's — is PINNED until the model registers (round E, B10), so no other
+   *  admission's makeRoom picks it: the evictor unloads only a model already held, so an eviction mid-load dropped the
+   *  booking while the load filled the memory. Counted (the CPU retry holds its own key). → `letGo()`, called once. */
+  _holdKey(kind, placement) {
+    const key = this._instanceKey(kind, placement);
+    this._loadingKeys.set(key, (this._loadingKeys.get(key) ?? 0) + 1);
+    const r = this._arbiter().reservationOf(key);
+    if (r && !r.pinned) this._reserveInstance(kind, placement, r.vram_mb, r.source);
+    let held = true;
+    return () => {
+      if (!held) return;
+      held = false;
+      const n = (this._loadingKeys.get(key) ?? 1) - 1;
+      if (n > 0) {
+        this._loadingKeys.set(key, n);
+        return;
+      }
+      this._loadingKeys.delete(key);
+      // booked again unpinned — never released in between, so the memory in use is never unbooked
+      const now = this._arbiter().reservationOf(key);
+      if (now?.pinned) this._reserveInstance(kind, placement, now.vram_mb, now.source);
+    };
+  }
+
+  /** A held model whose server isn't running it any more — its process ended (a crash, the system) — leaves `_held`,
+   *  its booking released, whenever anything asks what is loaded (round E, B5 — JustVoice's manager.js dropped a dead
+   *  slot the same way; until then it stayed "loaded" and booked until the kind's next load). A server a load is
+   *  working on is that load's business. */
+  _dropDead() {
+    for (const [id, h] of [...(this._held ?? [])]) {
+      const key = this._instanceKey(h.kind, h.placement);
+      if (this._loadingKeys.has(key)) continue;
+      const srv = this._pool.get(h.placement, h.kind);
+      if (srv.isRunning() && srv.hasModel(id)) continue;
+      this._held.delete(id);
+      this._arbiter().release(key);
+      this._verdictsAt = 0;
+      log.warning(`${this.rt.id}: ${id} is no longer loaded — its ${h.placement === "cpu" ? "CPU" : "graphics card"} server stopped`);
+    }
   }
 
   /** The evictor `makeRoom` runs for one of the servers' bookings: its model leaves (`makeRoom` releases the booking).
@@ -1083,17 +1427,125 @@ export class RuntimeService {
    * its build can't register models (an older build: update it), or memory is short (NotEnoughMemoryError).
    * `cardFailed` (internal): this load's try on the graphics card failed or spilled — how — so this is its retry on the
    * CPU (decided 2026-10-12).
+   *
+   * Round E: no `placement` reads the user's saved choice for the model (placementChoice — G2); no `sessionOptions` the
+   * app's saved ones (`runtimeSpeech.sessionOptions` — G3). A model not on disk downloads first, as the chat load does
+   * (G4 — the app's licence gate first, G5), the load waiting for it. An Unload meanwhile cancels it — the download, or
+   * the load at its next step — and it is refused `{loadCancelled}` with nothing left held or booked (G12).
    */
   async loadModel(modelId, opts = {}) {
     if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
-    const kind = this._model(modelId).kind;
-    return this._asKind(kind, () => this._loadLock.run(() => this._load(modelId, opts)));
+    const row = this._model(modelId);
+    const load = this._beginLoad(modelId);
+    try {
+      await this._fetchForLoad(row, load);
+      return await this._asKind(row.kind, () => this._loadLock.run(() => this._load(modelId, opts)));
+    } finally {
+      this._endLoad(modelId, load);
+    }
+  }
+
+  /**
+   * loadModel for the routes (round E, G4): a model on disk loads now → `{modelId, placement, kind, reason}`; one that
+   * isn't starts its download — refused first, nothing started, when the app's licence gate says no or the drive has no
+   * room — and loads once it's here, in the background → `{status: "downloading", modelId}`; its progress is the model
+   * list's `status` and `loading`, a failure its `loadError`.
+   */
+  async startLoad(modelId, opts = {}) {
+    if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
+    const row = this._model(modelId);
+    if (this._onDisk(row)) return this.loadModel(modelId, opts);
+    const load = this._beginLoad(modelId);
+    try {
+      this._downloadForLoad(row, load);
+    } catch (e) {
+      this._endLoad(modelId, load);
+      throw e;
+    }
+    this._loadErrors.delete(modelId);
+    background(
+      `${this.rt.id} load ${modelId}`,
+      async () => {
+        try {
+          await this.loadModel(modelId, opts);
+        } catch (e) {
+          if (!e?.loadCancelled) {
+            this._loadErrors.set(modelId, String(e?.message || e));
+            log.warning(`${this.rt.id}: ${modelId} didn't load after its download: ${e?.message || e}`);
+          }
+        } finally {
+          this._endLoad(modelId, load);
+        }
+      },
+      log,
+    );
+    return { status: "downloading", modelId };
+  }
+
+  /** A load of `modelId` begins — its record the model list's `loading` reads and an Unload cancels (`event`); one
+   *  record for every load of the model under way at once. One an Unload cancelled while it winds down is replaced: a Load
+   *  right after an Unload is the user's newer word (the cancelled load, reading the new record, may finish). → the
+   *  record. */
+  _beginLoad(modelId) {
+    let load = this._loads.get(modelId);
+    if (!load || load.event.isSet()) this._loads.set(modelId, (load = { event: new AsyncEvent(), n: 0, phase: "loading", download: null }));
+    load.n += 1;
+    this._loadErrors.delete(modelId);
+    return load;
+  }
+
+  /** A load of `modelId` has ended (`_beginLoad`'s record; once per begin). */
+  _endLoad(modelId, load) {
+    load.n -= 1;
+    if (load.n <= 0 && this._loads.get(modelId) === load) this._loads.delete(modelId);
+    this._verdictsAt = 0;
+  }
+
+  /** Refused `{loadCancelled}` when an Unload cancelled the load of `modelId` under way (G12). */
+  _checkCancel(modelId) {
+    if (this._loads?.get(modelId)?.event.isSet()) throw loadCancelled(this._modelOrId(modelId));
+  }
+
+  _modelOrId(modelId) {
+    try {
+      return this._model(modelId);
+    } catch {
+      return { id: modelId };
+    }
+  }
+
+  /** A load's download of `row` (G4): started — the licence gate and the drive's room first — or joined when one runs;
+   *  one it started is the load's to cancel. */
+  _downloadForLoad(row, load) {
+    const st = this._modelState.get(row.id);
+    if (st?.status === "downloading") return;
+    this.downloadModel(row.id);
+    load.download = this._modelState.get(row.id)?.cancel ?? null;
+  }
+
+  /** A load's model files, downloaded first when they aren't all here (G4): the load waits for its download, which an
+   *  Unload stops (G12). */
+  async _fetchForLoad(row, load) {
+    if (this._onDisk(row)) return;
+    this._checkCancel(row.id);
+    this._downloadForLoad(row, load);
+    load.phase = "downloading";
+    try {
+      await this._modelState.get(row.id)?.done;
+    } finally {
+      load.phase = "loading";
+    }
+    const st = this._modelState.get(row.id);
+    if (load.event.isSet() || st?.status === "cancelled") throw loadCancelled(row);
+    if (!this._onDisk(row)) throw refusal(st?.error || `${row.name} didn't download`, { notDownloaded: true });
   }
 
   /** loadModel's work, under the kind's activity lock and the load lock. */
-  async _load(modelId, { placement = "auto", sessionOptions = {}, cardFailed = "" } = {}) {
+  async _load(modelId, { placement = undefined, sessionOptions = undefined, cardFailed = "" } = {}) {
     if (this._removing) throw refusal(`${this.rt.label} is being removed — try again when it's done`, { busy: "engine-busy" });
-    const choice = placement == null || placement === "" ? "auto" : String(placement);
+    this._checkCancel(modelId);
+    // no placement of its own: the user's saved choice for this model (G2)
+    const choice = placement == null || placement === "" ? this.placementChoice(modelId) : String(placement);
     if (!["auto", ...(this.rt.placements ?? [])].includes(choice)) throw new TypeError(`unknown placement "${placement}"`);
     const row = this._model(modelId);
     const kind = row.kind;
@@ -1103,8 +1555,12 @@ export class RuntimeService {
     if (!this._exeOverride?.() && !buildHas(this.rt, cfg.pinnedBuild, "model_management")) {
       throw refusal(`${this.rt.label} ${cfg.pinnedBuild} can't load models while it runs — update it`, { need: { reason: "update-engine" } });
     }
+    // a development build's eSpeak NG, before its first load (B4)
+    await this._ensureDevExtras();
+    // no options of its own: the ones the app saved for this model (G3)
+    const options = sessionOptions ?? (await this._savedOptions(row));
     // its files here, or "isn't downloaded" — before anything moves
-    const entries = this.entriesFor(modelId, { sessionOptions });
+    const entries = this.entriesFor(modelId, { sessionOptions: options });
     const sp = this._placement;
     const arb = this._arbiter();
     // Where it runs (CPU placement, 2026-10-02): decided before anything moves.
@@ -1134,6 +1590,8 @@ export class RuntimeService {
     const occMb = Math.trunc(occBooking?.vram_mb ?? 0);
     let earlyMb = 0; // a prior-measured booking made BEFORE the load confirms
     let replaced = false; // the kind's previous model has left
+    // the server's booking is no eviction's victim until the model registers (B10)
+    const letGo = this._holdKey(kind, where);
     try {
       // Refuse before changing anything (audit §13.3, §5 B2): the price and the memory checks come FIRST — before the AI
       // model is unloaded. A known price admits and books EARLY; the check credits what the kind's current model gives
@@ -1165,6 +1623,9 @@ export class RuntimeService {
       if (aiCreditMb > 0) await sp.admitSystemMemory(row, device);
       // A load with no price on the card measures one: its warm-up is a full-length piece.
       const calibrate = books && !price;
+      // Cancelled meanwhile: before the kind's previous model leaves — a cancelled load never costs the user the model
+      // they had (lifecycle.js's checkpoint before its admission, the same rule)
+      this._checkCancel(modelId);
       // The kind's previous model leaves first — and this one from the other placement when it moves — and its memory
       // drains before this one's is read.
       for (const [id, h] of [...this._held]) {
@@ -1177,9 +1638,11 @@ export class RuntimeService {
       await srv.ensure(exe, [], {
         device: Number(s.gpu ?? 0) || 0,
         threads: where === "cpu" ? await this._cpuThreads() : Math.max(1, Number(s.gpu_threads ?? 4) || 4),
-        backend: where === "cpu" ? "cpu" : s.backend && s.backend !== "auto" ? s.backend : null,
+        // the card's server: the setting's backend, else the build's own — a development build's from its build (B1)
+        backend: where === "cpu" ? "cpu" : this._serverBackend(exe),
         managed: true,
       });
+      this._checkCancel(modelId);
       const pid = srv.pid;
       // The card as this model finds it: the previous model gone and drained — its memory is never this one's.
       const poolBefore = books ? await sp.usedPoolMb() : null;
@@ -1188,18 +1651,21 @@ export class RuntimeService {
       let calibrated = false;
       try {
         for (const e of entries) await srv.register(e);
+        this._checkCancel(modelId);
         // Speak once now, so a Load means loaded and its memory is measured (the app's warm-up: a full-length piece when
         // it calibrates). A failure fails the load with the runtime's own words (audit §5 B4).
         calibrated = Boolean(await sp.warm({ server: srv, row, modelId, entries, calibrate }));
+        this._checkCancel(modelId);
       } catch (e) {
-        log.warning(`${this.rt.id}: ${modelId} didn't load on the ${where === "cpu" ? "CPU" : "graphics card"}: ${e?.message || e}`);
+        // a cancel leaves the server as a failure does — nothing of it registered — and is never retried on the CPU
+        if (!e?.loadCancelled) log.warning(`${this.rt.id}: ${modelId} didn't load on the ${where === "cpu" ? "CPU" : "graphics card"}: ${e?.message || e}`);
         await this._dropEntries(srv, row, entries);
         // Defensive — a release is idempotent, and a reservation nobody releases is a lying ledger.
         arb.release(key);
         earlyMb = 0;
-        if (autoCard) {
+        if (autoCard && !e?.loadCancelled) {
           log.warning(`${this.rt.id}: ${modelId} didn't load on the graphics card — trying the CPU`);
-          return await this._load(modelId, { placement: choice, sessionOptions, cardFailed: "failed" });
+          return await this._load(modelId, { placement: choice, sessionOptions: options, cardFailed: "failed" });
         }
         throw e;
       }
@@ -1220,7 +1686,7 @@ export class RuntimeService {
           await this._dropEntries(srv, row, entries);
           arb.release(key);
           earlyMb = 0;
-          return await this._load(modelId, { placement: choice, sessionOptions, cardFailed: "spilled" });
+          return await this._load(modelId, { placement: choice, sessionOptions: options, cardFailed: "spilled" });
         }
       }
       const held = {
@@ -1240,6 +1706,8 @@ export class RuntimeService {
         ramProbing: false,
       };
       this._held.set(modelId, held);
+      // registered: its booking can be evicted again — its evictor now unloads this model (B10)
+      letGo();
       // The CPU took what the card couldn't: remembered, so the next load goes straight here.
       if (cardFailed) sp.recordCardFailure(row, cardFailed);
       // Book the CONFIRMED load at its MEASURED footprint — the per-process probe of the kind's own server. A known price
@@ -1281,15 +1749,34 @@ export class RuntimeService {
         else arb.release(key);
       }
       throw e;
+    } finally {
+      letGo();
     }
   }
 
+  /** The model's own load options the app saved (`runtimeSpeech.<id>.sessionOptions(row)` — its options panel; round E,
+   *  G3): read by every load given none. `{}` without the hook. */
+  async _savedOptions(row) {
+    const hook = this._speech?.sessionOptions;
+    if (typeof hook !== "function") return {};
+    return (await hook(row)) ?? {};
+  }
+
   /** Let `modelId` (and its companions) go from the server holding it, its booking with it — after any line on it ends;
-   *  false when none does. */
+   *  false when none does. A load of it under way is cancelled (round E, G12 — lifecycle.js's stop during a load): its
+   *  download stops at its next chunk, the load at its next step, nothing of it left held or booked; true then. */
   async unloadModel(modelId) {
+    const load = this._loads?.get(modelId);
+    if (load) {
+      load.event.set();
+      load.download?.set();
+      log.info(`${this.rt.id}: the load of ${modelId} is cancelled`);
+    }
     const h = this._held?.get(modelId);
-    if (!h) return false;
-    return this._asKind(h.kind, () => this._loadLock.run(() => this._unloadHeld(modelId)));
+    if (!h) return Boolean(load);
+    const unloaded = await this._asKind(h.kind, () => this._loadLock.run(() => this._unloadHeld(modelId)));
+    this._verdictsAt = 0;
+    return unloaded || Boolean(load);
   }
 
   /** The kind's activity lock, made on first use. */
@@ -1310,48 +1797,97 @@ export class RuntimeService {
    * holds other `sessionOptions`. The kind's activity lock is held throughout, so no load takes the model away
    * mid-line (JustVoice's manager.js), and the kind is busy on the arbiter for the line. Then its after-line pass (noteLine) with
    * `line(result)` → `{text, audioS}` (what the line said and its audio's seconds; no `line`: only its time).
+   *
+   * Round E: no `placement` is the user's saved choice for the model (G2), no `sessionOptions` the app's saved ones when it
+   * has the hook (G3); a model not on disk downloads first, outside the kind's lock (G4); `needs` names the on-demand
+   * companions the line uses (the aligner — G11), registered before it runs. An Unload during its load cancels it (G12).
    */
-  async useModel(modelId, { placement = "auto", sessionOptions = undefined, line = null } = {}, fn) {
+  async useModel(modelId, { placement = undefined, sessionOptions = undefined, line = null, needs = [] } = {}, fn) {
     if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
-    const kind = this._model(modelId).kind;
-    return this._asKind(kind, async () => {
-      const h = this._held.get(modelId);
-      const srv = h ? this._pool.get(h.placement, h.kind) : null;
-      // held where asked, with these options, by a server still running it (a process that ended loads it again)
-      const here =
-        h &&
-        (!placement || placement === "auto" || h.placement === placement) &&
-        (sessionOptions === undefined || h.optsKey === this._optsKey(modelId, sessionOptions)) &&
-        srv.isRunning() &&
-        srv.hasModel(modelId);
-      const held = here
-        ? { modelId, placement: h.placement, kind: h.kind, reason: h.reason ?? "" }
-        : await this._loadLock.run(() => this._load(modelId, { placement, ...(sessionOptions !== undefined ? { sessionOptions } : {}) }));
-      this._inUse.set(modelId, (this._inUse.get(modelId) ?? 0) + 1);
-      // busy on the arbiter for the line (JustVoice's _withKindBusy): makeRoom never evicts it mid-line
-      const arb = this._arbiter();
-      arb.busyBegin(kind);
-      const t0 = performance.now();
-      try {
-        const result = await fn(this.serverFor(modelId), held);
-        let said = {};
-        try {
-          said = line ? (line(result) ?? {}) : {};
-        } catch {
-          said = {}; // what the line said is a nicety; the line itself succeeded
-        }
-        await this.noteLine(modelId, { ...said, wallS: (performance.now() - t0) / 1000, ok: true });
-        return result;
-      } catch (e) {
-        await this.noteLine(modelId, { wallS: (performance.now() - t0) / 1000, ok: false });
-        throw e;
-      } finally {
-        arb.busyEnd(kind);
-        const n = (this._inUse.get(modelId) ?? 1) - 1;
-        if (n > 0) this._inUse.set(modelId, n);
-        else this._inUse.delete(modelId);
+    const row = this._model(modelId);
+    const kind = row.kind;
+    let load = null;
+    const endLoad = () => {
+      if (load) this._endLoad(modelId, load);
+      load = null;
+    };
+    try {
+      if (!this._onDisk(row)) {
+        load = this._beginLoad(modelId);
+        await this._fetchForLoad(row, load);
       }
-    });
+      return await this._asKind(kind, async () => {
+        this._dropDead();
+        const choice = placement == null || placement === "" ? this.placementChoice(modelId) : String(placement);
+        const options = sessionOptions !== undefined ? sessionOptions : typeof this._speech?.sessionOptions === "function" ? await this._savedOptions(row) : undefined;
+        const h = this._held.get(modelId);
+        const srv = h ? this._pool.get(h.placement, h.kind) : null;
+        // held where asked, with these options, by a server still running it (a process that ended loads it again)
+        const here =
+          h &&
+          (choice === "auto" || h.placement === choice) &&
+          (options === undefined || h.optsKey === this._optsKey(modelId, options)) &&
+          srv.isRunning() &&
+          srv.hasModel(modelId);
+        let held;
+        if (here) {
+          held = { modelId, placement: h.placement, kind: h.kind, reason: h.reason ?? "" };
+          endLoad();
+        } else {
+          load ??= this._beginLoad(modelId);
+          try {
+            held = await this._loadLock.run(() => this._load(modelId, { placement: choice, ...(options !== undefined ? { sessionOptions: options } : {}) }));
+          } finally {
+            endLoad();
+          }
+        }
+        if (needs?.length) await this._loadLock.run(() => this._registerOnDemand(modelId, needs));
+        return this._runLine(modelId, kind, held, line, fn);
+      });
+    } finally {
+      endLoad();
+    }
+  }
+
+  /** `modelId`'s on-demand companions `roles` registered in its server now, before the line that needs them — under the
+   *  load lock, as a load changes a server; what they hold is the after-line high-water's to book (round E, G11). */
+  async _registerOnDemand(modelId, roles) {
+    const h = this._held.get(modelId);
+    if (!h) return;
+    const srv = this._pool.get(h.placement, h.kind);
+    for (const e of this.companionEntries(modelId, roles)) {
+      if (srv.hasModel(e.id)) continue;
+      await srv.register(e);
+      if (!h.ids.includes(e.id)) h.ids.push(e.id);
+    }
+  }
+
+  /** useModel's line, its model held: in use and its kind busy for it, then its after-line pass. */
+  async _runLine(modelId, kind, held, line, fn) {
+    this._inUse.set(modelId, (this._inUse.get(modelId) ?? 0) + 1);
+    // busy on the arbiter for the line (JustVoice's _withKindBusy): makeRoom never evicts it mid-line
+    const arb = this._arbiter();
+    arb.busyBegin(kind);
+    const t0 = performance.now();
+    try {
+      const result = await fn(this.serverFor(modelId), held);
+      let said = {};
+      try {
+        said = line ? (line(result) ?? {}) : {};
+      } catch {
+        said = {}; // what the line said is a nicety; the line itself succeeded
+      }
+      await this.noteLine(modelId, { ...said, wallS: (performance.now() - t0) / 1000, ok: true });
+      return result;
+    } catch (e) {
+      await this.noteLine(modelId, { wallS: (performance.now() - t0) / 1000, ok: false });
+      throw e;
+    } finally {
+      arb.busyEnd(kind);
+      const n = (this._inUse.get(modelId) ?? 1) - 1;
+      if (n > 0) this._inUse.set(modelId, n);
+      else this._inUse.delete(modelId);
+    }
   }
 
   /** The options a load of `modelId` with `sessionOptions` registers — what a held model is compared on. */
@@ -1359,18 +1895,34 @@ export class RuntimeService {
     return JSON.stringify(this.entriesFor(modelId, { sessionOptions }).map((e) => e.toConfig()));
   }
 
-  /** What each kind holds now: `[{modelId, placement, kind, reason}]` — `reason` why it runs there, in words. */
+  /** The model holding arbiter booking `key`, if it is one of this runtime's: a register runtime's held model on that
+   *  server, the single server's model, the in-process model; "" otherwise — the memory strip's `modelId` (round E,
+   *  G10). */
+  holderOf(key) {
+    if (this._pool) {
+      for (const h of this._held.values()) if (this._instanceKey(h.kind, h.placement) === key) return h.modelId;
+      return "";
+    }
+    if (key !== `${this.rt.kind}:${this.rt.id}`) return "";
+    if (this.rt.inProcess) return this._loaded?.modelId ?? "";
+    return this._server?.handle.isAlive() ? this._server.modelKey : "";
+  }
+
+  /** What each kind holds now: `[{modelId, placement, kind, reason}]` — `reason` why it runs there, in words. A model
+   *  whose server stopped isn't among them (B5). */
   loaded() {
+    if (this._pool) this._dropDead();
     return [...(this._held ?? [])].map(([modelId, h]) => ({ modelId, placement: h.placement, kind: h.kind, reason: h.reason ?? "" }));
   }
 
   /** Where `modelId` runs, or would: `{placement, reason}` — a loaded model's own, else the placement's verdict now for
-   *  the user's `placement` choice (the row's "Runs on"). */
-  async placementOf(modelId, { placement = "auto" } = {}) {
+   *  the user's `placement` choice (the row's "Runs on"; none given: the saved one — G2). */
+  async placementOf(modelId, { placement = undefined } = {}) {
     if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
+    this._dropDead();
     const h = this._held.get(modelId);
     if (h) return { placement: h.placement, reason: h.reason ?? "" };
-    const { placement: where, reason } = await this._placement.placementFor(this._model(modelId), { choice: placement || "auto" });
+    const { placement: where, reason } = await this._placement.placementFor(this._model(modelId), { choice: placement || this.placementChoice(modelId) });
     return { placement: where, reason };
   }
 
@@ -1382,7 +1934,19 @@ export class RuntimeService {
   /** "Try the card again": forget that a card load of `modelId` failed or spilled here (its price and CPU speed stay).
    *  → the rows forgotten. */
   forgetCardFailure(modelId) {
+    this._verdictsAt = 0;
     return this._placement ? this._placement.forgetCardFailure(this._model(modelId)) : 0;
+  }
+
+  /** A transcription request for `modelId` as the app shapes it (`runtimeSpeech.<id>.transcribe(body, row)` → `{body,
+   *  timeout}` — its audio converted to 16 kHz, its language named, its word list, its time limit in seconds; round E,
+   *  G1): `{body, timeout}` — the request as given and no limit without the hook. */
+  async transcriptionRequest(modelId, body) {
+    const hook = this._speech?.transcribe;
+    if (typeof hook !== "function") return { body, timeout: null };
+    const out = (await hook(body, this._model(modelId))) ?? {};
+    const timeout = Number(out.timeout);
+    return { body: out.body ?? body, timeout: Number.isFinite(timeout) && timeout > 0 ? timeout : null };
   }
 
   /**
@@ -1599,6 +2163,8 @@ export class RuntimeService {
     } finally {
       this._jobs -= 1;
       arb.busyEnd(this.rt.kind);
+      // an install waiting for the jobs to end (_quiesced) goes on
+      if (!this._jobs) for (const done of this._jobsDrained?.splice(0) ?? []) done();
       if (this._server?.handle.isAlive()) {
         this._book(idleMb);
         this._armIdle();

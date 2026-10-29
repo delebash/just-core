@@ -698,6 +698,10 @@
         "asleep": "asleep",
         "llmTitle": "The AI runner's booked take for its loaded models",
         "asleepTitle": "Idle, so its memory has been released — it reloads on the next request",
+        "kindWhere": "{kind} · {where}",
+        "about": "~{size}",
+        "bookingMeasured": "Measured on this computer when it loaded",
+        "bookingEstimated": "An estimate — the model's stated need, until a load here measures it",
         "otherApps": "Other apps",
         "otherAppsTitle": "Memory held by processes this app doesn't manage (browser, desktop compositor, games)",
         "hide": "hide",
@@ -2067,11 +2071,16 @@
         "label": "Where {name} runs",
         "auto": "Auto",
         "gpu": "Graphics card",
-        "cpu": "CPU"
+        "cpu": "CPU",
+        "tryCard": "Try the card again"
       },
       "loadedOn": {
         "gpu": "Loaded on the graphics card",
         "cpu": "Loaded on the CPU"
+      },
+      "wouldLoadOn": {
+        "gpu": "Would load on the graphics card",
+        "cpu": "Would load on the CPU"
       },
       "addonsTitle": "Add-ons",
       "addon": {
@@ -2084,8 +2093,8 @@
       },
       "settingsTitle": "Engine settings",
       "settings": {
-        "backend": "Build (auto, cuda, vulkan, cpu, metal)",
-        "gpu": "Graphics card (0 is the first)",
+        "backend": "Build",
+        "gpu": "Graphics card",
         "cpu_threads": "CPU threads (0: one per core)",
         "cpu_min_realtime": "Fast enough on the CPU at (× real time)",
         "spill_mb": "Counts as spilled past (MB of shared memory)",
@@ -2096,13 +2105,21 @@
         "start_timeout_s": "Start timeout (seconds)",
         "request_timeout_s": "Request timeout (seconds)"
       },
+      "settingOf": "of {n}",
       "modelsTitle": "Models",
       "noModels": "This app brings no models for this engine.",
+      "noMatch": "No model matches these choices.",
       "modelGone": "This model isn't in the app any more.",
+      "group": {
+        "count": "{n} model | {n} models",
+        "countOnDisk": "{n} model, {k} on this computer | {n} models, {k} on this computer"
+      },
       "model": {
         "running": "running",
         "onDisk": "on this computer",
         "notDownloaded": "not downloaded",
+        "loading": "loading…",
+        "downloadingToLoad": "downloading, then loading",
         "download": "Download ({size})",
         "delete": "Delete",
         "load": "Load",
@@ -2180,6 +2197,7 @@
       },
       "bands": {
         "label": "Speed bands ({unit})",
+        "labelKind": "{kind} speed bands ({unit})",
         "hint": "A model at or under each line is labeled “fast”, “fine” or “slow”; anything slower is “very slow”. Lower is faster.",
         "fast": "Fast at ≤",
         "fine": "Fine at ≤",

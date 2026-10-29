@@ -325,6 +325,17 @@ test("resident_endpoint_camelcase", async () => {
   expect(row.vramMb).toBe(5000);
 });
 
+test("resident_endpoint_carries_every_other_kinds_booking", async () => {
+  // round E, G10: the memory strip's speech, transcription and image cells — the service's snake_case key, camelCase out
+  const hw = hwOf({ os: "Linux", platform: "linux", cpuCores: 8, ramMb: 32000, gpus: [] });
+  const booking = { key: "tts:audiocpp:gpu", kind: "tts", runtime: "audiocpp", placement: "gpu", modelId: "kokoro", mb: 1200, source: "measured" };
+  patch({ hw, svc: new FakeService([], { resident: { router: false, models: [], runtime_bookings: [booking] } }) });
+  const body = await (await client().get("/v1/llm-runner/resident")).json();
+  expect(body.runtimeBookings).toEqual([booking]);
+  patch({ hw, svc: new FakeService([]) });
+  expect((await (await client().get("/v1/llm-runner/resident")).json()).runtimeBookings).toEqual([]);
+});
+
 test("resident_endpoint_router_down", async () => {
   // Router not up (lazy-spawn, nothing loaded) → router:false, empty set, the knob defaults.
   const hw = hwOf({ os: "Linux", platform: "linux", cpuCores: 8, ramMb: 32000, gpus: [] });

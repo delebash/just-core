@@ -699,18 +699,33 @@ async function finishApply() {
 // Measure the model Apply just loaded (speed-truth plan 2026-09-19 §4). Until
 // something is measured, the catalog chip is a physics PREDICTION — un-sped by
 // design (fit plan §13.7) and able to sit a hair either side of a band line (the
-// flagship read "~slow" at 7.9 against a fine-line of 8.0). One fixed-prompt
-// probe of the resident model (~15 s, MTP draft included — the speed the user
-// actually gets) turns it into "Measured on this PC". measure() needs the model
-// resident, which it is at this exact moment: the chat load just completed.
+// flagship read "~slow" at 7.9 against a fine-line of 8.0). A fixed-prompt probe
+// of the resident model (~15 s, MTP draft included — the speed the user actually
+// gets), once every load has settled and after one unrecorded warm-up, turns it
+// into "Measured on this PC". measure() needs the model resident: the chat load
+// just completed.
 // Empty switches keep the row out of the bandwidth derivation (flagless rows
 // never qualify) — it is display truth only. Fire-and-forget: a failed measure
 // must never fail a setup that already succeeded.
+// A load still in flight: a probe beside it measures the load, not the model (JustWrite's real-data walk, 2026-10-29:
+// "first-run measure" 12.1 tok/s while Apply's load and the embedding's ran — the same model idle: 33.5, 39.0, 39.3).
+const LOAD_IN_FLIGHT = new Set(["downloading", "starting", "loading", "cancelling", "stopping"]);
+const SETTLE_WAIT_MS = 120_000;
+
 async function measureAfterApply(modelId) {
   try {
+    // every load settled first (bounded — one that never settles leaves the prediction, never a wrong number)
+    for (const until = Date.now() + SETTLE_WAIT_MS; ; ) {
+      const res = await request("/v1/llm-runner/resident").catch(() => null);
+      if (!(res?.models || []).some((m) => LOAD_IN_FLIGHT.has(m.status))) break;
+      if (Date.now() > until) return;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
     // Named explicitly: measure() otherwise probes "the most recently loaded", and
     // the row must be recorded against the model that was actually probed.
-    const res = await request(`/v1/llm-runner/measure?model_id=${encodeURIComponent(modelId)}`, { method: "POST" });
+    const probe = () => request(`/v1/llm-runner/measure?model_id=${encodeURIComponent(modelId)}`, { method: "POST" });
+    await probe(); // a warm-up, never recorded: the first probe after a load read 15 % low (33.5 against 39, 2026-10-29)
+    const res = await probe();
     if (!res?.ok || !(res.tokensPerSec > 0)) return;
     await recordMeasurement(modelId, res.tokensPerSec, {
       vramTotalMb: res.vramTotalMb || 0, switches: {}, source: "measure", label: t("kit.measureHistory.firstRunLabel"),

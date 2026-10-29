@@ -42,8 +42,8 @@ function fakeSpeechRuntime() {
     },
     serverFor(modelId) {
       return {
-        transcribe: async (body) => {
-          calls.push(["transcribe", modelId, body]);
+        transcribe: async (body, timeout) => {
+          calls.push(["transcribe", modelId, body, ...(timeout != null ? [timeout] : [])]);
           return { text: "hello" };
         },
         speech: async (body) => [Buffer.from("RIFF"), { body }],
@@ -99,6 +99,38 @@ test("transcription runs its stt preset's model where the preset says, loaded fi
   await withSpeechModel("audiocpp", "kokoro", { placement: "cpu" }, async () => {});
   expect(svc.loads.at(-1)).toEqual(["kokoro", "cpu"]);
   await expect(withSpeechModel("nope", "kokoro", {}, async () => {})).rejects.toMatchObject({ statusCode: 409 });
+});
+
+// Round E, G1: JustVoice's 16 kHz conversion, its language names, its word list and its "3 × the recording" limit had
+// nowhere to go — the app's hook shapes the request; the preset's "auto" leaves the place to the model's saved choice (G2).
+test("a transcription goes as the app's hook shapes it, with the limit it gives; the preset's auto defers to the model's saved choice", async () => {
+  freshDb();
+  seed.configureAppSeed({
+    featureCatalog: [{ key: "dictation.transcribe", label: "Dictation", kind: "stt" }],
+    featurePrompts: {},
+    enginePresets: [{ id: "p-dictation", name: "Dictation", kind: "stt", provider_id: "local-audiocpp-stt", model: "stt-parakeet", params: { placement: "auto" } }],
+    featurePresets: { "dictation.transcribe": "p-dictation" },
+    defaultPresetId: "",
+    runtimes: ["audiocpp"],
+  });
+  seed.seedLlm();
+  const { svc, calls } = fakeSpeechRuntime();
+  const asked = [];
+  svc.useModel = async function (modelId, opts, fn) {
+    asked.push(opts);
+    return fn(this.serverFor(modelId), { modelId, placement: "cpu", kind: "stt" });
+  };
+  svc.transcriptionRequest = async (modelId, body) => ({ body: { ...body, language: "English", converted: modelId }, timeout: 21 });
+  configureRuntimeServices([["audiocpp", svc]]);
+  await transcribeFeature("dictation.transcribe", { language: "en", wav_b64: "x" });
+  expect(calls[0]).toEqual(["transcribe", "stt-parakeet", { model: "stt-parakeet", language: "English", wav_b64: "x", converted: "stt-parakeet" }, 21]);
+  expect(asked[0]).toMatchObject({ placement: undefined, needs: [] });
+  // the caller's own limit wins over the hook's
+  await transcribeFeature("dictation.transcribe", { language: "en" }, { timeout: 5 });
+  expect(calls[1][3]).toBe(5);
+  // the line's on-demand companions go through withSpeechModel
+  await withSpeechModel("audiocpp", "stt-parakeet", { needs: ["aligner"] }, async () => {});
+  expect(asked[2]).toMatchObject({ needs: ["aligner"] });
 });
 
 test("the routes: load where asked, unload, what's loaded; the settings route takes a kind's bands and the declared settings", async () => {

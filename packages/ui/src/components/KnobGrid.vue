@@ -215,7 +215,8 @@ const displayRows = computed(() => {
           {{ advancedOpen ? "▾" : "▸" }} {{ t('kit.knobGrid.advanced') }} <span class="ui-kg-advcount">({{ advancedRows.length }})</span>
         </button>
         <div v-else class="ui-kg-crow" :class="{ 'is-on': isOn(row.m.flagName) }">
-          <UiCheckbox :model-value="isOn(row.m.flagName)" @update:model-value="(on) => toggle(row.m, on)" />
+          <!-- named by the flag the row shows (JustWrite's axe run on the Routing tab, 2026-10-29: a row with no default had no name) -->
+          <UiCheckbox :model-value="isOn(row.m.flagName)" :aria-label="row.m.flagName" @update:model-value="(on) => toggle(row.m, on)" />
           <div class="ui-kg-metacell" :title="row.m.help || ''">
             <code class="ui-kg-flag">{{ row.m.flagName }}</code>
             <span v-if="origins[row.m.flagName]" class="ui-kg-origin"
@@ -225,6 +226,7 @@ const displayRows = computed(() => {
             v-if="row.m.kind === 'bool'"
             class="ui-kg-val"
             :model-value="valOf(row.m.flagName) ?? 'true'"
+            :aria-label="row.m.flagName"
             :options="BOOL_OPTIONS"
             :disabled="!isOn(row.m.flagName)"
             @update:model-value="setVal(row.m.flagName, $event)"
@@ -233,6 +235,7 @@ const displayRows = computed(() => {
             v-else-if="row.m.options && row.m.options.length"
             class="ui-kg-val"
             :model-value="valOf(row.m.flagName) ?? ''"
+            :aria-label="row.m.flagName"
             :options="row.m.options"
             :disabled="!isOn(row.m.flagName)"
             @update:model-value="setVal(row.m.flagName, $event)"
@@ -244,6 +247,7 @@ const displayRows = computed(() => {
             :type="row.m.kind === 'int' || row.m.kind === 'float' ? 'number' : 'text'"
             :disabled="!isOn(row.m.flagName)"
             :placeholder="row.m.default || valueHint"
+            :aria-label="row.m.flagName"
             @update:model-value="setVal(row.m.flagName, $event)"
           />
           <UiButton v-if="isChanged(row.m)" intent="ghost" size="small" :title="t('kit.knobGrid.resetOne')" @click="resetOne(row.m)">↺</UiButton>

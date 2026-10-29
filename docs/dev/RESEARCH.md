@@ -2688,9 +2688,14 @@ What the kit's `audiocpp` runtime is built on — JustVoice's code (`server/src/
 (`runner/audiocpp.js`, `runner/runtime_extras.js`, `runner/config.js`).
 
 - **The builds are the fork's** (github.com/delebash/audio.cpp, pinned `v0.9.2-jv.6`): Windows x64 cuda12.4 and
-  cuda13.3 (each with its own cudart zip), Vulkan, CPU (portable); Linux x64 Vulkan and CPU; macOS arm64 Metal only.
+  cuda13.3 (each with its own cudart zip), Vulkan, CPU (portable); Linux x64 Vulkan and CPU; macOS Metal for Apple silicon
+  and for Intel (`audio-v0.9.2-jv.6-bin-macos-x64-metal.tar.gz`, 37,675,142 bytes, SHA-256 `edfda2bc…f955f5` — GitHub's
+  API 2026-10-29, the digest JustVoice pinned; its eSpeak NG the `macosx_10_12_x86_64` wheel, 9,938,387 bytes, `b77477ae…`
+  — PyPI's JSON). The Intel row's platform word is `macos-x64`: `runtime_binary`'s key is (runtime, platform, gpu), so a
+  second macOS Metal build can't share "macos"; a row's `requires.arch` names its processor (`binary.rowFitsBox`).
   Download and unpacked sizes and SHA-256s are on the rows in `runner/config.js` (the Windows unpacked sizes measured
-  2026-10-29; 0 where not measured). — *code*.
+  2026-10-29; 0 where not measured). The release ships upstream's Python scripts (`tools/…`): the install leaves every
+  `.py` out (`defaults.dropFiles`). — *code; measured (API) 2026-10-29*.
 - **Registering a model into a running server** (`POST /v1/models/load`, unload by id) is the fork's
   model_management, from `v0.9.0-jv.4`. Without it a server holds only the models its config names at start. —
   *code (release.js FEATURES)*.
@@ -2700,6 +2705,31 @@ What the kit's `audiocpp` runtime is built on — JustVoice's code (`server/src/
   answers (polled every 250 ms to the start timeout); started again when the exe, its config or its environment
   change; its log rotates at 10 MB. — *code*.
 - **The install probe** runs `--no-ui --max-loaded-models 0 --version`. — *code*.
+- **The build and the card server's backend.** The `backend` setting picks the build (its family moved to the front of
+  the kit's GPU preference — a family this box can't run is ignored there, and the build's own backend stands). The card
+  server's config names its backend: the setting's, else a development build's own (its CMake cache — its folder,
+  `…/build/jv-dev/bin`, says nothing and was read as "cpu"), else the build folder's. — *code (round E, B1/B2)*.
+- **Install, Update and Reinstall** stop the servers around the swap itself (`_stageAndSwap`'s `aroundSwap`), once the
+  line in flight ends (every kind's activity lock, then the load lock); the old build serves during the download. A
+  server started between the swap and the build's extras is stopped again so it starts with them. — *code (B3)*.
+- **A development build's eSpeak NG**: before its first load, the extras of the build row this machine would pick go into
+  that row's `_extras` (the release install was the only thing that brought them). — *code (B4)*.
+- **A load's booking** is pinned on the arbiter until its model registers (a chat load's admission re-syncs only the AI
+  models' pins — `syncPins` is kind-scoped); a held model whose server process ended drops out, booking released, when
+  anything asks. — *code (B10, B5)*.
+- **What a model needs on the card before a load measures it** is its row's `peakVramMb` — the field the row's fit word
+  reads; `spec.minVramGb` is read no more (JustVoice seeds audio.cpp's estimate there, × 1024). — *code (B11)*.
+- **A card load's spill** (NVIDIA's Windows driver serving it from shared memory) is read from the process's shared GPU
+  memory through typeperf: Windows with NVIDIA only — elsewhere the `spill_mb` setting is hidden. — *code (G8)*.
+- **The user's Auto / GPU / CPU per model** is the runner setting `placement:<runtime>:<modelId>`; every load naming no
+  placement reads it (a transcription preset's `auto` too). A model not on disk downloads before its load (the app's
+  `beforeDownload` gate first); an Unload during a load cancels it — its download, or the load at its next step. An
+  on-demand companion (`onDemand`: the 1.1 GB aligner) registers on the first line that needs it. — *code (G2–G5,
+  G11, G12)*.
+- **The memory strip** reads every non-AI booking from `/v1/llm-runner/resident` `runtimeBookings`, each with the model
+  holding it (`<kind>:<runtime>[:<placement>]` keys). — *code (G10)*.
+- **Clear models cache** in a real folder another family app uses (the registry's `otherAppsUsing`) removes only this
+  app's rows' files, as through a linked cache; the whole `hf` only when the cache is this app's alone. — *code (B12)*.
 - **eSpeak NG** (phonemes; JustVoice also passes its paths as the Kitten family's session options) comes from PyPI's `espeakng_loader` 0.2.4 wheel for the
   platform: its library and `espeak-ng-data` kept, its Python dropped. The servers find it through
   `AUDIOCPP_ESPEAK_LIBRARY` and `AUDIOCPP_ESPEAK_DATA`; the kit installs it with each build (`<variant>/_extras`). —

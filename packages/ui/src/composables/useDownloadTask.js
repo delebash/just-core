@@ -268,10 +268,13 @@ export function readDownloadStatus(st) {
   return { detail: st.detail, done: st.downloaded, total: st.total, status: st.status };
 }
 
-/** A kit runtime model's row (GET /v1/ai/runtimes/:id/models) as a task reading: downloaded = on disk, done. */
+/** A kit runtime model's row (GET /v1/ai/runtimes/:id/models) as a task reading: downloaded = on disk, done; a
+ *  download stopped elsewhere — an Unload that cancelled its load (round E, G12), another surface's Cancel — ends
+ *  cancelled (it read as running at 0 for ever). */
 export function readRuntimeModelStatus(m) {
   if (!m) return { terminal: "error", error: kitT("kit.runtimes.modelGone") };
   if (m.status === "error") return { terminal: "error", error: m.error };
+  if (m.status === "cancelled") return { terminal: "cancelled" };
   if (m.status === "downloaded" || (m.onDisk && m.status !== "downloading")) return { terminal: "done" };
   return { detail: "", done: m.downloaded, total: m.total, status: m.status };
 }

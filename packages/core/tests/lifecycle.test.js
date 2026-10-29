@@ -703,6 +703,26 @@ test("resident_router_down_is_empty", async () => {
   expect(res.models_max).toBe(2);
 });
 
+test("resident_lists_every_other_kinds_booking_with_the_model_holding_it", async () => {
+  // round E, G10: the memory strip's speech, transcription and image cells — never an AI model's booking; the model
+  // holding each, as its runtime says
+  const { configureRuntimeServices } = await import("../src/runner/runtime_service.js");
+  const svc = serviceFor(tmp());
+  svc._arbiter.reserve(TEST_MODEL.id, 5000, { kind: "llm" });
+  svc._arbiter.reserve("tts:audiocpp:gpu", 1200, { kind: "tts", source: "measured" });
+  svc._arbiter.reserve("stt:audiocpp:cpu", 300, { kind: "stt", source: "computed" });
+  configureRuntimeServices([["audiocpp", { holderOf: (key) => (key === "tts:audiocpp:gpu" ? "kokoro" : "") }]]);
+  try {
+    const res = await svc.resident();
+    expect(res.runtime_bookings).toEqual([
+      { key: "tts:audiocpp:gpu", kind: "tts", runtime: "audiocpp", placement: "gpu", modelId: "kokoro", mb: 1200, source: "measured" },
+      { key: "stt:audiocpp:cpu", kind: "stt", runtime: "audiocpp", placement: "cpu", modelId: "", mb: 300, source: "computed" },
+    ]);
+  } finally {
+    configureRuntimeServices([]);
+  }
+});
+
 test("resident_shows_in_flight_download", async () => {
   // A load still mid-download is surfaced as 'downloading' so the UI shows progress before the
   // child appears in GET /models. Router down → in-flight only.

@@ -180,6 +180,20 @@ test("a dense model's walk finds the most blocks that fit and saves it on a stri
   expect(saved).toEqual([["gemma-12b", expect.objectContaining({ n_gpu_layers: "44" })]]);
 });
 
+// The chip reads a model's newest measurement: the saved winner is written last, so it shows the speed the model runs
+// at, not the last trial's (JustWrite's 12B, 2026-10-29: "Tuned by auto-tune" read 18.5, the winner ran 20.5).
+test("the saved winner is the newest measurement, after every trial", async () => {
+  const svc = new FakeService({ isMoe: false, block: 48, fail: ["48"], tpsByNcmoe: { base: 21.0, 46: 30.0, 44: 41.0, 42: 38.0 } });
+  const recorded = [];
+  await runToEnd(makeTuner(svc), "gemma-12b", { batch_size: "512", ubatch_size: "512" }, {
+    saveFn: () => {},
+    save: true,
+    recordFn: (_id, trial) => recorded.push(trial.label),
+  });
+  expect(recorded.at(-1)).toBe("gpu layers 44");
+  expect(recorded.slice(0, -1)).toEqual(["baseline", "gpu layers 46", "gpu layers 44", "gpu layers 42"]); // each OK trial as it landed
+});
+
 test("cancel_stops_between_trials", async () => {
   const svc = new FakeService({ tpsByNcmoe: { 21: 30.0 } });
   const tuner = makeTuner(svc);

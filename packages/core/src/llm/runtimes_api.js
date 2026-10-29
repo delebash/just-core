@@ -32,13 +32,18 @@ const LoadIn = T.Object({
 });
 const FeatureParams = T.Object({ key: T.String({ minLength: 1, maxLength: 128 }) });
 const ModelParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64 }), modelId: T.String({ minLength: 1, maxLength: 128 }) });
+// the user's Auto / GPU / CPU for one model, saved (round E, G2)
+const PlacementIn = T.Object({ placement: T.Union([T.Literal("auto"), T.Literal("gpu"), T.Literal("cpu")]) });
 
 /** A service refusal in the routes' shape: no such model (404), what this computer lacks (409), no room on the drive
  *  (507 "disk-full", with `needBytes`/`freeBytes` for the screen's words), busy (409 "engine-busy" · "model-busy"), a load
  *  refused for memory (409 "not-enough-memory" — runner/speech_placement.js, its words the detail; `where` card or
- *  system, `neededMb`, `freeMb`). */
+ *  system, `neededMb`, `freeMb`), the app's licence gate (403 "terms-required" with `modelId` — the app shows its terms;
+ *  round E, G5), a load an Unload cancelled (409 "load-cancelled" with `modelId` — G12). */
 function asProblem(e) {
   if (e?.notFound) return notFound(e.message);
+  if (e?.termsRequired) return new ApiError(403, "terms-required", "Terms not accepted", e.message, { modelId: e.termsRequired.modelId });
+  if (e?.loadCancelled) return new ApiError(409, "load-cancelled", "The load was cancelled", e.message, { modelId: e.loadCancelled.modelId });
   if (e?.need) return new ApiError(409, "engine-cant-run-here", "This computer can't run this engine yet", e.need.detail, { need: e.need });
   if (e?.diskFull) return new ApiError(507, "disk-full", "Not enough room on the drive", e.message, e.diskFull);
   if (e?.busy) return new ApiError(409, e.busy, e.busy === "model-busy" ? "The model is busy" : "The engine is busy", e.message);
@@ -66,10 +71,12 @@ function serviceOf(c) {
 
 export function makeRuntimesRouter() {
   const app = new Hono();
-  // an in-process runtime's status says whether it loads here: that answer first (ONNX Runtime's load, once)
+  // an in-process runtime's status says whether it loads here: that answer first (ONNX Runtime's load, once); a runtime
+  // whose settings' controls read this machine's cores reads them first (prepareStatus — round E, G8)
   const checked = async (svc) => {
     try {
       await svc.checkRuntime?.();
+      await svc.prepareStatus?.();
     } catch {
       // its status says what it lacks
     }
@@ -147,20 +154,42 @@ export function makeRuntimesRouter() {
     const svc = serviceOf(c);
     return c.json(await call(() => svc.uninstall()));
   });
-  // its models: each one's size and state, a download (202) with progress and Cancel, removal
-  app.get("/v1/ai/runtimes/:id/models", input({ params: IdParams }), (c) => c.json({ models: serviceOf(c).modelsStatus() }));
-  // a runtime that registers its models (audio.cpp — round E): load one where asked ("auto": the runtime decides), let it
-  // go, and what each kind holds
+  // its models: each one's size and state, a download (202) with progress and Cancel, removal; a runtime that registers
+  // its models adds where each downloaded one would load now (read first — refreshPlacements, round E G2)
+  app.get("/v1/ai/runtimes/:id/models", input({ params: IdParams }), async (c) => {
+    const svc = serviceOf(c);
+    await svc.refreshPlacements?.();
+    return c.json({ models: svc.modelsStatus() });
+  });
+  // a runtime that registers its models (audio.cpp — round E): load one where asked ("auto": the runtime decides; none:
+  // the user's saved choice for it), let it go, and what each kind holds. A model not on disk downloads first: 202
+  // `{status: "downloading"}`, the load following it in the background (G4)
   app.post("/v1/ai/runtimes/:id/models/:modelId/load", input({ params: ModelParams, body: LoadIn }), async (c) => {
     const svc = serviceOf(c);
     if (!svc.loadModel) throw new ApiError(409, "nothing-to-load", "This engine loads its models itself", `${svc.rt.label} has no load`);
     const body = c.req.valid("json") ?? {};
-    return c.json(await call(() => svc.loadModel(c.req.valid("param").modelId, { placement: body.placement || "auto", ...(body.sessionOptions ? { sessionOptions: body.sessionOptions } : {}) })));
+    const opts = { ...(body.placement ? { placement: body.placement } : {}), ...(body.sessionOptions ? { sessionOptions: body.sessionOptions } : {}) };
+    const modelId = c.req.valid("param").modelId;
+    const out = await call(() => (svc.startLoad ? svc.startLoad(modelId, opts) : svc.loadModel(modelId, opts)));
+    return out?.status === "downloading" ? c.json(out, 202) : c.json(out);
   });
+  // an Unload during a load cancels it — its download too (G12)
   app.post("/v1/ai/runtimes/:id/models/:modelId/unload", input({ params: ModelParams }), async (c) => {
     const svc = serviceOf(c);
     if (!svc.unloadModel) throw new ApiError(409, "nothing-to-load", "This engine loads its models itself", `${svc.rt.label} has no unload`);
     return c.json({ unloaded: await call(() => svc.unloadModel(c.req.valid("param").modelId)), loaded: svc.loaded() });
+  });
+  // the user's Auto / GPU / CPU for a model, saved — every load that names no placement reads it (G2) → the model's row
+  app.put("/v1/ai/runtimes/:id/models/:modelId/placement", input({ params: ModelParams, body: PlacementIn }), async (c) => {
+    const svc = serviceOf(c);
+    if (!svc.savePlacement) throw new ApiError(409, "nothing-to-load", "This engine loads its models itself", `${svc.rt.label} has no placement`);
+    return c.json(await call(() => svc.savePlacement(c.req.valid("param").modelId, c.req.valid("json").placement)));
+  });
+  // "Try the card again": forget that a card load of the model failed or spilled here (G2) → the model's row
+  app.post("/v1/ai/runtimes/:id/models/:modelId/try-card", input({ params: ModelParams }), async (c) => {
+    const svc = serviceOf(c);
+    if (!svc.tryCardAgain) throw new ApiError(409, "nothing-to-load", "This engine loads its models itself", `${svc.rt.label} has no placement`);
+    return c.json(await call(() => svc.tryCardAgain(c.req.valid("param").modelId)));
   });
   app.get("/v1/ai/runtimes/:id/loaded", input({ params: IdParams }), (c) => c.json({ loaded: serviceOf(c).loaded?.() ?? [] }));
   app.post("/v1/ai/runtimes/:id/models/:modelId/download", input({ params: ModelParams }), async (c) => {

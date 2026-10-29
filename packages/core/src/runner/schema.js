@@ -158,6 +158,19 @@ export const ResidentModel = strictObject({
   vramMb: opt(nullable(T.Integer()), null),
 });
 
+/** One booking that isn't an AI model's — a speech, transcription, image or vision runtime's (arbiter.js
+ *  `runtimeBookings`, round E G10): its key, kind, the runtime and placement its key names ("" where it names none), the
+ *  model holding it ("" when unknown), its booked MB and their provenance (measured · computed · declared). */
+export const RuntimeBooking = strictObject({
+  key: T.String(),
+  kind: T.String(),
+  runtime: opt(T.String(), ""),
+  placement: opt(T.String(), ""),
+  modelId: opt(T.String(), ""),
+  mb: opt(T.Integer(), 0),
+  source: opt(T.String(), ""),
+});
+
 export const RunnerResidentResponse = strictObject({
   router: opt(T.Boolean(), false),
   modelsMax: opt(T.Integer(), 2),
@@ -168,6 +181,7 @@ export const RunnerResidentResponse = strictObject({
   committedMb: opt(T.Integer(), 0),
   remainingMb: opt(T.Integer(), 0),
   models: opt(T.Array(ResidentModel), []),
+  runtimeBookings: opt(T.Array(RuntimeBooking), []),
 });
 
 // ─── Load request (POST /v1/llm-runner/load) ────────────────────────────

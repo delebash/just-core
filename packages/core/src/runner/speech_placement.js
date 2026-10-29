@@ -17,8 +17,10 @@
 // reading is per process (one server per placement and kind holds one model: runner/audiocpp.js), not a device delta;
 // the delta survives only as the fallback on boxes with no per-process reading (AMD Linux), labeled "computed".
 //
-// What is the app's comes in as data and small functions, never its code: a model's audio.cpp memory estimate
-// (`spec.minVramGb` on its runtime_model row) and reference CPU speed (`refSpeed.cpu`), the piece length its price is
+// What is the app's comes in as data and small functions, never its code: a model's audio.cpp memory estimate (its
+// runtime_model row's `peakVramMb` — the one field the row's fit word reads too; round E B11, 2026-10-29: the placement
+// read `spec.minVramGb` beside it, and a row seeded with one and not the other said two things) and reference CPU speed
+// (`refSpeed.cpu`), the piece length its price is
 // measured at (`pieceLength(row)`), its load-option set (`loadOptionsKey(row)`), and its warm-up (`warm(…)`: a full-length
 // piece when it has no price on the card yet — the request a line takes is the app's).
 import os from "node:os";
@@ -59,16 +61,16 @@ export function filesGbOf(row) {
 }
 
 /**
- * What a model needs in memory before a load measures it, `{gb, by}`: the larger of audio.cpp's estimate
- * (`spec.minVramGb`) and its download, since the weights alone take that much — the estimate is one per model, shared by
- * its precisions, and below the files of some (FireRedAudio's original weights are 23 GB against an estimate of 10), and
- * MOSS-TTSD has none (decided 2026-10-12). `by` says which decided: "estimate" or "files". null with neither number —
- * "memory not measured yet".
+ * What a model needs in memory before a load measures it, `{gb, by}`: the larger of audio.cpp's estimate (the row's
+ * `peakVramMb`, in GB to a tenth) and its download, since the weights alone take that much — the estimate is one per
+ * model, shared by its precisions, and below the files of some (FireRedAudio's original weights are 23 GB against an
+ * estimate of 10), and MOSS-TTSD has none (decided 2026-10-12). `by` says which decided: "estimate" or "files". null
+ * with neither number — "memory not measured yet".
  */
 export function needOf(row) {
   const files = filesGbOf(row);
   if (files === null) return null;
-  const estimate = Number(row?.spec?.minVramGb) || 0;
+  const estimate = Math.round(((Number(row?.peakVramMb) || 0) / 1024) * 10) / 10;
   if (files > estimate) return { gb: Math.round(files * 10) / 10, by: "files" };
   return estimate ? { gb: estimate, by: "estimate" } : null;
 }
@@ -168,6 +170,27 @@ export class SpeechPlacement {
     // Pids of server processes that ran a runaway line: their readings no longer price a model (runaway_s_per_char).
     // Keyed by the process, not the model — the process outlives an unload.
     this._unpricedPids = new Set();
+  }
+
+  /** This placement with its readings of the moment — the card's use, the detection, the installed build's backend, the
+   *  CPU threads, whether an AI model is on the card and what other programs hold — each taken once and reused: for
+   *  asking where many models would go now (a runtime's model list, polled by its tab — round E, G2), never for a load,
+   *  whose door reads fresh. */
+  snapshotView() {
+    const view = Object.create(this);
+    for (const name of ["usedPoolMb", "hardware", "cardBackend", "_build", "cpuThreads", "aiModelOnCard", "otherProgramsCardMb"]) {
+      const read = this[name];
+      let taken = false;
+      let value;
+      view[name] = () => {
+        if (!taken) {
+          taken = true;
+          value = read.call(view);
+        }
+        return value;
+      };
+    }
+    return view;
   }
 
   // ── what the runtime and the box say ─────────────────────────────────────────────────────────────

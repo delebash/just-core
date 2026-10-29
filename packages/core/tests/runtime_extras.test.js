@@ -97,3 +97,58 @@ test("the service: a build's extras install with it; the servers' environment na
   await svc.removeAddon("unidic");
   expect(svc.extrasEnv().AUDIOCPP_UNIDIC_DIR).toBeUndefined();
 });
+
+// Round E, B4: under `npm run dev` the app's own build stands in and nothing installs the release — whose install was the
+// only thing that brought eSpeak NG, so Kokoro read whatever the system had (the 2026-10-04 bug).
+test("a development build's first load brings the eSpeak NG of the build row this machine picks; its server starts with it", async () => {
+  const { DEFAULT_AUDIOCPP_BUILD } = await import("../src/runner/config.js");
+  const { RuntimeService } = await import("../src/runner/runtime_service.js");
+  const { VramArbiter } = await import("../src/runner/arbiter.js");
+  const root = mkdtempSync(path.join(tmpdir(), "kit-extras-dev-"));
+  const hw = { platform: "windows", gpus: [{ vendor: "NVIDIA", computeCapability: "7.5", vramMb: 8192 }], runtimes: { cuda: true } };
+  const row = { platform: "windows", gpu: "cuda12", assetUrl: "https://x/a.zip", serverExe: "audiocpp_server.exe", extras: [{ ...ESPEAK, sha256: sha(WHEEL) }] };
+  const devExe = path.join(root, "checkout", "build", "jv-dev", "bin", "audiocpp_server.exe");
+  const svc = new RuntimeService({
+    id: "audiocpp",
+    cacheRoot: root,
+    configFn: () => ({ id: "audiocpp", pinnedBuild: DEFAULT_AUDIOCPP_BUILD, binaries: [row], settings: { cpu_threads: 4 } }),
+    hardwareFn: () => hw,
+    systemFn: () => ({ platform: "win32", arch: "x64", versions: {}, missingDlls: () => [] }),
+    exeOverride: () => ({ exe: devExe, backend: "cuda", version: "dev · abc1234" }),
+    arbiter: () => new VramArbiter(() => hw),
+    speech: {
+      probes: { usedPoolMb: async () => null, deviceMb: async () => null, sharedMb: async () => null, rssMb: async () => null },
+      memory: { freeMb: () => 16384, totalMb: () => 32768 },
+      sleep: async () => {},
+      llmFn: async () => null,
+    },
+  });
+  const started = [];
+  const server = {
+    models: new Set(),
+    running: false,
+    pid: 7,
+    isRunning: () => server.running,
+    hasModel: (id) => server.running && server.models.has(id),
+    ensure: async () => {
+      server.running = true;
+      started.push(svc.extrasEnv());
+    },
+    register: async (e) => server.models.add(e.id),
+    unload: async (ids) => ids.forEach((id) => server.models.delete(id)),
+    stop: async () => (server.running = false),
+  };
+  svc._pool = { get: () => server, servers: () => [server], stop: () => server.stop(), killAllSync: () => {} };
+  svc._model = (id) => ({ id, name: id, kind: "tts", files: [], spec: { family: "kokoro", task: "tts" } });
+  svc.modelFor = (id) => ({ key: id, files: { model: `/m/${id}.gguf` } });
+  const fetched = serve(WHEEL);
+  expect(svc.status().installed).toBe(true); // the dev build counts as installed …
+  expect(svc.extrasEnv().AUDIOCPP_ESPEAK_LIBRARY).toBeUndefined(); // … with no eSpeak NG yet
+  await svc.loadModel("kokoro", { placement: "cpu" });
+  expect(fetched).toHaveBeenCalledTimes(1);
+  expect(started[0].AUDIOCPP_ESPEAK_LIBRARY).toMatch(/_extras[\\/]espeak-ng-0\.2\.4[\\/]espeak-ng\.dll$/);
+  // the next load finds it there
+  await svc.unloadModel("kokoro");
+  await svc.loadModel("kokoro", { placement: "cpu" });
+  expect(fetched).toHaveBeenCalledTimes(1);
+});

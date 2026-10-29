@@ -299,10 +299,13 @@ export class VramArbiter {
    * embed). Pins were stamped at load time and never re-checked, so a REPLACED embed kept its
    * stale pin and deflected a count-cap eviction onto the chat model (2026-07-12: switching
    * the embed 0.6B→4B evicted Gemma). Called before every admission so protection always
-   * follows the CURRENT default. */
-  syncPins(pinnedKeys) {
+   * follows the CURRENT default. Kind-scoped like `syncSleeping`: only the runner's own
+   * bookings follow the embed default — a speech server's booking pinned for the length of its
+   * load (runtime_service.js, round E B10) is another owner's, and the chat load's admission
+   * that re-syncs here must not unpin it into a victim. */
+  syncPins(pinnedKeys, { kind = "llm" } = {}) {
     const keys = keySet(pinnedKeys);
-    for (const [k, r] of this._reservations) r.pinned = keys.has(k);
+    for (const [k, r] of this._reservations) if (r.kind === kind) r.pinned = keys.has(k);
   }
 
   /**
@@ -509,6 +512,37 @@ export class VramArbiter {
     this._events.length = 0;
     this._eventSeq = 0;
   }
+}
+
+/**
+ * Every booking that isn't an AI model's (kind "llm") — a speech or transcription server's, an image or vision runtime's
+ * — as the memory strip shows them: `[{key, kind, runtime, placement, modelId, mb, source}]` from a `snapshot`'s
+ * `reservations`, in its order. `runtime` and `placement` are read from the key where it has the kit's shape
+ * (`<kind>:<runtime>` or `<kind>:<runtime>:<placement>` — runtime_service.js), "" where it doesn't; `modelId` is
+ * `holderOf(key)`'s — the model holding it, "" when none says (round E, G10).
+ */
+export function runtimeBookings(reservations, holderOf = () => "") {
+  return (reservations || [])
+    .filter((r) => r.kind !== "llm")
+    .map((r) => {
+      const parts = String(r.key).split(":");
+      const kitShape = parts[0] === r.kind && parts.length >= 2 && parts.length <= 3;
+      let modelId = "";
+      try {
+        modelId = String(holderOf(r.key) || "");
+      } catch {
+        modelId = ""; // an owner that can't say
+      }
+      return {
+        key: r.key,
+        kind: r.kind,
+        runtime: kitShape ? parts[1] : "",
+        placement: kitShape ? (parts[2] ?? "") : "",
+        modelId,
+        mb: Math.trunc(Number(r.vram_mb) || 0),
+        source: r.source || "",
+      };
+    });
 }
 
 let arbiter = null;

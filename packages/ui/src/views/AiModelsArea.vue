@@ -9,7 +9,7 @@
 // own line, model + key on the next, status + Test + Edit). The Features routing
 // table + the per-provider local-model/Fit section are the next chunks.
 import { copyToClipboard } from "quasar";
-import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
+import { computed, nextTick, onMounted, ref, useId, useSlots, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import AppModal from "../common/components/AppModal.vue";
@@ -41,7 +41,7 @@ import { useHardware } from "../composables/useHardware.js";
 import { useModelApply } from "../services/modelApply.js";
 import { useEngine } from "../composables/useEngine.js";
 import { refresh as refreshRunnerModels } from "../composables/useRunnerModels.js";
-import { usePoll } from "../common/composables/usePoll.js";
+import { useMemoryCells } from "../composables/useMemoryCells.js";
 import { llmUiCapabilities } from "../installLlmUi.js";
 
 // Engine state here feeds only the debug snapshot — the engine ACTIONS
@@ -119,8 +119,14 @@ const props = defineProps({
   // "how does a user know what fits when the LLM loads on demand"). One cell, one
   // owner; the host supplies only the idle words.
   llmClaim: { type: Object, default: null },
+  // A kit runtime's tab, the app's way (round E, G7 — JustVoice's speech models grouped by engine with its own panels):
+  // `{<runtimeId>: {hidden?, props?}}` — `hidden` drops the tab; `props` go to its LuRuntimeTab as they are (`group`,
+  // `filter`, and listeners as `onChanged`, `onTermsRequired`). Its slots come from the app's slots named
+  // `runtime-<runtimeId>-<slot>` (`#runtime-audiocpp-group-head` fills the tab's `group-head`).
+  runtimeTabs: { type: Object, default: () => ({}) },
 });
 const emit = defineEmits(["quick-setup-closed"]);
+const slots = useSlots();
 
 // The subnav tab. (Was the shared `activeAiTab` from labHandoff.js — that channel
 // existed only for the Tune→Tasks switch-carry handoff, removed with §7.1: engine
@@ -131,11 +137,15 @@ const tab = ref("providers");
 const runtimes = ref([]);
 const RUNTIME_KINDS = new Set(["image", "vision", "tts", "stt"]);
 const runtimeTabLabel = (r) => (RUNTIME_KINDS.has(r.kind) ? t(`kit.aiTabs.kinds.${r.kind}`) : r.label || r.id);
+// the runtimes whose tab shows (an app hides one with runtimeTabs[id].hidden)
+const shownRuntimes = computed(() => runtimes.value.filter((r) => !props.runtimeTabs?.[r.id]?.hidden));
+// the slots of a runtime's tab the app fills: its `runtime-<id>-<slot>` slots, by the tab's slot name
+const runtimeSlotNames = (id) => Object.keys(slots).filter((n) => n.startsWith(`runtime-${id}-`)).map((n) => n.slice(`runtime-${id}-`.length));
 async function loadRuntimes() {
   try {
     runtimes.value = (await request("/v1/ai/runtimes")).runtimes || [];
     // a ?tab= deep link to a runtime's tab (its tab exists only now)
-    if (props.initialTab && runtimes.value.some((r) => `runtime-${r.id}` === props.initialTab)) tab.value = props.initialTab;
+    if (props.initialTab && shownRuntimes.value.some((r) => `runtime-${r.id}` === props.initialTab)) tab.value = props.initialTab;
   } catch {
     runtimes.value = []; // a server without the kit's runtimes routes (an older kit): no tabs
   }
@@ -163,7 +173,7 @@ const tabDefs = computed(() => {
   const defs = [{ id: "providers", label: t('kit.aiTabs.providers'), kit: true }];
   if (props.modelsTab) defs.push({ id: "models", label: t('kit.aiTabs.models'), kit: true });
   // the kit runtimes this app turned on (sd.cpp's images…): a tab each, named by the kind of model it runs (K10)
-  for (const r of runtimes.value) defs.push({ id: `runtime-${r.id}`, label: runtimeTabLabel(r), kit: true });
+  for (const r of shownRuntimes.value) defs.push({ id: `runtime-${r.id}`, label: runtimeTabLabel(r), kit: true });
   defs.push({ id: "features", label: t('kit.aiTabs.routing'), kit: true });
   const legacy = props.appTabLabel ? [{ id: "app", label: props.appTabLabel, slot: "app-tab" }] : [];
   const anchored = [];
@@ -267,34 +277,34 @@ const hwLabel = computed(() => {
 // ── Live VRAM + debug info on the strip (user, 2026-07-07) ───────────────────
 // GET /resident is read-only + safe to poll (never spawns the router — the
 // LuRunnerEngine precedent); it carries the measured VRAM ledger (total /
-// committed / free) + the loaded-models list the debug snapshot includes.
-const resident = ref(null);
+// committed / free) + the loaded-models list the debug snapshot includes. Its cells
+// are the kit's one reading (useMemoryCells — an app's Home shows the same).
 // The catalog rows' status comes from useRunnerModels, whose own poller only runs
 // while a load IT started is in flight — a load from another surface (Quick Setup,
 // a chat leg's ensure, an eviction) left the rows stale ("loads on first use" beside
 // a 6.6 GB header, 2026-07-11). This poll already sees the live resident set every
 // tick, so a CHANGE in the loaded set kicks the shared models refresh — one truth.
 let _loadedSig = "";
-const { start: startResPoll } = usePoll(async () => {
-  try {
-    resident.value = await request("/v1/llm-runner/resident");
+const { resident, cells: kitMemCells, start: startResPoll } = useMemoryCells({
+  llmClaim: () => props.llmClaim,
+  onRead: (r) => {
     // ONE workflow (2026-07-21): a model-load button can now install the engine (retryLoad) — so
     // keep the engine panel live while it's NOT yet installed, so that install shows here too, not
     // just on the boot splash. Once installed, useEngine's own poll owns any further transitions.
     if (!engineInstalled.value) refreshEngine();
-    const sig = (resident.value?.models || [])
+    const sig = (r?.models || [])
       .filter((m) => m.status === "loaded" || m.status === "sleeping")
       .map((m) => m.id)
       .sort()
       .join("|");
     if (_loadedSig !== null && sig !== _loadedSig) refreshRunnerModels();
     _loadedSig = sig;
-  } catch { /* keep last */ }
-}, 2500);
-const gb1 = (mb) => fmtNum(mb / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  },
+});
 // the debug report's own (English, like the logs)
 const gbEn = (mb) => (mb / 1024).toFixed(1);
-// GB past a gigabyte, MB below it — a "0.3 GB" cell reads as a rounding error.
+// GB past a gigabyte, MB below it — a "0.3 GB" row reads as a rounding error (the cells' rule, useMemoryCells).
+const gb1 = (mb) => fmtNum(mb / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const mem1 = (mb) => (mb >= 1024 ? `${gb1(mb)} GB` : `${fmtNum(Math.round(mb))} MB`);
 
 // ── "Other apps" → which ones (2026-08-15) ──────────────────────────────────
@@ -324,69 +334,17 @@ function toggleGpuApps() {
   if (gpuAppsOpen.value && gpuApps.value === null) loadGpuApps();
 }
 // MEASURED first (2026-08-14, user: the top strip read "0.0 / 8.0 GB used" while
-// the card actually held 2.1 GB). `committedMb` is only what the AI runner BOOKED
-// for its own models — true, but not an answer to "how much VRAM is in use", and
-// it was labelled as if it were. The card's real occupancy leads; our reservation
-// rides alongside so the two can never be confused again. Unmeasurable box
-// (usedMb null) → the ledger numbers, labelled "reserved".
+// the card actually held 2.1 GB) — useMemoryCells says why each cell reads as it does.
 // The one-strip consolidation (JV decision 2026-08-15): the old inline
 // `vramLine` clause chain became header CELLS — the same layout as the
 // hardware facts — followed by the host's own cells (props.hwCells).
-const memCells = computed(() => {
-  const r = resident.value;
-  if (!r?.vramTotalMb) return []; // no detectable GPU VRAM → no memory cells
-  const unified = !!r.memArch && r.memArch !== "discrete";
-  const total = gb1(r.vramTotalMb);
-  const cells = [];
-  if (r.usedMb == null) {
-    cells.push({ key: "used", label: t(unified ? "kit.aiArea.mem.memoryReserved" : "kit.aiArea.mem.vramReserved"), value: t("kit.aiArea.mem.ofTotal", { gb: gb1(r.committedMb || 0), total }),
-      title: t("kit.aiArea.mem.reservedTitle") });
-    cells.push({ key: "free", label: t("kit.aiArea.mem.free"), value: t("kit.aiArea.mem.gb", { gb: gb1(r.remainingMb || 0) }) });
-  } else {
-    cells.push({ key: "used", label: t(unified ? "kit.aiArea.mem.memoryUsed" : "kit.aiArea.mem.vramUsed"), value: t("kit.aiArea.mem.ofTotal", { gb: gb1(r.usedMb), total }),
-      title: t("kit.aiArea.mem.usedTitle") });
-    cells.push({ key: "free", label: t("kit.aiArea.mem.free"), value: t("kit.aiArea.mem.gb", { gb: gb1(Math.max(0, r.vramTotalMb - r.usedMb)) }) });
-  }
-  // The LLM cell: loaded model name + the runner's booked take. Summed from
-  // the per-model reservations, NOT committedMb — the arbiter ledger is
-  // shared with the host's speech engines (JV), so committedMb counts a
-  // loaded TTS model too and would mislabel it "LLM" (2026-08-15 review).
-  // Nothing resident → the host's idle words (JV's on-demand claim) or "—".
-  // A SLEEPING model is resident in the router's list but its weights are
-  // unloaded — it holds no memory (2026-08-15). Counting its booking here read
-  // "LLM 6.3 GB" beside a measured "0.7 of 8.0 GB used": two truths on one
-  // strip, the defect this row exists to prevent. Only awake takes are summed.
-  const models = (r.models || []).filter((m) => m.status === "loaded" || m.status === "sleeping");
-  if (models.length) {
-    const awake = models.filter((m) => m.status !== "sleeping");
-    const take = awake.reduce((n, m) => n + (m.vramMb || 0), 0);
-    cells.push({ key: "llm", label: t("kit.aiArea.mem.llm"),
-      value: take ? t("kit.aiArea.mem.gb", { gb: gb1(take) }) : (awake.length ? t("kit.aiArea.mem.loaded") : t("kit.aiArea.mem.asleep")),
-      sub: models.map((m) => m.id).join(" · "),
-      title: awake.length ? t("kit.aiArea.mem.llmTitle") : t("kit.aiArea.mem.asleepTitle") });
-  } else if (props.llmClaim?.text) {
-    cells.push({ key: "llm", label: t("kit.aiArea.mem.llm"), value: props.llmClaim.text, title: props.llmClaim.title || "" });
-  } else {
-    cells.push({ key: "llm", label: t("kit.aiArea.mem.llm"), value: "—" });
-  }
-  // "Other apps" — measured occupancy minus what the arbiter has booked, i.e.
-  // the slice of the card our ledger cannot account for. KIT-side since
-  // 2026-08-15: it began as a JustVoice host cell, but the inputs (usedMb,
-  // committedMb) were already here, so every app was one duplicated computed
-  // away from having it. Its "show apps" action is the only reason the
-  // number stops being a dead end.
-  // 256 MB floor: below that it is driver/desktop noise, and a cell that
-  // flickers in and out at 30 MB is worse than no cell.
-  const otherMb = r.usedMb == null ? 0 : Math.max(0, r.usedMb - (r.committedMb || 0));
-  if (otherMb > 256) {
-    cells.push({
-      key: "other", label: t("kit.aiArea.mem.otherApps"), value: mem1(otherMb),
-      title: t("kit.aiArea.mem.otherAppsTitle"),
-      action: { label: gpuAppsOpen.value ? t("kit.aiArea.mem.hide") : t("kit.aiArea.mem.showApps"), on: toggleGpuApps },
-    });
-  }
-  return cells;
-});
+// "Other apps" (KIT-side since 2026-08-15) carries its "show apps" action here: the
+// action is the only reason the number stops being a dead end.
+const memCells = computed(() =>
+  kitMemCells.value.map((c) =>
+    c.key === "other" ? { ...c, action: { label: gpuAppsOpen.value ? t("kit.aiArea.mem.hide") : t("kit.aiArea.mem.showApps"), on: toggleGpuApps } } : c,
+  ),
+);
 const stripCells = computed(() => [...memCells.value, ...props.hwCells]);
 
 // "Copy debug info" — the whole box picture as ONE pasteable text block (hardware +
@@ -415,6 +373,12 @@ function debugInfoText() {
     `Loaded models: ${
       r?.models?.length
         ? r.models.map((m) => `${m.id} (${m.status}${m.vramMb ? ` · ${m.vramMb} MB` : ""}${m.nCtx ? ` · ctx ${m.nCtx}` : ""})`).join(", ")
+        : "none"
+    }`,
+    // each kit runtime's booking (round E, G10) — a speech model holding the card explains a chat load's refusal
+    `Runtime bookings: ${
+      r?.runtimeBookings?.length
+        ? r.runtimeBookings.map((b) => `${b.kind} ${b.runtime}${b.placement ? ` ${b.placement}` : ""} (${b.mb} MB · ${b.source || "?"})`).join(", ")
         : "none"
     }`,
   ];
@@ -901,9 +865,14 @@ onMounted(() => {
 
     <!-- ── A kit runtime's engine and models (Images, …) — lazy (first visit), then kept mounted so a running
          install or download keeps its bar across a tab switch. ── -->
-    <template v-for="r in runtimes" :key="r.id">
+    <template v-for="r in shownRuntimes" :key="r.id">
       <section v-if="visitedTabs.has(`runtime-${r.id}`)" v-show="tab === `runtime-${r.id}`" class="lu-tab" v-bind="tabPanelAttrs(tabPrefix, `runtime-${r.id}`)">
-        <LuRuntimeTab :runtime-id="r.id" />
+        <!-- the app's props and listeners (runtimeTabs[id].props), its runtime-<id>-<slot> slots as the tab's own -->
+        <LuRuntimeTab :runtime-id="r.id" v-bind="props.runtimeTabs?.[r.id]?.props ?? {}">
+          <template v-for="name in runtimeSlotNames(r.id)" :key="name" #[name]="scope">
+            <slot :name="`runtime-${r.id}-${name}`" v-bind="scope ?? {}" />
+          </template>
+        </LuRuntimeTab>
       </section>
     </template>
 

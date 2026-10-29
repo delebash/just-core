@@ -4,17 +4,23 @@
 // words, the measured price, the worse-of-two admission and the pinned card's exception, the CPU retry after a card load
 // that failed or spilled, the recorded peak, and a booking per server released with its model. Everything is faked —
 // the servers, the ledger, the probes, the memory; the arbiter is the kit's own on a fake card. No engine, no GPU.
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { makeRuntimesRouter } from "../src/llm/runtimes_api.js";
+import { AsyncEvent } from "../src/platform/asyncutil.js";
+import { createServer } from "../src/platform/server.js";
 import { VramArbiter } from "../src/runner/arbiter.js";
 import { AudioCppError } from "../src/runner/audiocpp.js";
 import { DEFAULT_AUDIOCPP_BUILD, DEFAULT_AUDIOCPP_SETTINGS } from "../src/runner/config.js";
 import * as hardware from "../src/runner/hardware.js";
-import { RuntimeService } from "../src/runner/runtime_service.js";
+import { configureRuntimeServices, RuntimeService } from "../src/runner/runtime_service.js";
 import { fmtGb, fmtX, NotEnoughMemoryError, needOf, SpeechPlacement } from "../src/runner/speech_placement.js";
 
 beforeEach(() => {
   // the arbiter's snapshot reads the measured pool; no test starts a program for it
   vi.spyOn(hardware, "usedPoolMb").mockResolvedValue(null);
+});
+afterEach(() => {
+  configureRuntimeServices([]);
 });
 
 const GB = 1024 ** 3;
@@ -25,28 +31,30 @@ const discrete = () => ({ platform: "windows", ramMb: 32768, cpuCores: 8, runtim
 const onePool = () => ({ platform: "windows", ramMb: 16384, cpuCores: 8, runtimes: {}, gpus: [] });
 const MK = hardware.machineKey(discrete());
 
-/** A runtime_model row: its files, audio.cpp's estimate (`spec.minVramGb`), its reference CPU speed (`refSpeed.cpu`). */
-function row(id, name, { kind = "tts", filesGb = null, minVramGb = null, cpu = null } = {}) {
+/** A runtime_model row: its files, audio.cpp's estimate (`peakVramMb` — the one field the fit word reads too; round E
+ *  B11), its reference CPU speed (`refSpeed.cpu`). */
+function row(id, name, { kind = "tts", filesGb = null, needGb = null, cpu = null } = {}) {
   return {
     id,
     name,
     kind,
     files: filesGb == null ? [] : [{ slot: "model", bytes: Math.round(filesGb * GB) }],
+    peakVramMb: needGb ? Math.round(needGb * 1024) : 0,
     refSpeed: cpu ? { cpu } : {},
-    spec: { family: `${id}_fam`, task: kind === "stt" ? "asr" : "tts", ...(minVramGb ? { minVramGb } : {}) },
+    spec: { family: `${id}_fam`, task: kind === "stt" ? "asr" : "tts" },
   };
 }
 
 const ROWS = {
-  kokoro: row("kokoro", "Kokoro", { filesGb: 0.33, minVramGb: 1, cpu: 3.15 }),
-  chatterbox: row("chatterbox", "Chatterbox", { filesGb: 1.6, minVramGb: 12 }),
-  moss: row("moss", "MOSS-TTS", { filesGb: 12, minVramGb: 18 }),
+  kokoro: row("kokoro", "Kokoro", { filesGb: 0.33, needGb: 1, cpu: 3.15 }),
+  chatterbox: row("chatterbox", "Chatterbox", { filesGb: 1.6, needGb: 12 }),
+  moss: row("moss", "MOSS-TTS", { filesGb: 12, needGb: 18 }),
   mossd: row("mossd", "MOSS-TTSD", { filesGb: 12 }),
-  omnivoice: row("omnivoice", "OmniVoice", { filesGb: 1.3, minVramGb: 10, cpu: 0.06 }),
-  qwen: row("qwen", "Qwen3-TTS Base", { filesGb: 2.5, minVramGb: 8 }),
-  irodori: row("irodori", "Irodori", { filesGb: 1, minVramGb: 4 }),
+  omnivoice: row("omnivoice", "OmniVoice", { filesGb: 1.3, needGb: 10, cpu: 0.06 }),
+  qwen: row("qwen", "Qwen3-TTS Base", { filesGb: 2.5, needGb: 8 }),
+  irodori: row("irodori", "Irodori", { filesGb: 1, needGb: 4 }),
   plain: row("plain", "Plain"),
-  parakeet: row("parakeet", "Parakeet", { kind: "stt", filesGb: 0.6, minVramGb: 1, cpu: 20 }),
+  parakeet: row("parakeet", "Parakeet", { kind: "stt", filesGb: 0.6, needGb: 1, cpu: 20 }),
 };
 
 /** The kit's measurement ledger, in memory: newest first, `rows` kept as the store keeps them (`switches`). */
@@ -204,8 +212,11 @@ function service({ hw = discrete(), build = "cuda12", ledger = fakeLedger(), arb
 test("what a model needs before a load measures it: audio.cpp's estimate or its files, whichever is more", () => {
   expect(needOf(ROWS.omnivoice)).toEqual({ gb: 10, by: "estimate" });
   expect(needOf(ROWS.mossd)).toEqual({ gb: 12, by: "files" }); // no estimate: the files decide
-  expect(needOf(row("big", "Big", { filesGb: 23, minVramGb: 10 }))).toEqual({ gb: 23, by: "files" }); // FireRedAudio's shape
+  expect(needOf(row("big", "Big", { filesGb: 23, needGb: 10 }))).toEqual({ gb: 23, by: "files" }); // FireRedAudio's shape
   expect(needOf(ROWS.plain)).toBeNull(); // "memory not measured yet"
+  // one field (round E, B11): the row's `peakVramMb` — the one its fit word reads; `spec.minVramGb` is read no more
+  expect(needOf({ id: "old", files: [{ bytes: GB }], spec: { minVramGb: 10 } })).toEqual({ gb: 1, by: "files" });
+  expect(needOf({ id: "mb", files: [{ bytes: 0.2 * GB }], peakVramMb: 900 })).toEqual({ gb: 0.9, by: "estimate" });
   expect([fmtGb(1.31), fmtGb(12.4), fmtX(3.15), fmtX(12.2), fmtX(0.06)]).toEqual(["1.3", "12", "3.1×", "12×", "0.1×"]);
 });
 
@@ -436,7 +447,8 @@ test("an Auto card load books its server's measured memory under the server's ke
   const out = await svc.loadModel("kokoro");
   expect(out).toEqual({ modelId: "kokoro", placement: "gpu", kind: "tts", reason: "memory not measured yet" });
   expect(warmed).toEqual([["kokoro", true]]); // no price on the card yet: a full-length warm-up
-  expect(pool.get("gpu", "tts").calls[0]).toEqual(["ensure", { device: 0, threads: 4, backend: null, managed: true }]);
+  // the card's server runs the build's own backend, named (B1: null left a development build's to its folder, read as "cpu")
+  expect(pool.get("gpu", "tts").calls[0]).toEqual(["ensure", { device: 0, threads: 4, backend: "cuda", managed: true }]);
   expect(arb.reservationOf("tts:audiocpp:gpu")).toMatchObject({ vram_mb: 1200, source: "measured", kind: "tts" });
   const peak = ledger.rows.find((r) => r.source === "peak");
   expect(peak).toMatchObject({ modelId: lid("kokoro"), machineKey: MK, backend: "cuda12", vramModelMb: 1200, kind: "tts", label: `speech peak (cuda12, pieces of 300 characters, ${PIN})` });
@@ -681,4 +693,266 @@ test("a line uses its model where it is; asked elsewhere, it moves there first; 
   // its process ended: the next line loads it again rather than talk to nobody
   await pool.get("cpu", "tts").stop();
   expect(await svc.useModel("kokoro", { placement: "cpu" }, async (server) => server.hasModel("kokoro"))).toBe(true);
+});
+
+// ─── round E: JustVoice's session's B and G items (2026-10-29) ─────────────────────────────────────────
+
+const until = async (check) => {
+  for (let i = 0; i < 200 && !check(); i++) await new Promise((r) => setTimeout(r, 5));
+};
+
+/** The service's downloads, faked: `missing` models aren't on disk until `finish(id)` (or `fail(id, why)`); downloadModel
+ *  keeps the real one's state shape — and its licence gate — and an Unload's cancel ends it "cancelled". */
+function withDownloads(svc, { missing = [] } = {}) {
+  const absent = new Set(missing);
+  const ends = new Map();
+  svc.modelFor = (id) => {
+    if (absent.has(id)) throw Object.assign(new Error(`${id} isn't downloaded`), { notDownloaded: true });
+    return { key: id, files: { model: `/m/${id}.gguf`, aligner: `/m/${id}-aligner.gguf` } };
+  };
+  svc._here = (m) => !absent.has(m.id);
+  svc.downloadModel = (id) => {
+    svc._gate(svc._model(id));
+    const cancel = new AsyncEvent();
+    const state = { status: "downloading", error: "", downloaded: 0, total: 0, cancel, done: null };
+    svc._modelState.set(id, state);
+    const ended = new Promise((r) => ends.set(id, r));
+    state.done = Promise.race([ended, cancel.wait()]).then((why) => {
+      if (cancel.isSet()) svc._modelState.set(id, { status: "cancelled", error: "", downloaded: 0, total: 0 });
+      else if (typeof why === "string") svc._modelState.set(id, { status: "error", error: why, downloaded: 0, total: 0 });
+      else {
+        absent.delete(id);
+        svc._modelState.set(id, { status: "downloaded", error: "", downloaded: 0, total: 0 });
+      }
+    });
+    return svc.modelsStatus().find((x) => x.id === id);
+  };
+  return { finish: (id) => ends.get(id)?.(true), fail: (id, why) => ends.get(id)?.(why) };
+}
+
+test("a load's booking is no eviction's victim until its model registers — then it is; the key is never unbooked between (B10)", async () => {
+  const hw = discrete();
+  const arb = new VramArbiter(() => hw);
+  const midLoad = [];
+  const { svc } = service({
+    arb,
+    probes: { deviceMb: async () => 6800 },
+    speech: {
+      warm: async ({ calibrate }) => {
+        // a chat load's admission while the speech model is loading: it re-syncs its pins, then makes room
+        arb.syncPins(new Set());
+        midLoad.push(await arb.makeRoom(8000, { reason: "loading gemma" }), arb.reservationOf("tts:audiocpp:gpu"));
+        return calibrate;
+      },
+    },
+  });
+  svc._placement.recordPeak(ROWS.chatterbox, 7000, "cuda12"); // a price measured here: an early booking
+  await svc.loadModel("chatterbox");
+  expect(midLoad).toEqual([false, expect.objectContaining({ vram_mb: 7000, pinned: true })]); // never the victim mid-load
+  expect(arb.reservationOf("tts:audiocpp:gpu")).toMatchObject({ vram_mb: 7000, pinned: false }); // booked, evictable again
+  expect(await arb.makeRoom(8000, { reason: "loading gemma" })).toBe(true); // now its evictor unloads the model
+  expect(svc.loaded()).toEqual([]);
+  // a refused load unpins what it pinned: the kind's model it would have replaced is evictable again
+  const busy = service({ arb: new VramArbiter(() => hw), probes: { deviceMb: async () => 1200 } });
+  await busy.svc.loadModel("kokoro");
+  busy.svc._placement.recordPeak(ROWS.chatterbox, 7000, "cuda12");
+  aiOnCard(busy.arb, 5000);
+  busy.arb.busyBegin("llm");
+  await expect(busy.svc.loadModel("chatterbox")).rejects.toBeInstanceOf(NotEnoughMemoryError);
+  expect(busy.arb.reservationOf("tts:audiocpp:gpu")).toMatchObject({ vram_mb: 1200, pinned: false });
+  expect(busy.svc._loadingKeys.size).toBe(0);
+});
+
+test("a model whose server died stops counting as loaded, its booking released, whenever anything asks (B5)", async () => {
+  const { svc, arb, pool } = service({ probes: { deviceMb: async () => 1200 } });
+  await svc.loadModel("kokoro");
+  expect(arb.reservedMb("tts:audiocpp:gpu")).toBe(1200);
+  pool.get("gpu", "tts").running = false; // its process ended
+  expect(svc.loaded()).toEqual([]);
+  expect(arb.isReserved("tts:audiocpp:gpu")).toBe(false);
+  expect(() => svc.serverFor("kokoro")).toThrow(/isn't loaded/);
+});
+
+test("the user's Auto / GPU / CPU per model is saved and read by every load naming none; the list says where each would load and why (G2)", async () => {
+  const { svc } = service();
+  withDownloads(svc, { missing: ["parakeet"] });
+  svc._modelsFn = () => [ROWS.kokoro, ROWS.chatterbox, ROWS.parakeet];
+  expect(svc.placementChoice("kokoro")).toBe("auto");
+  expect(await svc.savePlacement("kokoro", "cpu")).toMatchObject({
+    id: "kokoro",
+    placementChoice: "cpu",
+    placement: { where: "cpu", reason: "your choice — 3.1× real time on the reference machine", cardFailed: false },
+    loading: "",
+    loadError: "",
+  });
+  expect((await svc.loadModel("kokoro")).placement).toBe("cpu"); // no placement: the saved one
+  expect((await svc.loadModel("kokoro", { placement: "gpu" })).placement).toBe("gpu"); // one given wins
+  expect(await svc.useModel("kokoro", {}, async (_s, held) => held.placement)).toBe("cpu"); // a line naming none: back
+  // a card load that failed here: the verdict says so; "Try the card again" forgets it
+  svc._placement.recordCardFailure(ROWS.chatterbox, "failed");
+  await svc.refreshPlacements({ force: true });
+  const list = () => Object.fromEntries(svc.modelsStatus().map((m) => [m.id, m]));
+  expect(list().chatterbox).toMatchObject({ placementChoice: "auto", placement: { where: "cpu", reason: "it didn't load on the graphics card — this may be slow on the CPU", cardFailed: true } });
+  expect(list().kokoro.placement).toEqual({ where: "cpu", reason: "your choice — 3.1× real time on the reference machine", cardFailed: false }); // loaded: where it is
+  expect(list().parakeet).toMatchObject({ onDisk: false, placement: null, placementChoice: "auto" }); // not here: nothing to say
+  expect((await svc.tryCardAgain("chatterbox")).placement).toMatchObject({ where: "gpu", cardFailed: false });
+  await expect(svc.savePlacement("kokoro", "npu")).rejects.toThrow(/unknown placement/);
+  // the readings are taken once for the whole list and kept a few seconds: a poll in between reads nothing again
+  const reads = vi.spyOn(svc._placement, "placementFor");
+  await svc.refreshPlacements();
+  expect(reads).not.toHaveBeenCalled();
+  // a store that can't answer reads as Auto
+  svc._choices = { get: () => { throw new Error("db gone"); }, set: () => {} };
+  expect(svc.placementChoice("kokoro")).toBe("auto");
+});
+
+test("a model's saved load options go with every load given none; a line reloads it once they change (G3)", async () => {
+  let saved = { "kokoro_fam.voice": "bella" };
+  const { svc, pool } = service({ speech: { sessionOptions: (row) => (row.id === "kokoro" ? saved : {}) } });
+  const registers = () => pool.get("gpu", "tts").calls.filter(([c]) => c === "register").length;
+  await svc.loadModel("kokoro");
+  expect(svc._held.get("kokoro").optsKey).toContain("bella");
+  await svc.useModel("kokoro", {}, async () => {});
+  expect(registers()).toBe(1); // the same options: nothing reloads
+  saved = { "kokoro_fam.voice": "nicole" };
+  await svc.useModel("kokoro", {}, async () => {});
+  expect(registers()).toBe(2);
+  expect(svc._held.get("kokoro").optsKey).toContain("nicole");
+  await svc.loadModel("kokoro", { sessionOptions: { "kokoro_fam.voice": "adam" } }); // options given win
+  expect(svc._held.get("kokoro").optsKey).toContain("adam");
+});
+
+test("Load downloads a model that isn't here and loads it once it is; a line waits for its download too; a failure is the list's (G4)", async () => {
+  const { svc } = service();
+  const dl = withDownloads(svc, { missing: ["chatterbox", "omnivoice", "qwen"] });
+  svc._modelsFn = () => [ROWS.chatterbox, ROWS.qwen];
+  const row = (id) => svc.modelsStatus().find((m) => m.id === id);
+  expect(await svc.startLoad("chatterbox")).toEqual({ status: "downloading", modelId: "chatterbox" });
+  expect(row("chatterbox")).toMatchObject({ loading: "downloading", status: "downloading", placement: null });
+  dl.finish("chatterbox");
+  await until(() => svc.loaded().length === 1);
+  expect(row("chatterbox")).toMatchObject({ loading: "", running: true, loadError: "", status: "downloaded" });
+  // a line on a model not here: it waits for the download, then runs
+  const line = svc.useModel("omnivoice", {}, async (_s, held) => held.modelId);
+  await until(() => svc._loads.get("omnivoice")?.phase === "downloading");
+  dl.finish("omnivoice");
+  expect(await line).toBe("omnivoice");
+  // on disk: it loads now
+  expect(await svc.startLoad("kokoro")).toMatchObject({ modelId: "kokoro", kind: "tts" });
+  // a download that fails: the background load's failure is the list's; a new load clears it
+  await svc.startLoad("qwen");
+  dl.fail("qwen", "the connection was reset");
+  await until(() => row("qwen").loading === "");
+  expect(row("qwen")).toMatchObject({ loadError: "the connection was reset", status: "error" });
+  await svc.startLoad("qwen");
+  expect(row("qwen").loadError).toBe("");
+  dl.finish("qwen");
+  await until(() => row("qwen").running);
+});
+
+test("an Unload during a load cancels it — in its download or at its next step — nothing left held or booked (G12)", async () => {
+  {
+    const { svc } = service();
+    withDownloads(svc, { missing: ["chatterbox"] });
+    const load = svc.loadModel("chatterbox").catch((e) => e);
+    await until(() => svc._loads.get("chatterbox")?.phase === "downloading");
+    expect(await svc.unloadModel("chatterbox")).toBe(true);
+    expect((await load).loadCancelled).toEqual({ modelId: "chatterbox" });
+    expect(svc._modelState.get("chatterbox").status).toBe("cancelled"); // the download it started stopped
+    expect(svc.loaded()).toEqual([]);
+    expect(svc._loads.size).toBe(0);
+  }
+  {
+    let open;
+    const gate = new Promise((r) => (open = r));
+    const { svc, arb, pool } = service({ probes: { deviceMb: async () => 1200 }, speech: { warm: async () => (await gate, true) } });
+    svc._placement.recordPeak(ROWS.chatterbox, 3000, "cuda12"); // an early booking to release
+    const load = svc.loadModel("chatterbox").catch((e) => e);
+    await until(() => pool.get("gpu", "tts").models.has("chatterbox"));
+    expect(arb.reservationOf("tts:audiocpp:gpu")).toMatchObject({ vram_mb: 3000, pinned: true });
+    expect(await svc.unloadModel("chatterbox")).toBe(true);
+    open();
+    expect((await load).loadCancelled).toEqual({ modelId: "chatterbox" });
+    expect(pool.get("gpu", "tts").calls).toContainEqual(["unload", ["chatterbox"]]); // what registered left its server
+    expect(arb.isReserved("tts:audiocpp:gpu")).toBe(false);
+    expect(pool.map.has("cpu/tts")).toBe(false); // never retried on the CPU
+    expect(svc.loaded()).toEqual([]);
+    // the next load is a load again
+    expect((await svc.loadModel("kokoro")).modelId).toBe("kokoro");
+  }
+});
+
+test("an on-demand companion registers on the first line that needs it, not with its model; it leaves with it (G11)", async () => {
+  const { svc, pool } = service();
+  withDownloads(svc);
+  const asr = { ...row("qwen-asr", "Qwen3-ASR", { kind: "stt", filesGb: 1 }), spec: { family: "qwen3_asr", task: "asr", companions: [{ role: "aligner", family: "qwen3_forced_aligner", task: "align", slot: "aligner", onDemand: true }] } };
+  svc._model = (id) => (id === "qwen-asr" ? asr : ROWS[id]);
+  const srv = () => pool.get("gpu", "stt");
+  const registered = () => srv().calls.filter(([c]) => c === "register").map(([, id]) => id);
+  await svc.loadModel("qwen-asr", { placement: "gpu" });
+  expect(registered()).toEqual(["qwen-asr"]); // 1.1 GB most captures never use: not with its model
+  await svc.useModel("qwen-asr", {}, async () => {});
+  expect(registered()).toEqual(["qwen-asr"]);
+  expect(await svc.useModel("qwen-asr", { needs: ["aligner"] }, async (server) => server.hasModel("qwen-asr::aligner"))).toBe(true);
+  await svc.useModel("qwen-asr", { needs: ["aligner"] }, async () => {}); // once
+  expect(registered()).toEqual(["qwen-asr", "qwen-asr::aligner"]);
+  await svc.unloadModel("qwen-asr");
+  expect(srv().calls).toContainEqual(["unload", ["qwen-asr", "qwen-asr::aligner"]]);
+});
+
+test("a transcription request goes as the app shapes it — its body and its time limit (G1)", async () => {
+  const { svc } = service({ speech: { transcribe: async (body, r) => ({ body: { ...body, language: "English", model_row: r.id }, timeout: 42 }) } });
+  expect(await svc.transcriptionRequest("parakeet", { language: "en" })).toEqual({ body: { language: "English", model_row: "parakeet" }, timeout: 42 });
+  expect(await service().svc.transcriptionRequest("parakeet", { a: 1 })).toEqual({ body: { a: 1 }, timeout: null });
+});
+
+test("the routes (round E's contract): Load 200 or 202, the licence's 403, a cancelled load's 409; the saved placement and Try the card again answer the model's row", async () => {
+  const { svc, pool } = service();
+  withDownloads(svc, { missing: ["chatterbox", "omnivoice"] });
+  svc._modelsFn = () => [ROWS.kokoro, ROWS.chatterbox, ROWS.omnivoice];
+  configureRuntimeServices([["audiocpp", svc]]);
+  const app = createServer({ typeBase: "t/" });
+  app.route("/", makeRuntimesRouter());
+  const send = (method, url, body) => app.request(`/v1/ai/runtimes/audiocpp${url}`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
+  const models = async () => Object.fromEntries((await (await app.request("/v1/ai/runtimes/audiocpp/models")).json()).models.map((m) => [m.id, m]));
+
+  let r = await send("POST", "/models/kokoro/load", { placement: "cpu" });
+  expect(r.status).toBe(200);
+  expect(await r.json()).toEqual({ modelId: "kokoro", placement: "cpu", kind: "tts", reason: "your choice — 3.1× real time on the reference machine" });
+  r = await send("POST", "/models/chatterbox/load", {});
+  expect(r.status).toBe(202);
+  expect(await r.json()).toEqual({ status: "downloading", modelId: "chatterbox" });
+  expect((await models()).chatterbox).toMatchObject({ loading: "downloading", placement: null, placementChoice: "auto" });
+  // an Unload meanwhile cancels it: its download "cancelled", no error
+  expect(await (await send("POST", "/models/chatterbox/unload")).json()).toMatchObject({ unloaded: true });
+  await until(() => !svc._loads.has("chatterbox"));
+  expect((await models()).chatterbox).toMatchObject({ loading: "", status: "cancelled", loadError: "" });
+  // the app's licence gate: 403 terms-required, nothing started
+  svc._speech.beforeDownload = (m) => (m.id === "omnivoice" ? "Accept OmniVoice's licence before downloading its models." : null);
+  r = await send("POST", "/models/omnivoice/load", {});
+  expect(r.status).toBe(403);
+  expect(await r.json()).toMatchObject({ type: "t/terms-required", modelId: "omnivoice" });
+  expect((await models()).omnivoice).toMatchObject({ loading: "", status: "" });
+  expect((await send("POST", "/models/omnivoice/download")).status).toBe(403);
+  // a load an Unload cancels at its next step: 409 load-cancelled
+  let open;
+  const gate = new Promise((x) => (open = x));
+  svc._placement.warm = async () => (await gate, false);
+  const pending = send("POST", "/models/kokoro/load", { placement: "gpu" });
+  await until(() => pool.get("gpu", "tts").models.has("kokoro"));
+  await send("POST", "/models/kokoro/unload");
+  open();
+  r = await pending;
+  expect(r.status).toBe(409);
+  expect(await r.json()).toMatchObject({ type: "t/load-cancelled", modelId: "kokoro" });
+  // the saved choice and Try the card again answer the model's row
+  r = await send("PUT", "/models/kokoro/placement", { placement: "gpu" });
+  expect(r.status).toBe(200);
+  expect(await r.json()).toMatchObject({ id: "kokoro", placementChoice: "gpu", placement: { where: "gpu", reason: "your choice", cardFailed: false }, loading: "" });
+  expect((await send("PUT", "/models/kokoro/placement", { placement: "npu" })).status).toBe(422);
+  svc._placement.recordCardFailure(ROWS.kokoro, "spilled");
+  r = await send("POST", "/models/kokoro/try-card");
+  expect(r.status).toBe(200);
+  expect(await r.json()).toMatchObject({ id: "kokoro", placement: { cardFailed: false } });
+  expect((await send("PUT", "/models/nope/placement", { placement: "cpu" })).status).toBe(404);
 });

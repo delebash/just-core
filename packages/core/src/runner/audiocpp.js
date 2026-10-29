@@ -84,6 +84,9 @@ export async function physicalCores() {
   return cores;
 }
 
+/** `physicalCores`' answer once it has one, else null — for a reader that can't wait (a status). */
+export const physicalCoresKnown = () => cores;
+
 /** eSpeak NG's `[library, dataFolder]` in its folder (an extra unpacked beside the build), or null. */
 export function espeakPaths(dir) {
   let names;
@@ -112,7 +115,6 @@ export function sideEnv({ espeakDir = null, unidicDir = null } = {}) {
   return env;
 }
 
-/** The backend a build runs: its folder's gpu name (`…/<build>/<gpu>/audiocpp_server`) as audio.cpp names backends. */
 /** A WAV's length in seconds from its header (its data chunk over the fmt chunk's byte rate), or null when it isn't
  *  one (JustVoice's manager.js _wavSeconds). */
 export function wavSeconds(data) {
@@ -145,6 +147,8 @@ export function inputSeconds(body) {
   return null;
 }
 
+/** The backend a build runs: its folder's gpu name (`…/<build>/<gpu>/audiocpp_server`) as audio.cpp names backends —
+ *  "cpu" for a folder it can't read (a development build's: RuntimeService takes that one's backend from its build). */
 export function backendOf(exe) {
   const gpu = path.basename(path.dirname(String(exe))).toLowerCase();
   if (gpu.startsWith("cuda")) return "cuda";

@@ -39,18 +39,24 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-/** acquireRuntime's stand-in: reports progress, honours Cancel, lays the server down. */
-function fakeAcquire({ hold = false } = {}) {
+/** acquireRuntime's stand-in: reports progress, honours Cancel, lays the server down — inside the caller's hold around
+ *  the swap (`aroundSwap`), as _stageAndSwap does. `onSwap()` runs as the build goes in. */
+function fakeAcquire({ hold = false, exe = "sd-server.exe", variant = "cuda12", onSwap = null } = {}) {
   const calls = [];
   const fn = async (cacheRoot, folder, build, binaries, hw, opts) => {
-    calls.push({ folder, build, gpu: opts.gpu, probeArgvs: opts.probeArgvs });
+    calls.push({ folder, build, gpu: opts.gpu, probeArgvs: opts.probeArgvs, preferredGpu: opts.preferredGpu, dropFiles: opts.dropFiles });
     opts.onProgress(10, 100);
     while (hold && !opts.cancelCheck()) await new Promise((r) => setTimeout(r, 5));
     if (opts.cancelCheck()) throw new Error("cancelled");
-    const dir = runtimeVariantDir(cacheRoot, folder, build, "cuda12");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(path.join(dir, "sd-server.exe"), "");
-    return path.join(dir, "sd-server.exe");
+    const dir = runtimeVariantDir(cacheRoot, folder, build, variant);
+    const swap = async () => {
+      onSwap?.();
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(path.join(dir, exe), "");
+    };
+    if (opts.aroundSwap) await opts.aroundSwap(swap);
+    else await swap();
+    return path.join(dir, exe);
   };
   return { fn, calls };
 }

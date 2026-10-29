@@ -169,6 +169,43 @@ test("sync_pins_realigns_to_current_default", () => {
   expect(a.pickEvict()).toBeNull(); // the CURRENT default is now the pinned one
 });
 
+test("sync_pins_follows_only_the_ai_models_own_bookings", async () => {
+  // round E, B10: a speech server's booking is pinned while its load runs; the chat load's admission re-syncs the embed
+  // pins right before it evicts — that must not unpin the speech booking into a victim
+  const a = arb(8000);
+  a.reserve("tts:audiocpp:gpu", 3000, { kind: "tts", pinned: true, evictFn: () => {} });
+  a.reserve("chat", 4000, { evictFn: () => {} });
+  a.syncPins(new Set(["embed"]));
+  expect(a.reservationOf("tts:audiocpp:gpu").pinned).toBe(true);
+  expect(await a.makeRoom(5000)).toBe(true); // the chat model goes; the loading speech model's booking stays
+  expect(a.isReserved("tts:audiocpp:gpu")).toBe(true);
+  expect(a.isReserved("chat")).toBe(false);
+  expect(await a.makeRoom(6000)).toBe(false); // nothing left it may take
+});
+
+test("runtime_bookings_list_every_other_kinds_booking_for_the_memory_strip", async () => {
+  // round E, G10: the strip read only the AI models; every other kind's booking, its key read where it has the kit's
+  // shape, the model holding it as its owner says
+  const { runtimeBookings } = await import("../src/runner/arbiter.js");
+  const a = arb(8000);
+  a.reserve("gemma", 5000, { kind: "llm" });
+  a.reserve("tts:audiocpp:gpu", 1200.7, { kind: "tts", source: "measured" });
+  a.reserve("stt:audiocpp:cpu", 300, { kind: "stt", source: "computed" });
+  a.reserve("image:sdcpp", 128, { kind: "image", source: "declared" });
+  a.reserve("speech-slot", 900, { kind: "tts" }); // a key of another shape
+  const holders = { "tts:audiocpp:gpu": "kokoro", "image:sdcpp": "flux2-klein-4b" };
+  const out = runtimeBookings((await a.snapshot()).reservations, (key) => holders[key]);
+  expect(out).toEqual([
+    { key: "tts:audiocpp:gpu", kind: "tts", runtime: "audiocpp", placement: "gpu", modelId: "kokoro", mb: 1200, source: "measured" },
+    { key: "stt:audiocpp:cpu", kind: "stt", runtime: "audiocpp", placement: "cpu", modelId: "", mb: 300, source: "computed" },
+    { key: "image:sdcpp", kind: "image", runtime: "sdcpp", placement: "", modelId: "flux2-klein-4b", mb: 128, source: "declared" },
+    { key: "speech-slot", kind: "tts", runtime: "", placement: "", modelId: "", mb: 900, source: "computed" },
+  ]);
+  expect(runtimeBookings([{ key: "x:y", kind: "tts", vram_mb: 1 }], () => {
+    throw new Error("no");
+  })[0].modelId).toBe("");
+});
+
 test("pick_evict_among_restricts_candidates", () => {
   // The embed-swap pass evicts a REPLACED embed before anything else (2026-07-12).
   const a = arb(8000);

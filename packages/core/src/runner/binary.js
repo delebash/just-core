@@ -895,7 +895,7 @@ export async function _stageAndSwap(
   dest,
   platform,
   dlKwargs,
-  { onProgress = null, cancelCheck = null, probeArgvs = null, label = "runtime", dropFiles = null } = {},
+  { onProgress = null, cancelCheck = null, probeArgvs = null, label = "runtime", dropFiles = null, aroundSwap = null } = {},
 ) {
   // STAGE: download + unpack into a sibling temp dir, never the live variant — the working
   // engine stays intact until a verified build is ready to swap in. Clear a crashed run's
@@ -959,7 +959,11 @@ export async function _stageAndSwap(
     if (platform !== "windows") chmodSync(exe, statSync(exe).mode | 0o111);
     await self._verifyExeLaunches(exe, platform); // catches a missing runtime DLL/.so
     await self._verifyExeAcceptsFlags(exe, probeArgvs); // catches a flag upstream removed
-    await _swapIntoPlace(staging, dest); // atomic — `dest` untouched until here
+    // atomic — `dest` untouched until here. A caller's hold around it: a runtime's servers stop first, so none keeps
+    // running the build being replaced (Windows won't replace a running program's files) — round E, B3
+    const swap = () => _swapIntoPlace(staging, dest);
+    if (aroundSwap) await aroundSwap(swap);
+    else await swap();
     for (const archive of fetched) unlinkMissingOk(archive); // installed: the archives have done their job
     try {
       rmdirSync(downloads); // only when empty — another's resume stays
@@ -1001,11 +1005,36 @@ export function dropUnpacked(root, drop) {
 // verify, swap. Its rows and pin are the APP's data, passed in; the folder keeps each
 // runtime's builds apart under the same cache root.
 
-/** The best of `binaries` for this box, by the same GPU preference llama.cpp uses. */
+/** This box's processor as build rows name it ("x64", "arm64"): the detection's when it says, else this process's. */
+export const boxArch = (hardware) => String(hardware?.arch || process.arch);
+
+/**
+ * Whether runtime build row `b` is for this box: its platform this box's — `<platform>` for any processor, or
+ * `<platform>-<arch>` for one (audio.cpp's Intel Mac build, "macos-x64": `runtime_binary`'s key is (runtime, platform,
+ * gpu), so a second macOS Metal build needs a platform word of its own — round E, B9) — and its `requires.arch`, when it
+ * names one, this box's processor.
+ */
+export function rowFitsBox(b, hardware) {
+  const arch = boxArch(hardware);
+  if (b.platform !== hardware.platform && b.platform !== `${hardware.platform}-${arch}`) return false;
+  const need = b.requires?.arch;
+  return !need || need === arch;
+}
+
+/** Runtime build row `gpu` for this box, or null: a row named for this box's processor beats one for any; else a later
+ *  row wins, as `byGpu` reads them. */
+export function runtimeRowFor(binaries, hardware, gpu) {
+  const fits = (binaries || []).filter((b) => b.gpu === gpu && rowFitsBox(b, hardware));
+  return fits.find((b) => b.platform === `${hardware.platform}-${boxArch(hardware)}`) ?? fits.at(-1) ?? null;
+}
+
+/** The best of `binaries` for this box, by the same GPU preference llama.cpp uses; `preferredGpu` a backend family
+ *  ("cuda", "vulkan", "cpu", "metal") moved to the front when this box can run it (`_gpuPreference`). */
 export function selectRuntimeAsset(binaries, hardware, preferredGpu = "") {
-  const rows = byGpu(binaries || [], (b) => b.platform === hardware.platform && b.source !== "docker");
+  const rows = (binaries || []).filter((b) => b.source !== "docker");
   for (const gpu of _gpuPreference(hardware, preferredGpu)) {
-    if (rows.has(gpu)) return rows.get(gpu);
+    const row = runtimeRowFor(rows, hardware, gpu);
+    if (row) return row;
   }
   return null;
 }
@@ -1026,7 +1055,8 @@ export function installedRuntimeExe(cacheRoot, folder, build, asset) {
  * The same atomic, verified install as `acquireBinary` (stage → launch-verify → swap), for a
  * runtime whose rows the caller owns. `gpu` installs a specific variant; otherwise the box's
  * preference picks. Idempotent unless `force`. `dropFiles(relPath)` → true leaves that file of
- * the archive out (see `dropUnpacked`).
+ * the archive out (see `dropUnpacked`). `aroundSwap(swap)`: the caller's hold around the swap
+ * itself — it calls `swap()` once (a runtime's servers stop for it: `_stageAndSwap`).
  */
 export async function acquireRuntime(
   cacheRoot,
@@ -1043,11 +1073,12 @@ export async function acquireRuntime(
     cancelCheck = null,
     probeArgvs = null,
     dropFiles = null,
+    aroundSwap = null,
   } = {},
 ) {
   let asset;
   if (gpu == null) asset = selectRuntimeAsset(binaries, hardware, preferredGpu);
-  else asset = (binaries || []).find((b) => b.platform === hardware.platform && b.gpu === gpu) ?? null;
+  else asset = runtimeRowFor(binaries, hardware, gpu);
   if (asset === null || !asset.assetUrl) {
     throw new RuntimeError(`no ${folder} build for platform=${hardware.platform}${gpu ? ` gpu=${gpu}` : ""}`);
   }
@@ -1063,5 +1094,6 @@ export async function acquireRuntime(
     probeArgvs,
     label: folder,
     dropFiles,
+    aroundSwap,
   });
 }

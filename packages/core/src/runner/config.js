@@ -350,8 +350,10 @@ export function defaultConfig() {
 // tar.gz row says 0: an install asks 5× its archive), and the Windows CUDA builds' runtime DLLs as their companion zip.
 // CUDA 13.3 is the Blackwell build (the kit's chip rule picks it at compute capability ≥ 10). Linux NVIDIA takes Vulkan,
 // as llama.cpp's rows do. The CPU builds are the PORTABLE ones: the plain build assumes this CPU's newest instructions
-// and exits at start on an older one (audio.cpp issue #352). macOS: Apple silicon only, the family's (the fork also
-// publishes x64). `requires` not measured for these builds.
+// and exits at start on an older one (audio.cpp issue #352). macOS: one Metal build per processor, as JustVoice's
+// release.js had them — Apple silicon's on "macos" (`requires.arch` arm64), Intel's on its own platform word "macos-x64"
+// (the table's key is runtime, platform, gpu — binary.rowFitsBox; put back 2026-10-29, round E B9: its size and digest
+// from GitHub's API that day, the digest the one JustVoice pinned). `requires` otherwise not measured for these builds.
 export const DEFAULT_AUDIOCPP_BUILD = "v0.9.2-jv.6";
 const AC_REL = `https://github.com/delebash/audio.cpp/releases/download/${DEFAULT_AUDIOCPP_BUILD}`;
 const acRow = (platform, gpu, asset, bytes, unpacked, sha256, extra = {}) => ({
@@ -376,6 +378,7 @@ const espeak = (pathTail, bytes, sha256) => [
 const ESPEAK_WIN = espeak("9d/ed/a3d872fbad4f3a3f3db0e8c31768ab14e77cd77306de16b8b20b1e1df7ea/espeakng_loader-0.2.4-py3-none-win_amd64.whl", 9437292, "41f1e08ac9deda2efd1ea9de0b81dab9f5ae3c4b24284f76533d0a7b1dd7abd7");
 const ESPEAK_LINUX = espeak("de/1e/25ec5ab07528c0fbb215a61800a38eca05c8a99445515a02d7fa5debcb32/espeakng_loader-0.2.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", 10078484, "08721baf27d13d461f6be6eed9a65277e70d68234ff484fd8b9897b222cdcb6d");
 const ESPEAK_MAC = espeak("a8/26/258c0cd43b9bc1043301c5f61767d6a6c3b679df82790c9cb43a3277b865/espeakng_loader-0.2.4-py3-none-macosx_11_0_arm64.whl", 9892565, "d27cdca31112226e7299d8562e889d3e38a1e48055c9ee381b45d669072ee59f");
+const ESPEAK_MAC_X64 = espeak("f8/92/f44ed7f531143c3c6c97d56e2b0f9be8728dc05e18b96d46eb539230ed46/espeakng_loader-0.2.4-py3-none-macosx_10_12_x86_64.whl", 9938387, "b77477ae2ddf62a748e04e49714eabb2f3a24f344166200b00539083bd669904");
 export const DEFAULT_AUDIOCPP_BINARIES = [
   acRow("windows", "cuda12", "audio-v0.9.2-jv.6-bin-windows-x64-cuda12.4.zip", 467437957, 1222597316, "e7061704063e2b583714670ddd4479126c23040a1bfed1ac4720d397e0d7a94a",
     { ...acCudart("audio-v0.9.2-jv.6-cudart-windows-x64-cuda12.4.zip", 607273675, 865923072, "5172d93ab24a378ea9b4877c5a0055836c81d3bf031d46d0e2722d1a1ad313cc"), extras: ESPEAK_WIN }),
@@ -385,8 +388,13 @@ export const DEFAULT_AUDIOCPP_BINARIES = [
   acRow("windows", "cpu", "audio-v0.9.2-jv.6-bin-windows-x64-cpu-portable.zip", 32029202, 76319044, "94847349a42ad052250b29c7cd8b5ede4918c1092207671d47235112d9bd856e", { extras: ESPEAK_WIN }),
   acRow("linux", "vulkan", "audio-v0.9.2-jv.6-bin-ubuntu-x64-vulkan.tar.gz", 85268472, 0, "9979081d11214c84ba4302351c7413db45d453f0bb8dc76734c1a0261b3eed93", { extras: ESPEAK_LINUX }),
   acRow("linux", "cpu", "audio-v0.9.2-jv.6-bin-ubuntu-x64-cpu-portable.tar.gz", 63696990, 0, "80d7c998cc7911c2e988da44cb16110f505d6b6e5d5f93968f3756ab27cd9ced", { extras: ESPEAK_LINUX }),
-  acRow("macos", "metal", "audio-v0.9.2-jv.6-bin-macos-arm64-metal.tar.gz", 35780548, 0, "b97e66f85ecfce7aa597fcbabced9eeba4907e049f520da46826d71d3b94c1ef", { extras: ESPEAK_MAC }),
+  acRow("macos", "metal", "audio-v0.9.2-jv.6-bin-macos-arm64-metal.tar.gz", 35780548, 0, "b97e66f85ecfce7aa597fcbabced9eeba4907e049f520da46826d71d3b94c1ef", { extras: ESPEAK_MAC, requires: { arch: "arm64" } }),
+  acRow("macos-x64", "metal", "audio-v0.9.2-jv.6-bin-macos-x64-metal.tar.gz", 37675142, 0, "edfda2bce4a719f2307466daf3e25760f5c61f159bbdc3f0cec8246d84f955f5", { extras: ESPEAK_MAC_X64, requires: { arch: "x64" } }),
 ];
+// What an audio.cpp install leaves out of its archive, by the file's ending: the release ships upstream's Python reference
+// scripts (tools/…), which the app never runs, and the family keeps no Python (2026-10-08; JustVoice's runtime.install —
+// round E, B8).
+export const AUDIOCPP_DROP_FILES = Object.freeze([".py"]);
 // The runtime's add-ons — installed when the user asks, kept across builds (`<runtime folder>/_addons`). The Japanese
 // dictionary: MeCab reads UniDic (unidic-lite 1.0.8, PyPI's sdist — its dictionary folder and licences only) for Kokoro's
 // Japanese voices and Chatterbox Japanese; installing it restarts the speech processes (AUDIOCPP_UNIDIC_DIR). Sizes measured
@@ -432,4 +440,15 @@ export const DEFAULT_AUDIOCPP_SETTINGS = Object.freeze({
   gpu_threads: 4, // the card process's CPU threads (text, sampling)
   start_timeout_s: 60.0, // how long a process may take to come up
   request_timeout_s: 900.0, // how long one request may run — a line, a model load
+});
+// How the runtime's tab shows four of those settings (round E, G8 — JustVoice's runtime row's controls): the build from
+// this machine's own rows, the card by name (only where there is more than one), the CPU threads "of" this machine's
+// physical cores, and the card-overflow limit only where a process's shared graphics memory can be read (NVIDIA on
+// Windows). `choices`, `of` and `shownWhen` name a fact of this machine runtimes.js settingsUiOf reads; a setting not
+// named here is a number or text box by its default's type.
+export const AUDIOCPP_SETTINGS_UI = Object.freeze({
+  backend: Object.freeze({ control: "select", choices: "backends" }),
+  gpu: Object.freeze({ control: "select", choices: "gpus", shownWhen: "several-gpus" }),
+  cpu_threads: Object.freeze({ control: "number", of: "physical-cores" }),
+  spill_mb: Object.freeze({ control: "number", shownWhen: "shared-memory-read" }),
 });

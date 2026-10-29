@@ -7,7 +7,9 @@
 import {
   AUDIOCPP_ADDONS,
   AUDIOCPP_BUILDS_IN_ORDER,
+  AUDIOCPP_DROP_FILES,
   AUDIOCPP_FEATURES,
+  AUDIOCPP_SETTINGS_UI,
   DEFAULT_AUDIOCPP_BINARIES,
   DEFAULT_AUDIOCPP_BUILD,
   DEFAULT_AUDIOCPP_SETTINGS,
@@ -69,9 +71,13 @@ export const RUNTIMES = Object.freeze({
       idleSeconds: 0,
       memory: Object.freeze({ idleMb: 78, peakMb: 0 }),
       settings: DEFAULT_AUDIOCPP_SETTINGS,
+      // how its tab shows them (settingsUiOf)
+      settingsUi: AUDIOCPP_SETTINGS_UI,
       features: AUDIOCPP_FEATURES,
       buildsInOrder: AUDIOCPP_BUILDS_IN_ORDER,
       addons: AUDIOCPP_ADDONS,
+      // the file endings an install leaves out of the archive (its Python scripts)
+      dropFiles: AUDIOCPP_DROP_FILES,
     }),
   }),
 });
@@ -81,6 +87,38 @@ export const kindsOf = (rt) => (rt?.kinds?.length ? [...rt.kinds] : rt?.kind ? [
 
 /** The runner_setting key holding one of a runtime's declared settings (`defaults.settings`) — `<name>:<runtime>`. */
 export const settingKey = (id, name) => `${name}:${id}`;
+
+/** The runner_setting key holding the user's Auto / GPU / CPU for one of a register runtime's models —
+ *  `placement:<runtime>:<model id>` (round E, G2: saved, read by every load that names no placement of its own). */
+export const placementKey = (id, modelId) => `placement:${id}:${modelId}`;
+
+// A build family in the words JustVoice's runtime row showed them (its SpeechEnginesTab BACKEND_LABELS, approved there);
+// another family shows its own word.
+const BACKEND_LABELS = Object.freeze({ auto: "Auto", cuda: "CUDA (NVIDIA)", vulkan: "Vulkan", cpu: "CPU", metal: "Metal (Apple GPU)" });
+
+/**
+ * How a runtime's tab shows each setting it declares (`defaults.settings`) on this machine (round E, G8):
+ * `{<name>: {control: "select" | "number" | "text", choices?: [{value, label}], hidden?: true, of?: n}}` — its
+ * `defaults.settingsUi` rule where it has one, else a number or a text box by its default's type. `box`, this machine's
+ * facts: `backends` the build families its rows offer that it can run, `gpus` its cards' names (by `device` index),
+ * `cores` its physical cores (null: not known yet), `sharedMemoryRead` whether a process's shared graphics memory can be
+ * read here (a card load's spill — NVIDIA on Windows).
+ */
+export function settingsUiOf(rt, { backends = [], gpus = [], cores = null, sharedMemoryRead = false } = {}) {
+  const rules = rt?.defaults?.settingsUi ?? {};
+  const facts = { "several-gpus": gpus.length > 1, "shared-memory-read": Boolean(sharedMemoryRead) };
+  const out = {};
+  for (const [name, dflt] of Object.entries(rt?.defaults?.settings ?? {})) {
+    const rule = rules[name] ?? {};
+    const ui = { control: rule.control ?? (typeof dflt === "number" ? "number" : "text") };
+    if (rule.choices === "backends") ui.choices = ["auto", ...backends].map((b) => ({ value: b, label: BACKEND_LABELS[b] ?? b }));
+    else if (rule.choices === "gpus") ui.choices = gpus.map((g, i) => ({ value: i, label: `${i} · ${g}` }));
+    if (rule.of === "physical-cores" && cores > 0) ui.of = cores;
+    if (rule.shownWhen && !facts[rule.shownWhen]) ui.hidden = true;
+    out[name] = ui;
+  }
+  return out;
+}
 
 /** The built-in provider of a runtime's kind: `local-<id>` for its primary kind, `local-<id>-<kind>` for another
  *  (audio.cpp's transcription: local-audiocpp-stt) — what a preset of that kind routes to. */

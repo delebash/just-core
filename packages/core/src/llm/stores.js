@@ -1098,6 +1098,11 @@ export class RunnerConfigStore {
     this.setSetting("cache_root", strip(root || ""));
   }
 
+  /** One runner_setting's stored value, or null when none is stored. */
+  getSetting(key) {
+    return settingValue(db.session(), key) ?? null;
+  }
+
   setSetting(key, value) {
     const h = db.session();
     const v = pyStrScalar(value);

@@ -37,6 +37,8 @@ function activate(seg) {
    nothing on screen moves (JustWrite's axe run, 2026-10-29) */
 .breadcrumb-link {
   appearance: none; background: none; border: 0; padding: 4.5px 0; margin: -4.5px 0; cursor: pointer;
+  /* above its neighbours, so the padded box isn't covered (axe: "partially obscured" — JustWrite, 2026-10-29) */
+  position: relative; z-index: 1;
   font: inherit; letter-spacing: inherit; text-transform: inherit;
   color: var(--muted);
 }

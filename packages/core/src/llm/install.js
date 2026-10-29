@@ -46,7 +46,7 @@ import { makeReasoningMapRouter } from "./reasoning_map_api.js";
 import { makeRoutingRouter } from "./routing_api.js";
 import { makeRunnerConfigRouter } from "./runner_config_api.js";
 import { makeRuntimesRouter } from "./runtimes_api.js";
-import { runtimeOf } from "../runner/runtimes.js";
+import { placementKey, runtimeOf } from "../runner/runtimes.js";
 import { configureRuntimeServices, getRuntimeService, RuntimeService } from "../runner/runtime_service.js";
 import { AUDIOCPP_PROBE_ARGVS } from "../runner/audiocpp.js";
 import { SDCPP_PROBE_ARGVS, SDCPP_SERVER } from "../runner/sdcpp.js";
@@ -230,9 +230,14 @@ export async function installLlm(
     // installed build — an app's development build (JustVoice's `npm run dev` runs its audio.cpp checkout's own — round E;
     // its backend from the build's CMake cache, its version "dev · <commit>")
     runtimeExeOverrides = {},
-    // `{ <runtime id>: {warm, pieceLength, loadOptionsKey} }`: a runtime that registers its models (audio.cpp) — the app's
-    // warm-up after a load (`warm({server, row, modelId, entries, calibrate})` → whether it calibrated), a model's piece
-    // length and its load-option set, both parts of its measured price (runner/speech_placement.js — round E, E5)
+    // `{ <runtime id>: {warm, pieceLength, loadOptionsKey, transcribe, sessionOptions, beforeDownload} }`: a runtime that
+    // registers its models (audio.cpp) — the app's warm-up after a load (`warm({server, row, modelId, entries,
+    // calibrate})` → whether it calibrated), a model's piece length and its load-option set, both parts of its measured
+    // price (runner/speech_placement.js — round E, E5); a transcription request's shaping (`transcribe(body, row)` →
+    // `{body, timeout}` — its audio converted, its language named, its time limit in seconds; G1); a model's saved load
+    // options (`sessionOptions(row)` → `{option: value}`, read by every load given none; G3); its licence gate
+    // (`beforeDownload(row)`, answering at once: throws or returns a problem — a string or `{detail}` — when the user
+    // hasn't accepted its terms, and nothing downloads: 403 terms-required; G5)
     runtimeSpeech = {},
     classTunesSeed = [],
     classTuneIdentity = {},
@@ -522,6 +527,11 @@ export function wireRunnerCatalog(
         ort: id === "onnx" ? onnx : null,
         exeOverride: runtimeExeOverrides?.[id] ?? null,
         speech: runtimeSpeech?.[id] ?? {},
+        // the user's Auto / GPU / CPU per model, saved as runner settings (round E, G2)
+        placementChoices: {
+          get: (modelId) => stores.getRunnerConfigStore().getSetting(placementKey(id, modelId)),
+          set: (modelId, choice) => stores.getRunnerConfigStore().setSetting(placementKey(id, modelId), choice),
+        },
       }),
     ]),
   );
