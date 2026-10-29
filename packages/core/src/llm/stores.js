@@ -976,6 +976,7 @@ export class RunnerConfigStore {
         peakVramMb: Number(r.peak_vram_mb || 0),
         minRamMb: Number(r.min_ram_mb || 0),
         refSpeed: JSON.parse(r.ref_speed || "{}"),
+        spec: JSON.parse(r.spec || "{}"),
         builtIn: truthy(r.built_in),
       }));
   }

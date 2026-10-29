@@ -97,6 +97,12 @@ DECIDED 2026-10-29 (the user, verbatim: "your rec go", on the numbered list of e
         #31077, #30975, exactness); if #30419 or #30698 fires, the release stays on b11239. 7 a one-pool laptop walk
         (the Radeon 780M) if it's at hand, else dropped. 8 the Add-model note's last sentence: "Embedding models keep
         hand-set minimums for card memory and RAM; the Fits badge and Quick Setup both read them."
+FOUND 2026-10-29 (for the user's word at the end, not built): (a) sd.cpp master-1024 passed house-paint's real-app check
+        (Update 16 s; render 39.5 s cold / 33.4 s warm, ΔE 1.25; Cancel frees the card) but one pair of shutters stayed
+        light where master-1004's render painted them — not a clean A/B (different masks); rec: a bare A/B, the same
+        sd-server request on both builds, pixel-diffed. (b) A render's note named house-paint's OWN llama-server (its child)
+        as "other programs" holding 6.3 GB — the own-process filter (hardware.js processTreePids) missed it once; not
+        reproduced. (c) the speech bands' fast line (5×) is the kit's start value, not decided.
 STATE:  under way.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]

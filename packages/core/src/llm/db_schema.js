@@ -940,7 +940,7 @@ export const TABLES = [
   },
   {
     "name": "runtime_model",
-    "ddl": "CREATE TABLE runtime_model (\n\truntime VARCHAR NOT NULL, \n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tkind VARCHAR NOT NULL, \n\tlicense VARCHAR NOT NULL, \n\tfiles VARCHAR NOT NULL, \n\tpeak_vram_mb INTEGER NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tmin_ram_mb INTEGER NOT NULL, \n\tref_speed VARCHAR NOT NULL, \n\tPRIMARY KEY (runtime, id)\n)",
+    "ddl": "CREATE TABLE runtime_model (\n\truntime VARCHAR NOT NULL, \n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tkind VARCHAR NOT NULL, \n\tlicense VARCHAR NOT NULL, \n\tfiles VARCHAR NOT NULL, \n\tpeak_vram_mb INTEGER NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tmin_ram_mb INTEGER NOT NULL, \n\tref_speed VARCHAR NOT NULL, \n\tspec VARCHAR NOT NULL, \n\tPRIMARY KEY (runtime, id)\n)",
     "indexes": [],
     "columns": {
       "runtime": {
@@ -994,6 +994,11 @@ export const TABLES = [
         "default": 0
       },
       "ref_speed": {
+        "kind": "text",
+        "notNull": true,
+        "default": "{}"
+      },
+      "spec": {
         "kind": "text",
         "notNull": true,
         "default": "{}"

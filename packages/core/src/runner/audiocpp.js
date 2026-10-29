@@ -16,7 +16,7 @@
 // What is the app's, injected by RuntimeService: where its config and logs go, its settings (threads, timeouts), and the
 // environment its side programs need (eSpeak NG's library and data, the Japanese dictionary — round E's extras).
 
-import { closeSync, mkdirSync, openSync, readSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -46,6 +46,38 @@ export function childEnv(extra = {}) {
   }
   for (const [k, v] of Object.entries(extra || {})) if (v != null && v !== "") env[k] = String(v);
   return env;
+}
+
+let cores = null;
+/** This machine's physical core count — the CPU process's default thread count (the logical count when it can't
+ *  tell). Detected once: Windows' processors' NumberOfCores, macOS `hw.physicalcpu`, Linux /proc/cpuinfo's cores. */
+export async function physicalCores() {
+  if (cores !== null) return cores;
+  let n = null;
+  try {
+    if (process.platform === "win32") {
+      const r = await procs.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command", "(Get-CimInstance Win32_Processor | Measure-Object -Property NumberOfCores -Sum).Sum"],
+        { timeout: 20 },
+      );
+      n = Number.parseInt(String(r.stdout).trim(), 10);
+    } else if (process.platform === "darwin") {
+      n = Number.parseInt(String((await procs.run(["sysctl", "-n", "hw.physicalcpu"], { timeout: 10 })).stdout).trim(), 10);
+    } else {
+      const seen = new Set();
+      let phys = "";
+      for (const line of readFileSync("/proc/cpuinfo", "utf8").split("\n")) {
+        const [k, v] = line.split(":").map((x) => (x ?? "").trim());
+        if (k === "physical id") phys = v;
+        else if (k === "core id") seen.add(`${phys}/${v}`);
+      }
+      n = seen.size;
+    }
+  } catch {
+    n = null;
+  }
+  cores = n > 0 ? n : Math.max(1, os.availableParallelism?.() || os.cpus().length || 1);
+  return cores;
 }
 
 /** The backend a build runs: its folder's gpu name (`…/<build>/<gpu>/audiocpp_server`) as audio.cpp names backends. */

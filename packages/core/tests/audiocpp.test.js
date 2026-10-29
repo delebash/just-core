@@ -123,3 +123,69 @@ test("a managed start: its config, folder and environment; the same start again 
   expect(srv.isRunning()).toBe(false);
   expect(new AudioCppError("x")).toBeInstanceOf(Error);
 });
+
+// RuntimeService for a runtime whose models are registered (round E, E2): a model and its companions go into its
+// kind's server on a placement, from its row's spec and files; the kind's previous model leaves first; speech and
+// transcription keep their own processes; a model moving placement leaves the old one; an older build is refused.
+test("loadModel registers a model and its companions in its kind's server; one model per kind; an old build is refused", async () => {
+  const { DEFAULT_AUDIOCPP_BUILD } = await import("../src/runner/config.js");
+  const { RuntimeService } = await import("../src/runner/runtime_service.js");
+  const dir = mkdtempSync(path.join(tmpdir(), "kit-ac-svc-"));
+  let pin = DEFAULT_AUDIOCPP_BUILD;
+  const svc = new RuntimeService({
+    id: "audiocpp",
+    cacheRoot: dir,
+    configFn: () => ({ id: "audiocpp", pinnedBuild: pin, binaries: [], settings: { gpu: 0, gpu_threads: 4, cpu_threads: 6, backend: "auto", start_timeout_s: 10, request_timeout_s: 10 } }),
+    hardwareFn: () => ({ platform: "windows", gpus: [], runtimes: {} }),
+    logDir: path.join(dir, "logs"),
+    stateDir: path.join(dir, "state"),
+  });
+  const record = [];
+  svc._pool = new AudioCppPool({ configDir: path.join(dir, "config"), logDir: path.join(dir, "logs"), settingsFn: () => ({ start_timeout_s: 10, request_timeout_s: 10 }), envFn: () => svc.extrasEnv(), spawn: fakeSpawn(record) });
+  svc.installedExe = () => path.join(dir, "audiocpp", pin, "cuda12", "audiocpp_server.exe");
+  svc.extrasEnv = () => ({ AUDIOCPP_ESPEAK_LIBRARY: "/espeak/lib", AUDIOCPP_ESPEAK_DATA: "/espeak/data" });
+  const rows = {
+    kitten: { id: "kitten", kind: "tts", spec: { family: "kitten_tts", task: "tts", espeak: true, sessionOptions: { "kitten_tts.speed": "1" } } },
+    mio: { id: "mio", kind: "tts", spec: { family: "miotts", task: "tts", sessionFiles: { "miotts.codec_path": "codec" }, companions: [{ role: "codec", family: "mio_codec", task: "tts", slot: "codec" }] } },
+    parakeet: { id: "parakeet", kind: "stt", spec: { family: "parakeet_tdt", task: "asr" } },
+  };
+  svc._model = (id) => rows[id];
+  svc.modelFor = (id) => ({ key: id, files: { model: `/m/${id}.gguf`, codec: `/m/${id}-codec.gguf` } });
+
+  // a model with eSpeak's paths and the user's own option, on the card
+  expect(await svc.loadModel("kitten", { sessionOptions: { "kitten_tts.voice": "bella" } })).toEqual({ modelId: "kitten", placement: "gpu", kind: "tts" });
+  const loads = (i) => record[i].calls.filter(([, u]) => u === "/v1/models/load").map(([, , b]) => JSON.parse(b));
+  expect(loads(0)[0]).toMatchObject({
+    id: "kitten", family: "kitten_tts", task: "tts", path: "/m/kitten.gguf",
+    session_options: { "kitten_tts.espeak_library_path": "/espeak/lib", "kitten_tts.espeak_data_path": "/espeak/data", "kitten_tts.speed": "1", "kitten_tts.voice": "bella" },
+  });
+  expect(record[0].conf).toMatchObject({ threads: 4, model_management: true });
+
+  // the kind's next model: the first leaves, the new one and its companion register (a file as an option)
+  await svc.loadModel("mio");
+  expect(record[0].calls.some(([, u, b]) => u === "/v1/tasks/unload_models" && JSON.parse(b).model_ids.includes("kitten"))).toBe(true);
+  expect(loads(0).slice(1).map((e) => e.id)).toEqual(["mio", "mio::codec"]);
+  expect(loads(0)[1].session_options["miotts.codec_path"]).toBe("/m/mio-codec.gguf");
+
+  // transcription: its own process; speech's model stays
+  await svc.loadModel("parakeet", { placement: "cpu" });
+  expect(record).toHaveLength(2);
+  expect(record[1].conf).toMatchObject({ backend: "cpu", threads: 6 });
+  expect(svc.loaded().map((l) => `${l.modelId}@${l.placement}`).sort()).toEqual(["mio@gpu", "parakeet@cpu"]);
+  expect(svc.serverFor("parakeet")).toBe(svc._pool.get("cpu", "stt"));
+
+  // moving speech's model to the CPU: it leaves the card's process first
+  await svc.loadModel("mio", { placement: "cpu" });
+  expect(record[0].calls.some(([, u, b]) => u === "/v1/tasks/unload_models" && JSON.parse(b).model_ids.includes("mio"))).toBe(true);
+  expect(svc.loaded().find((l) => l.modelId === "mio").placement).toBe("cpu");
+
+  expect(await svc.unloadModel("parakeet")).toBe(true);
+  expect(await svc.unloadModel("parakeet")).toBe(false);
+  expect(() => svc.serverFor("parakeet")).toThrow(/isn't loaded/);
+
+  // a build without model_management can't load while it runs
+  pin = "v0.9.0";
+  await expect(svc.loadModel("kitten")).rejects.toMatchObject({ need: { reason: "update-engine" } });
+  await svc.stopServer();
+  expect(svc.loaded()).toEqual([]);
+});

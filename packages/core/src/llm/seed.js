@@ -1209,6 +1209,8 @@ export function seedRuntimeModels(h, rows, runtimes = []) {
         position: i,
         min_ram_mb: Number(r.minRamMb ?? 0),
         ref_speed: JSON.stringify(r.refSpeed ?? {}),
+        // how the runtime loads it beyond its files (audio.cpp: family, task, session options, companions — round E)
+        spec: JSON.stringify(r.spec ?? {}),
       };
       const key = { runtime, id: String(r.id) };
       const have = h.get("runtime_model", key);

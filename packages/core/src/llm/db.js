@@ -52,6 +52,8 @@ export const ADDED_COLUMNS = [
   ["runtime_model", "min_ram_mb", "INTEGER NOT NULL DEFAULT 0"],
   ["runtime_model", "ref_speed", "VARCHAR NOT NULL DEFAULT '{}'"],
   ["model_measurements", "sec_per_image", "FLOAT NOT NULL DEFAULT 0"],
+  // how a runtime loads the model beyond its files — audio.cpp's family, task, session options and companions (round E)
+  ["runtime_model", "spec", "VARCHAR NOT NULL DEFAULT '{}'"],
   // a llama.cpp build's runtime companion (cudart) checked like its download — the finish list's A12 (2026-10-29)
   ["runner_binary", "runtime_sha256", "VARCHAR"],
   // a prompt cache's write and read rates per model (Claude's) — the finish list's C28 (2026-10-29)

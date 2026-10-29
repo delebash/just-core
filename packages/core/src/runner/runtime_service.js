@@ -23,6 +23,7 @@ import { freeBytes, lacksRoom } from "../platform/disk_room.js";
 import { ApiError } from "../platform/errors.js";
 import { getLogger } from "../platform/log.js";
 import { getArbiter } from "./arbiter.js";
+import { AudioCppPool, ModelEntry, physicalCores } from "./audiocpp.js";
 import * as binary from "./binary.js";
 import { buildsInUse, recordBuild } from "./cache_registry.js";
 import * as fit from "./fit.js";
@@ -30,7 +31,7 @@ import * as hardware from "./hardware.js";
 import * as models from "./models.js";
 import * as onnx from "./onnx.js";
 import * as processMod from "./process.js";
-import { runtimeOf } from "./runtimes.js";
+import { buildHas, runtimeOf } from "./runtimes.js";
 
 const log = getLogger("llm_runner.runner.runtime_service");
 
@@ -177,6 +178,17 @@ export class RuntimeService {
     this._jobs = 0; // jobs running on the server now
     this._starting = null;
     this._idleTimer = null;
+    // a runtime whose models are REGISTERED into running servers (audio.cpp — round E): its server per placement and
+    // kind, and which model each holds (one per kind: a process's measured memory is its one model's)
+    if (this.rt.loads === "register") {
+      this._pool = new AudioCppPool({
+        configDir: path.join(this._stateDir, `${this.rt.id}-config`),
+        logDir: this._logDir,
+        settingsFn: () => this._configFn().settings ?? {},
+        envFn: () => this.extrasEnv(),
+      });
+      this._held = new Map(); // modelId → { placement, kind, ids }
+    }
   }
 
   /** The folder every build of this runtime lives under. */
@@ -751,10 +763,100 @@ export class RuntimeService {
   async stopServer() {
     clearTimeout(this._idleTimer);
     if (this.rt.inProcess) return this._releaseLoaded();
+    if (this._pool) {
+      this._held.clear();
+      this._arbiter().release(this._booking().key);
+      return this._pool.stop();
+    }
     const s = this._server;
     this._server = null;
     this._arbiter().release(this._booking().key);
     if (s) s.handle.stop();
+  }
+
+  // ── registered models: servers per placement and kind (audio.cpp — round E) ────────────────────────────────────
+
+  /** The environment the runtime's side programs need (eSpeak NG, the Japanese dictionary — round E's extras); none
+   *  until they are installed. */
+  extrasEnv() {
+    return {};
+  }
+
+  /** The server entries that load `modelId`: the model itself and each companion (`<id>::<role>`), from its row's
+   *  `spec` and its downloaded files — `{family, task, modelSlot?, sessionOptions?, sessionFiles?, companions?,
+   *  espeak?}` (sessionFiles: an option whose value is one of its files' paths; espeak: eSpeak NG's paths as the
+   *  family's session options). `sessionOptions`: the user's own for this model (the app's options panel). */
+  entriesFor(modelId, { sessionOptions = {} } = {}) {
+    const row = this._model(modelId);
+    const { files } = this.modelFor(modelId);
+    const spec = row.spec ?? {};
+    const at = (slot) => files[slot] ?? null;
+    const opts = { ...(spec.sessionOptions ?? {}), ...(sessionOptions ?? {}) };
+    for (const [k, slot] of Object.entries(spec.sessionFiles ?? {})) if (at(slot)) opts[k] = at(slot);
+    if (spec.espeak) {
+      const env = this.extrasEnv();
+      if (env.AUDIOCPP_ESPEAK_LIBRARY) opts[`${spec.family}.espeak_library_path`] = env.AUDIOCPP_ESPEAK_LIBRARY;
+      if (env.AUDIOCPP_ESPEAK_DATA) opts[`${spec.family}.espeak_data_path`] = env.AUDIOCPP_ESPEAK_DATA;
+    }
+    const pairs = Object.entries(opts).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    const main = new ModelEntry(row.id, spec.family, spec.task, at(spec.modelSlot ?? "model") ?? Object.values(files)[0], pairs);
+    return [main, ...(spec.companions ?? []).map((c) => new ModelEntry(`${row.id}::${c.role}`, c.family, c.task, at(c.slot)))];
+  }
+
+  /**
+   * Load `modelId` into its kind's server on `placement` ("gpu": the build's own backend; "cpu": the same build on the
+   * CPU), registering it and its companions (the fork's model_management — nothing restarts). The kind's previous model
+   * leaves first — and this one from the other placement when it moves. Refused when the engine isn't installed or its
+   * build can't register models (an older build: update it).
+   */
+  async loadModel(modelId, { placement = "gpu", sessionOptions = {} } = {}) {
+    if (!this._pool) throw new TypeError(`${this.rt.id} doesn't register models`);
+    if (this._removing) throw refusal(`${this.rt.label} is being removed — try again when it's done`, { busy: "engine-busy" });
+    const row = this._model(modelId);
+    const kind = row.kind;
+    const exe = this.installedExe();
+    if (!exe) throw Object.assign(new Error(`${this.rt.label} isn't installed`), { notInstalled: true });
+    const cfg = this._configFn();
+    if (!buildHas(this.rt, cfg.pinnedBuild, "model_management")) {
+      throw refusal(`${this.rt.label} ${cfg.pinnedBuild} can't load models while it runs — update it`, { need: { reason: "update-engine" } });
+    }
+    const entries = this.entriesFor(modelId, { sessionOptions });
+    for (const [id, h] of [...this._held]) {
+      if (h.kind === kind && (id !== modelId || h.placement !== placement)) await this.unloadModel(id);
+    }
+    const s = cfg.settings ?? {};
+    const cpuThreads = Number(s.cpu_threads) > 0 ? Number(s.cpu_threads) : await physicalCores();
+    const srv = this._pool.get(placement, kind);
+    await srv.ensure(exe, [], {
+      device: Number(s.gpu ?? 0) || 0,
+      threads: placement === "cpu" ? cpuThreads : Math.max(1, Number(s.gpu_threads ?? 4) || 4),
+      backend: placement === "cpu" ? "cpu" : s.backend && s.backend !== "auto" ? s.backend : null,
+      managed: true,
+    });
+    for (const e of entries) await srv.register(e);
+    this._held.set(modelId, { placement, kind, ids: entries.map((e) => e.id) });
+    return { modelId, placement, kind };
+  }
+
+  /** Let `modelId` (and its companions) go from the server holding it; false when none does. */
+  async unloadModel(modelId) {
+    const h = this._held?.get(modelId);
+    if (!h) return false;
+    this._held.delete(modelId);
+    await this._pool.get(h.placement, h.kind).unload(h.ids);
+    return true;
+  }
+
+  /** What each kind holds now: `[{modelId, placement, kind}]`. */
+  loaded() {
+    return [...(this._held ?? [])].map(([modelId, h]) => ({ modelId, placement: h.placement, kind: h.kind }));
+  }
+
+  /** The running server holding `modelId` — speech, transcription and alignment go through it. */
+  serverFor(modelId) {
+    const h = this._held?.get(modelId);
+    if (!h) throw refusal(`${modelId} isn't loaded`, { need: { reason: "not-loaded" } });
+    return this._pool.get(h.placement, h.kind);
   }
 
   // ── in-process: a model in memory (ONNX Runtime — the engines plan's K6) ─────────────────────────────────────
