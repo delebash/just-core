@@ -7,7 +7,7 @@
 // moves and clears ask first, and that a token's address is what a browser elsewhere opens.
 import { _resolveDialog, installLlmUi, LlmUiHosts, setServerToken } from "@delebash/ui";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
-import { flushPromises, mount } from "@vue/test-utils";
+import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
 import { createPinia } from "pinia";
 import * as quasar from "quasar";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -137,20 +137,20 @@ describe("Server", () => {
     input.value = "  def  ";
     input.dispatchEvent(new Event("input"));
     await flushPromises();
-    button("Add token").click();
+    await new DOMWrapper(button("Add token")).trigger("click");
     await flushPromises();
     expect(server.auth).toEqual({ tokens: ["abc", "def"], requireForLoopback: false });
-    document.body.querySelector("button[aria-label='Remove token']").click();
+    await new DOMWrapper(document.body.querySelector("button[aria-label='Remove token']")).trigger("click");
     await flushPromises();
     expect(server.auth.tokens).toEqual(["def"]);
-    document.body.querySelector("[aria-label='Require a token on this computer too']").click();
+    await new DOMWrapper(document.body.querySelector("[aria-label='Require a token on this computer too']")).trigger("click");
     await flushPromises();
     expect(server.auth.requireForLoopback).toBe(true);
   });
 
   test("keep running is kept as a preference and told to the shell at once", async () => {
     await mountSettings("server");
-    document.body.querySelector("[aria-label='Keep server running after the app closes']").click();
+    await new DOMWrapper(document.body.querySelector("[aria-label='Keep server running after the app closes']")).trigger("click");
     await flushPromises();
     expect(shell.keepRunning).toEqual([true]);
     expect(useUiStore(pinia).keepServerRunning).toBe(true);
@@ -161,7 +161,7 @@ describe("Server", () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
     await mountSettings("server");
-    button("Copy the address with this token").click();
+    await new DOMWrapper(button("Copy the address with this token")).trigger("click");
     await flushPromises();
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/?token=s3cr3t`);
   });
@@ -181,12 +181,12 @@ describe("Storage", () => {
     shell.picked = "D:/new";
     vi.stubGlobal("location", { ...window.location, reload: vi.fn() });
     await mountSettings("storage");
-    button("Change folder").click();
+    await new DOMWrapper(button("Change folder")).trigger("click");
     await flushPromises();
     _resolveDialog(false);
     await flushPromises();
     expect(shell.relocated).toEqual([]);
-    button("Change folder").click();
+    await new DOMWrapper(button("Change folder")).trigger("click");
     await flushPromises();
     _resolveDialog(true);
     await flushPromises();
@@ -201,7 +201,7 @@ describe("Storage", () => {
     server.disk = { ...server.disk, sharedWith: ["JustWrite"] };
     vi.stubGlobal("location", { ...window.location, reload: vi.fn() });
     await mountSettings("storage");
-    button("Change folder").click();
+    await new DOMWrapper(button("Change folder")).trigger("click");
     await flushPromises();
     expect(text()).toContain("is copied to D:\\Folders\\Family Template, and the app restarts on it");
     expect(text()).toContain("JustWrite use this app's AI models");
@@ -217,13 +217,13 @@ describe("Storage", () => {
     vi.stubGlobal("location", { ...window.location, reload: vi.fn() });
     await mountSettings("storage");
     expect(text()).toContain("Old copy");
-    removeOld().click();
+    await new DOMWrapper(removeOld()).trigger("click");
     await flushPromises();
     _resolveDialog(true);
     await flushPromises();
     expect(shell.removed).toEqual(["C:\\App\\data"]);
     expect(removeOld()).toBeUndefined();
-    button("Move back to the default folder").click();
+    await new DOMWrapper(button("Move back to the default folder")).trigger("click");
     // the second question, once the first dialog has closed (AppDialog waits a tick around open and close)
     await vi.waitFor(() => expect(text()).toContain("is copied to C:\\App\\data, and the app restarts on it"));
     _resolveDialog(true);
@@ -235,7 +235,7 @@ describe("Storage", () => {
     expect(text()).toContain("This start uses the default folder: your data is in E:\\Family Template, which isn't there now — connect it and restart, or use the default folder from now on.");
     // one sentence, the folder named once (the nineteenth review's screens: three times, five lines at 960)
     expect(document.body.querySelector(".lu-storage__banner").textContent.split("E:\\Family Template").length - 1).toBe(1);
-    button("Use the default folder from now on").click();
+    await new DOMWrapper(button("Use the default folder from now on")).trigger("click");
     await flushPromises();
     _resolveDialog(true);
     await flushPromises();
@@ -297,19 +297,19 @@ describe("Storage", () => {
     expect(removes().length).toBe(1); // only the found one's
     expect(button("Move back to the default folder")).toBeUndefined();
     expect(text()).toContain("To move the data back to the default folder, remove the old copy there first.");
-    removes()[0].click();
+    await new DOMWrapper(removes()[0]).trigger("click");
     await flushPromises();
     expect(text()).toContain("JustWrite use this app's AI models: if they still use the old copy's, they download their models again.");
     _resolveDialog(false);
     await flushPromises();
     // Forget: asked first; No keeps it
-    button("Forget").click();
+    await new DOMWrapper(button("Forget")).trigger("click");
     await flushPromises();
     expect(text()).toContain("The app stops listing the old copy in F:\\Stick\\Family Template. Nothing on any drive is touched");
     _resolveDialog(false);
     await flushPromises();
     expect(shell.forgotten).toEqual([]);
-    button("Forget").click();
+    await new DOMWrapper(button("Forget")).trigger("click");
     await flushPromises();
     _resolveDialog(true);
     await flushPromises();
@@ -337,12 +337,12 @@ describe("Storage", () => {
     expect(text()).toContain("The folder there now isn't this copy — another drive in its place, or a folder copied by hand — so it isn't removed.");
     // Try again: looked at now
     shell.oldCopies = [shell.oldCopies[1]];
-    button("Try again").click();
+    await new DOMWrapper(button("Try again")).trigger("click");
     await flushPromises();
     expect(shell.oldCopiesAsked.at(-1)).toEqual({ again: true });
     expect(text()).not.toContain("Didn't answer just now");
     // the last one forgotten: the focus on Change folder
-    button("Forget").click();
+    await new DOMWrapper(button("Forget")).trigger("click");
     await flushPromises();
     _resolveDialog(true);
     await flushPromises();
@@ -390,7 +390,7 @@ describe("Storage", () => {
     const times = () => text().split(said).length - 1;
     expect(times()).toBe(1);
     const removeOld = () => [...document.body.querySelectorAll(".ui-formgrid button")].find((b) => b.textContent.includes("Remove the old copy"));
-    removeOld().click();
+    await new DOMWrapper(removeOld()).trigger("click");
     await flushPromises();
     expect(times()).toBe(2);
     _resolveDialog(false);
@@ -401,7 +401,7 @@ describe("Storage", () => {
   test("clearing the models asks first, then clears and reads the sizes again", async () => {
     await mountSettings("storage");
     const before = server.calls.filter((c) => c[1] === "/v1/disk/usage").length;
-    [...document.body.querySelectorAll("button")].find((b) => b.textContent.trim() === "Clear…").click();
+    await new DOMWrapper([...document.body.querySelectorAll("button")].find((b) => b.textContent.trim() === "Clear…")).trigger("click");
     await flushPromises();
     _resolveDialog(true);
     await flushPromises();
@@ -412,7 +412,7 @@ describe("Storage", () => {
   test("a model downloading or at work: the clear is refused in the screen's words", async () => {
     server.clear = { ok: false, detail: "models busy", models: ["flux2-klein-4b"] };
     await mountSettings("storage");
-    [...document.body.querySelectorAll("button")].find((b) => b.textContent.trim() === "Clear…").click();
+    await new DOMWrapper([...document.body.querySelectorAll("button")].find((b) => b.textContent.trim() === "Clear…")).trigger("click");
     await flushPromises();
     _resolveDialog(true);
     await flushPromises();
@@ -432,7 +432,7 @@ describe("General", () => {
     await flushPromises();
     const saves = cards.map((c) => [...c.querySelectorAll("button")].find((b) => b.textContent.trim() === "Save"));
     expect(saves[0].getAttribute("aria-disabled")).toBe("true"); // nothing changed on the Notes card
-    saves[1].click();
+    await new DOMWrapper(saves[1]).trigger("click");
     await flushPromises();
     expect(server.calls.filter((c) => c[0] === "PATCH" && c[1] === "/v1/settings").map((c) => c[2])).toEqual([{ "windows.checkSeconds": 10 }]);
   });

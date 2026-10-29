@@ -69,7 +69,7 @@ import TuneMeasureModal from "@delebash/ui/components/TuneMeasureModal.vue";
 import PricingEditor from "@delebash/ui/views/PricingEditor.vue";
 import ProviderForm from "@delebash/ui/views/ProviderForm.vue";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
-import { flushPromises, mount } from "@vue/test-utils";
+import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
 import { computeAccessibleDescription, computeAccessibleName } from "dom-accessibility-api";
 import { createPinia, setActivePinia } from "pinia";
 import * as quasar from "quasar";
@@ -142,15 +142,15 @@ test("a dialog's checkbox field starts as its default and answers what the user 
   expect(box().textContent).toContain("Keep the parts you changed by hand");
   expect(box().classList.contains("is-checked")).toBe(true);
   expect(confirm().disabled).toBe(false); // a checkbox is never "required"
-  confirm().click();
+  await new DOMWrapper(confirm()).trigger("click");
   expect(await answer).toEqual({ keep: true });
   await flushPromises();
   answer = promptDialog({ title: "Again?", confirmLabel: "Go", fields });
   await flushPromises();
-  box().click();
+  await new DOMWrapper(box()).trigger("click");
   await flushPromises();
   expect(box().classList.contains("is-checked")).toBe(false);
-  confirm().click();
+  await new DOMWrapper(confirm()).trigger("click");
   expect(await answer).toEqual({ keep: false });
 });
 
@@ -522,7 +522,10 @@ test("while a modal dialog is open, what is said is said inside it (outside an a
   expect(inModal()).toContain("Saved");
   expect(document.body.firstElementChild.textContent).not.toContain("Saved"); // not in the page's pair
   // said in the tick it closes: the page's pair, never the closing dialog's
-  [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel")?.click();
+  {
+    const el = [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel");
+    if (el) await new DOMWrapper(el).trigger("click");
+  }
   announce("Closed");
   await answer;
   await settle();
@@ -537,7 +540,7 @@ test("the AI tasks panel is a modal dialog: the focus moves in, Escape closes it
   const trigger = document.querySelector(".ai-status-btn");
   expect(trigger.getAttribute("aria-expanded")).toBe("false");
   trigger.focus();
-  trigger.click();
+  await new DOMWrapper(trigger).trigger("click");
   await settle();
   await new Promise((r) => setTimeout(r, 400)); // its slide-in
   await settle();
@@ -607,7 +610,7 @@ test("Settings' tabs name only the panel that is in the page", async () => {
 
 test("Reset asks with its sentence as the message, the field 'Type RESET to confirm', Reset off until it's typed", async () => {
   await mountHost(() => [h(AppDialog), h(DataManagement, { appName: "Family Template" })]);
-  [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset…").click();
+  await new DOMWrapper([...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset…")).trigger("click");
   await settle();
   const dlg = document.querySelector('[role="dialog"][aria-modal="true"]');
   expect(dlg.querySelector(".ui-dialog__message").textContent).toContain("Wipes ALL data");
@@ -619,7 +622,7 @@ test("Reset asks with its sentence as the message, the field 'Type RESET to conf
   field.dispatchEvent(new Event("input"));
   await settle();
   expect(resetBtn().disabled).toBe(false);
-  [...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel").click();
+  await new DOMWrapper([...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel")).trigger("click");
   await settle();
 });
 
@@ -643,7 +646,7 @@ test("an off segment's reason is its description and the kit's tooltip (hover he
 
 test("Reset's word in any case, spaces aside; its box a token's width; the dialog's × is Close", async () => {
   await mountHost(() => [h(AppDialog), h(DataManagement, { appName: "Family Template" })]);
-  [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset…").click();
+  await new DOMWrapper([...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset…")).trigger("click");
   await settle();
   const dlg = document.querySelector('[role="dialog"][aria-modal="true"]');
   const field = dlg.querySelector("input");
@@ -655,7 +658,7 @@ test("Reset's word in any case, spaces aside; its box a token's width; the dialo
   field.dispatchEvent(new Event("input"));
   await settle();
   expect(resetBtn().disabled).toBe(false);
-  [...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel").click();
+  await new DOMWrapper([...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel")).trigger("click");
   await settle();
 });
 
@@ -677,7 +680,7 @@ test("a button off while focused keeps the focus (focusableWhenDisabled): aria-d
   expect(btn.getAttribute("aria-disabled")).toBe("true");
   expect(btn.classList.contains("is-disabled")).toBe(true);
   expect(computeAccessibleName(btn)).toBe("Save");
-  btn.click();
+  await new DOMWrapper(btn).trigger("click");
   for (const type of ["keydown", "keyup"]) btn.dispatchEvent(new KeyboardEvent(type, { key: "Enter", keyCode: 13, bubbles: true, cancelable: true }));
   await settle();
   expect(clicked).not.toHaveBeenCalled();
@@ -685,7 +688,7 @@ test("a button off while focused keeps the focus (focusableWhenDisabled): aria-d
   // on again: it works
   off.value = false;
   await settle();
-  btn.click();
+  await new DOMWrapper(btn).trigger("click");
   await settle();
   expect(clicked).toHaveBeenCalledTimes(1);
 });
@@ -695,7 +698,7 @@ test("the AI tasks panel gives the focus back after a click outside too, and a w
   await mountHost(() => h(AiStatusButton));
   const trigger = document.querySelector(".ai-status-btn");
   trigger.focus();
-  trigger.click();
+  await new DOMWrapper(trigger).trigger("click");
   await new Promise((r) => setTimeout(r, 400));
   await settle();
   const backdrop = document.querySelector(".aip-overlay .q-dialog__backdrop");
@@ -830,7 +833,7 @@ test("a model that failed to load at start offers the app's Troubleshooting page
   expect(help()).toBeUndefined(); // no page, no link
   configureHelp({ hasDoc: (slug) => slug === "troubleshooting" });
   await flushPromises();
-  help().click();
+  await new DOMWrapper(help()).trigger("click");
   await flushPromises();
   expect(warmModelId.value).toBe(""); // the splash goes, so the help shows over the app
   expect(helpState.slug).toBe("troubleshooting");
@@ -929,7 +932,7 @@ test("the price table: Save only on an edited row, one row's save keeps another'
   await typeInto(boxes()[0][0], "1.5");
   await typeInto(boxes()[1][1], "9");
   expect(saves()).toHaveLength(2);
-  saves()[0].click();
+  await new DOMWrapper(saves()[0]).trigger("click");
   await flushAll();
   expect(puts).toEqual([{ modelId: "gpt-a", inputPerM: 1.5, outputPerM: 2 }]);
   expect(saves()).toHaveLength(1); // gpt-a saved; gpt-b's edit is still there, still unsaved
@@ -1000,7 +1003,7 @@ async function restoreWith(response, props = {}) {
   Object.defineProperty(picker, "files", { value: [new File(["zip"], "old.zip", { type: "application/zip" })], configurable: true });
   picker.dispatchEvent(new Event("change"));
   await settle();
-  [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Restore").click();
+  await new DOMWrapper([...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Restore")).trigger("click");
   // the dialog closes (Quasar's transition, a real timer), then the request (its timers fake from then on)
   await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
   for (let i = 0; i < 6; i++) await flushPromises();
@@ -1033,13 +1036,13 @@ test("a reset that fails says the server's words and the reference that finds it
   vi.stubGlobal("fetch", vi.fn(async () => json(500, { type: "about:blank", title: "Internal Server Error", status: 500, detail: "database is locked", requestId: "r-42" })));
   await mountHost(() => [h(AppDialog), h(DataManagement, { appName: "Family Template" })]);
   const create = vi.spyOn(quasar.Notify, "create");
-  [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset…").click();
+  await new DOMWrapper([...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset…")).trigger("click");
   await settle();
   const dlg = document.querySelector('[role="dialog"][aria-modal="true"]');
   dlg.querySelector("input").value = "RESET";
   dlg.querySelector("input").dispatchEvent(new Event("input"));
   await settle();
-  [...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset").click();
+  await new DOMWrapper([...dlg.querySelectorAll("button")].find((b) => b.textContent.trim() === "Reset")).trigger("click");
   await vi.waitFor(() => expect(create).toHaveBeenCalled());
   expect(create.mock.calls.map(([o]) => o.message)).toEqual(["Reset failed: database is locked · Reference r-42"]);
   create.mockRestore();
@@ -1081,7 +1084,7 @@ test("Storage's old copies: each button named with its folder; Try again and Rem
 
   // Try again, and it still doesn't answer: the focus stays on its row, and that is said
   named("Try again: the old copy in F:\\old").focus();
-  named("Try again: the old copy in F:\\old").click();
+  await new DOMWrapper(named("Try again: the old copy in F:\\old")).trigger("click");
   await settle();
   expect(shell.oldCopies).toHaveBeenLastCalledWith({ again: true });
   expect(computeAccessibleName(document.activeElement)).toBe("Try again: the old copy in F:\\old");
@@ -1089,15 +1092,15 @@ test("Storage's old copies: each button named with its folder; Try again and Rem
 
   // Try again, and it answers now: its Try again is gone — the focus goes to its row's Remove, and that is said
   copies[0] = { root: "F:\\old", bytes: 2048, connected: true };
-  named("Try again: the old copy in F:\\old").click();
+  await new DOMWrapper(named("Try again: the old copy in F:\\old")).trigger("click");
   await settle();
   expect(computeAccessibleName(document.activeElement)).toBe("Remove the old copy… in F:\\old");
   expect(polite()).toContain("The old copy in F:\\old answers now");
 
   // Remove: asked, removed, the focus on the copy in its place, and said
-  named("Remove the old copy… in F:\\old").click();
+  await new DOMWrapper(named("Remove the old copy… in F:\\old")).trigger("click");
   await settle();
-  [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Remove the old copy").click();
+  await new DOMWrapper([...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Remove the old copy")).trigger("click");
   await vi.waitFor(() => expect(polite()).toContain("The old copy in F:\\old was removed"));
   expect(computeAccessibleName(document.activeElement)).toBe("Remove the old copy… in E:\\older");
 });
@@ -1110,6 +1113,6 @@ test("a dialog opened over another cancels it as its own kind cancels — a prom
   const again = promptDialog({ title: "Name?" });
   expect(await confirm).toBe(false);
   await settle();
-  [...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Cancel").click();
+  await new DOMWrapper([...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Cancel")).trigger("click");
   expect(await again).toBeNull();
 });

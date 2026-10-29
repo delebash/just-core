@@ -77,10 +77,9 @@ STATE:  BUILT 2026-10-27 — CLAUDE.md (the user's global, merged into "Standard
         `coarseFit` + `rateSpeed` with the ledger's `sec_per_image` and a model's `ref_speed`, the catalog's chip on
         the runtime screens; K10b's `fastGpus`, `slow`, `ram_gb`, `lowMemory` gone (the plan's K10b says what).
         House-paint's round B on it: done 2026-10-27 (house-paint's TASKS says what).
-        OPEN: family tests that click a mounted button with a bare `element.click()` — the template's
-        `kitControls`, `settingsSections`, `NotesPage` tests, house-paint's and JustWrite's (grep `\.click();` in
-        `*.test.js`) — move to Vue Test Utils' `trigger` (app-structure §18: Vue drops a same-millisecond event;
-        the kit's runtime-screen test failed 3 runs in 4 on it). The template first; each app by its session.
+        Family tests' bare `element.click()`: BUILT 2026-10-28 for the template and house-paint (VTU's `trigger`,
+        `DOMWrapper` for an element outside a wrapper — §18), and the guard's check 24 fails a new one. OPEN, each by
+        its session: JustWrite's 10 files and JustVoice's 8 (the guard's CLICK_KNOWN prints them until then).
 
 ## Every engine the llama.cpp way, the standards check, JustWrite's findings [2026-10-24]
 GO:     the user, verbatim: "the speech engine audio cpp and the stable diffusion cpp should be integratet eh
@@ -159,9 +158,10 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         Either the kit's registry grows what docgen needs (an event stream beside the poll, a history), and docgen
         moves onto it; or docgen's single run stays its own, named in §19 as an exception. Its `/v1/jobs/current`
         would also be read as a job id by the kit's `/v1/jobs/:id` if both were mounted.
-        OPEN: llama.cpp's own engine install and GGUF downloads have no room check before they start (the
-        downloader's DiskFullError says so only once the drive is full) — put them on `disk_room.js`
-        `lacksRoom` the way the runtimes are.
+        llama.cpp's own engine install and GGUF downloads: BUILT 2026-10-28 — `runner/download.js` `streamDownload`
+        asks `disk_room.js` `lacksRoom` as soon as it knows a file's size (the probe's, a single stream's
+        Content-Length) and refuses with its `DiskFullError` before writing anything (a resumable `.part` kept and
+        counted); every download through it — llama.cpp's builds and models, the runtimes'.
 
 ## The kit is renamed `just-core`: `packages/core` (`@delebash/core`) and `packages/ui` (`@delebash/ui`) [2026-10-17]
 STATE:  DECIDED 2026-10-17 (session e638ccef, run from `E:\Dev\Web`). The user, verbatim, after learning

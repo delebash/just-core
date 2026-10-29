@@ -26,7 +26,7 @@ import { CONNECTIONS, DownloadCancelled, RETRIES, streamDownload } from "../src/
 // a path armed in `held.ends` is refused with EBUSY, as Windows answers it; every other rename is the real one.
 const held = vi.hoisted(() => {
   // `fullDisk`: "truncate" or "write" — that file-handle call fails the way a full drive answers it.
-  const state = { ends: new Set(), fullDisk: "" };
+  const state = { ends: new Set(), fullDisk: "", free: null };
   state.check = (from) => {
     for (const end of state.ends) {
       if (String(from).endsWith(end)) {
@@ -36,6 +36,11 @@ const held = vi.hoisted(() => {
     }
   };
   return state;
+});
+// a test's drive: `held.free` bytes free (null: the real drive)
+vi.mock("../src/platform/disk_room.js", async (importOriginal) => {
+  const real = await importOriginal();
+  return { ...real, freeBytes: (dir) => (held.free == null ? real.freeBytes(dir) : held.free) };
 });
 vi.mock("node:fs", async (importOriginal) => {
   const real = await importOriginal();
@@ -445,6 +450,33 @@ test("a_full_drive_says_so_in_words", async () => {
     expect(err.code).toBe("ENOSPC");
     expect(err.message).toMatch(/^Not enough disk space to download full-\w+\.bin — it needs 0\.0 GB and the drive has [\d.]+ GB free/);
     expect(existsSync(`${dest}.part`)).toBe(false);
+  }
+});
+
+test("a_drive_too_small_is_refused_before_anything_is_written", async () => {
+  // macOS and Linux reserve a chunked download's file sparsely: without a check first the drive filled mid-download
+  // (the kit's TASKS). Refused as soon as the size is known — the probe's, or a single stream's Content-Length —
+  // with the downloader's words, nothing written; a resumable `.part` is kept and counts as room it has.
+  held.free = 1024 * 1024; // 1 MB free for a 2 MB file
+  try {
+    for (const segments of [4, 1]) {
+      const dest = join(tmpPath, `small-${segments}.bin`);
+      const before = server.requests?.length;
+      const err = await streamDownload(url(server), dest, { segments, chunkSize: CHUNK, pollInterval: 0.02 }).catch((e) => e);
+      expect(err).toBeInstanceOf(dl.DiskFullError);
+      expect(err.message).toMatch(/^Not enough disk space to download small-\d\.bin — it needs 0\.\d GB and the drive has 0\.0 GB free/);
+      expect(existsSync(`${dest}.part`)).toBe(false);
+      expect(existsSync(dest)).toBe(false);
+      if (before != null) expect(server.requests.length).toBeLessThanOrEqual(before + 1); // the probe or the one GET, no chunks
+    }
+    // a `.part` already the file's whole size (a download stopped half way: Windows reserved it whole) needs no more
+    // room — on the same 1 MB drive it carries on
+    const resumed = join(tmpPath, "resumed.bin");
+    writeFileSync(`${resumed}.part`, Buffer.alloc(PAYLOAD.length, 1));
+    await streamDownload(url(server), resumed, { segments: 4, chunkSize: CHUNK, pollInterval: 0.02 });
+    expect(readFileSync(resumed).equals(PAYLOAD)).toBe(true);
+  } finally {
+    held.free = null;
   }
 });
 

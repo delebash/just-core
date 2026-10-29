@@ -37,7 +37,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import * as fsp from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { AsyncEvent, sleep, TimeoutError } from "../platform/asyncutil.js";
-import { freeBytes as freeBytesAt } from "../platform/disk_room.js";
+import { freeBytes as freeBytesAt, lacksRoom } from "../platform/disk_room.js";
 import * as http from "../platform/http.js";
 import { HttpStatusError } from "../platform/http.js";
 import { getLogger } from "../platform/log.js";
@@ -288,6 +288,14 @@ async function probe(url, gate, cancelCheck, headers) {
   }
 }
 
+/** No room on the drive for `bytes` of `dest` — what its `.part` already holds counted (disk_room.js lacksRoom): the
+ *  downloader's DiskFullError, before anything is written. A chunked download's reservation (fh.truncate) refused a
+ *  full drive at once on Windows only — macOS and Linux reserve sparsely, and the drive filled mid-download. */
+function roomFor(dest, bytes) {
+  const short = bytes > 0 ? lacksRoom({ dir: dirname(dest), bytes, files: [dest], free: freeBytesAt }) : null;
+  if (short) throw new DiskFullError(dest, short.needBytes);
+}
+
 /** A plain browser-style GET — `segments=1`, no Range support, or a one-chunk file. A
  * 429/503 waits on the shared gate (never consuming a transport retry); genuine transport
  * errors keep the short-backoff retry budget. */
@@ -311,6 +319,12 @@ async function singleStream(url, dest, onProgress, cancelCheck, retries, gate, h
         }
         await raiseForStatus(r, url);
         total = pyInt(r.headers.get("Content-Length") || 0) || null;
+        try {
+          roomFor(dest, total || 0);
+        } catch (e) {
+          await discard(r);
+          throw e;
+        }
         const fh = await fsp.open(part, "w");
         try {
           for await (const piece of iterBody(r, rt)) {
@@ -334,6 +348,7 @@ async function singleStream(url, dest, onProgress, cancelCheck, retries, gate, h
         throw e;
       }
       if (e instanceof RateLimitExceeded) throw e; // the loud strike-out — never swallowed by the retry loop
+      if (e instanceof DiskFullError) throw e; // refused before anything was written (roomFor)
       if (e?.code === "ENOSPC") {
         rmSync(part, { force: true });
         throw new DiskFullError(dest, total); // a full drive doesn't get better on a retry
@@ -581,6 +596,8 @@ export async function streamDownload(
     return;
   }
   const [total, etag] = await probe(url, gate, cancelCheck, hdrs);
+  // the size known: refused now when the drive can't hold it (a resumable `.part` kept)
+  roomFor(dest, total);
   let cs = chunkSize;
   if (total) {
     const maxRequests = Math.max(1, segs) * CHUNKS_PER_WORKER;

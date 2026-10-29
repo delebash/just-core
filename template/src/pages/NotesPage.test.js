@@ -10,7 +10,7 @@
 // shown in the server's words.
 import { _resolveDialog, dialogState, errorMessage, installLlmUi, LlmUiHosts, otherWindows } from "@delebash/ui";
 import { QUASAR_TEST_OPTIONS } from "@delebash/ui/quasar/install.js";
-import { flushPromises, mount } from "@vue/test-utils";
+import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
 import { createPinia } from "pinia";
 import * as quasar from "quasar";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -102,7 +102,7 @@ async function mountPage() {
 const text = () => document.body.textContent;
 const byText = (selector, words) => [...document.body.querySelectorAll(selector)].find((el) => el.textContent.includes(words));
 const click = async (el) => {
-  el.click();
+  await new DOMWrapper(el).trigger("click");
   await flushPromises();
 };
 

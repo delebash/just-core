@@ -1175,7 +1175,9 @@ A mounted test clicks the way Vue Test Utils does — `await wrapper.find(…).t
 a bare `element.click()`: Vue drops an event whose `Date.now()` stamp is no later than its listener's
 attachment (vuejs/core runtime-dom `createInvoker`), so a bare click right after a re-render that
 swapped the listener can land in that millisecond and vanish at random; `trigger` stamps the event a
-millisecond on (vuejs/test-utils#1854). (Found 2026-10-27 in the kit's own runtime-screen test.)
+millisecond on (vuejs/test-utils#1854). An element outside a wrapper (a dialog teleported to the body) is clicked
+through VTU's own `DOMWrapper`: `await new DOMWrapper(el).trigger("click")`. (Found 2026-10-27 in the kit's own
+runtime-screen test; the guard's check 24 fails a bare click since 2026-10-28.)
 
 ## 19 · One way per job — the kit's table (2026-10-27)
 

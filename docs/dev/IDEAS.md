@@ -6,6 +6,13 @@ The holding pen for unscheduled ideas about the shared stack — same charter as
 
 ---
 
+- **2026-10-28 · A vision model's speed on its chip, and the runtimes' band lines on the AI page.** The kit rates
+  a runtime model by `fit.coarseFit` + `fit.rateSpeed` in its kind's unit, from the ledger or its `ref_speed`
+  (`DEFAULT_RUNTIME_BANDS` has `image` only: seconds per image). A vision model (SAM 3) has no unit, no bands and
+  records no measurement, so its chip says "Fits" and no speed. A unit (seconds per photo encoded?), its bands,
+  `RuntimeService.withModel` recording through `recordSpeed`, and the seeded `band_*:image` / `band_*:vision` rows
+  editable on the AI page (the chat bands are, on the engine settings) would give it one. Seen while checking round C.
+
 - **2026-10-20 · Several windows in the template.** just-house-paint now counts each window's changes
   apart (its server/src/changes.js, `X-Client-Id` — installLlmUi `sendClientId`), answers `GET
   /v1/sync/rev` so the kit's watchSync re-reads the open page, and versions what two windows could save

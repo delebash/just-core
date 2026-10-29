@@ -1549,6 +1549,48 @@ function checkEngines(app) {
   }
 }
 
+// ── check 24 · a mounted test clicks the way Vue Test Utils does (app-structure §18, 2026-10-28) ─────────────────
+// A bare `element.click()` in a renderer test can land in the millisecond Vue's stale-event guard drops (vuejs/core
+// runtime-dom createInvoker: an event no later than its listener's attachment) and vanish at random; `trigger` — a
+// wrapper's, or VTU's own DOMWrapper for an element outside one (a dialog teleported to the body) — stamps it a
+// millisecond on (vuejs/test-utils#1854). The files that did it before the rule are listed (CLICK_KNOWN) and printed
+// until their session moves them; any other file fails.
+const CLICK_KNOWN = new Map([
+  ["JustWrite", new Set([
+    "src/components/BrainstormPanel.test.js",
+    "src/components/EntityIndex.test.js",
+    "src/components/LogsPanel.copy.test.js",
+    "src/components/LuFeatureChip.save.test.js",
+    "src/components/ProviderForm.autoLoadModels.test.js",
+    "src/components/ProviderForm.defaultOnSave.test.js",
+    "src/components/ProviderForm.keyReveal.test.js",
+    "src/components/ProviderForm.reasoningColumns.test.js",
+    "src/components/providerScope.test.js",
+    "src/components/UiDate.test.js",
+  ])],
+  ["JustVoice", new Set([
+    "src/components/BookRunCard.test.js",
+    "src/components/CapturePill.test.js",
+    "src/components/EffectsChainEditorModal.test.js",
+    "src/components/ImportModal.test.js",
+    "src/components/kitThinkingNote.test.js",
+    "src/components/LeftoverEnginesHelp.test.js",
+    "src/components/mock/MockEffectsChainEditor.test.js",
+    "src/pages/LexiconsPage.test.js",
+  ])],
+]);
+function checkTestClicks(app) {
+  for (const f of walkAll(join(app.dir, "src"))) {
+    if (!f.endsWith(".test.js")) continue;
+    const rel = relative(app.dir, f).replace(/\\/g, "/");
+    const code = readFileSync(f, "utf8").split(/\r?\n/).filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+    if (!/\.click\(\)/.test(code)) continue;
+    const msg = `${rel} clicks with a bare element.click() — a mounted test clicks with Vue Test Utils' trigger (app-structure §18)`;
+    if (CLICK_KNOWN.get(app.name)?.has(rel)) info(app.name, `${msg} — known since 2026-10-28; its session moves it`);
+    else fail(app.name, msg);
+  }
+}
+
 // ── check 23 · the family's page looks are the kit's (the engines plan, F5 + F6 — 2026-10-24) ─────────────────
 // The kit's packages/ui/src/common/app.css holds the looks every app copied from the template's app.scss (the base,
 // the shell, pages, cards, hints, forms, Settings, the AI page, the splash) — the kit's own panels use .card and
@@ -1631,6 +1673,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkEsModules(app.name, app.dir);
   checkEngines(app);
   checkKitLooks(app);
+  checkTestClicks(app);
 }
 checkCrossAppTwins(perApp, kitFiles);
 checkDocsCrossApp();
