@@ -1673,10 +1673,9 @@ const ENGINE_SIGNS = [
   [/["'`][0-9a-f]{64}["'`]/, "pins a file by its SHA-256 in code"],
 ];
 const ORT_HANDOFF = /\bonnx:\s*\{\s*load:\s*\(\)\s*=>\s*import\(\s*["']onnxruntime-node["']\s*\)/g;
-const ENGINE_KNOWN = new Map([
-  // round E moved the rest into the kit (JustVoice 5b6f56a4); the catalog leaves as it becomes seed_audiocpp_catalog.json
-  ["JustVoice", new Set(["server/src/engines/audiocpp/catalog.json"])],
-]);
+// Empty since round E (2026-10-29): JustVoice's engine files moved into the kit (5b6f56a4), its catalog became seed data
+// (seed_audiocpp_catalog.json, a3686de1) and its curated pins a seed file (seed_file_hashes.js, 78e72445).
+const ENGINE_KNOWN = new Map();
 // A program an app keeps by the user's decision — not an AI engine — started through the kit's own door: the named
 // signs only, for the named file; any other sign there still fails. JustVoice's DSP (the user, 2026-10-29: "the DSP
 // program stays the app's (shipped with it, started through the kit's spawnChild) — no kit work").
