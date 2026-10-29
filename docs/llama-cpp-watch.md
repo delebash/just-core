@@ -56,8 +56,7 @@ one sitting:
   Moved from `b10750` on **2026-09-28**. User: *"go draft the comment and close it do 1 and 3
   as well"*; item 1 = move the pin to head.
   - **Why:** a re-measure through the chat template found no MTP regression at b10751 or at
-    head. The b10750 reason below came from ONE raw `/completion` prompt; see the corrected
-    warning in the watch list and plan §10.
+    head. The b10750 reason came from ONE raw `/completion` prompt (plan §10; the review log).
   - **Verified:** all seven filenames against `gh api releases/tags/b11239` on 2026-09-28.
     Three were renamed since b10750: win `cuda-13.3` → `13.4`, win and ubuntu `rocm-7.14` →
     `rocm-10.0`.
@@ -101,85 +100,13 @@ one sitting:
 Distinct from the retrospective "Adoption candidates" below: things NOT yet in a
 pinnable build that we want to be told about the moment they land.
 
-- **CORRECTED 2026-09-28 — the MTP "regression" is confined to untemplated input.**
-  The finding below (plan §9) was measured with ONE raw `/completion` prompt. Re-measured through
-  `/v1/chat/completions`, the only path the family sends, on three prompts (a question, a
-  prose ask, and JV's real attribution prompt on a chapter):
-  - **No regression.** b10750, b10751 and head `b11239` are level: acceptance within 0.02,
-    and the draft is 1.10–1.32× faster on every build.
-  - **Not exact on any build.** Drafted output ≠ greedy on every chat prompt, b10750
-    included, so "b10750 is exact" held for the raw prompt only.
-  - **The raw control still reproduces byte for byte:** b10750 79/96 with sha
-    `58c64329a49a`; head 62/129, where the draft is a net loss.
-  - **Upstream:** PR #29381 ("Fixes #29168") was closed unmerged on 2026-09-24. A
-    maintainer wrote: *"I can't reproduce this issue, it seems hallucinated."*
-  - **#29168 was agent-written.** llama.cpp bans AI-written posts and bars agents from
-    commenting, so the USER posts the correction and closes it. No agent writes on
-    ggml-org/llama.cpp.
-  - **The pin moved to `b11239`.** Full tables: plan §10.
-
-  The original entry follows as the record — **its "Do NOT pin ≥ b10751" is withdrawn.**
-- **⚠ (SUPERSEDED 2026-09-28, see above) MTP SPECULATIVE DECODING IS BROKEN from `b10751` onward — BISECTED 2026-09-19.**
-  **First bad build `b10751` = `cuda: fuse MoE weighted expert reduction` (#25952).** It
-  fuses the MoE combine tail into one CUDA kernel, changing the ORDER of floating-point
-  accumulation over experts; the target's logits shift, the draft's argmax stops matching,
-  acceptance halves (0.823 → 0.481) and the drafted output stops equalling the build's own
-  greedy output. CUDA-only, MoE-only. On the flagship: b10964 runs at **0.784**, b11056 at
-  **0.814** and **b11057 (head, measured) at 0.798** of b10437, while
-  tying without a draft (0.995) — on those builds the draft is a NET LOSS. All three
-  produce the SAME drafted sha `4683af3bc3b2`, so it is one regression, unchanged.
-  **Do NOT pin b10964, b11056, or anything ≥ b10751 until upstream fixes it.**
-  **The last good build is `b10750`**, and it BEATS the author's b10437: +draft 46.35 tok/s
-  (**1.028×**), no draft 38.10, EXACT, byte-identical output to b10437, and every platform
-  row resolves (it is past the b10398-b10581 Linux-AMD hole, so unlike b10437 it is viable
-  as a default pin). Evidence + the 8 probed builds: `docs/dev/TASKS.md`, plan §9.
-  **REPORTED UPSTREAM 2026-09-19: ggml-org/llama.cpp#29168** (bisect, the exactness test,
-  the numbers, the one-commit attribution). **Watch for:** its resolution. Every pin bump from here re-measures before the pin moves.
-- **RESOLVED 2026-09-19 — the Ternary Bonsai / Q2_0 item below.** CUDA Q2_0 (#25707) merged
-  2026-07-30; the first build carrying it is **`b10192`**, so the author's installed `b10437`
-  has it. Group size settled on g64 — the author already has
-  `Ternary-Bonsai-27B-Q2_g64.gguf` in the shared cache. The "Then" step is now live (a 2070S
-  Lab A/B vs Gemma 26B-A4B) and needs its own go. It cannot enter the catalog until the pin is
-  ≥ `b10192` (a fresh install's `b9993` cannot run it on CUDA). The original entry is kept
-  below as the record.
-- **Next stable after `v0.4.1` (added 2026-09-19).** Landed upstream after the `b10964` cut and
-  worth having: **Linux NVIDIA CUDA tarballs** (`b10969`+:
-  `llama-<b>-bin-ubuntu-cuda-12.8-x64.tar.gz` plus a *build-tagged*
-  `cudart-llama-<b>-bin-ubuntu-cuda-12.8-x64.tar.gz`, also `cuda-13.3` x64/arm64) — this retires
-  our docker-only seam row and the Vulkan fallback for Linux+NVIDIA · **CUDA graphs for the MTP
-  draft** (#28549, `b11007`, upstream "+4–5 %") · **graceful allocation-failure handling**
-  (`b11036`, `b11040` — a cleaner signal for our OOM back-off) · the Windows CUDA 13 asset
-  moving `13.3` → `13.4` (`b10977`). **Watch for:** the next `vX.Y.Z` on the releases page.
-  **Status 2026-09-28:** `v0.5.0` landed on 2026-09-23 and names `b11146`. The pin `b11239`
-  carries all four items. Adopting the Linux CUDA tarballs in place of the docker seam row
-  is still its own change and has not been done.
 - **An opt-out for the machine-wide config file (added 2026-09-19).** Since `b10398` (#26118)
   every llama.cpp program reads `%PROGRAMDATA%\llama.cpp\config.ini` and
   `%APPDATA%\llama.cpp\config.ini` (`/etc/llama.cpp/config.ini`, `~/.config/llama.cpp/config.ini`)
   at the lowest precedence. There is **no flag or env var to disable it** (`b10437`, `b11056`
   source). Our launches inherit anything in it that we do not pass ourselves — an `api-key`
-  line would 401 every request. **Watch for:** an opt-out; then pass it.
-- **TTS inside llama.cpp (added 2026-09-19, for JustVoice).** `llama-tts` runs **Qwen3-TTS**
-  (`b10270`, #26254 — the *Base* checkpoint only, i.e. clone from `--tts-speaker-file`; ten
-  languages) and **Pocket-TTS** (`b10369`, #26871). CLI only: at `b11056` llama-server exposes
-  `/v1/audio/transcriptions` and no speech endpoint. The Pocket PR names **Chatterbox** as a
-  future target. **Watch for:** a server-side speech endpoint, and the VoiceDesign /
-  CustomVoice checkpoints — without both this cannot replace a PyTorch engine.
-- **Ternary Bonsai / Q2_0 CUDA support (added 2026-07-19).**
-  - **What:** PrismML's Ternary Bonsai models (Qwen3.6-27B ternary, ~1.71 bits/weight,
-    ~6.7 GB deployed, Apache-2.0, 262k ctx) need the **Q2_0** quant type. Upstream status
-    (2026-07-19): CPU (#24448) + Metal (#25419) + **Vulkan (#25430)** Q2_0 merged — this is
-    the `b9913` "new Q2_0 quant type" line noted in the Adoption candidates — but **CUDA
-    (#25707) is still an OPEN PR**, so there is no NVIDIA path on mainline yet, and PrismML's
-    own docs say stock builds can't run it (GPU today = their fork, which we'd never ship).
-  - **Watch for:** the **CUDA Q2_0 PR merging into a pinnable release**
-    (https://github.com/ggml-org/llama.cpp/pull/25707), plus the group-size churn settling
-    (fork's g128 files → mainline standardized on g64, `_Q2_0_g64.gguf`, renames pending).
-  - **Then:** promote the IDEAS item → a **2070S Lab A/B vs Gemma 26B-A4B** for the 8 GB
-    class (evidence-not-press-release — the catalog law). 27B-class quality resident on an
-    8 GB card would be a real contender for that rung.
-  - **Cross-ref:** this repo's `docs/dev/IDEAS.md` → "Ternary Bonsai / Q2_0" (the
-    runner owns the catalog; moved from JW's tracker in the 2026-08-04 campaign).
+  line would 401 every request. The kit logs each one it finds when the router starts (2026-10-29,
+  `process.js` `llamaConfigFiles`). **Watch for:** an opt-out; then pass it.
 
 ## Baseline — capabilities we already rely on (as of the b9899 pin)
 
@@ -272,109 +199,12 @@ Verified against upstream builds in code (so a reviewer knows what's already ado
 
 ## Adoption candidates — open (from the 2026-09-19 review, b9993 → b11056)
 
-1,064 commits read, plus the four stable releases' notes. **Three of these are defects in OUR
-code, not upstream features** — they lead. Evidence, code and the build order for items 1–4
-and 8: `docs/plans/2026-09-19-engine-update-safety-and-stable-channel.md` (its §3 is the
-receipt set; do not re-derive).
+None open (2026-10-29): items 1–5, 8 and 9's download check are built — the update check on the stable channel, the
+loading flags, the asset names, the pin, real load progress from `/models/sse`, structured output, each download
+checked against GitHub's digest; 6, 7 and 9's `--log-jsonl` and `/metrics` were dropped on the user's word. Their text
+is in git.
 
-**1. The in-app update check is dead** (see Current state). Follow the stable channel.
-**Must land AFTER 2 and 3** — today the dead check is the only thing stopping a user from
-updating into an engine that rejects our flags.
-**2. `--mlock` / `--no-mmap` are deleted from `b10875`** — and already mean something else on
-`b10437`. Render `--load-mode` for engines ≥ `b10145`; add an install-time flag-acceptance
-probe so a future removal can never brick an install again (the existing `--version` check
-passes on any build, and the old engine is then swept).
-**3. Upstream renamed download files** — resolve names from the target release's own asset
-list per `(platform, gpu)`; refuse up front when this machine's row has none; restore the pin
-when an install fails.
-**4. Pin moved `b9993` → `b10750` (2026-09-19). The plan's target `b10964` was REFUSED by
-the box test.** See the MTP warning at the top of the watch list: b10964 costs ~22 %
-on the flagship's MTP path and its speculation is no longer exact. What the newer builds DO
-buy, measured here: **+2.5 %** on the flagship with no draft (b11056 38.11 vs b10437 37.19)
-— i.e. all the CUDA MoE work (#27621, #25952, #27978) nets to that on this card. The
-non-speed gains are the better argument and still stand: CUDA `mmid`/`mmf` race fixes
-(#28475), the f16 FA barrier fix (#27870), CUB argsort corruption (#28389), lower RAM peak
-while loading (#27483), the router LRU-hang fix (#28539), `--kv-unified-per-slot` (#24124 —
-bears on the parked slot-aware-KV item), Linux AMD downloads returning, and Linux NVIDIA
-CUDA tarballs from b10969. Already in the author's `b10437` but NOT in the pin: CUDA graphs
-on Turing/Volta (`b10042`), CUDA Q2_0 (`b10192`), MTP tensors loaded only when used
-(`b10212`), the `fit` MTP-block counting (`b10152`, `b10284`).
-**5. Real load progress — unblocks tracker item T5.** At `b10437`+ the router stores
-`meta.progress` = `{stages:[…], current, value}` from the child's `cmd_child_to_router:state`
-lines and broadcasts it on **`GET /models/sse`** (`status_change`); `GET /models` still omits
-it — which is exactly why the 2026-07-17 probe found nothing. The author's log shows
-`stages: ["text_model","spec_model"]` with a fractional `value`. Needs an SSE-in-the-load-thread
-design. *Not checked at `b9993`.*
-**6. Exact bytes for built-in-MTP rows.** `b10212` (#26296) skips a model's MTP tensors unless
-`--spec-type draft-mtp` is on; our tensor-table reader always counts them. Rows:
-`qwen3.6-27b`, `glm-4.5-air`. Overstates (safe). *Magnitude unmeasured.* Also: GLM-4.5-Air MTP
-is only supported from `b10603` (#26534) while the catalog flags it `mtp: 1`.
-**7. `--n-cpu-ffn`** (`b10645`, #26622) — dense analogue of `--n-cpu-moe`; a measured-spike
-candidate for a dense model that does not fit.
-**8. Structured output is sent in a form the engine ignores** — see the Baseline correction.
-Independent of the build; a three-line fix.
-**9. Small:** `--log-jsonl` (`b10823`) if we ever classify crashes from log text ·
-speculative-decoding counters on `/metrics` (`b10282`) · release attestation (`b10502`).
-
-**Checked, no effect on us:** sampler enum + default chain identical at `b9993`/`b10437`/
-`b10964` · the eleven `--spec-type` names identical · every other emitted flag present at
-`b10437`/`b10964`/`b11056` · the Windows router colour bug (#28747; our log has no ANSI
-escapes) · CUB argsort (#28389; GPU sampling only) · BF16 fallback (#28846; AMD) ·
-`preserve_reasoning` default (#28174; we send no reasoning history) · KV PRs #27392/#26180/
-#27496/#28849 · the JSON-schema `\-` pattern bug (#29127; we use no `pattern`) · the
-default-port notice · lazy tensor loading (#27794). **The rules the VRAM fit copies are
-byte-identical at `b10964` and `b11056`** (`LLM_FFN_EXPS_REGEX`, `i_gpu_start`, the iSWA
-`size_swa` line, auto `n_parallel = 4`).
-
-## Adoption candidates — from the 2026-07-14 review, b9899 → b9993
-
-*(Every build below is at or under `b9993`, so with the pin at `b11239` all of these backend fixes ship; the
-code-side ideas - b9986, b9967 - remain opportunistic. Item 1, the bump, was done 2026-07-14 — the review log.)*
-
-None forces a code change; ranked by value to our surfaces. Only builds **>b9899**
-(everything ≤ our pin is already in our build). Grounded to our code where noted.
-
-**1. Bump the engine build `b9899` → `b9993` (highest leverage).** One pin bump pulls
-in every backend perf + correctness fix below for free — same mechanism as the last
-bump (`DEFAULT_PINNED_BUILD`, `llm_runner/runner/config.py`; precedent = the b9899
-bump). DONE 2026-07-14 (the review log's second row).
-
-**2. Reasoning / thinking — strongest cluster, with a real gap it fixes.** Our
-low/medium/high effort is translated per provider (Ollama → native `think` level,
-`ollama.py:95`; Anthropic → `budget_tokens` 1024/4096/8192, `anthropic.py:80`; OpenAI
-clouds → `reasoning_effort`, `openai_compat.py:125`), **BUT the built-in llama.cpp
-runner ignores the level** — it sends only on/off `enable_thinking` and discards effort
-(`openai_compat.py:117-119`). So low/med/high is a **no-op on the local provider today**
-(on/off works + is box-verified, `openai_compat.py:107-112`).
-- **b9982** — server now honors a *per-request reasoning budget* → THE fix that lets us
-  map effort→budget on the local runner (mirror the Anthropic 1024/4096/8192 map) so
-  low/med/high finally does something locally. Requires the engine bump (#1).
-- **b9986** — chat-template reasoning-leak fix (force-opened bare templates) → may
-  remove reasoning-model output we currently post-process.
-- **b9945** — thinking-probe moved inside the init try/catch (robustness).
-
-**3. VRAM / KV-cache correctness (our fit VRAM query; quantized KV `cache-type q8_0`):**
-- **b9974** — CUDA: no crash querying memory on a device with no free VRAM → hardens
-  our NVIDIA fit path directly.
-- **b9905** — fix quantized kv-cache for DeepSeek-V4 → we run quantized KV; verify.
-- **b9908** — server enforces a prompt-cache RAM limit · **b9948** — CUDA
-  top_k/argsort use smaller temp buffers (VRAM headroom).
-
-**4. Sampling params (our 9-name order):** **b9967** — server now accepts *null*
-sampling params → confirm our adapter can omit params without tripping the old reject.
-
-**5. Streaming / progress:** **b9909** timings+progress on the stream · **b9923** SSE
-replay buffer · **b9971** server_stream refactor (watch for streaming regressions).
-
-**6. Spec-decode / draft models (a knob):** **b9910** draft fit-vs-load fix · **b9964**
-no duplicate spec-model downloads · **b9993/b9990** new-arch spec-decode (Hunyuan3, Minimax2).
-
-**7. Misc correctness:** **b9917** tokenizer OOB-read fix · **b9975** gguf rejects empty
-metadata keys · **b9913** new Q2_0 quant type (catalog enumeration).
-
-**Backend perf — free on the engine bump, no code for us:** NVIDIA b9992 (Blackwell),
-b9911 (NVFP4), b9937 · AMD Vulkan b9932 (GCN FA), b9929 (small GPUs) · Intel SYCL b9985
-(fused top-k MoE), b9984, b9901.
+The review behind them (1,064 commits read): `docs/plans/2026-09-19-engine-update-safety-and-stable-channel.md`.
 
 ## Review log
 
@@ -386,7 +216,7 @@ b9911 (NVFP4), b9937 · AMD Vulkan b9932 (GCN FA), b9929 (small GPUs) · Intel S
 | 2026-09-19 | b9993 | b11056 (stable: `v0.4.1` = b10964) | b9994–b11056 — **all 1,064 commit titles read** (treeless clone) + the four stable releases' curated notes; ~40 PRs opened; source read at b9993 / b10105 / b10145 / b10437 / b10964 / b11056 | **Yes — three are defects in OUR code** | No code changed. Found: the in-app update check dead since upstream's 2026-08-21 release-scheme change (reproduced with the app's own functions) · `--mlock`/`--no-mmap` deleted at b10875 and already re-meant on b10437 · renamed release assets break updates for AMD rows · the adapter sends `json_schema` in a form the engine silently ignores (**observed** on b10437) · real load progress now on `/models/sse` (unblocks T5) · the Q2_0 watch item resolved (b10192). Two safe probes run on the author's real b10437 exe: flag acceptance before `--version` (unknown flag → exit 1) and the flat-vs-nested schema test (CPU only). Build plan written: `docs/plans/2026-09-19-engine-update-safety-and-stable-channel.md` (Opus executes, per-slice go). Pin still b9993. |
 | 2026-09-19 (same day) | — | — | — | — | **Plan EXECUTED (user: "go do it all").** Items 1, 2, 3 and 8 BUILT and gated; all three apps green; verified live against real GitHub and the real engine. **Item 4 (pin → b10964) REFUSED BY ITS OWN BOX TEST** — on the flagship's MTP path b10964 runs at 0.784 of b10437 and its speculative output is no longer exact; b11056 the same. |
 | 2026-09-19 (same evening) | b10437 (good) | b10964 (bad) | 8 builds probed of the 318 between them, on draft acceptance | **Yes — culprit named** | **BISECT (user: "go bisect").** **First bad build `b10751` = `cuda: fuse MoE weighted expert reduction` (#25952)** — it fuses the MoE combine tail into one CUDA kernel, reordering float accumulation across experts, so acceptance halves (0.823 → 0.481) and drafted output stops equalling greedy. CUDA-only, MoE-only. Last good = **b10750**, which BEATS b10437 (1.028 ×, exact, byte-identical output) and has every platform asset. **Pin moved b9993 → b10750** (user: "go pin b10750"). Every test build deleted; the author's disk left as found. Open: report #25952 upstream; and the Update button still offers the stable b10964, which is bad. |
-| 2026-09-28 | b10750 | b11239 (stable: `v0.5.0` = b11146) | b10750 / b10751 / b11239 re-measured; no commit read | **Yes — the 2026-09-19 MTP finding was too broad** | **RE-MEASURE (user: "re-measure with a real chat prompt on b10750 vs b10751", then "go measure head with the raw prompt control").** Prompted by #29381, closed unmerged: *"can't reproduce … hallucinated"*. Through the chat template the three builds are level (acceptance ±0.02, the draft 1.10–1.32× on each) and NONE is exact. The raw control reproduces byte for byte, so the drop is real but confined to untemplated input. **Pin moved b10750 → b11239** (user: "do 1"). Three asset renames verified against the live release. Plan §10 has the tables. Open: the USER posts the #29168 correction and closes it (agents are barred by llama.cpp's AGENTS.md); the live DBs still pin b10750. |
+| 2026-09-28 | b10750 | b11239 (stable: `v0.5.0` = b11146) | b10750 / b10751 / b11239 re-measured; no commit read | **Yes — the 2026-09-19 MTP finding was too broad** | **RE-MEASURE (user: "re-measure with a real chat prompt on b10750 vs b10751", then "go measure head with the raw prompt control").** Prompted by #29381, closed unmerged: *"can't reproduce … hallucinated"*. Through the chat template the three builds are level (acceptance ±0.02, the draft 1.10–1.32× on each) and NONE is exact. The raw control reproduces byte for byte, so the drop is real but confined to untemplated input. **Pin moved b10750 → b11239** (user: "do 1"). Three asset renames verified against the live release. Plan §10 has the tables. #29168 closed 2026-09-28; the live DBs move with the next pin (the kit's TASKS, "Finish the kit"). |
 
 **Last reviewed:** `b11056` · 2026-09-19 (commit-log review); `b11057`–`b11239` were measured, not
 reviewed (2026-09-28). **Pin: `b11239`** (moved 2026-09-28 by re-measurement: the 2026-09-19 MTP drop is confined to
