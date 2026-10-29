@@ -123,7 +123,9 @@ async function saveBands() {
     reportError(e);
   }
 }
-const unitWords = (unit) => (unit === "s/image" ? t("kit.runtimes.bands.unitSecondsPerImage") : unit);
+const unitWords = (unit) => (unit === "s/image" ? t("kit.runtimes.bands.unitSecondsPerImage") : unit === "x realtime" ? t("kit.runtimes.bands.unitRealtime") : unit);
+// a kind whose unit is faster when higher (speech: × real time) reads its lines as "at ≥"
+const bandWord = (which) => t(engine.value?.bands?.lowerIsFaster === false ? `kit.runtimes.bands.${which}AtLeast` : `kit.runtimes.bands.${which}`);
 
 const size = (n) => fmtBytes(n || 0);
 const need = () => engineNeedWords(engine.value?.need);
@@ -240,15 +242,15 @@ defineExpose({ refresh: load });
             <UiButton intent="secondary" size="small" :disabled="!idleChanged" :label="t('kit.common.save')" @click="saveIdle" />
           </div>
         </UiField>
-        <UiField v-if="engine.bands" :label="t('kit.runtimes.bands.label', { unit: unitWords(engine.bands.unit) })" :hint="t('kit.runtimes.bands.hint')" :for="`lu-rt-${runtimeId}-band-fast`">
+        <UiField v-if="engine.bands" :label="t('kit.runtimes.bands.label', { unit: unitWords(engine.bands.unit) })" :hint="t(engine.bands.lowerIsFaster === false ? 'kit.runtimes.bands.hintHigher' : 'kit.runtimes.bands.hint')" :for="`lu-rt-${runtimeId}-band-fast`">
           <div class="lu-rt-idle">
-            <label class="lu-rt-band">{{ t('kit.runtimes.bands.fast') }}
+            <label class="lu-rt-band">{{ bandWord("fast") }}
               <UiInput :id="`lu-rt-${runtimeId}-band-fast`" v-model="bandDrafts.fast" type="number" width="token" />
             </label>
-            <label class="lu-rt-band">{{ t('kit.runtimes.bands.fine') }}
+            <label class="lu-rt-band">{{ bandWord("fine") }}
               <UiInput :id="`lu-rt-${runtimeId}-band-fine`" v-model="bandDrafts.fine" type="number" width="token" />
             </label>
-            <label class="lu-rt-band">{{ t('kit.runtimes.bands.slow') }}
+            <label class="lu-rt-band">{{ bandWord("slow") }}
               <UiInput :id="`lu-rt-${runtimeId}-band-slow`" v-model="bandDrafts.slow" type="number" width="token" />
             </label>
             <UiButton intent="secondary" size="small" :disabled="!bandsChanged" :label="t('kit.common.save')" @click="saveBands" />

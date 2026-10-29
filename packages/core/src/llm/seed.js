@@ -25,7 +25,7 @@ import { pyFloat, pyIntOf, pyJson, pyStrScalar, unwrap } from "../platform/pyjso
 import { getLogger } from "../platform/log.js";
 import { pyFloatParse, pyOr, pySorted, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
-import { bandKey, idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
+import { bandKey, idleKey, kindsOf, pinKey, providerIdOf, runtimeOf, settingKey } from "../runner/runtimes.js";
 import { presetParams } from "./preset_params.js";
 import * as db from "./db.js";
 import * as modelListRules from "./model_list_rules.js";
@@ -1136,16 +1136,18 @@ export function seedRuntimeBinaries(h, ids) {
       if (truthy(r.built_in) && !wanted.has(`${r.platform}\u0000${r.gpu}`)) h.delete("runtime_binary", { runtime: id, platform: r.platform, gpu: r.gpu });
     }
     if (rt.defaults.pinnedBuild && !h.get("runner_setting", pinKey(id))) h.insert("runner_setting", { key: pinKey(id), value: rt.defaults.pinnedBuild, built_in: true });
-    // its built-in provider (`local-<id>`, of its kind): what an image preset routes to, like local-llamacpp for chat
-    const providerId = `local-${id}`;
-    if (!h.get("llm_providers", providerId)) {
+    // its built-in provider per kind (`local-<id>` for its primary kind, `local-<id>-<kind>` for another — audio.cpp's
+    // transcription): what a preset of that kind routes to, like local-llamacpp for chat; every one of the runtime's type
+    for (const kind of kindsOf(rt)) {
+      const providerId = providerIdOf(rt, kind);
+      if (h.get("llm_providers", providerId)) continue;
       h.insert("llm_providers", {
         id: providerId,
-        name: `Built-in — ${rt.label}`,
-        kind: rt.kind,
+        name: kind === rt.kind ? `Built-in — ${rt.label}` : `Built-in — ${rt.label} (${kind})`,
+        kind,
         built_in: true,
         position: h.count("llm_providers"),
-        provider_type: providerId,
+        provider_type: `local-${id}`,
         base_url: "",
         api_key: null,
         default_model: "",
@@ -1157,10 +1159,16 @@ export function seedRuntimeBinaries(h, ids) {
     if (rt.defaults.idleSeconds != null && !h.get("runner_setting", idleKey(id))) {
       h.insert("runner_setting", { key: idleKey(id), value: String(rt.defaults.idleSeconds), built_in: true });
     }
-    // its kind's speed bands, in the kind's unit (the chat rows' band_*_toks for the other kinds)
-    const bands = rconfig.DEFAULT_RUNTIME_BANDS[rt.kind];
-    for (const which of bands ? ["fast", "fine", "slow"] : []) {
-      if (!h.get("runner_setting", bandKey(rt.kind, which))) h.insert("runner_setting", { key: bandKey(rt.kind, which), value: String(bands[which]), built_in: true });
+    // each kind's speed bands, in the kind's unit (the chat rows' band_*_toks for the other kinds)
+    for (const kind of kindsOf(rt)) {
+      const bands = rconfig.DEFAULT_RUNTIME_BANDS[kind];
+      for (const which of bands ? ["fast", "fine", "slow"] : []) {
+        if (!h.get("runner_setting", bandKey(kind, which))) h.insert("runner_setting", { key: bandKey(kind, which), value: String(bands[which]), built_in: true });
+      }
+    }
+    // the settings the runtime declares (audio.cpp's backend, threads, timeouts …): seeded once, editable after
+    for (const [name, value] of Object.entries(rt.defaults.settings ?? {})) {
+      if (!h.get("runner_setting", settingKey(id, name))) h.insert("runner_setting", { key: settingKey(id, name), value: String(value), built_in: true });
     }
   }
   return added;
@@ -1186,12 +1194,14 @@ export function seedRuntimeModels(h, rows, runtimes = []) {
   }
   let written = 0;
   for (const [runtime, list] of byRuntime) {
-    const kind = runtimeOf(runtime).kind;
+    const rt = runtimeOf(runtime);
+    // a row's own kind when the runtime has several (audio.cpp: tts | stt), else the runtime's
+    const kindOf = (r) => (r.kind && kindsOf(rt).includes(r.kind) ? r.kind : rt.kind);
     const wanted = new Set(list.map((r) => r.id));
     list.forEach((r, i) => {
       const vals = {
         name: String(r.name ?? r.id),
-        kind,
+        kind: kindOf(r),
         license: String(r.license ?? ""),
         files: JSON.stringify(r.files ?? []),
         peak_vram_mb: Number(r.peakVramMb ?? 0),

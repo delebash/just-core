@@ -2142,7 +2142,12 @@
         "fast": "Rápido con ≤",
         "fine": "Aceptable con ≤",
         "slow": "Lento con ≤",
-        "unitSecondsPerImage": "segundos por imagen"
+        "unitSecondsPerImage": "segundos por imagen",
+        "unitRealtime": "× tiempo real",
+        "hintHigher": "Un modelo en cada línea o por encima se etiqueta \"rápido\", \"aceptable\" o \"lento\"; uno más lento, \"muy lento\". Más es más rápido: 2× hace un minuto de audio en 30 segundos.",
+        "fastAtLeast": "Rápido con ≥",
+        "fineAtLeast": "Aceptable con ≥",
+        "slowAtLeast": "Lento con ≥"
       }
     },
     "jobs": {

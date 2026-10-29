@@ -23,7 +23,7 @@ import { model } from "../platform/models.js";
 import { pyFloat, pyIntOf, pyJson, pyStrScalar, unwrap } from "../platform/pyjson.js";
 import { pyFloatParse, pyInt, pyOr, pySorted, pyStr, strip, truthy, ValueError } from "../platform/py.js";
 import * as rconfig from "../runner/config.js";
-import { bandKey, idleKey, pinKey, runtimeOf } from "../runner/runtimes.js";
+import { bandKey, idleKey, kindsOf, pinKey, runtimeOf, settingKey } from "../runner/runtimes.js";
 import { presetParams } from "./preset_params.js";
 import { RunnerConfig } from "../runner/schema.js";
 import * as db from "./db.js";
@@ -922,17 +922,31 @@ export class RunnerConfigStore {
       const v = Number(h.get("runner_setting", key)?.value);
       return Number.isFinite(v) && v > 0 ? v : dflt;
     };
-    const kindBands = rconfig.DEFAULT_RUNTIME_BANDS[rt.kind];
-    const bands = kindBands
-      ? {
-          fast: setting(bandKey(rt.kind, "fast"), kindBands.fast),
-          fine: setting(bandKey(rt.kind, "fine"), kindBands.fine),
-          slow: setting(bandKey(rt.kind, "slow"), kindBands.slow),
-          frac: setting("band_deadzone_frac", rconfig.DEFAULT_BAND_DEADZONE_FRAC),
-          lowerIsFaster: !!kindBands.lowerIsFaster,
-          unit: kindBands.unit,
-        }
-      : null;
+    const bandsOf = (kind) => {
+      const kindBands = rconfig.DEFAULT_RUNTIME_BANDS[kind];
+      return kindBands
+        ? {
+            fast: setting(bandKey(kind, "fast"), kindBands.fast),
+            fine: setting(bandKey(kind, "fine"), kindBands.fine),
+            slow: setting(bandKey(kind, "slow"), kindBands.slow),
+            frac: setting("band_deadzone_frac", rconfig.DEFAULT_BAND_DEADZONE_FRAC),
+            lowerIsFaster: !!kindBands.lowerIsFaster,
+            unit: kindBands.unit,
+          }
+        : null;
+    };
+    const bands = bandsOf(rt.kind);
+    // a runtime with several kinds (audio.cpp: tts, stt) has bands for each
+    const bandsByKind = Object.fromEntries(kindsOf(rt).map((k) => [k, bandsOf(k)]));
+    // the settings the runtime declares, as stored (a number where its default is one)
+    const settings = Object.fromEntries(
+      Object.entries(rt.defaults.settings ?? {}).map(([name, dflt]) => {
+        const raw = h.get("runner_setting", settingKey(id, name))?.value;
+        if (raw == null || raw === "") return [name, dflt];
+        const n = Number(raw);
+        return [name, typeof dflt === "number" ? (Number.isFinite(n) ? n : dflt) : raw];
+      }),
+    );
     return {
       id,
       pinnedBuild: pin,
@@ -940,6 +954,8 @@ export class RunnerConfigStore {
       idleSeconds,
       memory: rt.defaults.memory ?? null,
       bands,
+      bandsByKind,
+      settings,
       safetyMarginMb: setting("safety_margin_mb", rconfig.DEFAULT_SAFETY_MARGIN_MB),
     };
   }

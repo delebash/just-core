@@ -159,4 +159,6 @@ DECIDED 2026-10-29 (the user, the answers as chosen): "One runtime, two kinds (R
 BUILT:  E3's Update to the kit's tested build (status `updateTo`, `POST …/engine/update`, the old pin and rows back on a
         failure; the tab's button in llama.cpp's words) — found by house-paint's session 2026-10-29: no existing install
         could reach sd.cpp's new pin. Tests written, not run.
+DECIDED 2026-10-29 (the user, verbatim, on "test pass now, round E now, or round E after the release"): "no test test
+        aat end after all items closed, go" — round E now, every suite once at the end.
 

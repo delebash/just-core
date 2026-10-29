@@ -88,6 +88,11 @@ export const DEFAULT_RUNTIME_BANDS = Object.freeze({
   // a vision model: one image's encode, recorded by the app's adapter (the finish list's C23, 2026-10-29 — house-paint
   // measured SAM 3's encode on the CPU at 13–16 s)
   vision: Object.freeze({ fast: 5, fine: 20, slow: 60, lowerIsFaster: true, unit: "s/image" }),
+  // speech and transcription (audio.cpp, round E): seconds of audio per second of work, higher is faster — fine at 2×,
+  // JustVoice's decided "fast enough on the CPU" (its cpu_min_realtime); slow at 1×, real time (below it a line takes
+  // longer to make than to hear); fast at 5×, the kit's start value (the user's word pending, 2026-10-29)
+  tts: Object.freeze({ fast: 5, fine: 2, slow: 1, lowerIsFaster: false, unit: "x realtime" }),
+  stt: Object.freeze({ fast: 5, fine: 2, slow: 1, lowerIsFaster: false, unit: "x realtime" }),
 });
 
 // Speed-truth plan 2026-09-19 §5 — the band DEAD ZONE. A PREDICTED tok/s within this
@@ -336,3 +341,66 @@ export function defaultConfig() {
     ctxCapTokens: DEFAULT_CTX_CAP_TOKENS,
   });
 }
+
+// ─── audio.cpp — the kit's speech runtime (round E, 2026-10-29: JustVoice's engines/audiocpp/release.js moved in) ───
+// The user's fork (github.com/delebash/audio.cpp — the user's word, 2026-10-29: "Yes, pin the fork"): upstream audio.cpp
+// plus the DSP program, voice packs, Turbo cloning and models registered at run time (`model_management`, from
+// v0.9.0-jv.4). Rows as seed DATA like sd.cpp's: each archive's size and SHA-256 as GitHub's API reports them
+// (GET …/releases/tags/v0.9.2-jv.6, 2026-10-29), what a zip unpacks to (its central directory by range requests — a
+// tar.gz row says 0: an install asks 5× its archive), and the Windows CUDA builds' runtime DLLs as their companion zip.
+// CUDA 13.3 is the Blackwell build (the kit's chip rule picks it at compute capability ≥ 10). Linux NVIDIA takes Vulkan,
+// as llama.cpp's rows do. The CPU builds are the PORTABLE ones: the plain build assumes this CPU's newest instructions
+// and exits at start on an older one (audio.cpp issue #352). macOS: Apple silicon only, the family's (the fork also
+// publishes x64). `requires` not measured for these builds.
+export const DEFAULT_AUDIOCPP_BUILD = "v0.9.2-jv.6";
+const AC_REL = `https://github.com/delebash/audio.cpp/releases/download/${DEFAULT_AUDIOCPP_BUILD}`;
+const acRow = (platform, gpu, asset, bytes, unpacked, sha256, extra = {}) => ({
+  platform,
+  gpu,
+  source: "github",
+  asset_url: `${AC_REL}/${asset}`,
+  asset_bytes: bytes,
+  asset_unpacked_bytes: unpacked,
+  sha256,
+  server_exe: platform === "windows" ? "audiocpp_server.exe" : "audiocpp_server",
+  ...extra,
+});
+const acCudart = (asset, bytes, unpacked, sha256) => ({ runtime_url: `${AC_REL}/${asset}`, runtime_bytes: bytes, runtime_unpacked_bytes: unpacked, runtime_sha256: sha256 });
+export const DEFAULT_AUDIOCPP_BINARIES = [
+  acRow("windows", "cuda12", "audio-v0.9.2-jv.6-bin-windows-x64-cuda12.4.zip", 467437957, 1222597316, "e7061704063e2b583714670ddd4479126c23040a1bfed1ac4720d397e0d7a94a",
+    acCudart("audio-v0.9.2-jv.6-cudart-windows-x64-cuda12.4.zip", 607273675, 865923072, "5172d93ab24a378ea9b4877c5a0055836c81d3bf031d46d0e2722d1a1ad313cc")),
+  acRow("windows", "cuda13", "audio-v0.9.2-jv.6-bin-windows-x64-cuda13.3.zip", 279082215, 341290692, "caeff2e01879ad619f1275ac3848ed1a527902e4929e502c2bec5e08780f8c9b",
+    acCudart("audio-v0.9.2-jv.6-cudart-windows-x64-cuda13.3.zip", 575457454, 768815552, "8aa9b806a800ab2491ace9aea0910201206e592d17ab7ed445474a6c2e7ab955")),
+  acRow("windows", "vulkan", "audio-v0.9.2-jv.6-bin-windows-x64-vulkan.zip", 66608834, 191689540, "04ef95c99dc33c02feb4516c6d03b4c45fdf658675dfc53881ba646c27a76660"),
+  acRow("windows", "cpu", "audio-v0.9.2-jv.6-bin-windows-x64-cpu-portable.zip", 32029202, 76319044, "94847349a42ad052250b29c7cd8b5ede4918c1092207671d47235112d9bd856e"),
+  acRow("linux", "vulkan", "audio-v0.9.2-jv.6-bin-ubuntu-x64-vulkan.tar.gz", 85268472, 0, "9979081d11214c84ba4302351c7413db45d453f0bb8dc76734c1a0261b3eed93"),
+  acRow("linux", "cpu", "audio-v0.9.2-jv.6-bin-ubuntu-x64-cpu-portable.tar.gz", 63696990, 0, "80d7c998cc7911c2e988da44cb16110f505d6b6e5d5f93968f3756ab27cd9ced"),
+  acRow("macos", "metal", "audio-v0.9.2-jv.6-bin-macos-arm64-metal.tar.gz", 35780548, 0, "b97e66f85ecfce7aa597fcbabced9eeba4907e049f520da46826d71d3b94c1ef"),
+];
+// The first build that has each fork feature (JustVoice's release.js FEATURES): an older build on disk refuses the feature
+// by name instead of failing inside. Builds in order, oldest first.
+export const AUDIOCPP_BUILDS_IN_ORDER = Object.freeze(["v0.9.0", "v0.9.0-jv.1", "v0.9.0-jv.4", "v0.9.0-jv.5", "v0.9.2-jv.6"]);
+export const AUDIOCPP_FEATURES = Object.freeze({
+  voxcpm2_transcript: "v0.9.0-jv.1",
+  voice_pack: "v0.9.0-jv.4",
+  inline_ipa: "v0.9.0-jv.4",
+  turbo_clone: "v0.9.0-jv.4",
+  chatterbox_he_ru_zh: "v0.9.0-jv.4",
+  japanese: "v0.9.0-jv.4",
+  model_management: "v0.9.0-jv.4",
+});
+// The speech runtime's settings (JustVoice's SpeechRuntimeSettings, models.js): seeded runner_setting rows
+// `<name>:audiocpp`, editable on its tab — the family's rule for every value a user might change.
+export const DEFAULT_AUDIOCPP_SETTINGS = Object.freeze({
+  backend: "auto", // "auto" = this machine's choice; cuda | vulkan | cpu | metal pins that build
+  gpu: 0, // which card (audio.cpp's `device`)
+  cpu_threads: 0, // the CPU process's threads; 0 = this machine's physical cores
+  cpu_min_realtime: 2.0, // "fast enough on the CPU" for Auto: seconds of audio per second of work
+  spill_mb: 256, // Windows: shared-memory growth (MB) past which a card load counts as spilled
+  runaway_s_per_char: 0.5, // a runaway line: longer than this per character …
+  runaway_min_s: 30.0, // … and than this — the process that ran it no longer sets the model's price
+  card_margin_mb: 512, // the headroom a speech model is held to on the card
+  gpu_threads: 4, // the card process's CPU threads (text, sampling)
+  start_timeout_s: 60.0, // how long a process may take to come up
+  request_timeout_s: 900.0, // how long one request may run — a line, a model load
+});

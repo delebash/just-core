@@ -2142,7 +2142,12 @@
         "fast": "Fast at ≤",
         "fine": "Fine at ≤",
         "slow": "Slow at ≤",
-        "unitSecondsPerImage": "seconds per image"
+        "unitSecondsPerImage": "seconds per image",
+        "unitRealtime": "× real time",
+        "hintHigher": "A model at or over each line is labeled “fast”, “fine” or “slow”; anything slower is “very slow”. Higher is faster: 2× makes a minute of audio in 30 seconds.",
+        "fastAtLeast": "Fast at ≥",
+        "fineAtLeast": "Fine at ≥",
+        "slowAtLeast": "Slow at ≥"
       }
     },
     "jobs": {

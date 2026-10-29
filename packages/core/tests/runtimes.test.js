@@ -24,7 +24,7 @@ beforeEach(() => {
 test("the registry: llama.cpp keeps its router path; stable-diffusion.cpp is the image runtime with kit-owned builds", () => {
   expect(runtimeOf("llamacpp")).toMatchObject({ kind: "llm", router: true });
   expect(runtimeOf("sdcpp")).toMatchObject({ kind: "image", folder: "sdcpp", defaults: { pinnedBuild: DEFAULT_SDCPP_BUILD } });
-  expect(rowRuntimes().map((r) => r.id)).toEqual(["sdcpp"]);
+  expect(rowRuntimes().map((r) => r.id)).toEqual(["sdcpp", "audiocpp"]);
   expect(runtimeOf("nope")).toBeNull();
 });
 
@@ -131,4 +131,55 @@ test("Update moves an older pin to the kit's tested build, installs it, and puts
   expect(builds.at(-1)).toBe(DEFAULT_SDCPP_BUILD);
   expect(await status()).toMatchObject({ status: "installed", build: DEFAULT_SDCPP_BUILD, installed: true, updateTo: "" });
   expect(store.getRuntimeConfig("sdcpp").binaries.find((b) => b.gpu === "cuda12").assetUrl).toContain("sd-master-77b72a2-bin-win-cuda12-x64.zip");
+});
+
+// Round E (2026-10-29, the user: "One runtime, two kinds", "Yes, pin the fork"): audio.cpp is a kit runtime with speech
+// and transcription — its fork's rows and pin, a provider per kind, both kinds' bands, its declared settings, and model
+// rows of their own kind.
+test("an app that turns audio.cpp on gets its fork's rows, a provider per kind, both kinds' bands and its settings", async () => {
+  const { DEFAULT_AUDIOCPP_BINARIES, DEFAULT_AUDIOCPP_BUILD, DEFAULT_AUDIOCPP_SETTINGS } = await import("../src/runner/config.js");
+  const { buildHas, kindsOf, providerIdOf, settingKey } = await import("../src/runner/runtimes.js");
+  seed.configureAppSeed({
+    featureCatalog: [],
+    featurePrompts: {},
+    enginePresets: [],
+    featurePresets: {},
+    defaultPresetId: "",
+    runtimes: ["audiocpp"],
+    runtimeModels: [
+      { runtime: "audiocpp", id: "kokoro-q8", name: "Kokoro", kind: "tts", files: [] },
+      { runtime: "audiocpp", id: "parakeet", name: "Parakeet", kind: "stt", files: [] },
+      { runtime: "audiocpp", id: "odd", name: "No kind", files: [] },
+    ],
+  });
+  seed.seedLlm();
+  const rt = runtimeOf("audiocpp");
+  expect(kindsOf(rt)).toEqual(["tts", "stt"]);
+  const rows = h.all("select * from runtime_binary where runtime = 'audiocpp'");
+  expect(rows).toHaveLength(DEFAULT_AUDIOCPP_BINARIES.length);
+  expect(h.get("runner_setting", pinKey("audiocpp")).value).toBe(DEFAULT_AUDIOCPP_BUILD);
+  expect(rows.find((r) => r.platform === "windows" && r.gpu === "cuda12")).toMatchObject({
+    server_exe: "audiocpp_server.exe",
+    sha256: "e7061704063e2b583714670ddd4479126c23040a1bfed1ac4720d397e0d7a94a",
+    runtime_sha256: "5172d93ab24a378ea9b4877c5a0055836c81d3bf031d46d0e2722d1a1ad313cc",
+  });
+  // a provider per kind, both of the runtime's type
+  expect(h.get("llm_providers", providerIdOf(rt, "tts"))).toMatchObject({ id: "local-audiocpp", kind: "tts", provider_type: "local-audiocpp" });
+  expect(h.get("llm_providers", providerIdOf(rt, "stt"))).toMatchObject({ id: "local-audiocpp-stt", kind: "stt", provider_type: "local-audiocpp" });
+  // both kinds' bands, higher is faster
+  const cfg = stores.getRunnerConfigStore().getRuntimeConfig("audiocpp");
+  expect(cfg.bandsByKind.tts).toMatchObject({ fast: 5, fine: 2, slow: 1, lowerIsFaster: false, unit: "x realtime" });
+  expect(cfg.bandsByKind.stt).toMatchObject({ fine: 2 });
+  // its settings seeded and read back typed; an edit sticks across a reseed
+  expect(cfg.settings).toEqual(DEFAULT_AUDIOCPP_SETTINGS);
+  stores.getRunnerConfigStore().setSetting(settingKey("audiocpp", "cpu_min_realtime"), "3");
+  seed.seedLlm();
+  expect(stores.getRunnerConfigStore().getRuntimeConfig("audiocpp").settings.cpu_min_realtime).toBe(3);
+  // model rows keep their own kind; one with none takes the runtime's primary
+  const kinds = Object.fromEntries(h.all("select id, kind from runtime_model where runtime = 'audiocpp'").map((r) => [r.id, r.kind]));
+  expect(kinds).toEqual({ "kokoro-q8": "tts", parakeet: "stt", odd: "tts" });
+  // a fork feature: offered only on a build known to carry it
+  expect(buildHas(rt, DEFAULT_AUDIOCPP_BUILD, "model_management")).toBe(true);
+  expect(buildHas(rt, "v0.9.0", "model_management")).toBe(false);
+  expect(buildHas(rt, "v9.9.9", "model_management")).toBe(false);
 });
