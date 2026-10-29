@@ -13,6 +13,61 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## Finish the kit — every open item researched, one list [2026-10-29]
+GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at any open items or lists i want to finish
+        kit so think about all bugs items adverserialy give me your rec to finish kit"; on the list: "your rec on all but
+        think adverserily on your recs again go"; then "and we should use the latest engine pin for the release of all
+        apps and final testing after all features and bugs are fixed". The list (recs as shown, evidence file:line per
+        item in the session's research notes) — close = delete each line as it lands:
+        A. Bugs: 1 multi-window (JustWrite's HELD 1, below) + the shell's own-page check (Node gives every app:// URL the
+           origin "null": data:, file:, about:blank and other app:// hosts passed IPC, permissions and navigation) —
+           closing the main window closes the app and its other windows, each asked about unsaved work (Electron's
+           default; a second window closes alone); a new window takes the size the page asks for, else Electron's
+           800×600, never below the app's minimum. 2 one-pool boxes (integrated GPU, Mac): every fit badge "CPU" —
+           score against the shared pool. 3 an engine update/uninstall deletes another app's build in a shared cache —
+           keep every live sharer's pin; an uninstall says "kept for <app>". 4 the router loads any named model
+           unbooked — every path to the local engine books first, then `--no-models-autoload` by build. 5 the
+           embeddings route books memory. 6 an empty idle box turns idle-unload off. 7 a streamed token holding
+           U+2028/2029/0085 is lost — split lines on CR/LF only. 8 auto-tune stays "running" when the service throws.
+           9 a failed model row gets Dismiss. 10 measure history hides the load rows; an unnamed row reads "Load &
+           measure". 11 a failed engine-update check says "Couldn't check for a newer engine — showing the build this
+           app was tested with."; the check is cached. 12 the llama.cpp download checked against GitHub's digest.
+           13 the runtime speed bands editable. 14 Count and Measure share one engine check. 15 the adapters' errors
+           through adapterHttpError; Ollama's embeddings fallback guarded. 16 shared_cache's two stale-fixture tests.
+           17 a guard check for resourceIsolation + a §19 row: streamed server audio uses `crossorigin="anonymous"`
+           (JustVoice moves its audio). 18 dead code: declared_claim_fn, startRunner/Runner, LoadRequest.jobId/
+           profileSwitchesFn; the screenless CRUD routes stay as data doors.
+        B. docgen's: 19 start-packaged reads the launcher name from server/package.json. 20 start-packaged `--data-dir
+           <folder>`: the packaged build on the real data folder, never removed by its cleanup. 21 the guard: docgen
+           fails check 17; docgen + JustWrite in the chrome checks, docgen in the release checks (JustWrite after its
+           clipboard fix); docgen's AUTO_KNOWN entry gone; a renderer-peers check.
+        C. Features: 22 real load % from /models/sse (T5, watch 5). 23 a vision model's speed: one image's encode,
+           recorded by the app's adapter, s/image, bands fast ≤5 s · fine ≤20 s · slow ≤60 s, editable. 24 If-Match
+           in the kit (house-paint's check moved in; the template's notes and house-paint on it): "This note was changed
+           in another window" / "Your change wasn't saved — the note is shown as it is now". 25 UiSelect option groups.
+           26 sync: remove a device from a cloud folder (syncs first; the confirm names the device and says it comes
+           back if it syncs again); the design's 60-day auto-prune dropped. 27 sync "Changes waiting" = this device's
+           changes not yet sent. 28 Claude prompt caching, the ledger counting cache tokens. 29 Mac/Linux: a pidfile
+           sweep of engines a crash left. 30 round E (JustVoice's audio.cpp and jobs into the kit) BEFORE the release.
+           31 a log warning for a machine-wide llama.cpp config.ini. 32 the pin's skipped re-read (placement rules,
+           request parsing) + one MoE and one dense check run. 33 re-test --fit with Gemma-4 MTP drafts (if broken:
+           llama-fit-params first, then launch with its placement). 34 the speed-truth walks on JustWrite's real app.
+           LAST before the final tests: the engine pin moves to the latest release (32 and 33 run on it).
+        D. Docs: 35 the kit's AGENTS.md (CLAUDE.md → @AGENTS.md), just-sqlite-sync's too. 36 app-structure: an
+           accessibility standard (WCAG 2.2 AA) with a template test; "installers are unsigned" family-wide; no
+           performance budgets. 37 the labeling law and the dismissal rules into §17/§19. 38 feature-model-system.md
+           against the JavaScript. 39 a pre-commit hook in JustWrite, JustVoice, docgen (their sessions), then the
+           guard requires it. 40 AppearancePanel's Language row removed (JustVoice onto LanguagePicker). 41 the stale
+           docs and comments. 42 "tuned config" → "applied config" in the PC classes help; the Add-model note's last
+           sentence: the user's words (asked).
+        E. Removed: D5, D6, I3, the KV/context surface (record in its plans), the RAM probe's serial passes (kept),
+           Linux CUDA builds (Vulkan there), the template's phone (out of new apps), the per-band 27B trial,
+           "Recommended" by hand (no), a one-machine library (no), the unload-clicks watch, the prompt-audit line,
+           Bonsai 1/2, the model watchlist, the licence flag, the SDK pivot, the arch check, the MTP-variant steer,
+           TTS in llama.cpp, watch 6/7, --log-jsonl, /metrics, the fixture-only probe arms, the imaging trigger.
+        F. The tracker's done entries deleted, each confirmed in code. G. The apps' items go to their trackers.
+STATE:  under way.
+
 ## The family releases together, once every app and all kit work are done [2026-10-29]
 DECIDED: the user, verbatim (2026-10-29, in JustWrite's session, relayed): "you dont understand we have several apps i
         want all kit work done for all apps before we release any app, i want to relase all apps that we are working on
@@ -57,16 +112,15 @@ GO:     JustWrite's user (relayed by its session): "do it all … just complete 
         page-lede look and the EmptyState message slot"; and the user there: "why whould we release house paint if we
         are still doing kit work, wouldnt that mean houspaint gets old kit?" — so 3 goes BEFORE house-paint's release
         (q-inner-loading's dark wash is on three of its pages), the release paused until then.
-HELD:   1. Multi-window ("Open a Character page in one window and write in another"): shell/main.js's
-           setWindowOpenHandler denies every non-http URL — allow a same-origin app://<id>/… URL as a new BrowserWindow
-           with the same webPreferences (preload, contextIsolation, sandbox) and the context menu, through Electron's
-           `{ action: "allow", overrideBrowserWindowOptions }` (electronjs.org/docs/latest/api/window-open); the app
-           opens one with plain window.open (a new tab in a browser). The server already merges two windows' saves.
-        2. Token budgets per feature ("a per-feature monthly cap that pauses AI calls when exceeded"): llm_usage records
-           feature, tokens and cost; a budget per feature, seeded empty (no cap), edited where the usage tab is;
-           dispatch checks the month's tokens before a call and refuses with a typed error the screen shows as
-           "<feature>'s monthly budget is used up — raise it in AI → Usage". Tokens or cost, and the month boundary:
-           this session decides (JustWrite leans tokens: local engines cost nothing).
+DECIDED 1 and 2 (2026-10-29, JustWrite's user on JustWrite's list "your rec go", relayed by JustWrite's session via
+        web-fc): "HELD 1, Multi-window: GO, exactly as your entry describes it … JustWrite's side (an "Open in new
+        window" on a character page) is mine and waits on yours. Please tell me the kit commit when it lands." "HELD 2,
+        Token budgets per feature: CANCELLED, delete the item. JustWrite's reason, approved: providers already offer
+        spend limits or budget alerts in their own consoles, and local engines cost nothing." 1 is item A1 of "Finish
+        the kit" above: shell/main.js's setWindowOpenHandler allows a same-origin app://<id>/… URL as a new
+        BrowserWindow with the same webPreferences (preload, contextIsolation, sandbox) and the context menu, through
+        Electron's `{ action: "allow", overrideBrowserWindowOptions }` (electronjs.org/docs/latest/api/window-open); the
+        app opens one with plain window.open (a new tab in a browser). 2 is gone.
 STATE:  3. q-inner-loading in dark BUILT (5a429ad); renderAiMarkdown BUILT 2026-10-29 (`ui/common/services/aiMarkdown.js`:
            marked, then DOMPurify — a new kit peer, installed in the template, house-paint and JustVoice; JustWrite and
            docgen by their sessions; template src/services/kitAiMarkdown.test.js); website/sync-docs taking a `lede:`
@@ -90,17 +144,7 @@ OPEN:   5. After the open fixes, each app (the kit, house-paint, JustVoice, docg
            there bug and current feature fixes". JustVoice's session gets 4 and 5 when one runs.
            House-paint's DONE 2026-10-29 (its TASKS has the user's words): IDEAS.md empty, the PRD's out of scope
            decided — no signed installers, no cloud AI photo; the phone app kept as its one "later" line.
-        MY RECS for the kit (shown 2026-10-29, waiting on the user's word) — IDEAS.md and the candidate pools (the llama.cpp
-        watch's open adoption candidates, the box-gated/parked block). Do: a vision model's speed on its chip and the
-        runtimes' bands on the AI page (the speed band's one gap); the template's notes get If-Match (two windows can
-        overwrite a note); the labeling law and the dismissal/drag invariants into app-structure (both ruled, in plan
-        docs only); real model-load progress from the router's /models/sse (watch 5); re-test --fit with Gemma-4 MTP
-        drafts on b11239 (one run). Remove: the leftover llama-server sweep on macOS/Linux (no user has hit it; ~400
-        lines a platform, untestable here); Ternary Bonsai 1 (measured 2.65 tok/s) and Bonsai 2 (fork-only); the b99xx
-        candidates (inside the pin); the MTP-variant repo steer; the unsupported-arch check (the engine refuses on
-        load); watch 6, 7, 9; the CPU-only band box test; the model watchlist; D5, D6, I3; the licence flag and the
-        provider SDK pivot. Already done, closed: watch 1–3 (update check, --load-mode, asset names) and 8 (the nested
-        json_schema form, openai_compat.js).
+        The kit's: decided 2026-10-29 — "Finish the kit" above (it replaced the recs shown here earlier that day).
 
 ## Kit gaps from JustWrite's copies audit [2026-10-29]
 STATE:  OPEN — found by JustWrite's session. a) the page-lede look and c) EmptyState's message slot DROPPED
