@@ -16,8 +16,9 @@
 
 import * as stores from "./stores.js";
 
-/** The engine preset with this id, or null (empty id, or a dangling id). */
-function presetById(presetId) {
+/** The engine preset with this id, or null (empty id, or a dangling id). Also a run's chosen preset (RunRequest's
+ *  `presetId` — docgen's escalation, 2026-10-29). */
+export function presetById(presetId) {
   if (!presetId) return null;
   for (const p of stores.getEnginePresetStore().list()) {
     if (p.id === presetId) return p;

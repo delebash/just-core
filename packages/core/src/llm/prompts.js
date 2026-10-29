@@ -305,6 +305,11 @@ export const RunRequest = T.Object({
   // providers/models). Empty → the feature's resolved route.
   providerId: opt(T.String(), ""),
   model: opt(T.String(), ""),
+  // Optional: the engine preset to run with, in place of the feature's assigned one — its route, temperature, top_p,
+  // samplers, think and reasoning, none of the assigned preset's (docgen's escalation runs a feature with the preset
+  // the user picks, 2026-10-29). The fields below still override it per call. "" → the feature's resolved preset; an
+  // id that isn't a preset is a 404.
+  presetId: opt(T.String(), ""),
   // Optional per-call temperature override (writerAI's 3-variation mode runs one action at
   // 0.55/0.7/0.95). null → the preset's temperature.
   temperature: opt(nullable(T.Number()), null),
@@ -550,6 +555,15 @@ export class UnknownActionError extends KeyError {
   }
 }
 
+/** A run's chosen preset (RunRequest `presetId`) that isn't a preset. */
+export class UnknownPresetError extends KeyError {
+  constructor(presetId) {
+    super(String(presetId));
+    this.name = "UnknownPresetError";
+    this.presetId = presetId;
+  }
+}
+
 /**
  * Everything the dispatch call needs, resolved ONCE — the shared front half of runAction /
  * streamAction / the /stream route (so the three cannot drift): spec → render templates
@@ -568,7 +582,12 @@ function resolveAction(store, body) {
   const usrTpl = body.userTemplate == null ? (spec ? spec.user_template : "") : body.userTemplate;
   const [systemText, userText] = renderPair(sysTpl, usrTpl, body.variables);
   const messages = [...historyMessages(body.history), LLMMessage("user", userText)];
-  const preset = presetResolve.resolveFeaturePreset(body.action, featureKey);
+  // the run's chosen preset (presetId) in place of the feature's assigned one — whole, never mixed with it
+  let preset;
+  if (body.presetId) {
+    preset = presetResolve.presetById(body.presetId);
+    if (preset === null) throw new UnknownPresetError(body.presetId);
+  } else preset = presetResolve.resolveFeaturePreset(body.action, featureKey);
   const providerOverride = body.providerId || (preset ? preset.providerId : "") || null;
   const modelOverride = body.model || (preset ? preset.model : "") || null;
   // Every tunable comes from the resolved PRESET (the one source, 2026-07-15); request-body
@@ -806,6 +825,7 @@ export function aiRunHttpError(e) {
 /** Map the run path's own errors to HTTP (the rest are 500s, as in Python). */
 function runErrorToHttp(e, body) {
   if (e instanceof UnknownActionError) return new HttpError(404, `unknown AI action ${strRepr(body.action)}`);
+  if (e instanceof UnknownPresetError) return new HttpError(404, `no engine preset ${strRepr(e.presetId)}`);
   // 400, not 500: the caller's variables don't cover the template — a wiring/sample bug the
   // author must see named, never a blank prompt.
   if (e instanceof MissingTemplateVariables) return new HttpError(400, `${body.action}: ${e.message}`);

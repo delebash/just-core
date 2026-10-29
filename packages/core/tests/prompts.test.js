@@ -439,6 +439,31 @@ test("run_uses_resolved_preset", async () => {
   expect(adapter.last.think).toBe(true); // reasoning on (no json) from the preset
 });
 
+test("run_with_a_chosen_preset_runs_that_preset_whole", async () => {
+  // docgen's escalation (2026-10-29): the user picks the preset a feature runs with this once. Overrides of
+  // provider/model/temperature left the ASSIGNED preset's top_p and samplers mixed in; presetId runs the chosen one
+  // in its place — its model, temperature, top_p, samplers, think — and nothing of the assigned one.
+  const assigned = stores.getEnginePresetStore().save({ name: "A", model: "assigned-model", temperature: 0.9, topP: 0.5, think: true, samplers: [{ flagName: "min_p", flagValue: "0.2" }] });
+  const chosen = stores.getEnginePresetStore().save({ name: "C", model: "chosen-model", temperature: 0.1, topP: 0.8, think: false });
+  stores.getFeaturePresetRefStore().set("greet", assigned.id);
+  const [c, adapter] = featureClient(new MemPromptStore());
+
+  const r = await c.post("/v1/ai/run", { action: "greet", variables: GREET_VARS, presetId: chosen.id });
+  expect(r.status).toBe(200);
+  expect((await r.json()).model).toBe("chosen-model");
+  expect(adapter.last.temperature).toBe(0.1);
+  expect(adapter.last.extra.top_p).toEqual(pyFloatValue(0.8));
+  expect(adapter.last.extra.min_p).toBeUndefined(); // the assigned preset's sampler isn't mixed in
+  expect(adapter.last.think).toBe(false);
+  // a request value still overrides the chosen preset, as it does the assigned one
+  await c.post("/v1/ai/run", { action: "greet", variables: GREET_VARS, presetId: chosen.id, temperature: 0.4 });
+  expect(adapter.last.temperature).toBe(0.4);
+  // a preset that doesn't exist is the caller's mistake, named — never the assigned one silently
+  const missing = await c.post("/v1/ai/run", { action: "greet", variables: GREET_VARS, presetId: "nope" });
+  expect(missing.status).toBe(404);
+  expect(JSON.stringify(await missing.json())).toContain("nope");
+});
+
 test("run_no_preset_omits_temperature_and_reasoning", async () => {
   // The no-preset rule: an action with no ref AND no default dispatches on the
   // provider-default route — temperature is NOT sent (null, so the adapter omits it),

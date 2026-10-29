@@ -26,8 +26,9 @@ STATE:  The kit's half BUILT 2026-10-29: `website/` (sync-docs.js, deploy.js, de
         dispatch triggers, .mjs scripts); docgen's release (the template's old notify job) and its site — each on the
         guard's known list until then.
 
-## Two kit asks from docgen's session [2026-10-29]
-STATE:  OPEN — after the security updates and the website deploy model (this session's queue).
+## Kit asks from docgen's session [2026-10-29]
+STATE:  1 BUILT 2026-10-29 (RunRequest `presetId` — preset_resolve `presetById`; an unknown one a 404 naming it; test
+        run_with_a_chosen_preset_runs_that_preset_whole). 2, 3 and 4 OPEN, in that order.
         1. `runAction` with a chosen preset: docgen's escalation runs a feature with a preset the user picks
            (`presetId`); RunRequest (`llm/prompts.js` ~301-332) has none, and passing provider/model/temperature as
            overrides still mixes in the assigned preset's samplers/topP (~474-480). Ask: `RunRequest.presetId` — when
@@ -38,6 +39,14 @@ STATE:  OPEN — after the security updates and the website deploy model (this s
            as text under an <hr> (the HelpDrawer, JustWrite's HelpPage/WhatsNew/Cheatsheet) — strip it before the H1
            strip. docgen's research: the standard is a front-matter package (`front-matter`; gray-matter is Buffer-bound
            in a browser), a hand-written fence strip is NOT STANDARD; plus a §19 row for a doc's lede and hint text.
+        3. A frame in the desktop window: docgen's Review frames its server's GET /v1/gt-frame (a static shell echoing
+           its text, escaped). The shell's app:// CSP (`shell/main.js` cspDefault ~545) has no frame-src, so it falls
+           back to default-src 'self' and the server's http://127.0.0.1:<port> frame is blocked; `cspAdd` maps only
+           over cspDefault's directives — an app can't add frame-src without replacing the whole `csp`. Ask: cspAdd
+           takes a directive the default lacks (or frame-src joins the default as 'self').
+        4. `resourceIsolation` (`csrf.js` ~115) refuses the frame's request (a cross-site navigation, Sec-Fetch-Dest:
+           iframe, no Origin → 403). Ask: an option naming the paths the app's own window may frame (`framePaths`),
+           letting `sec-fetch-dest: iframe` navigations to exactly those through, with a test.
         Later: once docgen runs on rows, FeatureLab/FeatureWorkbench's promptless mode has no user left (JustVoice
         keeps the sectioned one) — the kit's to retire.
 
