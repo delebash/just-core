@@ -1235,6 +1235,9 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | A model's fit and speed, in words | `ui/common/services/modelPick.js` `fitLabel`, `speedBandLabel`, `fitWarning` + the `.lu-fit` chip (`ui/common/styles.css`) | notes of a screen's own |
 | A runtime's screens | `LuRuntimeTab` (the AI page), `LuEngineNeeded` (in place), `LuRuntimePresetPane` (Routing: an image or a vision feature's preset) | an app's install card |
 | Page looks | `ui/common/app.css` + the page tokens (`tokens.contract.css`) | a copy of a kit class |
+| **Shipping** | | |
+| A release (installers, the update feed, the user docs) | `template/.github/workflows/release.yml` (manual only; each build started before it is attached; `docs.tar.gz` — `docs/*.md` + `docs/toc.json` — with the installers) + `template/scripts/release.js`, `bump.js`, `start-packaged.js`; the guard's release checks | a release started by a push or a tag |
+| An app's website | the repository `<app repo>-website` on JustWrite's `justwrite-website` (Astro + Starlight on GitHub Pages; `scripts/sync-docs` takes the release's `docs.tar.gz`, `deploy.yml` rebuilds on the release's `docs-updated` dispatch — the template release's `notify-website` job, the secret `WEBSITE_DISPATCH_TOKEN`) | the docs copied into the site by hand |
 
 ## Open deviations
 

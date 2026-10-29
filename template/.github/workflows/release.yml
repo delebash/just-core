@@ -10,6 +10,9 @@
 # -f publish=false`), so a first release's builds can be seen before anything is published.
 # `core_ref` is the kit's commit the app was built and tested with (release.js passes it): the kit
 # is shared by every family app, so its main moves on while a release is being prepared.
+# The user docs (docs/*.md and docs/toc.json) go with the installers as docs.tar.gz, and the app's
+# website, the repository <this repo>-website when it has one, is asked to rebuild from them
+# (JustWrite's justwrite-website, its scripts/sync-docs; app-structure §19, "An app's website").
 name: Release
 
 on:
@@ -270,20 +273,55 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.tag }}
         run: |
-          PRODUCT=$(node -p "require('./package.json').productName")
+          # ES modules, as all the family's code (the family rules): --input-type=module, never require
+          PRODUCT=$(node --input-type=module -e 'import { readFileSync } from "node:fs"; process.stdout.write(JSON.parse(readFileSync("package.json", "utf8")).productName)')
           # the notes: this version's section of the in-app What's new
-          node -e '
-            const text = require("fs").readFileSync("docs/whats-new.md", "utf8").replace(/\r\n/g, "\n");
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const text = readFileSync("docs/whats-new.md", "utf8").replace(/\r\n/g, "\n");
             const part = text.split(/^## /m).find((s) => s.split("\n")[0].trim() === process.argv[1]);
             process.stdout.write(part ? `${part.slice(part.indexOf("\n") + 1).trim()}\n` : "");
           ' "$TAG" > release-notes.md
+          # the user docs for the website: docs/*.md and the help's toc.json only — never docs/dev or docs/plans
+          # (the trackers and their history), which the website would publish
+          tar -czf docs.tar.gz docs/*.md docs/toc.json
           PRE=""
           case "$TAG" in *-*) PRE="--prerelease" ;; esac
           # a new release is a draft until every file is attached: published first, it was the "Latest" an
           # installed copy's update check read before its latest.yml was there (the eleventh review, 2026-10-20)
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" $PRE --draft --title "$PRODUCT $TAG" --notes-file release-notes.md
+          # attached while the release is a draft: it is never "Latest" without them (a website's sync skips a release
+          # that has none, and builds with no docs)
+          gh release upload "$TAG" docs.tar.gz --clobber
           shopt -s nullglob
           cd dist/electron/Packaged
           # the installers, and electron-updater's feed: latest*.yml (one per platform) and the .blockmaps
           gh release upload "$TAG" *.exe *.dmg *.zip *.AppImage *.deb *.blockmap latest*.yml --clobber
           gh release edit "$TAG" --draft=false
+
+  # The app's website rebuilds from this release's docs.tar.gz: the repository <this repo>-website (its deploy
+  # workflow takes repository_dispatch "docs-updated" — JustWrite's justwrite-website). This run's GITHUB_TOKEN can't
+  # start another repository's workflow: the secret WEBSITE_DISPATCH_TOKEN holds a token that can (fine-grained,
+  # the website's repository, Contents read and write — docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event).
+  # Without the secret — an app with no website — this says so and passes.
+  notify-website:
+    needs: publish
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Ask the website to rebuild
+        env:
+          GH_TOKEN: ${{ secrets.WEBSITE_DISPATCH_TOKEN }}
+          SITE: ${{ github.repository }}-website
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "WEBSITE_DISPATCH_TOKEN isn't set: no website to rebuild."
+            exit 0
+          fi
+          curl -fsSL -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$SITE/dispatches" \
+            -d "{\"event_type\":\"docs-updated\",\"client_payload\":{\"tag\":\"$TAG\"}}"
+          echo "$SITE asked to rebuild for $TAG"

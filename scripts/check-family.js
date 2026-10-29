@@ -1461,7 +1461,8 @@ function checkRelease(app) {
 const perApp = [];
 // ── check 20 · modern ES modules everywhere (the family rules, 2026-10-24) ─────────────────────────
 // `.js` files with standard `import` — app and kit code, scripts, tests and tools alike: a `require(`, a
-// `createRequire` or an `.mjs`/`.cjs` file fails. The only CommonJS is what a platform forces (ESM_PLATFORM, each
+// `createRequire` or an `.mjs`/`.cjs` file fails. A GitHub workflow's one-off `node -e` / `node -p` is code too
+// (2026-10-28: the template's release read package.json and What's new through require). The only CommonJS is what a platform forces (ESM_PLATFORM, each
 // with its doc). JustWrite's and JustVoice's files from before the rule are listed by name (ESM_KNOWN) and printed
 // until their sessions convert them — a file leaves the list when it's converted; any other file fails. Comment
 // lines aren't code.
@@ -1470,6 +1471,8 @@ const ESM_PLATFORM = new Map([
   ["src-capacitor/capacitor.config.js", "Capacitor's .js config loader takes no ES module — quasar.dev/quasar-cli-vite/developing-capacitor-apps/configuring-capacitor"],
 ]);
 const ESM_KNOWN = new Map([
+  ["JustWrite", new Set([".github/workflows/release.yml"])],
+  ["docgen", new Set([".github/workflows/release.yml"])],
   ["JustVoice", new Set([
     "scripts/mock-snapshots.js",
     "scripts/node24.js",
@@ -1498,11 +1501,13 @@ function checkEsModules(name, dir, roots = ["."]) {
       fail(name, `${rel} is an .mjs/.cjs file — the family's code is .js ES modules (family rules)`);
       continue;
     }
-    if (!/\.(js|vue)$/.test(rel) || ESM_PLATFORM.has(rel)) continue;
+    const workflow = /^\.github\/workflows\/[^/]+\.ya?ml$/.test(rel);
+    if ((!workflow && !/\.(js|vue)$/.test(rel)) || ESM_PLATFORM.has(rel)) continue;
     if (name === "kit" && rel === "scripts/check-family.js") continue; // REQUIRE above is this check's own pattern, not a use
-    const code = readFileSync(f, "utf8").split(/\r?\n/).filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+    const comment = workflow ? /^\s*#/ : /^\s*(\/\/|\*|\/\*)/;
+    const code = readFileSync(f, "utf8").split(/\r?\n/).filter((l) => !comment.test(l)).join("\n");
     if (!REQUIRE.test(code)) continue;
-    if (ESM_KNOWN.get(name)?.has(rel)) info(name, `${rel} uses require — known since 2026-10-24; its session converts it to an ES import (family rules)`);
+    if (ESM_KNOWN.get(name)?.has(rel)) info(name, `${rel} uses require — on the guard's known list (ESM_KNOWN); its session converts it to an ES import (family rules)`);
     else fail(name, `${rel} uses require/createRequire — the family's code is ES modules: a standard import, await import() or import.meta.resolve() (family rules)`);
   }
 }
