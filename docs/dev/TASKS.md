@@ -13,6 +13,32 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## The model catalog's open calls, moved from JustWrite's tracker [2026-10-28]
+WHY:    JustWrite's user: "do the kit code to its session" — these lines were JustWrite's, but the code is the kit's
+        (packages/ui). Moved by JustWrite's session on 2026-10-28, each checked in the code that day. All are the
+        user's calls on wording or behavior; none is started.
+OPEN:   for the user's word, one by one:
+        1. The fit chip's label "Fit estimate" (`LuModelCatalog.vue`, ui `en.json`): the user's veto on its wording
+           is still open — it shipped with the PC-class work (JustWrite's
+           `docs/plans/archive/2026-07-22-igpu-research-and-cpu-band-recovery.md` §25, addendum 9).
+        2. The class library, from the same §25:
+           - Add model's picker shows only the class's members (the user met it and disliked it);
+           - mixture-of-experts vs dense shown wherever hardware numbers are;
+           - the bare word "measured" in the measure history (`TuneMeasureModal.vue`);
+           - the library's lede says "a memory RANGE", which is wrong (a rewrite is drafted; the words are the
+             user's);
+           - whether the library shows one machine only;
+           - whether "Recommended" becomes the user's to set;
+           - "Model class defaults" renamed "Model family thinking defaults", ending the clash of words.
+        3. A catalog row whose download failed, or sits in "Getting ready", offers Retry but no Cancel (the user's
+           screenshot) — apart from the Cancel and Dismiss that shipped (`LuModelCatalog.vue`).
+        4. The per-band survey's leftovers (JustWrite's `docs/dev/measured-performance.md` §Per-band):
+           (a) the vram16|ram32 band moves to the 27B if a prose trial favors it;
+           (b) the 70B and GLM rows that are listed but not recommended: kept or removed.
+        5. The two laptops' look is already below ("THE DESKTOP CHECKPOINT IS CLOSED", points 2–4: "Memory" on
+           one-pool boxes, the E4B reading Fits, the `__machine_ram_bw__` row); JustVoice's VRAM wiring was built
+           2026-08-13 (below). Nothing added.
+
 ## One way per job: the kit's job table, K10b's speed and memory notes folded into the existing way [2026-10-27]
 WHY:    K10b (1394e5c) added a per-build `slow` flag (runtimes.js `fastGpus`, runtime_service.js `_slow`) and a
         model's `lowMemory` (runtime_model `ram_gb`/`ram_gb_shared`, `_memoryNote`) — second ways to do jobs the
