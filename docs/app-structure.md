@@ -1237,7 +1237,7 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | Page looks | `ui/common/app.css` + the page tokens (`tokens.contract.css`) | a copy of a kit class |
 | **Shipping** | | |
 | A release (installers, the update feed, the user docs) | `template/.github/workflows/release.yml` (manual only; each build started before it is attached; `docs.tar.gz` — `docs/*.md` + `docs/toc.json` — with the installers) + `template/scripts/release.js`, `bump.js`, `start-packaged.js`; the guard's release checks | a release started by a push or a tag |
-| An app's website | its own repository (the release's `env: WEBSITE_REPO`), built as JustWrite's `justwrite-website` (Astro + Starlight on GitHub Pages; `scripts/sync-docs` takes the release's `docs.tar.gz`, `deploy.yml` rebuilds on the release's `docs-updated` dispatch — the template release's `notify-website` job, the secret `WEBSITE_DISPATCH_TOKEN`) | the docs copied into the site by hand |
+| An app's website | its own repository (the release's `env: WEBSITE_REPO`), built as JustWrite's `justwrite-website` (Astro + Starlight on GitHub Pages; `scripts/sync-docs` takes the release's `docs.tar.gz`, `deploy.yml` builds only by hand or on the release's `docs-updated` dispatch — never on a push or a schedule, the user's rule 2026-10-28 — the template release's `notify-website` job, the secret `WEBSITE_DISPATCH_TOKEN`) | the docs copied into the site by hand |
 
 ## Open deviations
 

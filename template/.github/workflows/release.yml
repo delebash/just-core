@@ -323,7 +323,7 @@ jobs:
             exit 0
           fi
           if [ -z "$GH_TOKEN" ]; then
-            echo "WEBSITE_DISPATCH_TOKEN isn't set: $SITE rebuilds on its next push, not now."
+            echo "WEBSITE_DISPATCH_TOKEN isn't set: $SITE isn't rebuilt now — run its deploy by hand (gh workflow run deploy.yml -R $SITE)."
             exit 0
           fi
           curl -fsSL -X POST \

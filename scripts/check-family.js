@@ -1510,6 +1510,39 @@ function checkEsModules(name, dir, roots = ["."]) {
   }
 }
 
+// ── check 25 · nothing builds by itself (the user, 2026-10-28) ──────────────────────────────────────────────
+// "i dont ever want an automatic build of anything i only want stuff to build when i say so": a GitHub workflow
+// starts by hand (workflow_dispatch) or from a run the user started (repository_dispatch, workflow_call) — never on
+// a push, a pull request, a schedule or another workflow's run. JustVoice's two from before the rule are listed by
+// name (AUTO_KNOWN) until its session changes them; any other fails.
+const AUTO_TRIGGER = /^(push|pull_request|pull_request_target|schedule|workflow_run)\b/;
+const AUTO_KNOWN = new Map([["JustVoice", new Set([".github/workflows/release.yml", ".github/workflows/codeql.yml"])]]);
+function autoTriggers(text) {
+  const lines = text.split(/\r?\n/).filter((l) => !/^\s*#/.test(l));
+  const at = lines.findIndex((l) => /^(on|"on"|'on'):/.test(l));
+  if (at < 0) return [];
+  const inline = lines[at].replace(/^[^:]+:\s*/, "").replace(/[[\]]/g, "").trim();
+  if (inline) return inline.split(/\s*,\s*/).filter((t) => AUTO_TRIGGER.test(t));
+  const found = [];
+  for (let i = at + 1; i < lines.length && !/^\S/.test(lines[i]); i++) {
+    const m = /^ {2}([A-Za-z_]+)\s*:/.exec(lines[i]) || /^ {2}-\s*([A-Za-z_]+)/.exec(lines[i]);
+    if (m && AUTO_TRIGGER.test(m[1])) found.push(m[1]);
+  }
+  return found;
+}
+function checkNoAutoBuilds(name, dir) {
+  const flows = join(dir, ".github", "workflows");
+  for (const f of existsSync(flows) ? readdirSync(flows) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    const rel = `.github/workflows/${f}`;
+    const auto = autoTriggers(readFileSync(join(flows, f), "utf8"));
+    if (!auto.length) continue;
+    const msg = `${rel} starts by itself (${auto.join(", ")}) — a workflow runs only when the user says so: workflow_dispatch, or a release's repository_dispatch (the user's rule, 2026-10-28)`;
+    if (AUTO_KNOWN.get(name)?.has(rel)) info(name, `${msg} — on the guard's known list (AUTO_KNOWN); its session changes it`);
+    else fail(name, msg);
+  }
+}
+
 // ── check 21 · every AI engine goes through the kit, the way llama.cpp does (the family rules, 2026-10-24) ──
 // An app's server doing an engine's job itself fails: starting a native process (node:child_process, the kit's
 // spawnChild/closeJob), unpacking an engine's archive or acquiring a runtime (the kit's zip / tar / acquireRuntime),
@@ -1662,6 +1695,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkResearchRegister(app.name, app.dir);
   checkAgentsRules(app);
   checkEsModules(app.name, app.dir);
+  checkNoAutoBuilds(app.name, app.dir);
   checkEngines(app);
   checkKitLooks(app);
   checkTestClicks(app);
@@ -1676,6 +1710,7 @@ checkClipboard("kit", KIT, walk(join(KIT, "packages", "ui", "src")), true);
 checkI18nKit();
 checkResearchRegister("kit", KIT);
 checkEsModules("kit", KIT, ["packages", "scripts", "skills"]);
+checkNoAutoBuilds("kit", KIT);
 // The /new-just-app skill runs from Claude Code's user skills folder (install-skills.js
 // `userSkillsDir`) — advisory when that copy differs from the kit's.
 // A stale installed skill makes apps from old rules (2026-10-24): a failure, not a note.
