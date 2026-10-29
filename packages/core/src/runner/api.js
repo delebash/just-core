@@ -375,7 +375,6 @@ export function runnerRouter() {
       return c.json(
         await svc.load(body.modelId, {
           overrides,
-          jobId: body.jobId,
           switches: body.switches,
           trigger: "api",
         }),

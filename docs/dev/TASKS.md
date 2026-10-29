@@ -30,8 +30,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            at ≤" mine). 14 BUILT (Count and Measure share `_servingModel`). 15 BUILT (the local adapters' errors through
            adapterHttpError; §19 row). 16 BUILT (shared_cache's two tests on fixed fixtures).
            17 BUILT (the guard's checkResourceIsolation; §19's media row, measured; JustVoice's move in its
-           hand-off line). 18 dead code: declared_claim_fn, startRunner/Runner, LoadRequest.jobId/
-           profileSwitchesFn; the screenless CRUD routes stay as data doors.
+           hand-off line). 18 BUILT (declaredClaimFn, startRunner/Runner — its spawn diagnostics tests now on
+           the router — and LoadRequest.jobId/profileSwitchesFn removed; the screenless data routes kept).
         B. docgen's: 19 start-packaged reads the launcher name from server/package.json. 20 start-packaged `--data-dir
            <folder>`: the packaged build on the real data folder, never removed by its cleanup. 21 the guard: docgen
            fails check 17; docgen + JustWrite in the chrome checks, docgen in the release checks (JustWrite after its

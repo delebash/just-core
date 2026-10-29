@@ -175,7 +175,6 @@ export const RunnerResidentResponse = strictObject({
 /** Body for POST /v1/llm-runner/load — `modelId` required, the rest optional overrides. */
 export const LoadRequest = strictObject({
   modelId: T.String(),
-  jobId: opt(nullable(T.String()), null),
   nGpuLayers: opt(nullable(T.Integer()), null),
   nCpuMoe: opt(nullable(T.Integer()), null),
   ctxLen: opt(nullable(T.Integer()), null),

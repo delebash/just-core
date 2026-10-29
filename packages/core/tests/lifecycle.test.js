@@ -301,26 +301,10 @@ test("load_survives_identify_failure", async () => {
 
 // ── switch resolution flows into the emitted .ini section ─────────────────────
 
-test("load_applies_profile_switches_for_job", async () => {
-  // Legacy jobId override hook: a profileSwitchesFn result REPLACES the model-level base
-  // wholesale — verified in the emitted .ini section.
-  const svc = serviceFor(tmp(), {
-    switchesFn: () => ({ ctx_len: "4096" }), // model base
-    profileSwitchesFn: () => ({ ctx_len: "32768" }), // the override hook wins
-  });
-  await svc.load(TEST_MODEL.id, { jobId: "analysis" });
-  await join5(svc);
-  expect(svc.status().status).toBe("running");
-  expect(ini(svc)).toContain("ctx-size = 32768");
-});
-
-test("load_uses_model_base_without_job", async () => {
-  // No jobId → the model-level switches apply (profile reader untouched).
-  const svc = serviceFor(tmp(), {
-    switchesFn: () => ({ ctx_len: "4096" }),
-    profileSwitchesFn: () => ({ ctx_len: "32768" }),
-  });
-  await svc.load(TEST_MODEL.id); // no jobId
+test("load_uses_model_base_switches", async () => {
+  // The model-level switches reach the emitted .ini section.
+  const svc = serviceFor(tmp(), { switchesFn: () => ({ ctx_len: "4096" }) });
+  await svc.load(TEST_MODEL.id);
   await join5(svc);
   expect(ini(svc)).toContain("ctx-size = 4096");
 });
@@ -529,7 +513,7 @@ test("stop_during_load_leaves_no_ghost", async () => {
   expect(svc._resident.has(TEST_MODEL.id)).toBe(false);
 });
 
-// ── router-level OOM back-off (startRunner's shed doesn't run in router mode) ─
+// ── router-level OOM back-off ─
 
 test("router_load_oom_backoff", async () => {
   // POST /models/load is ASYNC (b9644) — the OOM back-off keys off the child's GET /models

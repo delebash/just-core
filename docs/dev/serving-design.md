@@ -193,11 +193,10 @@ standing distillation).
   book. The same ruling's app half: a JV managed-engine load on a one-pool
   box books its declared `vram_min_mb` whichever device it resolves (CPU and
   GPU are the same physical bytes there); discrete keeps
-  cpu-resolves-books-nothing. Recorded gaps: GPU-less CPU-only boxes still
-  book 0 (the fit's `one_pool` arm excludes them by design), and
-  `configure_service(declared_claim_fn=…)` is DEAD plumbing — assigned, read
-  nowhere, and `preview_fit` resolves catalog ids only; JV prices its engines
-  from its own manifests instead. Delete or complete it when it next blocks.
+  cpu-resolves-books-nothing. Recorded gap: GPU-less CPU-only boxes still
+  book 0 (the fit's `one_pool` arm excludes them by design). (The dead
+  `declared_claim_fn` seam was deleted 2026-10-29 — a runtime's models are
+  rated by `RuntimeService._rating`.)
 
 ## Known limitations (standing, by design or unfixed)
 

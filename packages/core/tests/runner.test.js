@@ -38,7 +38,7 @@ import {
   DEFAULT_PORT,
   emitModelsIni,
   engineNglFlag,
-  FitPlan,
+  RouterHandle,
   loadModeValue,
   ModelIniEntry,
   Overrides,
@@ -46,10 +46,8 @@ import {
   probeArgvs,
   renderArgv,
   renderIni,
-  Runner,
   RunnerStartError,
   startRouter,
-  startRunner,
 } from "../src/runner/process.js";
 import { GpuInfo, HardwareInfo } from "../src/runner/schema.js";
 
@@ -678,8 +676,6 @@ test("emit_models_ini_extra_flag_negative_value", () => {
   expect(ini).not.toContain("-0.5 = true"); // NOT misparsed as its own flag
 });
 
-// ── startRunner (probe + OOM back-off; subprocess injected) ───────────────────
-
 /** A ChildProcess-shaped fake: `exitCode` null = still running; `capturedOutput` is what the
  * pipe path drains. */
 class FakeProc {
@@ -695,83 +691,7 @@ class FakeProc {
   }
 }
 
-const fitPlan = () => new FitPlan({ nGpuLayers: 20, nCpuMoe: 0, ctxLen: 4096, blockCount: 48, isMoe: true });
 const noSleep = () => {};
-
-test("start_runner_healthy_first_try", async () => {
-  const spawned = [];
-  const popen = (argv) => {
-    spawned.push(argv);
-    return new FakeProc(null); // alive
-  };
-  const r = await startRunner("llama-server", "m.gguf", fitPlan(), { _popen: popen, _health: () => true, _sleep: noSleep });
-  expect(r).toBeInstanceOf(Runner);
-  expect(r.isAlive()).toBe(true);
-  expect(r.nGpuLayers).toBe(20);
-  expect(spawned.length).toBe(1);
-});
-
-test("start_runner_backs_off_on_oom", async () => {
-  const procs = [
-    new FakeProc(1, "ggml_cuda: CUDA error: out of memory"), // OOM exit
-    new FakeProc(null), // then healthy
-  ];
-  const state = { n: 0 };
-  const popen = () => procs[state.n++];
-  const r = await startRunner("llama-server", "m.gguf", fitPlan(), {
-    backoffStep: 4,
-    _popen: popen,
-    _health: () => state.n >= 2,
-    _sleep: noSleep,
-  });
-  expect(state.n).toBe(2); // spawned twice
-  // Shed direction (fit-redesign §5.7): a MoE OOM raises nCpuMoe first — expert bytes leave
-  // the GPU, the layers (attention + KV) STAY.
-  expect(r.nGpuLayers).toBe(20); // unchanged
-  expect(r.nCpuMoe).toBe(4); // 0 + the back-off step
-  expect(procs[0].killed).toBe(true); // first attempt cleaned up
-});
-
-test("start_runner_sheds_ngl_once_ncmoe_is_maxed", async () => {
-  // A MoE that still OOMs with EVERY expert in RAM finally sheds layers — and a dense model
-  // (nothing to raise) sheds layers immediately.
-  const plan = new FitPlan({ nGpuLayers: 20, nCpuMoe: 46, ctxLen: 4096, blockCount: 48, isMoe: true });
-  const procs = [
-    new FakeProc(1, "ggml_cuda: CUDA error: out of memory"), // → ncmoe 46→48
-    new FakeProc(1, "ggml_cuda: CUDA error: out of memory"), // maxed → ngl 20→16
-    new FakeProc(null),
-  ];
-  const state = { n: 0 };
-  const r = await startRunner("llama-server", "m.gguf", plan, {
-    backoffStep: 4,
-    _popen: () => procs[state.n++],
-    _health: () => state.n >= 3,
-    _sleep: noSleep,
-  });
-  expect([r.nGpuLayers, r.nCpuMoe]).toEqual([16, 48]);
-});
-
-test("start_runner_first_attempt_honors_the_plans_ncmoe", async () => {
-  // §1.7 hygiene: the old per-attempt `blockCount - ngl` formula silently replaced the
-  // computed ncmoe on the very first spawn (fit says 21 → it ran 18).
-  const plan = new FitPlan({ nGpuLayers: 30, nCpuMoe: 21, ctxLen: 4096, blockCount: 30, isMoe: true });
-  const r = await startRunner("llama-server", "m.gguf", plan, {
-    _popen: () => new FakeProc(null),
-    _health: () => true,
-    _sleep: noSleep,
-  });
-  expect([r.nGpuLayers, r.nCpuMoe]).toEqual([30, 21]);
-});
-
-test("start_runner_raises_on_non_oom", async () => {
-  await expect(
-    startRunner("llama-server", "m.gguf", fitPlan(), {
-      _popen: () => new FakeProc(1, "fatal: model file not found"),
-      _health: () => false,
-      _sleep: noSleep,
-    }),
-  ).rejects.toBeInstanceOf(RunnerStartError);
-});
 
 // ── spawn diagnostics (log file + exit code + tail) ────────────────────────────
 
@@ -783,72 +703,39 @@ test("tail_file_returns_last_lines", () => {
   expect(_tailFile(join(dir, "nope.log"))).toBe(""); // missing → empty, not a crash
 });
 
-test("start_runner_error_reports_exit_code", async () => {
-  // A self-exited llama-server (e.g. a missing DLL on Windows) surfaces its exit code +
-  // captured output, not a bare "failed".
-  const err = await startRunner("llama-server", "m.gguf", fitPlan(), {
-    _popen: () => new FakeProc(3221225781, "error while loading shared libraries"),
-    _health: () => false,
-    _sleep: noSleep,
-  }).catch((e) => e);
+// (on the router — the one spawn left, through startServerProcess, which sd-server's start shares; the pre-router
+// single-model startRunner and its OOM back-off went 2026-10-29, the finish list's A18)
+const routerOpts = (extra) => ({ modelsDir: "/hf", modelsPreset: "/x.ini", _sleep: noSleep, ...extra });
+
+test("start_router_error_reports_exit_code", async () => {
+  // A self-exited llama-server (e.g. a missing DLL on Windows) surfaces its exit code + captured output, not a bare
+  // "failed".
+  const err = await startRouter("llama-server", routerOpts({ _popen: () => new FakeProc(3221225781, "error while loading shared libraries"), _health: () => false })).catch((e) => e);
   expect(err).toBeInstanceOf(RunnerStartError);
   expect(err.message).toContain("exit 3221225781");
   expect(err.message).toContain("error while loading shared libraries");
 });
 
-test("start_runner_hang_reports_still_running", async () => {
-  // A hang (never healthy, never exits) reports "still running" — the case the old empty-tail
-  // message could not distinguish from a crash.
+test("start_router_hang_reports_still_running", async () => {
+  // A hang (never healthy, never exits) reports "still running" — the case an empty tail could not tell from a crash.
   const times = [0.0, 0.0, 1000.0][Symbol.iterator](); // deadline calc, first check, then past deadline
-  const err = await startRunner("llama-server", "m.gguf", fitPlan(), {
-    _popen: () => new FakeProc(null, ""), // alive the whole time
-    _health: () => false,
-    _sleep: noSleep,
-    _now: () => times.next().value,
-  }).catch((e) => e);
+  const err = await startRouter("llama-server", routerOpts({ _popen: () => new FakeProc(null, ""), _health: () => false, _now: () => times.next().value })).catch((e) => e);
   expect(err).toBeInstanceOf(RunnerStartError);
   expect(err.message).toContain("still running");
 });
 
-test("start_runner_redirects_to_log_and_cites_path", async () => {
-  // With logPath set, output goes to that file and the failure cites the log path so the user
-  // can open it. (Python checked `stdout=` reached Popen; here: the child's stdio is piped —
-  // never an inherited fd — and the seam copies it into the file.)
-  const logPath = join(tmp(), "logs", "runner.log");
+test("start_router_redirects_to_log_and_cites_path", async () => {
+  // With logPath set, output goes to that file and the failure cites the log path so the user can open it (the child's
+  // stdio is piped — never an inherited fd — and the seam copies it into the file).
+  const logPath = join(tmp(), "logs", "router.log");
   const popen = (argv, opts) => {
     expect(opts.stdio).toEqual(["ignore", "pipe", "pipe"]);
     return new FakeProc(1, "");
   };
-  const err = await startRunner("llama-server", "m.gguf", fitPlan(), {
-    logPath,
-    _popen: popen,
-    _health: () => false,
-    _sleep: noSleep,
-  }).catch((e) => e);
+  const err = await startRouter("llama-server", routerOpts({ logPath, _popen: popen, _health: () => false })).catch((e) => e);
   expect(err).toBeInstanceOf(RunnerStartError);
   expect(err.message).toContain(`[log: ${logPath}]`);
-  expect(existsSync(logPath)).toBe(true); // startRunner created the dir + the file
-});
-
-test("start_runner_backs_off_on_oom_via_log", async () => {
-  // On the file path (the one _run_load actually uses), the OOM signal is read from the
-  // LOG-FILE tail, not a pipe. The first attempt's child writes an OOM line, which the seam
-  // copies into the log → back-off → second attempt healthy.
-  const logPath = join(tmp(), "logs", "runner.log");
-  const first = new FakeProc(1);
-  first.stdout = Readable.from([Buffer.from("ggml_cuda: CUDA error: out of memory")]);
-  const procs = [first, new FakeProc(null)]; // OOM exit, then alive
-  const state = { n: 0 };
-  const r = await startRunner("llama-server", "m.gguf", fitPlan(), {
-    backoffStep: 4,
-    logPath,
-    _popen: () => procs[state.n++],
-    _health: () => state.n >= 2,
-    _sleep: noSleep,
-  });
-  expect(state.n).toBe(2); // spawned twice: the log-tail OOM drove the retry
-  expect(r.nGpuLayers).toBe(20); // a MoE raises ncmoe first — layers stay
-  expect(r.nCpuMoe).toBe(4);
+  expect(existsSync(logPath)).toBe(true); // the spawn made the folder and the file
 });
 
 // ── 1b fit-by-omission: null fit knobs render nothing; ctx policy stays ours ──
@@ -1050,7 +937,7 @@ test("stop_closes_the_retained_job_handle", () => {
   const closed = [];
   vi.spyOn(processMod, "_closeJob").mockImplementation((j) => closed.push(j));
   const sentinel = {};
-  const h = new Runner({ process: new FakeProc(null), url: "http://x", nGpuLayers: 1, nCpuMoe: 0, jobHandle: sentinel });
+  const h = new RouterHandle({ process: new FakeProc(null), url: "http://x", jobHandle: sentinel });
   h.stop();
   expect(closed).toEqual([sentinel]);
 });

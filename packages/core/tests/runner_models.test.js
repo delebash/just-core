@@ -684,7 +684,6 @@ test("the runner router answers as FastAPI did", async () => {
   expect(await send("POST", L)).toEqual(v422(L, missingBody));
   let r = await send("POST", L, { json: { model_id: "x" } });
   expect([r.status, r.calls[0][0], r.calls[0][1]]).toEqual([200, "load", "x"]);
-  expect(r.calls[0][2].jobId).toBeNull();
   expect(r.calls[0][2].trigger).toBe("api");
   expect(await send("POST", L, { json: { modelId: "x", model_id: "y" } })).toEqual(v422(L, extra("model_id")));
   expect(await send("POST", L, { json: { modelId: "", junk: 1 } })).toEqual(v422(L, extra("junk")));

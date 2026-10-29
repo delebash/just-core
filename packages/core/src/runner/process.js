@@ -7,12 +7,12 @@
 //     expert layers to offload to CPU RAM (`--n-cpu-moe`).
 //   * `composeFlags` — build the llama-server argv from the resolved overrides + the fit +
 //     the model path.
-//   * `startRunner` / `Runner` — spawn the process, wait for `/health`, and on a CUDA-OOM
-//     exit shed GPU layers and retry. The back-off is the real safety net, so `computeFit`
-//     only needs to be a reasonable first guess.
+//   * `startRouter` — spawn the router, wait for `/health` (`startServerProcess`, which a runtime's server shares).
+//     A child's CUDA-OOM is shed at the service level (lifecycle.js `_confirmLoad`), so `computeFit` only needs to be a
+//     reasonable first guess. (The pre-router single-model `startRunner` / `Runner` went 2026-10-29.)
 //
 // ── The JS shape ────────────────────────────────────────────────────────────────────────
-// Python's dataclasses (Overrides, FitPlan, ModelIniEntry, Runner, RouterHandle) are classes
+// Python's dataclasses (Overrides, FitPlan, ModelIniEntry, RouterHandle) are classes
 // built from ONE fields object with camelCase names (`new Overrides({nGpuLayers: 30})`,
 // `fit.vramMb`) — the same one-name-per-field rule as gguf.js's GgufMeta. `OVERRIDES_FIELDS`
 // maps each Overrides field to its Python (= stored switch-key) name. Python keyword
@@ -21,7 +21,7 @@
 // SYNC / ASYNC: the pure parts (fit, flags, ini, classifiers, `_tailFile`) stay synchronous.
 // Everything that waited in Python is async: `findFreePort` / `_portIsFree` (a bind),
 // `_spawnChild` / `spawnChild` (it must learn whether the OS started the program, and it
-// sleeps between retries), `startRunner`, `startRouter`, `_waitUntilHealthy`,
+// sleeps between retries), `startRouter`, `_waitUntilHealthy`,
 // `_defaultHealth` / `ServerHandle.health()`, `_drain`, `_kill`, `waitExit`.
 // `ServerHandle.isAlive()` and `stop()` stay synchronous (Python's were non-blocking).
 //
@@ -1300,7 +1300,7 @@ export const closeJob = _closeJob;
 
 /**
  * A live llama-server process (OpenAI-compatible at `url`) — the ONE process-handle surface
- * (`isAlive`/`health`/`stop`) shared by the single-model `Runner` and the multi-model
+ * (`isAlive`/`health`/`stop`) shared by the multi-model
  * `RouterHandle` (so the aliveness/health/terminate logic has a single source).
  * Fields: `process`, `url`, `jobHandle` (the retained Windows Job Object; null off-win32).
  */
@@ -1334,20 +1334,8 @@ export class ServerHandle {
 }
 export { ServerHandle as _ServerHandle };
 
-/** A single-model `llama-server` spawn — the shared handle surface + the resolved GPU split
- * it was launched with. */
-export class Runner extends ServerHandle {
-  constructor(fields = {}) {
-    super(fields);
-    requireFields("Runner", fields, ["nGpuLayers", "nCpuMoe"]);
-    this.nGpuLayers = fields.nGpuLayers;
-    this.nCpuMoe = fields.nCpuMoe;
-  }
-}
-
 /**
- * A `llama-server` in ROUTER mode (multi-model; routes by model id). Distinct from `Runner`
- * (a single-model spawn): the router owns N child servers, so it carries no per-model
+ * A `llama-server` in ROUTER mode (multi-model; routes by model id): the router owns N child servers, so it carries no per-model
  * ngl/offload — those live per section in the emitted `.ini`. It is exactly the shared
  * ServerHandle surface, so the service treats router and single-model spawns uniformly.
  */
@@ -1382,100 +1370,10 @@ async function failureOutput(proc, rc, logPath) {
 }
 
 /**
- * Spawn llama-server, wait for `/health`, shed GPU layers on CUDA-OOM.
- *
- * Resolves a live `Runner`. Throws `RunnerStartError` if it can't become healthy for a
- * non-OOM reason (or after backing off to 0 GPU layers) — the error carries the process exit
- * status (null = still running, killed on the health timeout = a hang; a number = it exited
- * on its own, e.g. Windows 3221225781 / 0xC0000135 = a DLL failed to load) plus the tail of
- * the log. When `logPath` is set, llama-server's merged stdout+stderr goes to that file
- * (survives a hang/crash/kill and is tailed on failure); otherwise it is captured from the
- * pipes. `_popen`/`_health`/`_sleep` (seconds)/`_now` (seconds) are injection points for
- * tests.
- */
-export async function startRunner(
-  serverExe,
-  ggufPath,
-  fitPlan,
-  {
-    host = DEFAULT_HOST,
-    port = DEFAULT_PORT,
-    extraFlags = [],
-    overrides = null,
-    logPath = null,
-    probeTimeout = 30.0,
-    backoffStep = _BACKOFF_STEP,
-    _popen = null,
-    _health = null,
-    _sleep = null,
-    _now = null,
-  } = {},
-) {
-  const popen = _popen ?? ((a, o) => procs.popen(a, o));
-  const health = _health ?? ((u) => self._defaultHealth(u));
-  const sleepFn = _sleep ?? sleepS;
-  const now = _now ?? monotonic;
-  const url = `http://${host}:${port}`;
-  let nGpu = fitPlan.nGpuLayers;
-  // The plan's own split, honored from attempt #1 (fit-redesign §1.7 hygiene: the old
-  // per-attempt `blockCount - ngl` formula silently discarded the computed ncmoe on the FIRST
-  // spawn and reduced expert offload on every shed).
-  let nCpuMoe = fitPlan.isMoe ? fitPlan.nCpuMoe : 0;
-  // One log for the whole load: the sequential OOM-backoff attempts append into the same
-  // per-load file.
-  freshLog(logPath);
-  for (;;) {
-    const flags = composeFlags(ggufPath, {
-      nGpuLayers: nGpu,
-      nCpuMoe,
-      ctxLen: fitPlan.ctxLen,
-      host,
-      port,
-      extra: extraFlags,
-      overrides,
-      blockCount: fitPlan.blockCount,
-    });
-    log.info(`spawning llama-server: ngl=${nGpu} n_cpu_moe=${nCpuMoe} ctx=${fitPlan.ctxLen}`);
-    const [proc, job] = await self._spawnChild(popen, [String(serverExe), ...flags], logPath);
-    if (await _waitUntilHealthy(proc, url, probeTimeout, health, sleepFn, now)) {
-      return new Runner({ process: proc, url, nGpuLayers: nGpu, nCpuMoe, jobHandle: job });
-    }
-
-    // Capture WHY before killing: poll() is null for a hang (still alive at the deadline) or
-    // the self-exit code if it died on its own.
-    const rc = pollProc(proc);
-    const output = await failureOutput(proc, rc, logPath);
-    await _kill(proc);
-    self._closeJob(job); // a failed spawn's job dies with its child
-    // SHED DIRECTION (fit-redesign §5.7): a MoE OOM raises nCpuMoe first — each step frees an
-    // expert layer's bytes (~0.45 GB on the 26B) while keeping attention + KV on the GPU;
-    // shedding ngl moves those too and is strictly worse per retry. ngl sheds only once ncmoe
-    // is maxed (or the model is dense).
-    if (_looksLikeOom(output)) {
-      if (fitPlan.isMoe && nCpuMoe < fitPlan.blockCount) {
-        nCpuMoe = Math.min(fitPlan.blockCount, nCpuMoe + backoffStep);
-        log.warning(`llama-server OOM — raising n-cpu-moe to ${nCpuMoe} (ngl stays ${nGpu})`);
-        continue;
-      }
-      if (nGpu > 0) {
-        nGpu = Math.max(0, nGpu - backoffStep);
-        log.warning(`llama-server OOM — backing off to ngl=${nGpu}`);
-        continue;
-      }
-    }
-    const status = rc === null ? "still running, killed on timeout" : `exit ${rc}`;
-    const where = logPath ? `  [log: ${logPath}]` : "";
-    throw new RunnerStartError(
-      `llama-server failed to become healthy (ngl=${nGpu}, ${status}): ${tailChars(output, 1000)}${where}`,
-    );
-  }
-}
-
-/**
  * Spawn llama-server in ROUTER mode (no `-m`; it loads models by id from the
  * `--models-preset` `.ini`) and wait for `/health`.
  *
- * Unlike `startRunner` there is **NO OOM back-off here** — the router process itself loads
+ * There is **NO OOM back-off here** — the router process itself loads
  * no weights; each CHILD fits independently from its `.ini` section, so a child's CUDA-OOM is
  * recovered at the SERVICE level (re-emit that model's section at a lower `ngl` + reload), not
  * by shedding layers on the router. Throws `RunnerStartError` if the router never becomes

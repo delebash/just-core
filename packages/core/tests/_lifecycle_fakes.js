@@ -190,7 +190,6 @@ export function serviceFor(
     sleep = null,
     identifyFn = null,
     switchesFn = null,
-    profileSwitchesFn = null,
     embeddingIdsFn = null,
     defaultLlmIdFn = null,
     arbiter = null,
@@ -242,7 +241,7 @@ export function serviceFor(
   });
 
   const kw = {};
-  const opt = { hardwareFn, acquiredExes, identifyFn, switchesFn, profileSwitchesFn, embeddingIdsFn, defaultLlmIdFn, now, sleep, knobBackendsFn };
+  const opt = { hardwareFn, acquiredExes, identifyFn, switchesFn, embeddingIdsFn, defaultLlmIdFn, now, sleep, knobBackendsFn };
   for (const [k, v] of Object.entries(opt)) if (v != null) kw[k] = v;
   return new RunnerService(tmpPath, {
     catalogFn: () => models,

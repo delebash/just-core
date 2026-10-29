@@ -36,7 +36,7 @@
 //
 // THE HOST SEAMS. `hardwareFn` is SYNCHRONOUS — the default reads `hardware.detected()` (the
 // memo boot fills with `await hardware.ensureDetected()`); Python's default re-ran `detect()`
-// on every call. `catalogFn`, `switchesFn`, `profileSwitchesFn`, `embeddingIdsFn`,
+// on every call. `catalogFn`, `switchesFn`, `embeddingIdsFn`,
 // `defaultLlmIdFn`, `configFn`, `knobBackendsFn`, `measurementsFn`, `classBwFn`,
 // `fitRelevantFlagsFn` and `readMeta` are synchronous (the stores are). Everything that
 // spawns, fetches or probes may return a promise (`acquireBinary`, `acquireModel`,
@@ -263,8 +263,7 @@ function _sameTuning(a, b) {
   const ov = (x) => x ?? new Overrides();
   return (
     ov(a.overrides).equals(ov(b.overrides)) &&
-    JSON.stringify(a.switches || {}) === JSON.stringify(b.switches || {}) &&
-    (a.jobId || null) === (b.jobId || null)
+    JSON.stringify(a.switches || {}) === JSON.stringify(b.switches || {})
   );
 }
 
@@ -618,13 +617,6 @@ export function _defaultIdentifyFn(_modelId, _ggufPath) {
  */
 export function _defaultEmbeddingIdsFn() {
   return new Set();
-}
-
-/** Standalone default for the legacy `jobId` override hook (unused by JustWrite, which
- * resolves switches from the model type baseline): no hook wired → fall back to the model's
- * own switches. */
-export function _defaultProfileSwitchesFn(_jobId) {
-  return {};
 }
 
 async function postJson(url, body, timeoutMs) {
@@ -1082,7 +1074,6 @@ export class RunnerService {
       hardwareFn = memoHardware,
       catalogFn = _defaultCatalogFn,
       switchesFn = _defaultSwitchesFn,
-      profileSwitchesFn = _defaultProfileSwitchesFn,
       identifyFn = _defaultIdentifyFn,
       embeddingIdsFn = _defaultEmbeddingIdsFn,
       defaultLlmIdFn = null,
@@ -1108,7 +1099,6 @@ export class RunnerService {
       recordProbeFn = null,
       recordLoadFn = null,
       fitRelevantFlagsFn = null,
-      declaredClaimFn = null,
       speechModelsFn = null,
     } = {},
   ) {
@@ -1126,7 +1116,6 @@ export class RunnerService {
     this._hardwareFn = hardwareFn;
     this._catalogFn = catalogFn;
     this._switchesFn = switchesFn;
-    this._profileSwitchesFn = profileSwitchesFn;
     this._identifyFn = identifyFn;
     this._embeddingIdsFn = embeddingIdsFn;
     // The LOCAL chat default's catalog id ("" when the chat default is cloud/Ollama) — the
@@ -1163,13 +1152,11 @@ export class RunnerService {
     // Fit-redesign Phase 5 (§6.2-6.4/§13.1-13.3) — the persistence + claim seams:
     // recordLoadFn persists a confirmed load's footprint (+ the observed overhead machine
     // row) and prunes to keep-K; the fingerprint SET comes from knob_catalog's fit_relevant
-    // classification; declaredClaimFn answers a FOREIGN kind's declared claim (JV wires its
-    // engine manifests there — the kit handles kind="llm" itself). All null standalone:
-    // loads still true up in-memory, claims resolve down to computed/declared exactly as
-    // before.
+    // classification. Both null standalone: loads still true up in-memory, claims resolve down to computed/declared
+    // exactly as before. (A foreign kind's claim — JustVoice's speech engines — is the runtime's own:
+    // RuntimeService._rating; the declaredClaimFn seam no app ever wired went 2026-10-29.)
     this._recordLoadFn = recordLoadFn;
     this._fitRelevantFlagsFn = fitRelevantFlagsFn;
-    this._declaredClaimFn = declaredClaimFn;
     // The host's loaded speech models, [{id, placement: "gpu" | "cpu"}] (JustVoice wires its
     // slots) — for the RAM refusal's words only; null = the card's speech bookings name them.
     this._speechModelsFn = speechModelsFn;
@@ -2018,7 +2005,7 @@ export class RunnerService {
    * died because NOTHING recorded who asked for a load — every internal caller must pass its
    * own name, so an unnamed caller showing up as "api" in a log stays a signal, not a lie.
    */
-  async load(modelId, { overrides = null, jobId = null, switches = null, trigger = "api" } = {}) {
+  async load(modelId, { overrides = null, switches = null, trigger = "api" } = {}) {
     // Log EVERY ask — including the warm no-op and in-flight returns below. The respawn hunt
     // needs the asks that DIDN'T start a load too.
     log.info(`load ${modelId} (trigger=${trigger})`);
@@ -2028,7 +2015,7 @@ export class RunnerService {
     // the ensure guard.)
     this._stopTombstones.delete(modelId);
     const cur = this._resident.get(modelId);
-    const tuning = { overrides, switches, jobId };
+    const tuning = { overrides, switches };
     if (cur != null && (cur.status === "downloading" || cur.status === "starting")) {
       // THIS model's load is already in flight. The same ask again is a no-op; an ask with OTHER
       // tuning is kept and runs once this load finishes. It was dropped without a word: the
@@ -2052,7 +2039,7 @@ export class RunnerService {
     // the _lastId primary, not a co-resident like the pinned embed), and swallowing a re-load
     // then would never respawn the dead router.
     const router = this._router;
-    const noTuning = (overrides == null || overrides.equals(new Overrides())) && !truthy(switches) && !jobId;
+    const noTuning = (overrides == null || overrides.equals(new Overrides())) && !truthy(switches);
     if (cur != null && cur.status === "running" && noTuning && router != null && router.isAlive()) {
       this._lastId = modelId; // a re-load promotes to primary, as the non-guard path does
       this._arbiter.touch(modelId);
@@ -2074,7 +2061,7 @@ export class RunnerService {
     this._loadTuning.set(modelId, tuning);
     log.info(`load ${modelId}: starting load thread (trigger=${trigger})`);
     this._thread = new BackgroundTask(`load ${modelId}`, async () => {
-      await this._runLoad(modelId, overrides ?? new Overrides(), jobId, switches);
+      await this._runLoad(modelId, overrides ?? new Overrides(), switches);
       this._loadTuning.delete(modelId);
       await this._runPendingRetune(modelId);
     });
@@ -2415,9 +2402,8 @@ export class RunnerService {
    *
    * Returns {vramMb, ramMb, source, matches}. The claim follows the RESOLVED DEVICE (a load
    * at ngl 0 books 0 VRAM); ramMb is the §13.12 rule (file + headroom; display-only per §8.18)
-   * on every arm — measured rows don't capture RAM. Foreign kinds (JV's TTS/STT engines) come
-   * through the `declaredClaimFn` seam their wiring registers; this method is the kit's own
-   * kind="llm" path.
+   * on every arm — measured rows don't capture RAM. This is the kit's kind="llm" path (a runtime's models are rated
+   * by RuntimeService._rating).
    */
   _resolveClaim(model, switches = null) {
     const c = this._configFn();
@@ -3292,19 +3278,17 @@ export class RunnerService {
     return st;
   }
 
-  async _runLoad(modelId, overrides = null, jobId = null, switches = null) {
+  async _runLoad(modelId, overrides = null, switches = null) {
     try {
       const config = this._configFn();
       const hw = this._hardwareFn();
       const embedIds = keySet(this._embeddingIdsFn()); // the configured local embed(s) → reserve them PINNED (P3)
 
-      // Switch base, UNDER user-supplied overrides (user wins per-field). An optional legacy
-      // `jobId` hook can REPLACE the base wholesale; normally there is no job → the model's
-      // own base/type (moe|dense) presets. Ad-hoc #20 "Tune & measure" switches win last (an
+      // Switch base, UNDER user-supplied overrides (user wins per-field): the model's own base/type (moe|dense)
+      // presets. Ad-hoc #20 "Tune & measure" switches win last (an
       // unknown key → extraFlags via the same converter) — the Lab per-load tuning (Option A)
       // rides in `ov`.
-      let baseSwitches = jobId ? this._profileSwitchesFn(jobId) : {};
-      if (!truthy(baseSwitches)) baseSwitches = this._switchesFn(modelId) || {};
+      const baseSwitches = this._switchesFn(modelId) || {};
       let ov = _mergeOverrides(_switchesToOverrides(baseSwitches), overrides);
       if (truthy(switches)) ov = _mergeOverrides(ov, _switchesToOverrides(switches));
       // After the FULL merge: backend applicability (Pass 2) then the (b) rule.
@@ -4438,8 +4422,7 @@ export class RunnerService {
    * `POST /models/load` the model, then CONFIRM it went resident by polling `GET /models`
    * (the POST is async — a 2xx only accepts). On a child that fails to load AND the spawn log
    * looks like CUDA-OOM, re-emit that model's section at a lower `ngl` (+ derived `nCpuMoe`
-   * for a MoE) and reload — a router-level mirror of `startRunner`'s ngl-shed back-off, which
-   * the router bypasses (design §5b, the ngl=999 over-fit).
+   * for a MoE) and reload — the router's own ngl-shed back-off (design §5b, the ngl=999 over-fit).
    *
    * The OOM gate matters: a NON-OOM failure (a bad `extraFlags` passthrough, a corrupt or
    * mismatched GGUF, a flag the engine rejects) re-emits the SAME overrides, so shedding cannot
@@ -4720,7 +4703,6 @@ function defaultCacheRoot() {
 export function configureService({
   catalogFn = null,
   switchesFn = null,
-  profileSwitchesFn = null,
   identifyFn = null,
   embeddingIdsFn = null,
   defaultLlmIdFn = null,
@@ -4734,7 +4716,6 @@ export function configureService({
   recordProbeFn = null,
   recordLoadFn = null,
   fitRelevantFlagsFn = null,
-  declaredClaimFn = null,
   speechModelsFn = null,
 } = {}) {
   const root = cacheRoot || defaultCacheRoot();
@@ -4743,7 +4724,6 @@ export function configureService({
   const fns = {
     catalogFn,
     switchesFn,
-    profileSwitchesFn,
     identifyFn,
     embeddingIdsFn,
     defaultLlmIdFn,
@@ -4755,7 +4735,6 @@ export function configureService({
     recordProbeFn,
     recordLoadFn,
     fitRelevantFlagsFn,
-    declaredClaimFn,
     speechModelsFn,
   };
   for (const [k, v] of Object.entries(fns)) if (v != null) kwargs[k] = v;
