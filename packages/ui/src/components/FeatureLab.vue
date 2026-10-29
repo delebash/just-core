@@ -371,6 +371,12 @@ const columnConfig = computed(() => {
           <UiTextarea v-else v-model="vars[k]" auto-resize :rows="2" />
         </div>
       </template>
+      <!-- A prompt row's variables can come from the app's own pages too (docgen's context, glossary and notes,
+           2026-10-29): the same doors to that data as the promptless Lab's -->
+      <div v-if="dataLinks.length" class="lu-fw-datalinks lu-muted">
+        {{ t('kit.lab.changeData') }}
+        <a v-for="l in dataLinks" :key="l.label" :href="l.href">{{ l.label }}</a>
+      </div>
     </div>
     <CompareStrip :key="promptless ? `${action}:${previewEpoch}` : action"
       :action="action" :base-config="columnConfig" :providers="providers"

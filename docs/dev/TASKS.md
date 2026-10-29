@@ -69,8 +69,12 @@ STATE:  1 BUILT 2026-10-29 (RunRequest `presetId` — preset_resolve `presetById
         4. `resourceIsolation` (`csrf.js` ~115) refuses the frame's request (a cross-site navigation, Sec-Fetch-Dest:
            iframe, no Origin → 403). Ask: an option naming the paths the app's own window may frame (`framePaths`),
            letting `sec-fetch-dest: iframe` navigations to exactly those through, with a test.
-        Later: once docgen runs on rows, FeatureLab/FeatureWorkbench's promptless mode has no user left (JustVoice
-        keeps the sectioned one) — the kit's to retire.
+        6 BUILT 2026-10-29: FeatureLab's `dataLinks` show on a prompt row's Lab too, under the test input (docgen's
+        rows' context, glossary and notes come from its own pages); template src/components/kitFeatureLab.test.js.
+        OPEN, the kit's to retire once docgen's rows ship (its notice, 2026-10-29): no app passes featurePrompts: {}
+        any more — FeatureWorkbench's loadPreview (views/FeatureWorkbench.vue ~311-319, ~388) is reached only by
+        JustVoice's sectioned features; FeatureLab's promptless non-sectioned branch, its "zero-actions" comment
+        (~87-91) and §11's two feature kinds go or stay as the research's step 4 said.
 
 ## Security advisories in the kit's dependencies — found by docgen's session's npm audit [2026-10-28]
 STATE:  The kit's, the template's and house-paint's DONE 2026-10-29 (the user's "your rec go"): packages/core
