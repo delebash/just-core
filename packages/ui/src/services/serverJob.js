@@ -120,7 +120,7 @@ export function runServerJob({ start, feature, label, meta, describe, onEvent, o
       onJob?.(j);
     };
     if ((onEvent || onJob) && job.state === "running") {
-      shown(job);
+      // the stream's first frame is the job as it is now
       try {
         const ended = await followEvents(job.id, { onJob: shown, onEvent: (e) => onEvent?.(e), signal: task.signal });
         if (ended) job = ended;
@@ -136,7 +136,14 @@ export function runServerJob({ start, feature, label, meta, describe, onEvent, o
       await wait(pollMs, task.signal);
       job = await poll(job.id, task.signal);
     }
-    if (job.state === "cancelled") throw Object.assign(new Error("cancelled"), { name: "AbortError" });
+    // the end, once, to a caller that keeps the job (its state, its data) — followed or polled
+    onJob?.(job);
+    if (job.state === "cancelled") {
+      // stopped from elsewhere (another window's Cancel, a page's own, a restore stopping every job): the task ends
+      // as cancelled too — never a failure on the strip
+      if (!task.signal.aborted) task.cancel?.();
+      throw Object.assign(new Error("cancelled"), { name: "AbortError" });
+    }
     if (job.state === "error") throw jobError(job);
     // wrapped: the kit unwraps a bare `{ result }`, and a job's own result may have that key
     return { result: job.result };

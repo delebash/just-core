@@ -170,7 +170,7 @@ test("a job followed by its events: its own events and snapshots reach the calle
   const r = await runServerJob({ start: async () => running, feature: "translate", label: "Spanish", onEvent: (e) => events.push(e), onJob: (j) => snaps.push(j.data.done) });
   expect(r).toEqual({ staged: 1 });
   expect(events).toEqual([{ type: "item", key: "a", value: "uno" }]);
-  expect(snaps).toEqual([0, 0, 1]);
+  expect(snaps).toEqual([0, 1, 1]); // each snapshot, then the end
   expect(calls.filter((c) => c[0] === "GET")).toEqual([]); // followed, never polled
 });
 
@@ -186,4 +186,29 @@ test("a stream that drops falls back to polling; a job that fails in it throws a
     status: 503,
     problem: { title: "The run didn't finish" },
   });
+});
+
+test("the caller that keeps the job gets its end once — followed or polled", async () => {
+  const running = { id: "e1", state: "running", progress: 0, data: { done: 0 } };
+  const ended = { ...running, state: "done", progress: 1, result: 1, data: { done: 2 } };
+  streams.set("/v1/jobs/e1/events", { frames: [{ type: "job", job: running }, { type: "end", job: ended }] });
+  const seen = [];
+  await runServerJob({ start: async () => running, feature: "x", label: "x", onJob: (j) => seen.push(j.state) });
+  expect(seen.at(-1)).toBe("done");
+  expect(seen.filter((s) => s === "done")).toHaveLength(1);
+  // polled (no stream): the same
+  answers.set("/v1/jobs/e2", { id: "e2", state: "done", result: 2, data: {} });
+  const polled = [];
+  await runServerJob({ start: async () => ({ id: "e2", state: "running", progress: 0, data: {} }), feature: "x", label: "x", onJob: (j) => polled.push(j.state), pollMs: 1 });
+  expect(polled).toEqual(["running", "done"]);
+});
+
+test("a job cancelled from elsewhere ends its task as cancelled — never a failure on the strip", async () => {
+  // the server says cancelled (another window's Cancel, a restore) while this task's own signal never fired
+  answers.set("/v1/jobs/c1", { id: "c1", state: "cancelled" });
+  const tasks = useAiTasksStore();
+  await expect(runServerJob({ start: async () => ({ id: "c1", state: "running", progress: 0 }), feature: "elsewhere", label: "x", pollMs: 1 })).rejects.toMatchObject({ name: "AbortError" });
+  const t = Object.values(tasks.tasks).find((x) => x.feature === "elsewhere");
+  expect(t.status).toBe("cancelled");
+  expect(tasks.unseenErrors).toBe(0);
 });
