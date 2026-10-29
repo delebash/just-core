@@ -74,6 +74,12 @@ export const thisSystem = () => ({
 
 const idle = () => ({ status: "", detail: "", error: "", downloaded: 0, total: 0 });
 
+/** A build tag's order: its first number (sd.cpp's "master-1024-77b72a2" → 1024, llama.cpp's "b11960" → 11960); -1 none. */
+export function buildOrder(tag) {
+  const m = /(\d+)/.exec(String(tag || ""));
+  return m ? Number(m[1]) : -1;
+}
+
 /** A build row that doesn't say what its archive unpacks to: room for this many times its size (the pinned sd.cpp
  *  zips unpack to 1.1–4.9 times theirs — Linux ROCm the most; runner/config.js). */
 const UNPACK_ROOM = 5;
@@ -265,6 +271,9 @@ export class RuntimeService {
       kind: this.rt.kind,
       label: this.rt.label,
       build: cfg.pinnedBuild,
+      // the build this kit is tested with (its shipped rows) when it is newer than the pin here — seeding is
+      // insert-if-missing, so an existing install keeps its pin until the user presses Update (llama.cpp's "tested" offer)
+      updateTo: buildOrder(this.rt.defaults?.pinnedBuild) > buildOrder(cfg.pinnedBuild) ? this.rt.defaults.pinnedBuild : "",
       platform: hw.platform,
       gpu: asset?.gpu ?? "",
       installed: exe != null,
@@ -283,8 +292,9 @@ export class RuntimeService {
   // ── the engine ─────────────────────────────────────────────────────────────────────────────────
 
   /** Start the install in the background (its progress in status()); throws `{need}` when this computer can't run the
-   *  build, `{diskFull}` when it wouldn't fit the drive, `{busy}` while the engine is being removed. */
-  install({ gpu = null, force = false } = {}) {
+   *  build, `{diskFull}` when it wouldn't fit the drive, `{busy}` while the engine is being removed. `onFailure` runs
+   *  when the started install fails or is cancelled (an Update puts the old pin and rows back). */
+  install({ gpu = null, force = false, onFailure = null } = {}) {
     if (this.rt.inProcess) throw refusal(`${this.rt.label} is part of this app — there is nothing to install`, { nothingToInstall: true });
     if (this._state.status === "installing") return this.status();
     if (this._removing) throw refusal(`${this.rt.label} is being removed — try again when it's done`, { busy: "engine-busy" });
@@ -299,14 +309,14 @@ export class RuntimeService {
     this._cancel.clear();
     this._state = { status: "installing", detail: this.rt.label, error: "", downloaded: 0, total: 0 };
     let done = false;
-    const promise = background(`${this.rt.id} engine install`, () => this._run(gpu, force), log).finally(() => {
+    const promise = background(`${this.rt.id} engine install`, () => this._run(gpu, force, onFailure), log).finally(() => {
       done = true;
     });
     this._task = { promise, isAlive: () => !done };
     return this.status();
   }
 
-  async _run(gpu, force) {
+  async _run(gpu, force, onFailure = null) {
     try {
       const cfg = this._configFn();
       await this._acquire(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, cfg.binaries, this._hardwareFn(), {
@@ -325,6 +335,11 @@ export class RuntimeService {
       const cancelled = this._cancel.isSet();
       this._state = { ...idle(), status: cancelled ? "cancelled" : "error", error: cancelled ? "" : String(e?.message || e) };
       if (!cancelled) log.warning(`${this.rt.id} engine install failed: ${e?.message || e}`);
+      try {
+        onFailure?.();
+      } catch (err) {
+        log.warning(`${this.rt.id}: couldn't put the earlier build back: ${err?.message || err}`);
+      }
     }
   }
 

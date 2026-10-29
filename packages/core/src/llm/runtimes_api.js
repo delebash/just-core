@@ -68,6 +68,23 @@ export function makeRuntimesRouter() {
     const body = c.req.valid("json") ?? {};
     return c.json(await call(() => svc.install({ gpu: body.gpu || null, force: !!body.force })), 202);
   });
+  // Update to the kit's tested build (status `updateTo`): this runtime's shipped rows and pin go to the kit's (rows the user
+  // added stay), the build installs in place of the old one, and a failed or cancelled install puts the old pin and rows
+  // back — the old build is still on disk then (the sweep runs after a successful install only). llama.cpp's Update does
+  // the same from its screen (useEngine.updateToLatest); a row runtime has no stable channel, so the server does it whole.
+  app.post("/v1/ai/runtimes/:id/engine/update", input({ params: IdParams }), async (c) => {
+    const svc = serviceOf(c);
+    const store = stores.getRunnerConfigStore();
+    const snap = store.snapshotRuntime(svc.rt.id);
+    store.resetRuntimeToDefaults(svc.rt.id);
+    const restore = () => store.restoreRuntime(svc.rt.id, snap);
+    try {
+      return c.json(await call(() => svc.install({ force: true, onFailure: restore })), 202);
+    } catch (e) {
+      restore(); // refused before it started (what this computer lacks, the drive, a removal under way)
+      throw e;
+    }
+  });
   // whether this runtime can run on this computer — an app's release start check asks it on every runner (an
   // in-process runtime's load; a server runtime's build for this computer and what the system lacks): 200, or 503
   // in words (just-house-paint's /v1/segment/runtime, for every runtime)

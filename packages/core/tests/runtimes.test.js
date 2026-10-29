@@ -76,3 +76,59 @@ test("a built-in row the kit no longer ships goes on reseed", () => {
   seed.seedLlm();
   expect(sdRows().some((r) => r.gpu === "retired")).toBe(false);
 });
+
+// An existing install reaches the kit's new pin by the user's Update (found 2026-10-29 by house-paint's session: seeding is
+// insert-if-missing and a row runtime had no Update, so master-1004 would have stayed for good): status offers the
+// kit's tested build when it's newer than the pin here; Update moves the pin and the shipped rows to the kit's and
+// installs; a failed install puts the old pin and rows back (its build is still on disk — the sweep runs after success).
+test("Update moves an older pin to the kit's tested build, installs it, and puts everything back when the install fails", async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const path = (await import("node:path")).default;
+  const { runtimeVariantDir } = await import("../src/runner/binary.js");
+  const { configureRuntimeServices, RuntimeService } = await import("../src/runner/runtime_service.js");
+  const { makeRuntimesRouter } = await import("../src/llm/runtimes_api.js");
+  const { createServer } = await import("../src/platform/server.js");
+  appSeed(["sdcpp"]);
+  const store = stores.getRunnerConfigStore();
+  const OLD = "master-1004-a85db96";
+  h.update("runner_setting", { value: OLD }, { key: pinKey("sdcpp") }); // an install seeded before the kit moved
+  store.upsertRuntimeBinary("sdcpp", { platform: "windows", gpu: "cuda12", assetUrl: `https://example.test/${OLD}.zip`, serverExe: "sd-server.exe" });
+  const root = mkdtempSync(path.join(tmpdir(), "kit-rt-update-"));
+  let failNext = false;
+  const builds = [];
+  const acquire = async (cacheRoot, folder, build, _binaries, _hw, opts) => {
+    builds.push(build);
+    opts.onProgress(1, 2);
+    if (failNext) throw new Error("the download died");
+    const dir = runtimeVariantDir(cacheRoot, folder, build, "cuda12");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "sd-server.exe"), "");
+    return path.join(dir, "sd-server.exe");
+  };
+  const box = { platform: "windows", gpus: [{ vendor: "NVIDIA", computeCapability: "7.5", vramMb: 8192 }], runtimes: { cuda: true }, hasNvidia: true };
+  const svc = new RuntimeService({ id: "sdcpp", cacheRoot: root, configFn: () => store.getRuntimeConfig("sdcpp"), hardwareFn: () => box, systemFn: () => ({ platform: "win32", arch: "x64", versions: {}, missingDlls: () => [] }), acquire, probeArgvs: [], freeBytesFn: () => 1e12 });
+  configureRuntimeServices([["sdcpp", svc]]);
+  const app = createServer({ typeBase: "t/" });
+  app.route("/", makeRuntimesRouter());
+  const status = async () => (await app.request("/v1/ai/runtimes/sdcpp/engine/status")).json();
+  const settle = async () => {
+    for (let i = 0; i < 200 && (await status()).status === "installing"; i++) await new Promise((r) => setTimeout(r, 5));
+  };
+  expect(await status()).toMatchObject({ build: OLD, updateTo: DEFAULT_SDCPP_BUILD });
+
+  // a failed install: the old pin and the user's row come back
+  failNext = true;
+  expect((await app.request("/v1/ai/runtimes/sdcpp/engine/update", { method: "POST" })).status).toBe(202);
+  await settle();
+  expect(await status()).toMatchObject({ status: "error", build: OLD, updateTo: DEFAULT_SDCPP_BUILD });
+  expect(store.getRuntimeConfig("sdcpp").binaries.find((b) => b.gpu === "cuda12").assetUrl).toBe(`https://example.test/${OLD}.zip`);
+
+  // a good one: the kit's pin and rows, installed, nothing more to offer
+  failNext = false;
+  expect((await app.request("/v1/ai/runtimes/sdcpp/engine/update", { method: "POST" })).status).toBe(202);
+  await settle();
+  expect(builds.at(-1)).toBe(DEFAULT_SDCPP_BUILD);
+  expect(await status()).toMatchObject({ status: "installed", build: DEFAULT_SDCPP_BUILD, installed: true, updateTo: "" });
+  expect(store.getRuntimeConfig("sdcpp").binaries.find((b) => b.gpu === "cuda12").assetUrl).toContain("sd-master-77b72a2-bin-win-cuda12-x64.zip");
+});

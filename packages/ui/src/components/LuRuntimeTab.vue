@@ -150,6 +150,19 @@ async function install() {
   schedule();
 }
 
+// Update to the kit's tested build (status `updateTo`): the server swaps the pin and rows, installs, and puts the old
+// ones back if the install fails — the bar follows it like an install.
+async function update() {
+  engineTask.arm(kitT("kit.phase.gettingReady"));
+  try {
+    await request(`${base}/engine/update`, { method: "POST", body: {} });
+  } catch (e) {
+    startFailed(engineTask, e, engineName());
+    return;
+  }
+  schedule();
+}
+
 async function removeEngine() {
   const ok = await confirmDialog({
     title: t("kit.runtimes.removeTitle", { name: engine.value?.label || props.runtimeId }),
@@ -248,7 +261,14 @@ defineExpose({ refresh: load });
             :label="engine.downloadBytes ? t('kit.runtimes.install', { size: size(engine.downloadBytes) }) : t('kit.runtimes.installPlain')"
             @click="install"
           />
-          <UiButton v-else intent="secondary" size="small" :disabled="engineTask.state === 'running'" :label="t('kit.runtimes.remove')" @click="removeEngine" />
+          <UiButton
+            v-if="engine.updateTo" intent="primary" size="small" focusable-when-disabled
+            :disabled="!!need() || engineTask.state === 'running'"
+            :title="t('kit.engine.update.tipTested', { latest: engine.updateTo, current: engine.build })"
+            :label="t('kit.engine.update.button', { latest: engine.updateTo })"
+            @click="update"
+          />
+          <UiButton v-if="engine.installed" intent="secondary" size="small" :disabled="engineTask.state === 'running'" :label="t('kit.runtimes.remove')" @click="removeEngine" />
         </div>
         <DownloadBar v-if="engineTask.state" :task="engineTask" :title="engine.label" />
       </section>

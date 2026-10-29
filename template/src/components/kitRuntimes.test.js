@@ -36,6 +36,10 @@ function fakeFetch(input, init = {}) {
     server.engine = { ...server.engine, status: "installing", downloaded: 100e6, total: server.engine.downloadBytes };
     return Promise.resolve(json(server.engine, 202));
   }
+  if (p === "/v1/ai/runtimes/sdcpp/engine/update") {
+    server.engine = { ...server.engine, status: "installing", downloaded: 100e6, total: server.engine.downloadBytes };
+    return Promise.resolve(json(server.engine, 202));
+  }
   if (p === "/v1/ai/runtimes/sdcpp/models") return Promise.resolve(json({ models: server.models }));
   if (p === "/v1/ai/runtimes/sdcpp/settings" && method === "PUT") {
     server.engine = { ...server.engine, ...(body.idleSeconds != null ? { idleSeconds: body.idleSeconds } : {}), ...(body.bands ? { bands: { ...server.engine.bands, ...body.bands } } : {}) };
@@ -275,4 +279,21 @@ test("a runtime's speed bands: shown in its unit, Save sends the three lines", a
   await wrapper.findAll("button").filter((b) => b.text().trim() === "Save").at(-1).trigger("click");
   await settle();
   expect(server.calls.find(([m, u, b]) => m === "PUT" && u === "/v1/ai/runtimes/sdcpp/settings" && b?.bands)[2]).toEqual({ bands: { fast: 20, fine: 120, slow: 300 } });
+});
+
+// An existing install reaches the kit's new pin by Update (2026-10-29: seeding is insert-if-missing, so the pin here stays
+// until the user presses it): the status's updateTo shows the button with llama.cpp's own words, and it asks the server.
+test("the runtime tab offers Update to the kit's tested build when the pin here is older", async () => {
+  server.engine = { ...server.engine, installed: true, status: "installed", updateTo: "master-1024-77b72a2" };
+  wrapper = mount(LuRuntimeTab, { props: { runtimeId: "sdcpp" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  expect(button("Update to master-1024-77b72a2")).toBeTruthy();
+  expect(button("Remove")).toBeTruthy(); // an installed build can still be removed
+  await click("Update to master-1024-77b72a2");
+  await settle();
+  expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/sdcpp/engine/update")).toBe(true);
+  server.engine = { ...server.engine, build: "master-1024-77b72a2", updateTo: "", status: "installed", downloaded: 0, total: 0 };
+  await later(1300);
+  expect(button("Update to")).toBeFalsy();
+  expect(text()).toContain("Installed — build master-1024-77b72a2.");
 });

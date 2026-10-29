@@ -992,6 +992,26 @@ export class RunnerConfigStore {
     });
   }
 
+  /** A kit runtime's build rows and pin as they stand — what an Update puts back if its install fails. */
+  snapshotRuntime(id) {
+    const h = db.session();
+    return {
+      rows: h.all("select * from runtime_binary where runtime = ?", [id], "runtime_binary").map((r) => ({ ...r })),
+      pin: h.get("runner_setting", pinKey(id))?.value ?? null,
+    };
+  }
+
+  /** Put a runtime's build rows and pin back as `snapshotRuntime` took them. */
+  restoreRuntime(id, snap) {
+    const h = db.session();
+    h.tx(() => {
+      h.run("delete from runtime_binary where runtime = ?", [id]);
+      for (const r of snap.rows) h.insert("runtime_binary", r);
+      h.delete("runner_setting", { key: pinKey(id) });
+      if (snap.pin != null) h.insert("runner_setting", { key: pinKey(id), value: snap.pin });
+    });
+  }
+
   /** A kit runtime's shipped rows and pin back to the kit's defaults; rows the user added stay. */
   resetRuntimeToDefaults(id) {
     const rt = runtimeOf(id);

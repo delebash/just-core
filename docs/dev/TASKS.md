@@ -156,4 +156,7 @@ DECIDED 2026-10-29 (the user, the answers as chosen): "One runtime, two kinds (R
         (Recommended)" — measured price beats declared, Auto/GPU/CPU placement and the worse-of-two admission are the
         kit's; "Yes, pin the fork (Recommended)" — the kit pins github.com/delebash/audio.cpp's releases; "JustVoice's UI
         in a kit slot (Recommended)" — the per-model options stay JustVoice's panel in the tab's slot.
+BUILT:  E3's Update to the kit's tested build (status `updateTo`, `POST …/engine/update`, the old pin and rows back on a
+        failure; the tab's button in llama.cpp's words) — found by house-paint's session 2026-10-29: no existing install
+        could reach sd.cpp's new pin. Tests written, not run.
 
