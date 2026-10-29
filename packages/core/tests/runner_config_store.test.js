@@ -197,3 +197,22 @@ test.skipIf(NO_ROUTER)("the update check's keep time is a setting: 60 minutes se
   expect((await (await client.put("/v1/ai/engine-config", { updateCheckMinutes: 0 })).json()).updateCheckMinutes).toBe(0);
   expect(stores.buildRunnerConfig().updateCheckMinutes).toBe(0);
 });
+
+// The finish list's A12: a llama.cpp row's checksums (the download's and its runtime companion's) round-trip through
+// engine-config and reach the runner's config; a URL changed by hand drops a checksum it didn't replace — a mirror's file
+// isn't upstream's, and its old checksum would refuse it.
+test.skipIf(NO_ROUTER)("a binary row's checksums round-trip; a URL edited by hand drops the one it didn't replace", async () => {
+  freshSeeded();
+  const client = await engineConfigClient();
+  const row = (await client.get("/v1/ai/engine-config")).binaries.find((b) => b.platform === "windows" && b.gpu === "cuda12");
+  const sha = "a".repeat(64);
+  const rsha = "b".repeat(64);
+  const withSums = { ...row, sha256: sha, runtimeSha256: rsha };
+  let got = (await (await client.put("/v1/ai/engine-config", { binaries: [withSums] })).json()).binaries.find((b) => b.gpu === "cuda12" && b.platform === "windows");
+  expect(got).toMatchObject({ sha256: sha, runtimeSha256: rsha });
+  const live = stores.buildRunnerConfig().llamacpp.binaries.find((b) => b.platform === "windows" && b.gpu === "cuda12");
+  expect(live).toMatchObject({ sha256: sha, runtimeSha256: rsha });
+  // the editor round-trips the old checksums with a new download URL: the asset's is dropped, the runtime's kept
+  got = (await (await client.put("/v1/ai/engine-config", { binaries: [{ ...got, assetUrl: "https://mirror.example.com/llama.zip" }] })).json()).binaries.find((b) => b.gpu === "cuda12" && b.platform === "windows");
+  expect(got).toMatchObject({ assetUrl: "https://mirror.example.com/llama.zip", sha256: null, runtimeSha256: rsha });
+});

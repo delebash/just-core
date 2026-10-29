@@ -24,7 +24,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            ready) — its real-router check (realrouter_smoke, JW_REALROUTER=1) runs with the GPU runs. 6 BUILT (the engine panel's cleared boxes left out of its save). 7 BUILT (stream lines end at CR/LF only). 8 BUILT (auto-tune ends in error when its service throws).
            9 BUILT (a failed model row has Dismiss). 10 BUILT (an unnamed history row reads "Load & measure"; the load rows were already left out —
            measurements.js SPEED_SOURCES). 11 BUILT (the update check keeps a good answer `updateCheckMinutes`, 60 — its field beside the update
-           policy, words "Check every (minutes)" mine; a failure says the approved line). 12 the llama.cpp download checked against GitHub's digest.
+           policy, words "Check every (minutes)" mine; a failure says the approved line). 12 BUILT (the llama.cpp download checked against GitHub's digest — the seeded rows get theirs
+           at the pin's move).
            13 the runtime speed bands editable. 14 Count and Measure share one engine check. 15 the adapters' errors
            through adapterHttpError; Ollama's embeddings fallback guarded. 16 shared_cache's two stale-fixture tests.
            17 a guard check for resourceIsolation + a §19 row: streamed server audio uses `crossorigin="anonymous"`

@@ -101,6 +101,8 @@ function saveRow(r) {
     platform: r.platform, gpu: r.gpu, source: r.source,
     assetUrl: r.assetUrl || null, runtimeUrl: r.runtimeUrl || null,
     image: r.image || null, serverExe: r.serverExe || "llama-server",
+    // the checksums ride along (the server drops one whose URL was changed here — it's the old file's)
+    sha256: r.sha256 ?? null, runtimeSha256: r.runtimeSha256 ?? null,
   }] }, rowKey(r));
 }
 

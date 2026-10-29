@@ -1227,6 +1227,7 @@ export function seedDefaultRunnerBinaries(h) {
       runtime_url: get(b, "runtime_url"),
       image: get(b, "image"),
       sha256: get(b, "sha256"),
+      runtime_sha256: get(b, "runtime_sha256"),
       server_exe: strOr(b, "server_exe", "llama-server"),
       built_in: true,
       position: i,

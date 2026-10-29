@@ -240,14 +240,21 @@ const firstGroup = (m) => m.slice(1).find((g) => g) ?? null;
  */
 export function resolveReleaseAssets(build, rows, assets) {
   const names = new Map();
-  for (const a of assets || []) names.set(String(a.name || ""), String(a.url || ""));
+  // GitHub's per-asset digest ("sha256:<hex>", docs.github.com/en/rest/releases/assets): the resolved row carries it, and
+  // acquire's fetchOne checks the download against it (2026-10-29 — the llama.cpp download was never checked)
+  const digests = new Map();
+  for (const a of assets || []) {
+    names.set(String(a.name || ""), String(a.url || ""));
+    const m = /^sha256:([0-9a-f]{64})$/i.exec(String(a.digest || ""));
+    if (m) digests.set(String(a.name || ""), m[1].toLowerCase());
+  }
   const out = [];
   for (const row of rows || []) {
     const platform = row.platform ?? "";
     const gpu = row.gpu ?? "";
     const assetUrl = row.assetUrl || "";
     const runtimeUrl = row.runtimeUrl || "";
-    const res = { platform, gpu, assetUrl, runtimeUrl, resolved: null, reason: "" };
+    const res = { platform, gpu, assetUrl, runtimeUrl, resolved: null, reason: "", sha256: null, runtimeSha256: null };
     const pattern = Object.hasOwn(ASSET_PATTERNS, `${platform}/${gpu}`) ? ASSET_PATTERNS[`${platform}/${gpu}`] : null;
     const source = row.source ?? "github";
     if (source !== "github") {
@@ -272,11 +279,13 @@ export function resolveReleaseAssets(build, rows, assets) {
         const [match, name] = best;
         const version = firstGroup(match) || "";
         let newRuntime = "";
+        let runtimeName = "";
         if (runtimeRe !== null) {
           const want = new RegExp(_fill(runtimeRe, build, version));
           for (const n of names.keys()) {
             if (want.test(n)) {
               newRuntime = names.get(n) || `${UPSTREAM_DL}/${build}/${n}`;
+              runtimeName = n;
               break;
             }
           }
@@ -290,6 +299,8 @@ export function resolveReleaseAssets(build, rows, assets) {
         res.resolved = true;
         res.assetUrl = names.get(name) || `${UPSTREAM_DL}/${build}/${name}`;
         res.runtimeUrl = newRuntime;
+        res.sha256 = digests.get(name) ?? null;
+        res.runtimeSha256 = runtimeName ? (digests.get(runtimeName) ?? null) : null;
       }
     }
     out.push(res);

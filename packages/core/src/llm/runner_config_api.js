@@ -25,6 +25,8 @@ export const RunnerBinaryRow = T.Object({
   assetUrl: opt(nullable(T.String()), null),
   runtimeUrl: opt(nullable(T.String()), null), // companion (cudart DLLs) unpacked alongside
   image: opt(nullable(T.String()), null), // docker source only
+  sha256: opt(nullable(T.String()), null), // the download's checksum (GitHub's digest) — null: not checked
+  runtimeSha256: opt(nullable(T.String()), null), // the runtime companion's
   serverExe: opt(T.String(), "llama-server"),
 });
 

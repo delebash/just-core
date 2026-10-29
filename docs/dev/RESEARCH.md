@@ -2391,6 +2391,14 @@ English".
 
 ## 9 · Downloads
 
+- **GitHub gives each release asset a `digest`** (`"sha256:<hex>"`, the release API —
+  docs.github.com/en/rest/releases/assets; seen on llama.cpp b11239, 2026-10-29). The llama.cpp download was never
+  checked (the sd.cpp rows carry a checksum; the llama.cpp rows didn't): an update's resolved rows now carry the
+  asset's and its cudart companion's digest (`binary.resolveReleaseAssets`), `runner_binary` holds both
+  (`runtime_sha256` added), and acquire's one fetch path refuses a file that doesn't match. A substituted URL gets no
+  checksum (the old build's would refuse the new file); a URL changed by hand drops the old one. The seeded rows get
+  theirs at the pin's next move. — *docs + code + test, 2026-10-29* · `tests/binary.test.js`,
+  `tests/runner_config_store.test.js`, `packages/ui/tests/engine_url.test.js`.
 - **GitHub's API, unauthenticated: 60 requests an hour, and a 304 counts** (docs.github.com, "Best practices for using
   the REST API", *read* 2026-10-29): a conditional request (`If-None-Match` with the ETag) is free only "while
   correctly authorized with an Authorization header" — the kit sends none, so an ETag saves nothing. The engine's

@@ -907,7 +907,7 @@ async function ghGet(url) {
 export async function _fetchLlamacppReleaseAssets(build) {
   const r = await ghGet(`https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/${build}`);
   const rel = (await r.json()) || {};
-  return (rel.assets || []).map((a) => ({ name: String(a?.name || ""), url: String(a?.browser_download_url || "") }));
+  return (rel.assets || []).map((a) => ({ name: String(a?.name || ""), url: String(a?.browser_download_url || ""), digest: String(a?.digest || "") }));
 }
 
 /**

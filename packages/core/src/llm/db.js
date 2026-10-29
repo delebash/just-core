@@ -52,6 +52,8 @@ export const ADDED_COLUMNS = [
   ["runtime_model", "min_ram_mb", "INTEGER NOT NULL DEFAULT 0"],
   ["runtime_model", "ref_speed", "VARCHAR NOT NULL DEFAULT '{}'"],
   ["model_measurements", "sec_per_image", "FLOAT NOT NULL DEFAULT 0"],
+  // a llama.cpp build's runtime companion (cudart) checked like its download — the finish list's A12 (2026-10-29)
+  ["runner_binary", "runtime_sha256", "VARCHAR"],
 ];
 
 let handle = null;

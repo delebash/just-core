@@ -908,3 +908,18 @@ test("the zip and tar.gz readers unpack nested, deflated and linked members", as
   writeFileSync(evil, tarGzBytes([["../../evil", "x"]]));
   await expect(binmod._unpack(evil, join(root, "evil-out"))).rejects.toThrow(/outside the destination/);
 });
+
+// The finish list's A12 (2026-10-29): the llama.cpp download was never checked against a hash (sd.cpp's is). GitHub's
+// release API gives each asset's `digest` ("sha256:<hex>", docs.github.com/en/rest/releases/assets); a resolved row
+// carries its asset's and its runtime companion's, which the one fetch path then checks (acquire's fetchOne).
+test("resolve carries GitHub's digest for the asset and its runtime companion; an asset without one carries none", () => {
+  const hex = (c) => c.repeat(64);
+  const assets = assetsFixture().b10964.map((a) => {
+    if (a.name === "llama-b10964-bin-win-cuda-12.4-x64.zip") return { ...a, digest: `sha256:${hex("a")}` };
+    if (a.name === "cudart-llama-bin-win-cuda-12.4-x64.zip") return { ...a, digest: `sha256:${hex("b")}` };
+    return a;
+  });
+  const got = byKey(binmod.resolveReleaseAssets("b10964", rowsFor("b10964"), assets));
+  expect(got["windows/cuda12"]).toMatchObject({ resolved: true, sha256: hex("a"), runtimeSha256: hex("b") });
+  expect(got["windows/vulkan"]).toMatchObject({ resolved: true, sha256: null, runtimeSha256: null });
+});

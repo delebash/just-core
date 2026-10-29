@@ -799,7 +799,7 @@ export const TABLES = [
   },
   {
     "name": "runner_binary",
-    "ddl": "CREATE TABLE runner_binary (\n\tplatform VARCHAR NOT NULL, \n\tgpu VARCHAR NOT NULL, \n\tsource VARCHAR NOT NULL, \n\tasset_url VARCHAR, \n\truntime_url VARCHAR, \n\timage VARCHAR, \n\tsha256 VARCHAR, \n\tserver_exe VARCHAR NOT NULL, \n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tPRIMARY KEY (platform, gpu)\n)",
+    "ddl": "CREATE TABLE runner_binary (\n\tplatform VARCHAR NOT NULL, \n\tgpu VARCHAR NOT NULL, \n\tsource VARCHAR NOT NULL, \n\tasset_url VARCHAR, \n\truntime_url VARCHAR, \n\timage VARCHAR, \n\tsha256 VARCHAR, \n\truntime_sha256 VARCHAR, \n\tserver_exe VARCHAR NOT NULL,\n\tbuilt_in BOOLEAN NOT NULL, \n\tposition INTEGER NOT NULL, \n\tPRIMARY KEY (platform, gpu)\n)",
     "indexes": [],
     "columns": {
       "platform": {
@@ -827,6 +827,9 @@ export const TABLES = [
         "kind": "text"
       },
       "sha256": {
+        "kind": "text"
+      },
+      "runtime_sha256": {
         "kind": "text"
       },
       "server_exe": {

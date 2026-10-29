@@ -821,6 +821,8 @@ const runnerBinaryToRow = (b) => ({
   assetUrl: b.assetUrl,
   runtimeUrl: b.runtimeUrl,
   image: b.image,
+  sha256: b.sha256 ?? null,
+  runtimeSha256: b.runtimeSha256 ?? null,
   serverExe: b.serverExe,
 });
 
@@ -1001,10 +1003,17 @@ export class RunnerConfigStore {
       asset_url: row.assetUrl || null,
       runtime_url: row.runtimeUrl || null,
       image: row.image || null,
+      sha256: row.sha256 || null,
+      runtime_sha256: row.runtimeSha256 || null,
       server_exe: strip(row.serverExe || "llama-server"),
     };
     h.tx(() => {
-      if (h.get("runner_binary", key)) {
+      const was = h.get("runner_binary", key);
+      if (was) {
+        // a URL changed by hand while its old checksum rode along (the editor round-trips both): that checksum is the
+        // old file's, and it would refuse the new one — dropped (2026-10-29). An update brings the new file's own.
+        if (vals.asset_url !== was.asset_url && vals.sha256 === was.sha256) vals.sha256 = null;
+        if (vals.runtime_url !== was.runtime_url && vals.runtime_sha256 === (was.runtime_sha256 ?? null)) vals.runtime_sha256 = null;
         h.update("runner_binary", vals, key);
         return;
       }
@@ -1775,7 +1784,7 @@ export function buildRunnerConfig() {
     runtimeUrl: b.runtime_url,
     image: b.image,
     sha256: b.sha256,
-    runtimeSha256: null, // given explicitly: model() appends a defaulted field after the given ones
+    runtimeSha256: b.runtime_sha256 ?? null,
     serverExe: b.server_exe,
   }));
   if (!bins.length) return c.defaultConfig(); // not seeded yet → the engine defaults

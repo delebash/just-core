@@ -27,8 +27,9 @@ export function planBinaries(binaries, plan, build) {
   const byKey = new Map((plan?.binaries || []).map((r) => [`${r.platform}/${r.gpu}`, r]));
   return (binaries || []).map((b) => {
     const r = byKey.get(`${b.platform}/${b.gpu}`);
-    if (r && r.resolved === true) return { ...b, assetUrl: r.assetUrl, runtimeUrl: r.runtimeUrl };
-    return { ...b, assetUrl: applyBuildToUrl(b.assetUrl, build), runtimeUrl: applyBuildToUrl(b.runtimeUrl, build) };
+    if (r && r.resolved === true) return { ...b, assetUrl: r.assetUrl, runtimeUrl: r.runtimeUrl, sha256: r.sha256 ?? null, runtimeSha256: r.runtimeSha256 ?? null };
+    // substituted: the old build's checksums would refuse the new files — none (2026-10-29)
+    return { ...b, assetUrl: applyBuildToUrl(b.assetUrl, build), runtimeUrl: applyBuildToUrl(b.runtimeUrl, build), sha256: null, runtimeSha256: null };
   });
 }
 
