@@ -2544,29 +2544,8 @@ export class RunnerService {
     modelId = null,
   } = {}) {
     const mid = modelId || this._lastId;
-    const st = this._resident.get(mid);
     const router = this._router;
-    if (router == null || !router.isAlive() || !mid) return { ok: false, error: "no model running — load one first" };
-    if (st == null || st.status !== "running") {
-      // The internal ledger can be stale/reconciled while the child serves on — observed
-      // 2026-07-21: BOTH bench legs' measures refused ("no model running") while the router
-      // was serving every feature run fine, which is why the summary's MTP-acceptance table
-      // came back empty. The ROUTER is the authority on residency (the same source
-      // `resident()` reports and the bench polls), so consult it before refusing; loaded OR
-      // sleeping counts (a sleeper wakes on the probe request, exactly as it does for a real
-      // feature run).
-      let live;
-      try {
-        live = _parseRouterModels(await this._routerModels(router.url));
-      } catch {
-        live = new Map(); // router GET failed → the refusal stands
-      }
-      const liveStatus = String(live.get(mid)?.value || "").toLowerCase();
-      if (liveStatus !== "loaded" && liveStatus !== "sleeping") return { ok: false, error: "no model running — load one first" };
-      log.info(
-        `measure: internal ledger says ${reprAny(st?.status)} for ${mid} but the router reports ${reprAny(liveStatus)} — proceeding on the router's authority`,
-      );
-    }
+    if (!(await this._servingModel(mid, "measure"))) return { ok: false, error: "no model running — load one first" };
     probe = probe || self._defaultMeasureProbe;
     sample = sample || self._defaultMeasureSample;
     let ct;
@@ -2604,13 +2583,35 @@ export class RunnerService {
    * prompt-preview's exact-when-local count). `modelId` defaults to the primary; the router
    * routes /tokenize by that id. Requires the model resident; callers fall back to a
    * client-side heuristic otherwise. `probe(url, text, {modelId})` injected in tests. */
+  /**
+   * Is `mid` serving now — the one check Measure and Count share (2026-10-29: Count refused on a stale ledger where
+   * Measure asked the router)? The ledger's "running", else the router's own view: the internal ledger can be stale
+   * while the child serves on — observed 2026-07-21, BOTH bench legs' measures refused ("no model running") while the
+   * router was serving every feature run fine. The ROUTER is the authority on residency (the same source `resident()`
+   * reports and the bench polls); loaded OR sleeping counts (a sleeper wakes on the request, exactly as it does for a
+   * real feature run). A dead router or no model id: not serving.
+   */
+  async _servingModel(mid, what) {
+    const router = this._router;
+    if (router == null || !router.isAlive() || !mid) return false;
+    const st = this._resident.get(mid);
+    if (st != null && st.status === "running") return true;
+    let live;
+    try {
+      live = _parseRouterModels(await this._routerModels(router.url));
+    } catch {
+      live = new Map(); // router GET failed → the refusal stands
+    }
+    const liveStatus = String(live.get(mid)?.value || "").toLowerCase();
+    if (liveStatus !== "loaded" && liveStatus !== "sleeping") return false;
+    log.info(`${what}: internal ledger says ${reprAny(st?.status)} for ${mid} but the router reports ${reprAny(liveStatus)} — proceeding on the router's authority`);
+    return true;
+  }
+
   async tokenize({ text, probe = null, modelId = null } = {}) {
     const mid = modelId || this._lastId;
-    const st = this._resident.get(mid);
     const router = this._router;
-    if (router == null || !router.isAlive() || st == null || st.status !== "running") {
-      return { ok: false, error: "no model running" };
-    }
+    if (!(await this._servingModel(mid, "tokenize"))) return { ok: false, error: "no model running" };
     probe = probe || self._defaultTokenizeProbe;
     let count;
     try {

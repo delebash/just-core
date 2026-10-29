@@ -3915,3 +3915,19 @@ test("the update check keeps a good answer for the configured minutes, never a f
   await svc.updateCheck();
   expect(calls).toBe(6);
 });
+
+// The finish list's A14 (2026-10-29): Count refused on a stale ledger where Measure asked the router — one check now
+// (`_servingModel`): the ledger's "running", else the router's own view (loaded or sleeping), else refused.
+test("tokenize_falls_back_to_router_authority_when_ledger_stale", async () => {
+  const svc = serviceFor(tmp());
+  await svc.load(TEST_MODEL.id);
+  await join5(svc);
+  svc._resident.get(TEST_MODEL.id).status = "starting"; // stale ledger
+  svc._routerModels = () => routerView([TEST_MODEL.id, "sleeping"]);
+  const out = await svc.tokenize({ text: "hello", probe: () => 3 });
+  expect(out).toEqual({ ok: true, count: 3 });
+  svc._routerModels = () => routerView();
+  const out2 = await svc.tokenize({ text: "hello", probe: () => 3 });
+  expect(out2.ok).toBe(false);
+  expect(out2.error).toContain("no model running");
+});
