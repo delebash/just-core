@@ -2391,6 +2391,12 @@ English".
 
 ## 9 · Downloads
 
+- **GitHub's API, unauthenticated: 60 requests an hour, and a 304 counts** (docs.github.com, "Best practices for using
+  the REST API", *read* 2026-10-29): a conditional request (`If-None-Match` with the ETag) is free only "while
+  correctly authorized with an Authorization header" — the kit sends none, so an ETag saves nothing. The engine's
+  update check (every open of the Engine panel and the AI page) now keeps a good answer `updateCheckMinutes` (runner
+  setting `update_check_minutes`, 60; 0 = every time) and never a failed one; a failure shows one quiet line in the
+  Engine panel. — *docs + code + test, 2026-10-29* · `runner/lifecycle.js` `updateCheck`, `tests/lifecycle.test.js`.
 - **Every file download in the family goes through one path:** the downloader
   (`packages/core/src/runner/download.js`, a chunk queue — 8 workers, each on its OWN connection
   (`http.newAgent()`), pulling fixed-size parts, resumable from `<file>.json`) on the kit's one HTTP

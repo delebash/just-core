@@ -1400,6 +1400,9 @@
       "updates": "Engine updates",
       "updateNotify": "Notify",
       "updateOff": "Off",
+      "updateEvery": "Check every (minutes)",
+      "updateEveryTitle": "How long the app keeps GitHub's answer about a newer engine before it asks again. 0 = every time the page opens.",
+      "updateCheckFailed": "Couldn't check for a newer engine — showing the build this app was tested with.",
       "phase": {
         "downloading": "Downloading the engine",
         "settingUp": "Setting it up",

@@ -186,3 +186,14 @@ test("reset_restores_router_knobs", () => {
   expect(cfg.modelsMax).toBe(rconfig.DEFAULT_MODELS_MAX);
   expect(cfg.sleepIdleSeconds).toBe(rconfig.DEFAULT_SLEEP_IDLE_SECONDS);
 });
+
+// The finish list's A11 (2026-10-29): how long a good update-check answer is kept — a runner setting like the others,
+// read by the runner (RunnerConfig) and edited where the update policy is.
+test.skipIf(NO_ROUTER)("the update check's keep time is a setting: 60 minutes seeded, edited through engine-config, 0 kept", async () => {
+  freshSeeded();
+  expect(stores.buildRunnerConfig().updateCheckMinutes).toBe(rconfig.DEFAULT_UPDATE_CHECK_MINUTES);
+  const client = await engineConfigClient();
+  expect((await client.get("/v1/ai/engine-config")).updateCheckMinutes).toBe(60);
+  expect((await (await client.put("/v1/ai/engine-config", { updateCheckMinutes: 0 })).json()).updateCheckMinutes).toBe(0);
+  expect(stores.buildRunnerConfig().updateCheckMinutes).toBe(0);
+});

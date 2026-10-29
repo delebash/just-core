@@ -2699,6 +2699,8 @@ test("update_check_same_and_error_paths", async () => {
   svc._latestBuildFn = () => svc._configFn().llamacpp.pinnedBuild;
   expect((await svc.updateCheck()).updateAvailable).toBe(false);
 
+  // (the good answer above is kept for the configured minutes — forget it to see the failure)
+  svc._stableKept = null;
   svc._latestBuildFn = () => {
     throw new RuntimeError("offline");
   };
@@ -3872,4 +3874,44 @@ test("a shared cache keeps the builds the family's other apps use — the update
   } finally {
     vi.unstubAllEnvs();
   }
+});
+
+// The finish list's A11 (2026-10-29): every open of the Engine panel or the AI page asked GitHub, unauthenticated (60 an
+// hour, a 304 still counts — docs.github.com "best practices for using the REST API"). A good answer is kept for
+// `updateCheckMinutes` (a runner setting, 60 by default; 0 = every time); a failed one is never kept.
+test("the update check keeps a good answer for the configured minutes, never a failure", async () => {
+  let clock = 1000;
+  let calls = 0;
+  let minutes = 60;
+  const svc = serviceFor(tmp(), { now: () => clock });
+  svc._configFn = () => ({ ...defaultConfig(), updateCheckMinutes: minutes });
+  svc._latestBuildFn = () => {
+    calls++;
+    return "b99999";
+  };
+  await svc.updateCheck();
+  clock += 59 * 60;
+  expect((await svc.updateCheck()).latest).toBe("b99999");
+  expect(calls).toBe(1);
+  clock += 2 * 60;
+  await svc.updateCheck();
+  expect(calls).toBe(2);
+  // a failure isn't kept: the next open asks again
+  svc._latestBuildFn = () => {
+    calls++;
+    throw new RuntimeError("offline");
+  };
+  clock += 61 * 60;
+  expect((await svc.updateCheck()).error).toContain("offline");
+  await svc.updateCheck();
+  expect(calls).toBe(4);
+  // 0 minutes: every open asks
+  minutes = 0;
+  svc._latestBuildFn = () => {
+    calls++;
+    return "b99999";
+  };
+  await svc.updateCheck();
+  await svc.updateCheck();
+  expect(calls).toBe(6);
 });

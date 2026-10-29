@@ -53,6 +53,11 @@ export const DEFAULT_SAFETY_MARGIN_MB = 1024;
 // `ctx_cap_tokens` + the GUI field beside the margin.
 export const DEFAULT_CTX_CAP_TOKENS = 32768;
 
+// How long a good "is there a newer engine?" answer from GitHub is kept, in minutes (2026-10-29): every open of the
+// Engine panel or the AI page asked, unauthenticated (60 requests an hour). 0 = ask every time. DB-editable via
+// runner_setting `update_check_minutes` + the field beside the update policy.
+export const DEFAULT_UPDATE_CHECK_MINUTES = 60;
+
 // Fit-redesign Phase 2 (§8.21, §13.13) — the two floor-rule seeded facts: the canonical
 // floor prices KV at MINIMAL-USABLE context ("can it run at all"; the fit verdict prices
 // the real config), and the RAM floor is file + headroom. Seeded runner_setting rows.

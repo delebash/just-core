@@ -17,6 +17,7 @@ const KNOBS = [
   ["bandDeadzonePct", "bandDeadzoneFrac", 0.1, 100], // a percent on screen, a fraction on the wire
   ["speedFloorGracePct", "speedFloorGrace", 0.1, 100],
   ["ramHeadroomMb", "ramHeadroomMb", 1, 1],
+  ["updateCheckMinutes", "updateCheckMinutes", 1, 1],
 ];
 
 /** `drafts` → the PUT body: `{<field>: number}` for each box holding a number. */

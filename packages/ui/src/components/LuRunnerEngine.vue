@@ -111,6 +111,7 @@ const bandDeadzonePct = ref(null);
 // fraction, edited as a percent like the dead zone above.
 const speedFloorGracePct = ref(null);
 const ramHeadroomMb = ref(null);
+const updateCheckMinutes = ref(null); // how long a good update-check answer is kept (0 = every time)
 
 // The fit/speed drafts, seeded ONCE from GET /engine-config at mount (owned until Save).
 async function loadConfigKnobs() {
@@ -124,6 +125,7 @@ async function loadConfigKnobs() {
     if (bandDeadzonePct.value === null) bandDeadzonePct.value = Math.round((r.bandDeadzoneFrac || 0) * 100);
     if (speedFloorGracePct.value === null) speedFloorGracePct.value = Math.round((r.speedFloorGrace || 0) * 100);
     if (ramHeadroomMb.value === null) ramHeadroomMb.value = r.ramHeadroomMb;
+    if (updateCheckMinutes.value === null) updateCheckMinutes.value = r.updateCheckMinutes;
   } catch {
     // transient — the drafts stay null and Save simply omits them (partial PUT)
   }
@@ -190,6 +192,7 @@ async function saveKnobs() {
       bandDeadzonePct: bandDeadzonePct.value,
       speedFloorGracePct: speedFloorGracePct.value,
       ramHeadroomMb: ramHeadroomMb.value,
+      updateCheckMinutes: updateCheckMinutes.value,
     });
     const r = await request("/v1/ai/engine-config", { method: "PUT", body });
     modelsMax.value = r.modelsMax; // re-sync from the server (reflects the clamps)
@@ -202,6 +205,7 @@ async function saveKnobs() {
     bandDeadzonePct.value = Math.round((r.bandDeadzoneFrac || 0) * 100); // reflects the server clamp
     speedFloorGracePct.value = Math.round((r.speedFloorGrace || 0) * 100);
     ramHeadroomMb.value = r.ramHeadroomMb;
+    updateCheckMinutes.value = r.updateCheckMinutes;
     // The user's 2026-08-13 checkpoint ask: Save must SAY it saved (the
     // fields re-syncing silently read as nothing happening). After the await
     // → success-only (the FeatureLab precedent).
@@ -288,6 +292,8 @@ onMounted(() => {
       :task="engineTask" :title="t('kit.quickSetup.engineBarTitle')" :role="t('kit.quickSetup.engineBarRole')" />
 
     <p v-if="error" class="lu-eng-err">{{ error }}</p>
+    <!-- the update check couldn't reach GitHub: said once, quietly (2026-10-29) — the offer falls back to the tested build -->
+    <p v-else-if="installed && updateInfo?.error" class="lu-eng-note">{{ t('kit.engine.updateCheckFailed') }}</p>
 
     <template v-if="showDetails">
       <div class="lu-eng-logrow">
@@ -378,6 +384,10 @@ onMounted(() => {
               :options="[{ value: 'notify', label: t('kit.engine.updateNotify') }, { value: 'off', label: t('kit.engine.updateOff') }]"
               @update:model-value="setUpdatePolicy" />
           </label>
+          <label class="lu-eng-knob" :title="t('kit.engine.updateEveryTitle')">
+            <span class="lu-eng-knob-cap">{{ t('kit.engine.updateEvery') }}</span>
+            <UiInput v-model="updateCheckMinutes" type="number" width="token" />
+          </label>
           <UiButton intent="primary" size="small" :loading="savingKnobs" @click="saveKnobs">{{ t('kit.common.save') }}</UiButton>
         </div>
         <p v-if="knobErr" class="lu-eng-err">{{ knobErr }}</p>
@@ -422,6 +432,7 @@ onMounted(() => {
    width:100% by default, so the cap alone leaves a wide dead gap before the chevron. */
 .lu-eng-backend :deep(.ui-select-trigger) { width: fit-content; }
 .lu-eng-err { margin: 0; font-size: 12.5px; color: var(--lu-danger, var(--danger, #b91c1c)); }
+.lu-eng-note { margin: 0; font-size: 12.5px; color: var(--muted); }
 /* the install progress IS the shared DownloadBar now (it styles itself) — no local bar CSS */
 .lu-eng-log {
   max-height: 220px;

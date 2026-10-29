@@ -1400,6 +1400,9 @@
       "updates": "Actualizaciones del motor",
       "updateNotify": "Notificar",
       "updateOff": "Desactivado",
+      "updateEvery": "Comprobar cada (minutos)",
+      "updateEveryTitle": "Cuánto tiempo guarda la app la respuesta de GitHub sobre un motor más reciente antes de volver a preguntar. 0 = cada vez que se abre la página.",
+      "updateCheckFailed": "No se pudo comprobar si hay un motor más reciente: se muestra la compilación con la que se probó esta app.",
       "phase": {
         "downloading": "Descargando el motor",
         "settingUp": "Configurándolo",

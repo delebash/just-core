@@ -106,7 +106,7 @@ import { EVICT_MIN_MB as ARBITER_EVICT_MIN_MB, getArbiter } from "./arbiter.js";
 import * as bandwidth from "./bandwidth.js";
 import * as binary from "./binary.js";
 import { buildsInUse, pyPath, recordBuild } from "./cache_registry.js";
-import { DEFAULT_DOWNLOAD_MAX_CONCURRENT, DEFAULT_PINNED_BUILD, defaultConfig, MAX_DOWNLOAD_CONCURRENT } from "./config.js";
+import { DEFAULT_DOWNLOAD_MAX_CONCURRENT, DEFAULT_PINNED_BUILD, DEFAULT_UPDATE_CHECK_MINUTES, defaultConfig, MAX_DOWNLOAD_CONCURRENT } from "./config.js";
 import { DownloadCancelled } from "./download.js";
 import * as fitMod from "./fit.js";
 import * as gguf from "./gguf.js";
@@ -1928,14 +1928,24 @@ export class RunnerService {
     let stableBuild;
     let stable;
     let error;
-    try {
-      const res = await this._latestBuildFn();
-      // Injected doubles (and the back-compat face) return the tag alone.
-      [stableBuild, stable] = Array.isArray(res) ? res : [res, ""];
-      error = "";
-    } catch (exc) {
-      // any fetch failure = the same honest answer
-      [stableBuild, stable, error] = ["", "", errText(exc)];
+    // A good answer is kept for `updateCheckMinutes` (a runner setting; 0 = ask every time), a failed one never
+    // (2026-10-29): every open of the Engine panel or the AI page asked GitHub, unauthenticated — 60 an hour, and a 304
+    // counts there too (docs.github.com, "Best practices for using the REST API").
+    const keepS = Math.max(0, Number(config.updateCheckMinutes ?? DEFAULT_UPDATE_CHECK_MINUTES) || 0) * 60;
+    const kept = this._stableKept;
+    if (kept && keepS > 0 && this._now() - kept.at < keepS) {
+      [stableBuild, stable, error] = [kept.build, kept.label, ""];
+    } else {
+      try {
+        const res = await this._latestBuildFn();
+        // Injected doubles (and the back-compat face) return the tag alone.
+        [stableBuild, stable] = Array.isArray(res) ? res : [res, ""];
+        error = "";
+        this._stableKept = { at: this._now(), build: stableBuild, label: stable };
+      } catch (exc) {
+        // any fetch failure = the same honest answer
+        [stableBuild, stable, error] = ["", "", errText(exc)];
+      }
     }
     let latest;
     let kind;

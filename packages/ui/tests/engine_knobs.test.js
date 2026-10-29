@@ -25,3 +25,8 @@ test("a cleared or half-typed box is left out of the save; a typed one — 0 inc
 test("a decimal comma reads where a knob takes fractions", () => {
   expect(engineKnobsBody({ bandSlowToks: "7,5", speedFloorGracePct: "12,5" })).toEqual({ bandSlowToks: 7.5, speedFloorGrace: 0.125 });
 });
+
+test("the update check's keep time is sent as typed — 0 (every time) included — and left out when cleared", () => {
+  expect(engineKnobsBody({ updateCheckMinutes: "0" })).toEqual({ updateCheckMinutes: 0 });
+  expect(engineKnobsBody({ updateCheckMinutes: "" })).toEqual({});
+});

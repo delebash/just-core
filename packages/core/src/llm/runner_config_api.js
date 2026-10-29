@@ -34,6 +34,7 @@ export const EngineConfig = T.Object({
   // Computed-ctx cap for untuned launches (fit-redesign §8.1): min() ceiling, never a
   // pin; explicit ctx from a tune/preset/request always overrides. 0 = off.
   ctxCapTokens: opt(T.Integer(), 32768),
+  updateCheckMinutes: opt(T.Integer(), 60), // how long a good update-check answer is kept (0 = every time)
   // Fit-redesign Phase 3 (§8.14 + §13.17 as amended): the speed-band tok/s thresholds and
   // the RAM-headroom floor fact — edited in the Loaded-models knobs group.
   bandFastToks: opt(T.Number(), 20.0),
@@ -81,6 +82,7 @@ export const EngineConfigUpdate = T.Object({
   classKeyOverride: opt(nullable(T.String()), null), // hardware-class override ("" = auto-detect; free text)
   safetyMarginMb: opt(nullable(T.Integer()), null),
   ctxCapTokens: opt(nullable(T.Integer()), null),
+  updateCheckMinutes: opt(nullable(T.Integer()), null),
   bandFastToks: opt(nullable(T.Number()), null),
   bandFineToks: opt(nullable(T.Number()), null),
   bandSlowToks: opt(nullable(T.Number()), null),
@@ -141,6 +143,7 @@ export function makeRunnerConfigRouter(getStore) {
     }
     if (body.safetyMarginMb != null) store.setSetting("safety_margin_mb", intText(body.safetyMarginMb));
     if (body.ctxCapTokens != null) store.setSetting("ctx_cap_tokens", intText(pyMax2(0, pyInt(body.ctxCapTokens))));
+    if (body.updateCheckMinutes != null) store.setSetting("update_check_minutes", intText(pyMax2(0, pyInt(body.updateCheckMinutes))));
     // Phase 3 (§8.14/§13.17): band thresholds are tok/s minimums — floored at 0; ordering
     // (fast ≥ fine ≥ slow) is NOT enforced here (the band mapper walks top-down, so a
     // crossed pair just merges bands — harmless), the user's number is kept as typed.

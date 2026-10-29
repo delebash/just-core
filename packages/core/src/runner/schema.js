@@ -92,6 +92,7 @@ export const RunnerConfig = strictObject({
   sleepIdleSeconds: opt(T.Integer(), 900),
   preferredGpu: opt(T.String(), ""),
   downloadMaxConcurrent: opt(T.Integer(), 4),
+  updateCheckMinutes: opt(T.Integer(), 60), // config.js DEFAULT_UPDATE_CHECK_MINUTES
   bandFastToks: opt(T.Number(), 20.0),
   bandFineToks: opt(T.Number(), 8.0),
   bandSlowToks: opt(T.Number(), 2.0),
