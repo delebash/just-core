@@ -2668,6 +2668,37 @@ design.
   `server/src/api/engines_models_api.js`; `src/services/ttsJobChannel.js` calls the same shape "the kit's channel
   contract".
 
+## 12 · audio.cpp in the kit (round E)
+
+What the kit's `audiocpp` runtime is built on — JustVoice's code (`server/src/engines/audiocpp/release.js`,
+`runtime.js`, `slot.js`, `espeak.js`, `japanese.js`), read 2026-10-29, and the kit's port of it
+(`runner/audiocpp.js`, `runner/runtime_extras.js`, `runner/config.js`).
+
+- **The builds are the fork's** (github.com/delebash/audio.cpp, pinned `v0.9.2-jv.6`): Windows x64 cuda12.4 and
+  cuda13.3 (each with its own cudart zip), Vulkan, CPU (portable); Linux x64 Vulkan and CPU; macOS arm64 Metal only.
+  Download and unpacked sizes and SHA-256s are on the rows in `runner/config.js` (the Windows unpacked sizes measured
+  2026-10-29; 0 where not measured). — *code*.
+- **Registering a model into a running server** (`POST /v1/models/load`, unload by id) is the fork's
+  model_management, from `v0.9.0-jv.4`. Without it a server holds only the models its config names at start. —
+  *code (release.js FEATURES)*.
+- **One server per placement × kind** (gpu/cpu × tts/stt), each started from a generated JSON config (`host`,
+  `backend`, `device`, `threads`, `lazy_load`, `max_loaded_models` 0, `model_management` true, `port`) as
+  `[exe, --config, <file>, --no-ui]`, its working folder the exe's (the build's DLLs beside it). Up when `/health`
+  answers (polled every 250 ms to the start timeout); started again when the exe, its config or its environment
+  change; its log rotates at 10 MB. — *code*.
+- **The install probe** runs `--no-ui --max-loaded-models 0 --version`. — *code*.
+- **eSpeak NG** (phonemes; JustVoice also passes its paths as the Kitten family's session options) comes from PyPI's `espeakng_loader` 0.2.4 wheel for the
+  platform: its library and `espeak-ng-data` kept, its Python dropped. The servers find it through
+  `AUDIOCPP_ESPEAK_LIBRARY` and `AUDIOCPP_ESPEAK_DATA`; the kit installs it with each build (`<variant>/_extras`). —
+  *code*.
+- **The Japanese dictionary** (MeCab's UniDic, for Kokoro's Japanese voices and Chatterbox Japanese) is PyPI's
+  `unidic-lite` 1.0.8 sdist: 47,356,746 bytes down, 260,467,176 installed (its `dicdir` and licence kept). The
+  servers find it through `AUDIOCPP_UNIDIC_DIR` and start again once it's installed. An add-on, installed on demand
+  and kept across builds (`<runtime>/_addons`). — *measured by JustVoice 2026-10-03; code*.
+- **A model's request** names its `family` and `task`, its file and `sessionOptions`; a companion file registers as
+  `<id>::<role>`. The kit keeps these on the model's row as `spec`; how a family's request is shaped stays the app's.
+  — *code (slot.js `_entriesFor`)*.
+
 ## Records not yet distilled
 
 Indexed by subject so they can be found; their facts move into a section above when work next

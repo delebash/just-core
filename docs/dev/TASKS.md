@@ -174,4 +174,13 @@ BUILT:  E3's Update to the kit's tested build (status `updateTo`, `POST …/engi
         could reach sd.cpp's new pin. Tests written, not run.
 DECIDED 2026-10-29 (the user, verbatim, on "test pass now, round E now, or round E after the release"): "no test test
         aat end after all items closed, go" — round E now, every suite once at the end.
+BUILT:  2026-10-29, tests written, none run (git: "Round E, E1" … "E8"): E1 the registry's kinds and the audiocpp row
+        (7 builds, tts/stt bands, a provider per kind, a model row's own kind); E2 one server per placement × kind
+        (`runner/audiocpp.js`), registering its models; E3 eSpeak NG with each build, the Japanese dictionary as an
+        add-on, the servers' environment following them; E4 the install probe and an app's development build
+        (`runtimeExeOverrides`); E6 transcription a kit feature on an stt preset (`params.placement`), speech through
+        `withSpeechModel`, the load/unload/loaded routes, declared settings and each kind's bands on the settings
+        route; E7 `jobs.forget(id)` and `onForget`; E8 the runtime tab for such an engine (kinds, Load where asked and
+        why, Unload, add-ons, settings, the app's slots). app-structure §19 rows, RESEARCH §12. Open: E5 (placement
+        and measured booking), then JustVoice's move by its session.
 
