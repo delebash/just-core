@@ -18,7 +18,6 @@
     "build:unpacked": "quasar build -m electron --skip-pkg",
     "build:android": "quasar build -m capacitor -T android",
     "postinstall": "quasar prepare --silent",
-    "prepare": "husky",
     "server": "node scripts/node24.js server/src/serve.js serve",
     "lint": "biome check .",
     "test:server": "node scripts/node24.js node_modules/vitest/vitest.mjs run --config server/vitest.config.js",
@@ -57,16 +56,11 @@
     "autoprefixer": "^10.6.1",
     "eslint": "^10.12.0",
     "eslint-plugin-i18next": "^6.1.5",
-    "husky": "^9.1.7",
     "jsdom": "^30.1.2",
-    "lint-staged": "^17.6.0",
     "postcss": "^8.5.29",
     "vitest": "^5.0.3",
     "vue-eslint-parser": "^10.4.1",
     "vue-i18n-extract": "^2.0.7"
-  },
-  "lint-staged": {
-    "*.{js,vue}": "biome check --files-ignore-unknown=true --no-errors-on-unmatched"
   },
   "allowScripts": {
     "electron": true,

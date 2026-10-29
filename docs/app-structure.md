@@ -1164,8 +1164,9 @@ JustWrite and JustVoice drop and reseed instead of migrating (an open deviation,
 
 Every test is hermetic: a temp data folder, `JUST_AI_HOME` pointed there, no network, no real model
 unless an env flag asks for one (`<APP>_REAL_*=1`). **Must pass before a commit:** `npm run lint &&
-npm run test:server && npm run test:unit` and the guard; the pre-commit hook (Husky + lint-staged)
-runs Biome on the staged files. `npm run test:coverage` (Vitest's v8) reports coverage, with no gate.
+npm run test:server && npm run test:unit` and the guard, run by hand — **no commit hooks, family-wide** (the user,
+2026-10-29: "i dont want tests just running or things just running on commit in gituhb unless we need it often").
+`npm run test:coverage` (Vitest's v8) reports coverage, with no gate.
 A bug fix lands with the test that would have caught it.
 
 A mounted test clicks the way Vue Test Utils does — `await wrapper.find(…).trigger("click")` — not with

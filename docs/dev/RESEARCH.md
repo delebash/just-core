@@ -1235,7 +1235,7 @@ template's missing files and the biome.json difference re-checked by this sessio
   folder is `$CLAUDE_CONFIG_DIR/skills`, not `~/.claude/skills`: this machine's config moved to
   `F:\ClaudeCode\config` that day, `~/.claude` is gone, and a new session lists `new-just-app` from F:.
   Husky 9.1.7 + lint-staged 17.6.0 is the standard pre-commit pair; Biome's recipe runs `biome check
-  --staged`. create-quasar 5.0.34, quasar 2.35.1, @quasar/app-vite 3.10.3, electron 44.9.0 (2026-10-15/17).
+  --staged` (the family carries no commit hook since 2026-10-29 — the user's ruling). create-quasar 5.0.34, quasar 2.35.1, @quasar/app-vite 3.10.3, electron 44.9.0 (2026-10-15/17).
 
 ---
 

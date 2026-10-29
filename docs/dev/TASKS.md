@@ -51,8 +51,13 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
         D. Docs: 35 the kit's AGENTS.md (CLAUDE.md → @AGENTS.md), just-sqlite-sync's too. 36 app-structure: an
            accessibility standard (WCAG 2.2 AA) with a template test; "installers are unsigned" family-wide; no
            performance budgets. 37 the labeling law and the dismissal rules into §17/§19. 38 feature-model-system.md
-           against the JavaScript. 39 a pre-commit hook in JustWrite, JustVoice, docgen (their sessions), then the
-           guard requires it. 40 AppearancePanel's Language row removed (JustVoice onto LanguagePicker). 41 the stale
+           against the JavaScript. 39 REVERSED by the user (2026-10-29, in JustWrite's session,
+           relayed): "what is husky and the ci i dont want tests just running or things just running on commit in
+           gituhb unless we need it often you take up so much time running tests after each little change i dont like
+           that", then on the rec to remove it family-wide: "remove hook your rec on rest" — no commit hooks,
+           family-wide: DONE in the template (its .husky, `prepare`, lint-staged and the two packages gone) and
+           app-structure §18; JustWrite's gone (324f0f59); docgen never installed it; house-paint's by its session;
+           JustVoice has none. 40 AppearancePanel's Language row removed (JustVoice onto LanguagePicker). 41 the stale
            docs and comments. 42 "tuned config" → "applied config" in the PC classes help; the Add-model note's last
            sentence: the user's words (asked).
         E. Removed: D5, D6, I3, the KV/context surface (record in its plans), the RAM probe's serial passes (kept),

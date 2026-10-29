@@ -22,8 +22,7 @@
 //      any file that already exists (reported); the template's description of itself in
 //      README.md, AGENTS.md and package.json becomes the app's — the first paragraph of the PRD's
 //      "What it is for" (the skill writes the PRD first), or a marked placeholder without one;
-//   4. `git init` (when the folder isn't a repository yet) — before installing, so the pre-commit
-//      hook installs (Husky's `prepare` needs `.git`);
+//   4. `git init` (when the folder isn't a repository yet);
 //   5. installs: the root (+ the server workspace), src-electron, src-capacitor, e2e;
 //   6. checks: lint, the server tests, the unit tests;
 //   7. registers the app in the guard (APPS, APP_PORTS, DEV_PORTS) and runs it.

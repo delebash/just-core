@@ -34,8 +34,8 @@ npm run release        # the release: installers + the update feed built on GitH
 ```
 
 **Must pass before a commit:** `npm run lint && npm run test:server && npm run test:unit` and the
-family guard, `node ../scripts/check-family.js`. The pre-commit hook (Husky + lint-staged) runs Biome
-on the staged files. A change a user can see also passes `npm run i18n:lint`, updates `docs/*.md`,
+family guard, `node ../scripts/check-family.js` — run by hand; no hook runs anything on a commit (the
+user, 2026-10-29: no commit hooks, family-wide). A change a user can see also passes `npm run i18n:lint`, updates `docs/*.md`,
 and `npm run build:unpacked && npm test`.
 
 ## What bites

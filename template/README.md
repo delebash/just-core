@@ -86,7 +86,7 @@ npm run release        # the release: installers + the update feed built on GitH
   kit's `dropQuasarDisabledRule()` and `quasarBaseLayer()`, `ripple: false`, the `Notify` plugin
   for the kit's toasts; `src/css/tokens.css` is hue-driven so Settings → Appearance retints it.
 - **Biome**, not ESLint/oxlint (the family's one `biome.json`); ESLint runs one thing only, the i18n
-  lint (`eslint.i18n.config.js`, the kit's file). Husky + lint-staged run Biome on staged files.
+  lint (`eslint.i18n.config.js`, the kit's file). No commit hook (the family's ruling, 2026-10-29).
 - **`resolve.dedupe`**: the aliased kit's peers come from this app's `node_modules`, one copy each.
 - **`allowScripts`** in every `package.json` Quasar installs into (see "Traps").
 - **Removed from the scaffold:** `EssentialLink.vue`, the example store, `IndexPage`/`SecondPage`/

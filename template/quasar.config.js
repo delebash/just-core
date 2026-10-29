@@ -105,11 +105,10 @@ export default defineConfig(() => {
       // The main process's dependencies (src-electron/package.json) are local packages — the
       // app's server/ and the family kit — named by `file:` paths relative to src-electron/.
       // Quasar copies them unchanged into dist/electron/UnPackaged/package.json, two folders
-      // further down, so they're made absolute here. The root's `workspaces` and `lint-staged`
-      // fields are copied too and mean nothing there.
+      // further down, so they're made absolute here. The root's `workspaces` field is copied too
+      // and means nothing there.
       extendElectronPackageJson (pkgJson) {
         delete pkgJson.workspaces
-        delete pkgJson['lint-staged']
         for (const [name, spec] of Object.entries(pkgJson.dependencies || {})) {
           if (typeof spec === 'string' && spec.startsWith('file:')) {
             pkgJson.dependencies[name] = `file:${path.resolve(root, 'src-electron', spec.slice(5))}`
