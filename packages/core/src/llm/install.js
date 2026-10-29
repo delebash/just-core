@@ -213,6 +213,9 @@ export async function installLlm(
     featurePresets = null,
     defaultPresetId = "",
     modelCatalogExtra = [],
+    // {rowId: {field: [old exact seeded values]}}: a revised seed value of an app's catalog row reaches an install that
+    // already has it, while the row still holds an old one (seed.js configureAppSeed — the prompts' featurePromptHeals)
+    modelCatalogHeals = null,
     modelTunesSeed = [],
     // the kit runtimes this app turns on besides llama.cpp (["sdcpp"] — runner/runtimes.js): their builds are seeded
     runtimes = [],
@@ -256,6 +259,7 @@ export async function installLlm(
     featurePresets,
     defaultPresetId,
     modelCatalogExtra,
+    modelCatalogHeals,
     modelTunesSeed,
     runtimes,
     runtimeModels,

@@ -303,6 +303,34 @@ test("seed_heals_known_stale_value_only", () => {
   expect(r.mtp_draft_file).not.toBe(stale);
 });
 
+test("an app's catalog row heals a revised seed value it still holds exactly (installLlm modelCatalogHeals)", () => {
+  // docgen (2026-10-29): its 12B row was seeded "NOT yet measured…" — the measured text must reach an install that
+  // already has the row. The kit's own rule (QC-43a above), registered by the app the way featurePromptHeals is.
+  h = freshDb();
+  const seeded = { id: "app-12b", name: "App 12B", hf_repo: "x/app-12b-GGUF", quant: "Q4_K_M", description: "NOT yet measured.", notes: "old notes" };
+  const revised = { ...seeded, description: "Measured: 0.92 on the corpus.", notes: "new notes" };
+  try {
+    h.tx(() => seed.seedExtraCatalog(h, [seeded]));
+    // without a heal a revision never reaches the row (insert-if-missing)
+    h.tx(() => seed.seedExtraCatalog(h, [revised]));
+    expect(catalogRow("app-12b")).toMatchObject({ description: "NOT yet measured.", notes: "old notes" });
+    // with one: each field still holding an exact old seed takes today's
+    seed.configureAppSeed({ modelCatalogHeals: { "app-12b": { description: ["NOT yet measured."], notes: ["old notes"] } } });
+    h.tx(() => seed.seedExtraCatalog(h, [revised]));
+    expect(catalogRow("app-12b")).toMatchObject({ description: "Measured: 0.92 on the corpus.", notes: "new notes" });
+    // a value the user (or an inspect) wrote is never touched
+    setRow("app-12b", { description: "my own words" });
+    h.tx(() => seed.seedExtraCatalog(h, [revised]));
+    expect(catalogRow("app-12b").description).toBe("my own words");
+    // today's seed empty: nothing to heal to — the old value stays rather than going blank
+    setRow("app-12b", { notes: "old notes" });
+    h.tx(() => seed.seedExtraCatalog(h, [{ ...revised, notes: "" }]));
+    expect(catalogRow("app-12b").notes).toBe("old notes");
+  } finally {
+    seed.configureAppSeed({ modelCatalogHeals: {} });
+  }
+});
+
 test("borrow_only_row_seeds_inherited_drafter", () => {
   // A row with NO built-in MTP and NO own draft in-file must ship the BORROWED base-family
   // drafter + mtp enabled — so the opened Edit form reads identically to Read-from-link.

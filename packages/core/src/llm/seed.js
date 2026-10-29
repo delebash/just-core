@@ -98,6 +98,7 @@ export function configureAppSeed({
   featurePresets = null,
   defaultPresetId = null,
   modelCatalogExtra = null,
+  modelCatalogHeals = null,
   modelTunesSeed = null,
   runtimes = null,
   runtimeModels = null,
@@ -118,6 +119,15 @@ export function configureAppSeed({
   // so `seedLlm` carries them on BOTH paths — boot AND the data-reset endpoint (found
   // 2026-07-06: install-time-only seeding meant a data reset silently LOST them).
   if (modelCatalogExtra != null) app.model_catalog_extra = [...modelCatalogExtra];
+  // Their known-stale heals (QC-43a, the kit's own rule for its catalog — STALE_SEED_VALUES): a revised seed value
+  // can't reach an install that already has the row (fill-empty skips a value that isn't empty), so the host
+  // registers {rowId: {field: [old exact seeded values]}} and the seeder swaps a field for today's seed only while
+  // it still holds one of them — a user's or an inspect's value is never touched.
+  if (modelCatalogHeals != null) {
+    app.model_catalog_heals = Object.fromEntries(
+      Object.entries(modelCatalogHeals).map(([id, fields]) => [id, Object.fromEntries(Object.entries(fields).map(([f, olds]) => [f, [...olds]]))]),
+    );
+  }
   // The kit runtimes the app turns on besides llama.cpp (["sdcpp"]): their build rows and pins are seeded on
   // both paths too (boot and a data reset), like the catalog rows.
   if (runtimes != null) app.runtimes = [...runtimes];
@@ -799,6 +809,15 @@ const writeSet = (h, id, set) => {
   if (Object.keys(set).length) h.update("model_catalog", set, { id });
 };
 
+/** Known-stale heal (QC-43a): each `[field, [old values]]` whose row still holds an exact old seeded value takes the
+ *  current seed fact `cr[field]`; anything else is a user/inspect value and stays, and so does the old value when
+ *  today's seed has none. */
+function healStale(row, set, cr, stale) {
+  for (const [field, olds] of stale) {
+    if (olds.some((x) => pyEq(x, row[field] ?? null)) && truthy(get(cr, field))) assign(row, set, field, unwrap(cr[field]));
+  }
+}
+
 export function seedDefaultCatalog(h) {
   const existing = new Map(h.all("select * from model_catalog", [], "model_catalog").map((r) => [r.id, r]));
   let added = 0;
@@ -815,11 +834,7 @@ export function seedDefaultCatalog(h) {
       fillPhysicsFacts(row, set, cr);
       // Known-stale heal (QC-43a): swap an exact historically-seeded wrong value for the
       // current seed fact; anything else is a user/inspect value and stays.
-      for (const [[rid, field], stale] of cfg.STALE_SEED_VALUES) {
-        if (rid === cr.id && stale.some((x) => pyEq(x, row[field] ?? null)) && truthy(get(cr, field))) {
-          assign(row, set, field, unwrap(cr[field]));
-        }
-      }
+      healStale(row, set, cr, [...cfg.STALE_SEED_VALUES].filter(([[rid]]) => rid === cr.id).map(([[, field], olds]) => [field, olds]));
       writeSet(h, cr.id, set);
       continue;
     }
@@ -834,8 +849,8 @@ export function seedDefaultCatalog(h) {
  * Per-APP extra model-catalog rows (host input via `installLlm`). Insert-if-missing by id
  * — a reset re-creates them, a user edit is never clobbered. Seeded `built_in=false`: they
  * are the app's seed data, not the shared stack's, so the catalog UI treats them as user
- * rows. An existing row gets the fill-empty touch-ups (2026-07-13), mirroring
- * seedDefaultCatalog.
+ * rows. An existing row gets the fill-empty touch-ups (2026-07-13) and the app's registered
+ * known-stale heals (`modelCatalogHeals`, 2026-10-29), mirroring seedDefaultCatalog.
  */
 export function seedExtraCatalog(h, rows) {
   const existing = new Map(h.all("select * from model_catalog", [], "model_catalog").map((r) => [r.id, r]));
@@ -848,6 +863,7 @@ export function seedExtraCatalog(h, rows) {
       fillSizeFacts(row, set, cr, false);
       fillInheritedDraft(row, set, cr);
       fillPhysicsFacts(row, set, cr);
+      healStale(row, set, cr, Object.entries(cfg._APP.model_catalog_heals?.[cr.id] ?? {}));
       writeSet(h, cr.id, set);
       continue;
     }
