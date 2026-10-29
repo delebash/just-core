@@ -32,6 +32,10 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            17 BUILT (the guard's checkResourceIsolation; §19's media row, measured; JustVoice's move in its
            hand-off line). 18 BUILT (declaredClaimFn, startRunner/Runner — its spawn diagnostics tests now on
            the router — and LoadRequest.jobId/profileSwitchesFn removed; the screenless data routes kept).
+        A+. JustWrite's reports (2026-10-29, measured on its built app): an embedding row turns llama-server's prompt
+           cache off (`cache-ram = 0` — the qwen3 embed child grew 2.3 → 6.5 GB and the chat load was refused) BUILT
+           6954fee; a stream's error frame carries the refusal whole BUILT 7a72c44. OPEN for the user's word: the chat rows
+           keep llama-server's 8 GB prompt cache, and the RAM door doesn't count what a resident embed could give back.
         B. docgen's: 19 + 20 BUILT (start-packaged: the launcher named for server/package.json; `--data-dir <folder>`,
            never removed — its first real run with the final pass; the e2e driver's dashed-id fix). 21 BUILT (the guard:
            docgen in check 17; JustWrite + docgen in the chrome and release checks — JustWrite's clipboard fixed,
