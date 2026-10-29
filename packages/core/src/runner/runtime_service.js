@@ -456,8 +456,9 @@ export class RuntimeService {
 
   /** One job's speed on this box and build into the kit's measurement ledger — what the band reads from then on.
    *  `fields` in the kind's unit (`{secPerImage}` for an image); `fields.backend` what it ran on, when a run says (an
-   *  in-process model's provider — a CPU run is never DirectML's speed), else the build this computer picks. Best
-   *  effort: never fails the job. */
+   *  in-process run's provider as asked: a run set to the CPU is never "auto"'s speed; a DirectML session the app
+   *  let fall back to the CPU counts as "auto"'s — the speed auto gives here), else the build this computer picks.
+   *  Best effort: never fails the job. */
   recordSpeed(modelId, fields) {
     if (!this._measurements) return;
     try {
