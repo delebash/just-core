@@ -1567,7 +1567,8 @@ const WEBSITES = [
   { name: "docgen website", dir: join(FAMILY, "just-ai-i18n-docgen-website") },
 ];
 const WEBSITE_FILES = ["scripts/sync-docs.js", "scripts/deploy.js", ".github/workflows/deploy.yml"];
-const WEBSITE_KNOWN = new Set(["JustWrite website", "docgen website"]);
+// JustWrite's adopted it (justwrite-website 440a9e3)
+const WEBSITE_KNOWN = new Set(["docgen website"]);
 const sameText = (a, b) => a.replace(/\r\n/g, "\n") === b.replace(/\r\n/g, "\n");
 function checkWebsite(site) {
   if (!existsSync(site.dir)) return;
