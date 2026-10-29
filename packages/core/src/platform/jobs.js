@@ -4,8 +4,11 @@
 // just-house-paint's jobs.js (finding a photo's parts, a brand's colors, an AI photo). One job per kind and key (a
 // house, a brand) at a time: starting one that is already running answers the running one. A finished job is kept a
 // while for the poller to read, then forgotten — its end remembered, so a window that slept through it is told how it
-// ended (410 Gone), not that the server started again. The route is jobs_api.js; the screen's side is the ui
-// package's services/serverJob.js `runServerJob`, inside `withAiTask`.
+// ended (410 Gone), not that the server started again. A job's work can keep fields of its own (`update`: the
+// snapshot's `data` — docgen's language, counts, phase) and send events of its own (`emit`: docgen's staged
+// proposals as they land); `subscribe(id, fn)` follows one job (the round D2 of the engines plan). The route is
+// jobs_api.js (its events as server-sent events); the screen's side is the ui package's services/serverJob.js
+// `runServerJob`, inside `withAiTask`.
 
 import { randomUUID } from "node:crypto";
 import { getLogger } from "./log.js";
@@ -24,6 +27,7 @@ export class JobRegistry {
     // ended — not that the server started again (410 Gone)
     this.ended = new Map();
     this.onFinish = onFinish;
+    this._subs = new Map(); // job id → Set of fn(event)
   }
 
   /** The running job of this kind and key, if any. */
@@ -38,6 +42,39 @@ export class JobRegistry {
     return [...this.jobs.values()].filter((j) => j.key === key && j.state === "running").map(snapshot);
   }
 
+  /** The running jobs, as the wire shows them — of `kind` and `key` when given (a reloaded page rejoins them). */
+  list({ kind = null, key = null } = {}) {
+    return [...this.jobs.values()].filter((j) => j.state === "running" && (kind == null || j.kind === kind) && (key == null || j.key === key)).map(snapshot);
+  }
+
+  /**
+   * Follow job `id`: `fn(event)` gets `{ type: "job", job }` (the snapshot, on each progress or update), the job's
+   * own events (`{ type, ...payload }` — its work's emit), `{ type: "cancelling" }`, and last `{ type: "end", job }`.
+   * Returns the unsubscribe, or null when the job isn't running (nothing more will happen to it).
+   */
+  subscribe(id, fn) {
+    const j = this.jobs.get(id);
+    if (!j || j.state !== "running") return null;
+    if (!this._subs.has(id)) this._subs.set(id, new Set());
+    this._subs.get(id).add(fn);
+    return () => {
+      const set = this._subs.get(id);
+      set?.delete(fn);
+      if (set && !set.size) this._subs.delete(id);
+    };
+  }
+
+  /** An event to job `id`'s followers — a follower's error never reaches the job. */
+  _send(id, event) {
+    for (const fn of [...(this._subs.get(id) ?? [])]) {
+      try {
+        fn(event);
+      } catch {
+        // a follower that failed doesn't stop the work or the others
+      }
+    }
+  }
+
   /** A running job of any of these kinds (for any key), or null. */
   busy(kinds) {
     for (const j of this.jobs.values()) if (kinds.includes(j.kind) && j.state === "running") return j;
@@ -45,8 +82,10 @@ export class JobRegistry {
   }
 
   /**
-   * Start `fn({ signal, progress })` as a job (or answer the one already running for this kind and key).
-   * `progress(fraction 0–1, message?)` reports along the way; the returned value is the job's result. `failTitle`
+   * Start `fn({ signal, progress, update, emit })` as a job (or answer the one already running for this kind and
+   * key). `progress(fraction 0–1, message?)` reports along the way; `update(fields)` keeps fields of the job's own
+   * (the snapshot's `data`); `emit(type, payload)` sends an event to its followers (not kept); the returned value
+   * is the job's result. `failTitle`
    * names what failed when the error has no title of its own; `clientId` the window that started it; `meta` its
    * choices (a second start reads them). Returns the job's snapshot.
    */
@@ -65,6 +104,7 @@ export class JobRegistry {
       message: "",
       result: null,
       error: null,
+      data: {},
       startedAt: new Date().toISOString(),
       finishedAt: null,
       controller,
@@ -76,6 +116,16 @@ export class JobRegistry {
       if (job.state !== "running") return;
       job.progress = Math.max(job.progress, Math.min(1, Number(fraction) || 0));
       if (message !== undefined) job.message = String(message);
+      this._send(job.id, { type: "job", job: snapshot(job) });
+    };
+    const update = (fields) => {
+      if (job.state !== "running" || !fields || typeof fields !== "object") return;
+      job.data = { ...job.data, ...fields };
+      this._send(job.id, { type: "job", job: snapshot(job) });
+    };
+    const emit = (type, payload = {}) => {
+      if (job.state !== "running") return;
+      this._send(job.id, { ...payload, type: String(type) });
     };
     const finish = (state, fields) => {
       Object.assign(job, { state, finishedAt: new Date().toISOString() }, fields);
@@ -84,9 +134,11 @@ export class JobRegistry {
       } catch {
         // a watcher's error never fails the job
       }
+      this._send(job.id, { type: "end", job: snapshot(job) });
+      this._subs.delete(job.id);
     };
     job.settled = Promise.resolve()
-      .then(() => fn({ signal: controller.signal, progress }))
+      .then(() => fn({ signal: controller.signal, progress, update, emit }))
       .then(
         // the work returned: it is done (and saved), even when Cancel came while it was committing
         (result) => finish("done", { result: result ?? null, progress: 1 }),
@@ -110,6 +162,7 @@ export class JobRegistry {
   cancel(id) {
     const j = this.jobs.get(id);
     if (!j || j.state !== "running") return false;
+    if (!j.controller.signal.aborted) this._send(id, { type: "cancelling" });
     j.controller.abort();
     return true;
   }
@@ -149,6 +202,7 @@ function snapshot(j) {
     message: j.message,
     result: j.result,
     error: j.error,
+    data: { ...j.data },
     startedAt: j.startedAt,
     finishedAt: j.finishedAt,
   };

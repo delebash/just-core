@@ -1226,7 +1226,8 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | **Screens** | | |
 | Controls | the `Ui*` controls (`ui/common/index.js`), Quasar's under them | a hand-made control |
 | A long job's bar (download, install) | `ui/composables/useDownloadTask.js` `createDownloadTask` + `DownloadBar` | a bar of the screen's own |
-| A long server job (202, polled, Cancel) | `platform/jobs.js` `JobRegistry` + `platform/jobs_api.js` `makeJobsRouter` (`/v1/jobs/:id`, GET and DELETE; 410 once ended and forgotten) · `ui/services/serverJob.js` `runServerJob` inside `withAiTask` (the screen) | an app's own registry or poll loop |
+| A long server job (202, polled or followed, Cancel) | `platform/jobs.js` `JobRegistry` (its work's `update` and `emit`, `subscribe`, `list`) + `platform/jobs_api.js` `makeJobsRouter` (`/v1/jobs` what runs, `/v1/jobs/:id` GET and DELETE — 410 once ended and forgotten —, `/v1/jobs/:id/events`) · `ui/services/serverJob.js` `runServerJob` inside `withAiTask` (the screen; `onEvent` follows its events, polling again if they drop) | an app's own registry, poll loop or event stream |
+| A live event stream, server → screen | server-sent events: `platform/server.js` `stream` with `text/event-stream`, each frame `data: <json>` (`llm/prompts.js` a run, `platform/jobs_api.js` a job's events) · `ui/common/services/sseFrames.js` `readSseFrames` over the server transport (`client.js` `requestStream`, `runServerJob`) | EventSource (it can't send the access token), a reader of the screen's own |
 | A failure, a field's refusal | `ui/common/services/reportError.js` `reportError` · `ui/common/services/forms.js` `fieldErrors` | `alert`, hand-made words |
 | A toast · a confirm | `ui/common/services/toastBridge.js` `pushToast` · `ui/common/services/dialog.js` `confirmDialog` | — |
 | A size in bytes | `ui/common/services/downloadRate.js` `fmtBytes` | — |

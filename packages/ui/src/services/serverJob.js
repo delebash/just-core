@@ -4,8 +4,12 @@
 // owns a task's lifecycle). The engines plan's K9, moved from just-house-paint's services/jobs.js; the server's side is
 // the core package's platform/jobs.js (JobRegistry) and jobs_api.js (makeJobsRouter). Its progress shows where the
 // user started it — that screen's AiTaskStrip, found with useSurfaceTask(feature, meta) — and in the kit's global
-// stack whenever no screen shows it; either's Cancel stops it on the server too.
-import { del, get } from "../common/services/serverApi.js";
+// stack whenever no screen shows it; either's Cancel stops it on the server too. A caller that takes the job's own
+// events (`onEvent` — docgen's staged proposals as they land) follows its event stream instead of polling, and
+// polls again if the stream drops (the round D2 of the engines plan).
+import { authHeaders, del, get, serverUrl } from "../common/services/serverApi.js";
+import { readSseFrames } from "../common/services/sseFrames.js";
+import { serverFetch } from "../common/services/transport.js";
 import { kitT } from "../common/services/kitI18n.js";
 import { withAiTask } from "./appTask.js";
 
@@ -64,6 +68,30 @@ async function poll(id, signal) {
   }
 }
 
+/** Follow job `id`'s events (GET /v1/jobs/:id/events, through the server transport — the access token rides):
+ *  `onJob(snapshot)` for each snapshot, `onEvent(event)` for the job's own events. Resolves with the ended job's
+ *  snapshot, or null when the stream closed before its end (it dropped: the caller polls). */
+async function followEvents(id, { onJob, onEvent, signal }) {
+  const res = await serverFetch(serverUrl(`/v1/jobs/${encodeURIComponent(id)}/events`), { headers: authHeaders(), signal });
+  if (!res.ok || !res.body) return null;
+  let ended = null;
+  await readSseFrames(res, (payload) => {
+    let e;
+    try {
+      e = JSON.parse(payload);
+    } catch {
+      return false;
+    }
+    if (e.type === "job") onJob(e.job);
+    else if (e.type === "end") {
+      ended = e.job;
+      return true;
+    } else onEvent(e);
+    return false;
+  });
+  return ended;
+}
+
 /** The Error a failed job becomes — shaped like the kit transport's (§15), so reportError reads it: the server's
  *  title for what failed ("The AI photo didn't finish"), its words as the detail. */
 export function jobError(job) {
@@ -76,16 +104,35 @@ export function jobError(job) {
  * Run a server job as one task. `start()` posts the request and answers the job's snapshot; `feature` and `label`
  * name the task on the strip, `meta` tells its screen which run is its own (a house's id, a brand); `describe(job,
  * percent)` words the progress from the job's own message (the part being found — "Trim · 40%"), else the percent
- * alone. Resolves with the job's result; a cancel rejects with an AbortError (the strip shows it as cancelled, never
+ * alone. `onEvent(event)` takes the job's own events (`{ type, ...payload }`, and `{ type: "cancelling" }`) and
+ * `onJob(snapshot)` each snapshot (its `data`) — given either, the job's event stream is followed, polling again if
+ * it drops. Resolves with the job's result; a cancel rejects with an AbortError (the strip shows it as cancelled, never
  * as a failure).
  */
-export function runServerJob({ start, feature, label, meta, describe, pollMs = JOB_POLL_MS }) {
+export function runServerJob({ start, feature, label, meta, describe, onEvent, onJob, pollMs = JOB_POLL_MS }) {
   return withAiTask({ feature, label, meta }, async (task) => {
     let job = await start();
     task.signal.addEventListener("abort", () => del(`/v1/jobs/${encodeURIComponent(job.id)}`).catch(() => {}), { once: true });
+    const shown = (j) => {
+      job = j;
+      const pct = Math.round((j.progress || 0) * 100);
+      task.setProgress(pct, 100, describe?.(j, pct) || kitT("kit.jobs.percent", { n: pct }));
+      onJob?.(j);
+    };
+    if ((onEvent || onJob) && job.state === "running") {
+      shown(job);
+      try {
+        const ended = await followEvents(job.id, { onJob: shown, onEvent: (e) => onEvent?.(e), signal: task.signal });
+        if (ended) job = ended;
+      } catch (e) {
+        if (task.signal.aborted) throw Object.assign(new Error("cancelled"), { name: "AbortError" });
+        // the network failed under the stream (a proxy, a laptop waking): polling carries on from here; anything
+        // else (the caller's onEvent threw) is the job's caller's error
+        if (!(e instanceof TypeError)) throw e;
+      }
+    }
     while (job.state === "running") {
-      const pct = Math.round((job.progress || 0) * 100);
-      task.setProgress(pct, 100, describe?.(job, pct) || kitT("kit.jobs.percent", { n: pct }));
+      shown(job);
       await wait(pollMs, task.signal);
       job = await poll(job.id, task.signal);
     }

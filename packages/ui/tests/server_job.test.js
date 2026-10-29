@@ -2,7 +2,9 @@
 // A long server job seen from the screen (services/serverJob.js — the engines plan's K9, moved from just-house-paint):
 // polled until it ends inside the kit's withAiTask (its progress on the task), a poll that fails on the way tried
 // again, a job the server no longer has said as that, one that ended unseen said as how it ended, a failure in the
-// transport's error shape, a cancel an AbortError — over a stand-in server transport (serverApi.js get/del).
+// transport's error shape, a cancel an AbortError — over a stand-in server transport (serverApi.js get/del); and a job's
+// event stream followed (round D2: its events and snapshots to the caller, the poll taking over when it drops — the
+// transport's serverFetch answering the stream).
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, expect, test, vi } from "vitest";
 
@@ -18,6 +20,27 @@ vi.mock("../src/common/services/serverApi.js", () => ({
     calls.push(["DELETE", p]);
     return null;
   },
+  authHeaders: (extra) => ({ ...(extra || {}) }),
+  serverUrl: (p) => `http://server.test${p}`,
+}));
+// a job's event stream: `streams` maps a path to its frames (each a JSON event), or to an Error the network throws
+const streams = new Map();
+vi.mock("../src/common/services/transport.js", () => ({
+  serverFetch: async (url) => {
+    const path = new URL(url).pathname;
+    calls.push(["STREAM", path]);
+    const s = streams.get(path);
+    if (s instanceof Error) throw s;
+    const enc = new TextEncoder();
+    const body = new ReadableStream({
+      start(c) {
+        for (const f of s?.frames ?? []) c.enqueue(enc.encode(`data: ${JSON.stringify(f)}\n\n`));
+        if (s?.drop) c.error(new TypeError("network error"));
+        else c.close();
+      },
+    });
+    return new Response(body, { status: s ? 200 : 404, headers: { "content-type": "text/event-stream" } });
+  },
 }));
 const { jobEndedAway, jobError, runServerJob } = await import("../src/services/serverJob.js");
 const { useAiTasksStore } = await import("../src/stores/aiTasks.js");
@@ -25,6 +48,7 @@ const { useAiTasksStore } = await import("../src/stores/aiTasks.js");
 beforeEach(() => {
   setActivePinia(createPinia());
   answers.clear();
+  streams.clear();
   calls.length = 0;
   vi.spyOn(console, "warn").mockImplementation(() => {}); // the kit's own English, no app i18n handed over
 });
@@ -129,4 +153,37 @@ test("a failed job throws an error the screen can report; a cancelled one an Abo
   tasks.cancel(mine().id);
   await expect(running).rejects.toMatchObject({ name: "AbortError" });
   expect(calls).toContainEqual(["DELETE", "/v1/jobs/j5"]);
+});
+
+test("a job followed by its events: its own events and snapshots reach the caller, its end resolves the run", async () => {
+  const running = { id: "j7", state: "running", progress: 0, data: { lang: "es", done: 0 } };
+  streams.set("/v1/jobs/j7/events", {
+    frames: [
+      { type: "job", job: running },
+      { type: "item", key: "a", value: "uno" },
+      { type: "job", job: { ...running, progress: 0.5, data: { lang: "es", done: 1 } } },
+      { type: "end", job: { ...running, state: "done", progress: 1, result: { staged: 1 }, data: { lang: "es", done: 1 } } },
+    ],
+  });
+  const events = [];
+  const snaps = [];
+  const r = await runServerJob({ start: async () => running, feature: "translate", label: "Spanish", onEvent: (e) => events.push(e), onJob: (j) => snaps.push(j.data.done) });
+  expect(r).toEqual({ staged: 1 });
+  expect(events).toEqual([{ type: "item", key: "a", value: "uno" }]);
+  expect(snaps).toEqual([0, 0, 1]);
+  expect(calls.filter((c) => c[0] === "GET")).toEqual([]); // followed, never polled
+});
+
+test("a stream that drops falls back to polling; a job that fails in it throws as a polled one does", async () => {
+  streams.set("/v1/jobs/j8/events", { frames: [{ type: "job", job: { id: "j8", state: "running", progress: 0.2, data: {} } }], drop: true });
+  answers.set("/v1/jobs/j8", { id: "j8", state: "done", result: 8 });
+  expect(await runServerJob({ start: async () => ({ id: "j8", state: "running", progress: 0 }), feature: "x", label: "x", onEvent: () => {}, pollMs: 1 })).toBe(8);
+  expect(calls.some((c) => c[0] === "GET" && c[1] === "/v1/jobs/j8")).toBe(true);
+  // no stream at all (an older server: 404): polled from the start
+  answers.set("/v1/jobs/j9", { id: "j9", state: "error", error: { message: "the engine stopped", status: 503, title: "The run didn't finish" } });
+  await expect(runServerJob({ start: async () => ({ id: "j9", state: "running", progress: 0 }), feature: "x", label: "x", onEvent: () => {}, pollMs: 1 })).rejects.toMatchObject({
+    message: "the engine stopped",
+    status: 503,
+    problem: { title: "The run didn't finish" },
+  });
 });

@@ -10,6 +10,7 @@
 // only thing injected is the base URL, not a data layer.
 
 import { parseProblem, problemDetail } from "./common/services/apiError.js";
+import { readSseFrames } from "./common/services/sseFrames.js";
 import { serverFetch } from "./common/services/transport.js";
 
 let _base = "";
@@ -171,57 +172,45 @@ export async function requestStream(path, body, onDelta, { signal, onProgress, o
     const detail = await res.text().catch(() => "");
     throw httpError(res.status, detail);
   }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
   let usage = null;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split("\n\n");
-    buffer = parts.pop() || "";
-    for (const part of parts) {
-      const line = part.trim();
-      if (!line.startsWith("data:")) continue;
-      const payload = line.slice(5).trim();
-      if (payload === "[DONE]") return usage;
-      let frame;
-      try {
-        frame = JSON.parse(payload);
-      } catch {
-        continue;
-      }
-      if (frame.error) {
-        // In-stream provider error — NOT a transport failure. Tagged so the
-        // §7.4 automatic fallback never retries it via /run (the provider
-        // would return the identical error on both paths).
-        const e = new Error(frame.error);
-        e.streamErrorFrame = true;
-        throw e;
-      }
-      if (frame.done) {
-        // The whole frame minus the transport's own `done` flag, usage names
-        // normalized at the top level (see the contract above) — domain
-        // fields an endpoint added ride along.
-        const { done: _done, ...payload } = frame;
-        usage = {
-          ...payload,
-          promptTokens: frame.promptTokens || 0,
-          completionTokens: frame.completionTokens || 0,
-          model: frame.model || "",
-          cost: frame.cost || 0,
-        };
-      } else if (frame.delta) {
-        onDelta?.(frame.delta);
-      } else if (typeof frame.thinking === "string" && frame.thinking) {
-        onThinking?.(frame.thinking);
-      } else if (typeof frame.progress === "number") {
-        onProgress?.(frame.progress);
-      } else if (frame.step && typeof frame.step === "object") {
-        onStep?.(frame.step);
-      }
+  await readSseFrames(res, (payload) => {
+    if (payload === "[DONE]") return true;
+    let frame;
+    try {
+      frame = JSON.parse(payload);
+    } catch {
+      return false;
     }
-  }
+    if (frame.error) {
+      // In-stream provider error — NOT a transport failure. Tagged so the
+      // §7.4 automatic fallback never retries it via /run (the provider
+      // would return the identical error on both paths).
+      const e = new Error(frame.error);
+      e.streamErrorFrame = true;
+      throw e;
+    }
+    if (frame.done) {
+      // The whole frame minus the transport's own `done` flag, usage names
+      // normalized at the top level (see the contract above) — domain
+      // fields an endpoint added ride along.
+      const { done: _done, ...payload } = frame;
+      usage = {
+        ...payload,
+        promptTokens: frame.promptTokens || 0,
+        completionTokens: frame.completionTokens || 0,
+        model: frame.model || "",
+        cost: frame.cost || 0,
+      };
+    } else if (frame.delta) {
+      onDelta?.(frame.delta);
+    } else if (typeof frame.thinking === "string" && frame.thinking) {
+      onThinking?.(frame.thinking);
+    } else if (typeof frame.progress === "number") {
+      onProgress?.(frame.progress);
+    } else if (frame.step && typeof frame.step === "object") {
+      onStep?.(frame.step);
+    }
+    return false;
+  });
   return usage;
 }

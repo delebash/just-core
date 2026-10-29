@@ -105,3 +105,89 @@ test("the route: a job read and stopped; ended and forgotten is 410 with how it 
   expect((await app.request("/v1/jobs/no-such-job", { method: "DELETE" })).status).toBe(404);
   expect((await app.request("/v1/jobs/not%20an%20id")).status).toBe(422);
 });
+
+test("a job's own fields and events: followers get its snapshots, its events and its end; the list is what runs", async () => {
+  const jobs = new JobRegistry();
+  let step;
+  const job = jobs.start({ kind: "translate", key: "" }, async ({ update, emit, progress }) => {
+    update({ lang: "es", total: 2, done: 0 });
+    await new Promise((r) => (step = r));
+    emit("item", { key: "a", value: "uno" });
+    update({ done: 1 });
+    progress(0.5);
+    return { staged: 1 };
+  });
+  await tick();
+  expect(jobs.get(job.id).data).toEqual({ lang: "es", total: 2, done: 0 });
+  expect(jobs.list({ kind: "translate" }).map((j) => j.id)).toEqual([job.id]);
+  expect(jobs.list({ kind: "other" })).toEqual([]);
+  const seen = [];
+  const off = jobs.subscribe(job.id, (e) => seen.push(e.type === "item" ? ["item", e.key, e.value] : [e.type, e.job?.data?.done ?? null, e.job?.state ?? null]));
+  expect(off).toBeTypeOf("function");
+  step();
+  await settle(jobs, job.id);
+  expect(seen).toEqual([
+    ["item", "a", "uno"],
+    ["job", 1, "running"],
+    ["job", 1, "running"],
+    ["end", 1, "done"],
+  ]);
+  // a job that has ended takes no followers
+  expect(jobs.subscribe(job.id, () => {})).toBeNull();
+  expect(jobs.list({ kind: "translate" })).toEqual([]);
+});
+
+test("a follower that throws stops neither the job nor the others; Cancel is said to the followers", async () => {
+  const jobs = new JobRegistry();
+  const job = jobs.start({ kind: "translate", key: "" }, stopsOnSignal);
+  await tick();
+  const seen = [];
+  jobs.subscribe(job.id, () => {
+    throw new Error("a broken follower");
+  });
+  jobs.subscribe(job.id, (e) => seen.push(e.type));
+  jobs.cancel(job.id);
+  expect((await settle(jobs, job.id)).state).toBe("cancelled");
+  expect(seen).toEqual(["cancelling", "end"]);
+});
+
+/** The frames of a server-sent-events response, as parsed JSON (keepalive comments counted apart). */
+async function readEvents(res) {
+  const text = await res.text();
+  const blocks = text.split("\n\n").filter(Boolean);
+  return { frames: blocks.filter((b) => b.startsWith("data: ")).map((b) => JSON.parse(b.slice(6))), keepalives: blocks.filter((b) => b.startsWith(":")).length };
+}
+
+test("the route: the running ones listed; a job's events streamed — its snapshot first, then each event, closed after its end", async () => {
+  const jobs = new JobRegistry();
+  const app = createServer({ typeBase: "https://example.test/errors/" });
+  app.route("/", makeJobsRouter(jobs, { keepaliveMs: 20 }));
+  let go;
+  const job = jobs.start({ kind: "translate", key: "", label: "Spanish" }, async ({ update, emit }) => {
+    update({ lang: "es" });
+    await new Promise((r) => (go = r));
+    await new Promise((r) => setTimeout(r, 60)); // quiet a while: the stream keeps itself alive
+    emit("item", { key: "a", value: "uno" });
+    return { staged: 1 };
+  });
+  await tick();
+  expect((await (await app.request("/v1/jobs?kind=translate")).json()).jobs.map((j) => j.id)).toEqual([job.id]);
+  expect((await (await app.request("/v1/jobs?kind=load")).json()).jobs).toEqual([]);
+  const res = await app.request(`/v1/jobs/${job.id}/events`);
+  expect(res.status).toBe(200);
+  expect(res.headers.get("content-type")).toMatch(/^text\/event-stream/);
+  go();
+  const { frames, keepalives } = await readEvents(res);
+  expect(frames.map((f) => f.type)).toEqual(["job", "item", "end"]);
+  expect(frames[0].job).toMatchObject({ id: job.id, state: "running", data: { lang: "es" } });
+  expect(frames[1]).toMatchObject({ key: "a", value: "uno" });
+  expect(frames[2].job).toMatchObject({ state: "done", result: { staged: 1 } });
+  expect(keepalives).toBeGreaterThan(0);
+  // a job already ended: its snapshot and its end at once; unknown: 404
+  const ended = await readEvents(await app.request(`/v1/jobs/${job.id}/events`));
+  expect(ended.frames.map((f) => [f.type, f.job.state])).toEqual([
+    ["job", "done"],
+    ["end", "done"],
+  ]);
+  expect((await app.request("/v1/jobs/nope/events")).status).toBe(404);
+});

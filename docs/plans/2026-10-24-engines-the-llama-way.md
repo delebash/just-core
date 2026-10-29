@@ -279,6 +279,27 @@ finder):**
 - *The GPU through the arbiter:* with SAM 3 booked, house-paint's `assertGpuFree`/`GPU_KINDS`/`hold("local-ai")`
   go — the arbiter evicts an idle holder for room and refuses ("The graphics card is busy") while one is busy.
 
+**Round D2 · docgen's run on the kit's jobs (2026-10-28 — the user's "Fold into the kit (Recommended)": "The kit's
+job system gains a live event stream beside polling, plus a run history. docgen moves onto it in a docgen session I
+start.")** — the design:
+
+| Piece | Standard (doc link) | Kit code |
+|---|---|---|
+| A job's own fields and events: its work gets `update(fields)` (the snapshot's `data`) and `emit(type, payload)`; `subscribe(id, fn)` gives one job's events — `job` (the snapshot, on each progress or update), the app's own, `end` (the last snapshot); `list({kind, key})` the running ones | plain-callback subscribers (docgen's JobManager.subscribe, kept transport-free) | `JobRegistry` `packages/core/src/platform/jobs.js` |
+| `GET /v1/jobs?kind=&key=` (a reloaded page rejoins what runs) and `GET /v1/jobs/:id/events`: the snapshot first, each event a `data: <json>` frame, a 15 s keepalive comment, closed after `end` | server-sent events, html.spec.whatwg.org/multipage/server-sent-events.html; Hono's `stream`, as the kit streams a run | `makeJobsRouter` `packages/core/src/platform/jobs_api.js` `packages/core/src/llm/prompts.js` |
+| The screen follows a job's events — `runServerJob({…, onEvent})`: through the server transport (the access token rides; EventSource can't send it), falling back to polling when the stream drops; without onEvent it polls, as now | WHATWG fetch + ReadableStream; RFC 6750 §2.1 (the bearer header); the frame reading shared with the run stream's (one reader) | `runServerJob` `requestStream` `packages/ui/src/services/serverJob.js` `packages/ui/src/client.js` |
+| The run history | an app's data: its own table (docgen's runs, `/v1/runs`) — the registry keeps a finished job 10 minutes and its end after; a history of what an app did is that app's record (family rule 2: the server owns the data) | app — docgen's `state.js` startRun/finishRun stay its record |
+
+docgen, by a docgen session: its JobManager goes; a run is the kit's job (kind `translate`, one at a time across
+languages — its start route answers 409 while `jobs.busy(["translate"])`); the run updates `{lang, engine, scope,
+total, done, requests, failed, phase}` and emits `item`, `confirming`, `confirm-error`; a cancelled translate ends
+"cancelled" (an AbortError once its proposals are staged — they stay); `/v1/jobs/current` → `GET
+/v1/jobs?kind=translate`, `/v1/jobs/cancel` → `DELETE /v1/jobs/:id`, `/v1/jobs/stream` → `/v1/jobs/:id/events`;
+its screen on `runServerJob` with `onEvent`. Blast radius (grep, 2026-10-28): `server/src/jobs.js`,
+`server/src/workspace.js` (one JobManager per workspace), `server/src/api/workspace_api.js` (14 lines),
+`server/tests/jobs.test.js`, `server/tests/workspace.test.js`, `src/stores/jobs.js`, `src/pages/RunsPage.vue`,
+`src/pages/HomePage.vue`; house-paint's jobs (polling) unchanged; JustWrite and JustVoice none.
+
 **Round D BUILT (2026-10-28):** K9 — house-paint's job registry, route and screen helper moved into the kit as they
 were (`platform/jobs.js` `JobRegistry`, `platform/jobs_api.js` `makeJobsRouter`, `ui/services/serverJob.js`
 `runServerJob`, the words `kit.jobs.*` in English and Spanish), their tests with them; house-paint on them (its

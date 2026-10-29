@@ -13,47 +13,6 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
-## No family app releases until the kit's work is done and checked — this session gives the go [2026-10-28]
-GO:     the user, 2026-10-28, verbatim: "fix it i dont know i know i instructed jw session to wait until kit work
-        is done and it went ahead and ran the build, if sync is not correct then stop build and do it right, work
-        with other session and do a profressional job not a half lazy job" — then: "wait until all work is done
-        and all bugs found then notify session to build do it right!"
-STATE:  JustWrite v2.0.0's release runs were stopped on 2026-10-28. 40783469420 had already been cancelled; it was on
-        sync 9836ed4, which lacks the hono fix 1e07053 (its release.yml runs the sync engine's `npm ci --omit=dev`).
-        This session cancelled 40785919910 at the user's word. Neither run reached publish, and no v2.0.0 release
-        exists; the tag v2.0.0 (1127df4) is JustWrite's own. JustWrite's session has been told to start no run,
-        dry runs included, until this session sends the go. It confirmed: no runs going.
-        JustWrite's fixes since b30c605, all pushed to master (its session's word):
-        - 3173052 — bump.js versions the workspaces too;
-        - 1127df4 — the sidebar shows the real version; the v2.0.0 tag points here;
-        - 84302c5 — the phone-bundle test.
-        Its screenshots (e2e/capture-direct.js, uncommitted) wait for the final build. JustWrite's session also
-        reports that 9836ed4's packaged server did start in dry run 40777984596: the installer carries real copies of
-        its packages, so the Hono gap only hit checkouts and the phone bundle.
-DECIDED 2026-10-28, the user's answer to "When should I give its session the build go?": **"Once JW's work is in
-        (Recommended)"** — "When JustWrite commits its in-progress Brainstorm work and its full checks pass in a clean
-        copy on kit b69050b + sync 1e07053, I send the go naming those commits. JustWrite uses none of rounds C/D/E's
-        new kit pieces." (The kit commit named is the one the guard's list change lands on, the commit after
-        b69050b: only scripts/check-family.js.) The kit holds still — no commit — from that check until JustWrite's
-        release run has started: release.js builds with the kit checkout's HEAD.
-OPEN:   the go to JustWrite's session, once its clean-copy checks pass on the named commits.
-        JustWrite's blockers, found by the user (its code; its session fixes them, and the go waits for the commits):
-        - A scene opened from a link (a strand's beat chip, "Appears in scenes", a mention) highlights its chapter
-          in the left nav but leaves it collapsed, so the scene row is hidden. The links are a bare router.push;
-          only ui.setScrolledScene (scrolling) and adding a scene expand `chapter:<id>`. Sent to JustWrite's session
-          on 2026-10-28. FIXED in JustWrite 6fe6717 (pushed): `ui.expandChapter(id)` from ChaptersPage's route
-          watcher, held by tests/flows/scene-link.spec.js; with it the fixes below. Its session checked it in a clean
-          clone at kit b30c605 (unit 747, server 190, smoke, flows 24/24) — to run again on the go's commits. Next
-          there, at the user's word: Name ideas' text labels, Title ideas beside the book, chapter and scene titles.
-        JustWrite's other v2.0.0 fixes, uncommitted on 2026-10-28 (its session's word):
-        - the Strands header's "Planning" label;
-        - the kit's `width` props on Brainstorm, Settings → Project and Import;
-        - the Plot board's strand column wide enough for the names;
-        - the undo-cap test's time limit;
-        - README;
-        - the screenshot script working on a copy of the data.
-        Its full checks must run in the clean clone on the final kit and sync commits named in the go, not b30c605.
-
 ## One way per job: the kit's job table, K10b's speed and memory notes folded into the existing way [2026-10-27]
 WHY:    K10b (1394e5c) added a per-build `slow` flag (runtimes.js `fastGpus`, runtime_service.js `_slow`) and a
         model's `lowMemory` (runtime_model `ram_gb`/`ram_gb_shared`, `_memoryNote`) — second ways to do jobs the
