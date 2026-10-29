@@ -13,6 +13,21 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
+## Found by JustWrite's real-model screenshots, for the kit [2026-10-28]
+WHY:    JustWrite's session, from v2.0.0 run for real at 1920×1009 (its screenshots), 2026-10-28.
+OPEN:   1. Model answers shown as Markdown, safely: Ask the book and Talk to a character print the model's answer as
+           plain text (justwrite-app `src/components/ChatPanel.vue:562`), so Gemma's `**…**` and `*` bullets show
+           literally. Standard: marked (already the kit's and the apps' dependency) — its docs say it doesn't sanitize
+           and recommend DOMPurify; model text can carry HTML and `javascript:` links. A kit `renderAiMarkdown(text)`
+           in @delebash/ui (marked → DOMPurify, external links target=_blank rel=noopener, no raw HTML), DOMPurify a
+           new kit dependency; `helpMarkdown.js` renders trusted docs only. JustWrite wires its chat bubble once it's
+           in (its tracker waits on the kit). Queued after house-paint's release (the user's focus, 2026-10-28).
+        2. The model catalog squeezed in the provider form: AI Settings → the Built-in provider's Edit puts
+           `LuModelCatalog` in the form's ~845 px column — the MODEL column wraps each row's name, badges and notes
+           into a ~95 px strip, FIT and STATUS sit mostly empty, the table scrolls sideways (its picture:
+           JustWrite's session scratchpad `shots/ai-models.png`). A layout bug (app-structure §11: size to content,
+           one scroller per area). Queued with 1.
+
 ## The model catalog's open calls, moved from JustWrite's tracker [2026-10-28]
 WHY:    JustWrite's user: "do the kit code to its session" — these lines were JustWrite's, but the code is the kit's
         (packages/ui). Moved by JustWrite's session on 2026-10-28, each checked in the code that day. All are the
