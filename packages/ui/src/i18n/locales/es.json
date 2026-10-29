@@ -1238,7 +1238,6 @@
         "uppercase": "MAYÚSCULAS"
       },
       "panel": {
-        "localeDesc": "Idioma de la interfaz.",
         "mode": {
           "system": "Seguir el sistema",
           "light": "Claro",

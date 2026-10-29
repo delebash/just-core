@@ -62,7 +62,7 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            that", then on the rec to remove it family-wide: "remove hook your rec on rest" — no commit hooks,
            family-wide: DONE in the template (its .husky, `prepare`, lint-staged and the two packages gone) and
            app-structure §18; JustWrite's gone (324f0f59); docgen never installed it; house-paint's by its session;
-           JustVoice has none. 40 AppearancePanel's Language row removed (JustVoice onto LanguagePicker). 41 the stale
+           JustVoice has none. 40 BUILT (AppearancePanel's Language row removed; JustVoice onto LanguagePicker — its hand-off line). 41 the stale
            docs and comments. 42 "tuned config" → "applied config" in the PC classes help; the Add-model note's last
            sentence: the user's words (asked).
         E. Removed: D5, D6, I3, the KV/context surface (record in its plans), the RAM probe's serial passes (kept),
@@ -98,7 +98,10 @@ FOR JUSTVOICE'S SESSION, when one runs (none since these landed): this release r
         already (7c383a1d). From "Finish the kit" (2026-10-29): mount the kit's `resourceIsolation` beside csrfOrigin and
         play its server's audio with `crossorigin="anonymous"` (its ~25 `<audio>` / `new Audio` uses — app-structure §19;
         the guard's ISOLATION_KNOWN until then); no commit hooks (the family's ruling); AGENTS.md (its CLAUDE.md is 207
-        lines) and installErrorReporting in its boot; its UiServerImage override of the token (`jt:token`, src/boot/jv.js); its import-format picker (ImportModal.vue) onto UiSelect's groups (`{label, options}`).
+        lines) and installErrorReporting in its boot; its UiServerImage override of the token (`jt:token`, src/boot/jv.js); its import-format picker (ImportModal.vue) onto UiSelect's groups (`{label, options}`); the language as the kit's
+        LanguagePicker (AppearancePanel's own Language row is gone — SettingsPage.vue still passes `locales` and
+        `locale-desc`); round E (J1, the engines plan) on the kit's audio.cpp part once it lands; the template's
+        e2e/tests/a11y.test.js (axe, WCAG 2.2 AA) and the "Installing it" section of docs/getting-started.md.
 
 ## Every app's website deploys by its own `npm run deploy` [2026-10-29]
 DECIDED: the user, verbatim (2026-10-28): "why would i run the website workflow from the app workflow this doesnt make

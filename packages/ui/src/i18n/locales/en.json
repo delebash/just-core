@@ -1238,7 +1238,6 @@
         "uppercase": "UPPERCASE"
       },
       "panel": {
-        "localeDesc": "UI language.",
         "mode": {
           "system": "Follow system",
           "light": "Light",

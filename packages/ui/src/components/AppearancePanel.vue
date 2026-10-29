@@ -13,9 +13,9 @@
 // its fill is the accent, so it recolours as the hue moves (JustVoice's
 // proposal, 2026-10-18).
 //
-// Rows: Theme · Interface size · UI font · Accent hue (swatch + slider) ·
-// Language. The Language row renders only when the host passes `locales` —
-// content, not surface: an app without i18n shows no dead picker.
+// Rows: Theme · Interface size · UI font · Accent hue (swatch + slider). The language is the kit's
+// LanguagePicker, a row of its own beside this panel (one way per job — this panel's own Language row
+// was a second one, removed 2026-10-29).
 //
 // The host binds `:appearance` (its ui store's appearance object) and applies
 // the emitted `patch` partials via its store's `setAppearance`.
@@ -27,20 +27,16 @@ import UiSelect from "../common/components/UiSelect.vue";
 import UiSlider from "../common/components/UiSlider.vue";
 import { UI_FONTS, UI_SCALES } from "../common/services/appearance.js";
 
-const props = defineProps({
+defineProps({
   appearance: { type: Object, required: true },
   // oklch chroma for the accent swatch — the app's real palette punch.
   accentChroma: { type: Number, default: 0.1 },
   // App-true tail for the accent desc (e.g. "Default 166° = forest green.").
   accentNote: { type: String, default: "" },
-  // Locale options ({ label, value }); empty = no Language row.
-  locales: { type: Array, default: () => [] },
-  localeDesc: { type: String, default: "" },
 });
 const emit = defineEmits(["patch"]);
 
 const { t } = useI18n();
-const localeHint = computed(() => props.localeDesc || t("kit.appearance.panel.localeDesc"));
 const MODES = computed(() => [
   { label: t("kit.appearance.panel.mode.system"), value: "system" },
   { label: t("kit.appearance.panel.mode.light"), value: "light" },
@@ -119,21 +115,5 @@ const titleId = (row) => `appearance-${row}-${uid}`;
       :aria-label="t('kit.appearance.panel.accent', { hue: appearance.accentHue })"
       @update:model-value="(v) => emit('patch', { accentHue: Number(v) })"
     />
-  </div>
-
-  <div v-if="locales.length" class="setting-row">
-    <div class="setting-row__head">
-      <div>
-        <div :id="titleId('locale')" class="setting-row__title">{{ t('kit.settings.language.label') }}</div>
-        <div class="setting-row__desc">{{ localeHint }}</div>
-      </div>
-      <UiSelect
-        :aria-labelledby="titleId('locale')"
-        :model-value="appearance.locale"
-        width="name"
-        :options="locales"
-        @update:model-value="(v) => emit('patch', { locale: v })"
-      />
-    </div>
   </div>
 </template>
