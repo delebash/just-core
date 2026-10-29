@@ -22,8 +22,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
         A. Bugs: 1 BUILT (multi-window + the own-page check; the template's e2e test runs with the final pass).
            2 BUILT (one-pool fit). 3 BUILT (a shared cache keeps the builds other apps use). 4 + 5 BUILT (`--no-models-autoload`; the embeddings route makes its model
            ready) — its real-router check (realrouter_smoke, JW_REALROUTER=1) runs with the GPU runs. 6 BUILT (the engine panel's cleared boxes left out of its save). 7 BUILT (stream lines end at CR/LF only). 8 BUILT (auto-tune ends in error when its service throws).
-           9 BUILT (a failed model row has Dismiss). 10 measure history hides the load rows; an unnamed row reads "Load &
-           measure". 11 a failed engine-update check says "Couldn't check for a newer engine — showing the build this
+           9 BUILT (a failed model row has Dismiss). 10 BUILT (an unnamed history row reads "Load & measure"; the load rows were already left out —
+           measurements.js SPEED_SOURCES). 11 a failed engine-update check says "Couldn't check for a newer engine — showing the build this
            app was tested with."; the check is cached. 12 the llama.cpp download checked against GitHub's digest.
            13 the runtime speed bands editable. 14 Count and Measure share one engine check. 15 the adapters' errors
            through adapterHttpError; Ollama's embeddings fallback guarded. 16 shared_cache's two stale-fixture tests.

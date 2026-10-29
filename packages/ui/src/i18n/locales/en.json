@@ -1708,7 +1708,6 @@
       "title": "Measurement history",
       "summary": "every measured speed for this model, saved across restarts",
       "autotune": "Auto-tune",
-      "measured": "measured",
       "gb": "{gb} GB",
       "empty": "Nothing measured yet — every “Load & measure” result and auto-tune trial is recorded here automatically.",
       "firstRunLabel": "first-run measure"

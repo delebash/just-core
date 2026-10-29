@@ -1708,7 +1708,6 @@
       "title": "Historial de mediciones",
       "summary": "cada velocidad medida para este modelo, conservada entre reinicios",
       "autotune": "Ajuste automático",
-      "measured": "medido",
       "gb": "{gb} GB",
       "empty": "Aún no hay mediciones — cada resultado de «Cargar y medir» y cada prueba de ajuste automático se registra aquí automáticamente.",
       "firstRunLabel": "medición de la primera ejecución"

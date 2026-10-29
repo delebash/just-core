@@ -65,6 +65,7 @@ import {
 } from "@delebash/ui";
 import { fmtBytes, fmtSpeed } from "@delebash/ui/common/services/downloadRate.js";
 import LuModelCatalog from "@delebash/ui/components/LuModelCatalog.vue";
+import LuMeasureHistory from "@delebash/ui/components/LuMeasureHistory.vue";
 import TuneMeasureModal from "@delebash/ui/components/TuneMeasureModal.vue";
 import PricingEditor from "@delebash/ui/views/PricingEditor.vue";
 import ProviderForm from "@delebash/ui/views/ProviderForm.vue";
@@ -1115,4 +1116,27 @@ test("a dialog opened over another cancels it as its own kind cancels — a prom
   await settle();
   await new DOMWrapper([...document.querySelectorAll('[role="dialog"] button')].find((b) => b.textContent.trim() === "Cancel")).trigger("click");
   expect(await again).toBeNull();
+});
+
+// The finish list's A10 (2026-10-29): a measurement the Tune dialog's "Load & measure" recorded has no label, and the
+// history named it the bare word "measured" — it reads as the button that made it. The load-footprint rows each load
+// records (source "load", 0 tok/s) stay out: they are fit evidence, not speed runs (measurements.js SPEED_SOURCES).
+test("measurement history: an unnamed run reads as the button that made it; a load's footprint row isn't listed", async () => {
+  serve({
+    "/v1/ai/model-measurements": {
+      measurements: [
+        { id: 1, modelId: ID, source: "tune", label: "", tokensPerSec: 12.3, at: "2026-10-29T10:00:00Z", switches: [] },
+        { id: 2, modelId: ID, source: "load", label: "load footprint (measured)", tokensPerSec: 0, at: "2026-10-29T09:00:00Z", switches: [] },
+      ],
+    },
+  });
+  wrapper = mount(LuMeasureHistory, { props: { modelId: ID }, attachTo: document.body, global: { plugins: withPinia() } });
+  const drawer = wrapper.find("details");
+  drawer.element.open = true;
+  await drawer.trigger("toggle");
+  await flushAll();
+  const table = wrapper.find(".lu-mh-tbl").text();
+  expect(table).toContain("Load & measure");
+  expect(table).not.toMatch(/\bmeasured\b/);
+  expect(table).not.toContain("load footprint");
 });

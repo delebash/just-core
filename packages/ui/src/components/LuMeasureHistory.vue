@@ -115,7 +115,7 @@ async function clearHistory() {
             <span class="lu-mh-run">
               <UiTag v-if="row.source === 'autotune'" intent="info">{{ t('kit.measureHistory.autotune') }}</UiTag>
               <span v-if="row.label">{{ row.label }}</span>
-              <span v-else-if="row.source !== 'autotune'">{{ t('kit.measureHistory.measured') }}</span>
+              <span v-else-if="row.source !== 'autotune'">{{ t('kit.tuneModal.loadMeasure') }}</span>
             </span>
           </template>
           <template #settings="{ row }"><span class="lu-mh-sum">{{ settingsOf(row) }}</span></template>
