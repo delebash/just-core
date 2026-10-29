@@ -88,6 +88,8 @@ OPEN:   5. After the open fixes, each app (the kit, house-paint, JustVoice, docg
            it, its reasons and the attack, for the user to decide. The user, verbatim (relayed): "i want all apps to
            have the roadmap ideas ect listed and recommed do d0ont remove pas this to other session after they complete
            there bug and current feature fixes". JustVoice's session gets 4 and 5 when one runs.
+           House-paint's DONE 2026-10-29 (its TASKS has the user's words): IDEAS.md empty, the PRD's out of scope
+           decided — no signed installers, no cloud AI photo; the phone app kept as its one "later" line.
         MY RECS for the kit (shown 2026-10-29, waiting on the user's word) — IDEAS.md and the candidate pools (the llama.cpp
         watch's open adoption candidates, the box-gated/parked block). Do: a vision model's speed on its chip and the
         runtimes' bands on the AI page (the speed band's one gap); the template's notes get If-Match (two windows can
