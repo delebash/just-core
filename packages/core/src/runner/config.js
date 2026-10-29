@@ -247,17 +247,20 @@ export const DEFAULT_BINARIES = [
 // ─── stable-diffusion.cpp — the kit's image runtime (docs/plans/2026-10-24-engines-the-llama-way.md, K2) ───
 // Its builds are seed DATA like llama.cpp's: rows in `runtime_binary` (runtime "sdcpp"), the pin in
 // `runner_setting` `pinned_build:sdcpp`, seeded insert-if-missing for an app that turns the runtime on
-// (installLlm({ runtimes: ["sdcpp"] })) and editable there. Pinned at master-1004-a85db96 — the first build with
-// mid-render Cancel, /sdcpp/v1/models/status and /unload (measured on this PC, RESEARCH "stable-diffusion.cpp's
+// (installLlm({ runtimes: ["sdcpp"] })) and editable there. Pinned at master-1024-77b72a2, its latest release (the
+// family release moves every pinned engine to its latest — the user, 2026-10-29); master-1004-a85db96 was the first build
+// with mid-render Cancel, /sdcpp/v1/models/status and /unload (measured on this PC, RESEARCH "stable-diffusion.cpp's
 // server, measured on this PC"). Each row is a release asset with the size and SHA-256 GitHub's API reports
-// (GET …/releases/tags/<tag>, 2026-10-24), and what it unpacks to (`asset_unpacked_bytes`, `runtime_unpacked_bytes` —
-// the sum of each zip's entries, read from its central directory by range requests, 2026-10-27: the room an install
-// needs beside its zips, RESEARCH "stable-diffusion.cpp's builds unpacked"). `requires`: what a build needs from the system, said before the
+// (GET …/releases/tags/<tag>, 2026-10-29), and what it unpacks to (`asset_unpacked_bytes`, `runtime_unpacked_bytes` —
+// the sum of each zip's entries, read from its central directory by range requests, 2026-10-29: the room an install
+// needs beside its zips, RESEARCH "stable-diffusion.cpp's builds unpacked"). The cudart zip is byte-identical to
+// master-1004's (the same digest). `requires`: what a build needs from the system, said before the
 // download — on Windows the Visual C++ runtime's DLLs its binaries import (Microsoft's redistributable, never
 // shipped), the macOS build's minos 26.0, the Linux builds' GLIBC 2.38 (built on Ubuntu 24.04) — measured on
-// master-973's binaries by house-paint (the same release workflow). No Linux CUDA build is published (NVIDIA
+// master-973's binaries by house-paint (the same release workflow; master-1024's names show the same macOS 26.6.2 and
+// Ubuntu 24.04 bases — carried over, not re-measured). No Linux CUDA build is published (NVIDIA
 // on Linux takes Vulkan); the macOS zip is one universal build with Metal.
-export const DEFAULT_SDCPP_BUILD = "master-1004-a85db96";
+export const DEFAULT_SDCPP_BUILD = "master-1024-77b72a2";
 const SD_REL = `https://github.com/leejet/stable-diffusion.cpp/releases/download/${DEFAULT_SDCPP_BUILD}`;
 const SD_VC_DLLS = Object.freeze(["MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "VCOMP140.DLL"]);
 const sdRow = (platform, gpu, asset, bytes, unpacked, sha256, extra = {}) => ({
@@ -272,20 +275,20 @@ const sdRow = (platform, gpu, asset, bytes, unpacked, sha256, extra = {}) => ({
   ...extra,
 });
 export const DEFAULT_SDCPP_BINARIES = [
-  sdRow("windows", "cuda12", "sd-master-a85db96-bin-win-cuda12-x64.zip", 343489328, 388709969, "7528f645a5ba6a62200b536747e63857c226e929405d38519d4161d8ef43660d", {
+  sdRow("windows", "cuda12", "sd-master-77b72a2-bin-win-cuda12-x64.zip", 350857718, 396351095, "e60e538b86ecd47d8e141297fa45734125fdf97925d8ed3b49acb1397b5ee90b", {
     runtime_url: `${SD_REL}/cudart-sd-bin-win-cu12-x64.zip`,
     runtime_bytes: 563452046,
     runtime_unpacked_bytes: 788957696,
     runtime_sha256: "fe20366827d357c00797eebb58244dddab7fd9a348d70090c3871004c320f38d",
     requires: { dlls: SD_VC_DLLS },
   }),
-  sdRow("windows", "rocm", "sd-master-a85db96-bin-win-rocm-10.1.0-x64.zip", 264507284, 1220654028, "14425ad2e1a3a46b19bc170bd82d411c832610b88b31b105f8b709e97be98db0", { requires: { dlls: SD_VC_DLLS } }),
-  sdRow("windows", "vulkan", "sd-master-a85db96-bin-win-vulkan-x64.zip", 29697425, 88658513, "ba06119be4041fb69a85e490c2b7c1b68ead48de84cb775b7a53dc7746ea2762", { requires: { dlls: SD_VC_DLLS } }),
-  sdRow("windows", "cpu", "sd-master-a85db96-bin-win-cpu-x64.zip", 18033865, 48624721, "6bd679cbb9509b8de6df7ec3ff16fc3658d9931eaefb9548567e938b5fa58d70", { requires: { dlls: SD_VC_DLLS } }),
-  sdRow("macos", "metal", "sd-master-a85db96-bin-Darwin-macOS-26.6.2-arm64.zip", 37444741, 101637472, "a149b98f1f90bc334b9d84d230aa0f1dfdee31ddbbf6b7957a69afe4c30af180", { requires: { macos: "26.0" } }),
-  sdRow("linux", "rocm", "sd-master-a85db96-bin-Linux-Ubuntu-24.04-x86_64-rocm-10.1.0.zip", 296363307, 1453342350, "f8b39610d5b9b93628812739735ad9c91f9c643187cef6c295e60ccfb14a6d71", { requires: { glibc: "2.38" } }),
-  sdRow("linux", "vulkan", "sd-master-a85db96-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip", 37564039, 103381544, "6cb41cd315cccf09820c31cbe9c7738c285b429b34b964bae3fdee70c8ea8703", { requires: { glibc: "2.38" } }),
-  sdRow("linux", "cpu", "sd-master-a85db96-bin-Linux-Ubuntu-24.04-x86_64.zip", 27239917, 70427608, "eed7d3544bd05ac00e5c86863e7919b8a08aa7337168adab0fdf2878500e1e23", { requires: { glibc: "2.38" } }),
+  sdRow("windows", "rocm", "sd-master-77b72a2-bin-win-rocm-10.1.0-x64.zip", 265967330, 1226862028, "edba722c47b634de5a8897bb631e320c7d6635686096a64cd605a758f7221542", { requires: { dlls: SD_VC_DLLS } }),
+  sdRow("windows", "vulkan", "sd-master-77b72a2-bin-win-vulkan-x64.zip", 29747358, 88799313, "854cd219814e90ffd0a804a19bda60cdc04a7f89a6c52aa7e3b959227b495072", { requires: { dlls: SD_VC_DLLS } }),
+  sdRow("windows", "cpu", "sd-master-77b72a2-bin-win-cpu-x64.zip", 18083813, 48765521, "f56a021629bfbff2a4725af97147ae84090eb075489a5ce7883daaaf87d4169d", { requires: { dlls: SD_VC_DLLS } }),
+  sdRow("macos", "metal", "sd-master-77b72a2-bin-Darwin-macOS-26.6.2-arm64.zip", 37585331, 102161840, "2bdbadad6592350158b08d43b2c52cde3146ab52bbe7bcd1cbcc0d3f23856512", { requires: { macos: "26.0" } }),
+  sdRow("linux", "rocm", "sd-master-77b72a2-bin-Linux-Ubuntu-24.04-x86_64-rocm-10.1.0.zip", 298318102, 1461631814, "ac0d35934165d9fb11973bc81c35b9c262236d9281d31c80f9fd863358e0db0b", { requires: { glibc: "2.38" } }),
+  sdRow("linux", "vulkan", "sd-master-77b72a2-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip", 37649874, 103654664, "3833cb636e1ecef8a5445c8547e13d1771583158880fb20a70a602fdc4da0f2e", { requires: { glibc: "2.38" } }),
+  sdRow("linux", "cpu", "sd-master-77b72a2-bin-Linux-Ubuntu-24.04-x86_64.zip", 27325752, 70700728, "d44a17e278412bd45c1847a91d30a69146b9bb9144c91a61fa0e357d7e2466af", { requires: { glibc: "2.38" } }),
 ];
 
 /** A DEFAULT_BINARIES row (snake data keys) as a BinaryAsset value (camelCase fields). */

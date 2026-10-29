@@ -1352,7 +1352,10 @@ re-checked by the session that saved them; paths are from before the just-core r
   install measured on this PC; win rocm 264,507,284 → 1,220,654,028 (×4.61); win vulkan 29,697,425 → 88,658,513
   (×2.99); win cpu 18,033,865 → 48,624,721 (×2.70); macOS 37,444,741 → 101,637,472 (×2.71); Linux rocm
   296,363,307 → 1,453,342,350 (×4.90); Linux vulkan 37,564,039 → 103,381,544 (×2.75); Linux cpu 27,239,917 →
-  70,427,608 (×2.59). An install holds its zips and what they unpack to at once (binary.js `_stageAndSwap` keeps
+  70,427,608 (×2.59). master-1024-77b72a2 (the pin from 2026-10-29, measured the same way that day): win cuda12
+  350,857,718 → 396,351,095; win rocm 265,967,330 → 1,226,862,028; win vulkan 29,747,358 → 88,799,313; win cpu
+  18,083,813 → 48,765,521; macOS 37,585,331 → 102,161,840; Linux rocm 298,318,102 → 1,461,631,814; Linux vulkan
+  37,649,874 → 103,654,664; Linux cpu 27,325,752 → 70,700,728; the cudart zip unchanged (the same digest). An install holds its zips and what they unpack to at once (binary.js `_stageAndSwap` keeps
   the zips until the swap), so the kit asks the drive for both plus 256 MB; a row without a measured size takes 5×
   its zip (the largest seen, 4.90). The rows carry them (`runner/config.js`, `runtime_binary.asset_unpacked_bytes`,
   `runtime_unpacked_bytes`).

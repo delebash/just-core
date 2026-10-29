@@ -42,8 +42,8 @@ test("an app that turns sd.cpp on gets every build row and the pin, with sizes, 
   const cuda = cfg.binaries.find((b) => b.platform === "windows" && b.gpu === "cuda12");
   expect(cuda).toMatchObject({
     serverExe: "sd-server.exe",
-    assetBytes: 343489328,
-    sha256: "7528f645a5ba6a62200b536747e63857c226e929405d38519d4161d8ef43660d",
+    assetBytes: 350857718,
+    sha256: "e60e538b86ecd47d8e141297fa45734125fdf97925d8ed3b49acb1397b5ee90b",
     runtimeSha256: "fe20366827d357c00797eebb58244dddab7fd9a348d70090c3871004c320f38d",
     requires: { dlls: ["MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "VCOMP140.DLL"] },
   });
@@ -66,7 +66,7 @@ test("reseed keeps a row the user edited and the pin they set; reset puts the ki
   store.resetRuntimeToDefaults("sdcpp");
   cfg = store.getRuntimeConfig("sdcpp");
   expect(cfg.pinnedBuild).toBe(DEFAULT_SDCPP_BUILD);
-  expect(cfg.binaries.find((b) => b.gpu === "cuda12").assetUrl).toContain("sd-master-a85db96-bin-win-cuda12-x64.zip");
+  expect(cfg.binaries.find((b) => b.gpu === "cuda12").assetUrl).toContain("sd-master-77b72a2-bin-win-cuda12-x64.zip");
   expect(cfg.binaries.find((b) => b.gpu === "cuda13").assetUrl).toBe("https://example.test/cu13.zip"); // the user's own
 });
 
