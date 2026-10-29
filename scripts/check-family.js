@@ -1518,8 +1518,8 @@ function checkEsModules(name, dir, roots = ["."]) {
 // name (AUTO_KNOWN) until their sessions change them; any other fails.
 const AUTO_TRIGGER = /^(push|pull_request|pull_request_target|schedule|workflow_run|repository_dispatch|workflow_call)\b/;
 const STARTS_ANOTHER = /\/dispatches\b|\bgh\s+workflow\s+run\b/;
+// (JustVoice's release and CodeQL run by hand since 97002618)
 const AUTO_KNOWN = new Map([
-  ["JustVoice", new Set([".github/workflows/release.yml", ".github/workflows/codeql.yml"])],
   // its notify-website job (the template's before 2026-10-29): its session moves to the template's release, which
   // starts nothing, and its site's npm run deploy (JustWrite's moved in 407b3eb)
   ["docgen", new Set([".github/workflows/release.yml"])],
