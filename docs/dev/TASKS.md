@@ -15,149 +15,6 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
-## Finish the kit — every open item researched, one list [2026-10-29]
-GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at any open items or lists i want to finish
-        kit so think about all bugs items adverserialy give me your rec to finish kit"; on the list: "your rec on all but
-        think adverserily on your recs again go"; then "and we should use the latest engine pin for the release of all
-        apps and final testing after all features and bugs are fixed". The list (recs as shown, evidence file:line per
-        item in the session's research notes) — close = delete each line as it lands:
-        A. Bugs: 1 BUILT (multi-window + the own-page check; the template's e2e test runs with the final pass).
-           2 BUILT (one-pool fit). 3 BUILT (a shared cache keeps the builds other apps use). 4 + 5 BUILT (`--no-models-autoload`; the embeddings route makes its model
-           ready) — its real-router check (realrouter_smoke, JW_REALROUTER=1) runs with the GPU runs. 6 BUILT (the engine panel's cleared boxes left out of its save). 7 BUILT (stream lines end at CR/LF only). 8 BUILT (auto-tune ends in error when its service throws).
-           9 BUILT (a failed model row has Dismiss). 10 BUILT (an unnamed history row reads "Load & measure"; the load rows were already left out —
-           measurements.js SPEED_SOURCES). 11 BUILT (the update check keeps a good answer `updateCheckMinutes`, 60 — its field beside the update
-           policy, words "Check every (minutes)" mine; a failure says the approved line). 12 BUILT (the llama.cpp download checked against GitHub's digest — the seeded rows get theirs
-           at the pin's move).
-           13 BUILT (a runtime's speed bands on its tab — words "Speed bands (seconds per image)", "Fast/Fine/Slow
-           at ≤" mine). 14 BUILT (Count and Measure share `_servingModel`). 15 BUILT (the local adapters' errors through
-           adapterHttpError; §19 row). 16 BUILT (shared_cache's two tests on fixed fixtures).
-           17 BUILT (the guard's checkResourceIsolation; §19's media row, measured; JustVoice's move in its
-           hand-off line). 18 BUILT (declaredClaimFn, startRunner/Runner — its spawn diagnostics tests now on
-           the router — and LoadRequest.jobId/profileSwitchesFn removed; the screenless data routes kept).
-        A+. JustWrite's reports (2026-10-29, measured on its built app): an embedding row turns llama-server's prompt
-           cache off (`cache-ram = 0` — the qwen3 embed child grew 2.3 → 6.5 GB and the chat load was refused) BUILT
-           6954fee; a stream's error frame carries the refusal whole BUILT 7a72c44. Its two questions DECIDED (the user, "your rec
-           go" in JustWrite's session, relayed): both stay — the chat rows keep the 8 GB cache, the RAM door counts no pinned embed.
-        B. docgen's: 19 + 20 BUILT (start-packaged: the launcher named for server/package.json; `--data-dir <folder>`,
-           never removed — its first real run with the final pass; the e2e driver's dashed-id fix). 21 BUILT (the guard:
-           docgen in check 17; JustWrite + docgen in the chrome and release checks — JustWrite's clipboard fixed,
-           7ba14f7b; AUTO_KNOWN empty; checkRendererPeers).
-        C. Features: 22 BUILT (a load's real progress from /models/sse, as the file's bytes; the stream reader
-           moved to platform/lines.js — its real-engine run with the GPU runs). 23 BUILT (a vision model's speed: the work's `recordSpeed(secondsPerImage)`, bands 5 / 20 / 60 s seeded and
-           editable; house-paint's finder records its encode — bd52883). 24 BUILT (If-Match in the kit — platform/versions.js; the template's notes on it; house-paint's
-           outlines onto it — 0f4493e). 25 BUILT (UiSelect groups — JustVoice's picker moves onto it, its hand-off line).
-           26 BUILT (sync: remove a device from a cloud folder — just-sqlite-sync ccf3fb6 `DELETE folder/devices/:id`, syncs first;
-           SyncPanel's Remove on a folder row, the confirm's words mine; the design's 60-day auto-prune dropped; both apps' help). 27 BUILT (sync "Changes waiting" = this device's
-           changes not yet sent — just-sqlite-sync 7e0fc0d `unsent()`, status `waiting`; one line under the sync line, words mine). 28 BUILT (Claude's prompt cache on every request; the ledger prices writes and reads at each model's rates,
-           editable on the price table — column words mine). 29 BUILT (Mac/Linux: a pidfile
-           sweep of engines a crash left — process.js `_sweepLeftover` in the spawn seam; unit-tested only, no Mac or Linux box here). 30 round E (JustVoice's audio.cpp and jobs into the kit) BEFORE the release.
-           31 BUILT (the log names a llama.cpp config.ini the engine reads). 32 the pin's skipped re-read (placement rules,
-           request parsing) + one MoE and one dense check run. 33 re-test --fit with Gemma-4 MTP drafts (if broken:
-           llama-fit-params first, then launch with its placement). 34 the speed-truth walks on JustWrite's real app.
-           LAST before the final tests: the engine pin moves to the latest release (32 and 33 run on it) — BUILT: llama.cpp
-           b11960 with each row's sha256, sd.cpp master-1024-77b72a2; 32 BUILT (the re-read, 721 commits; Step 0b PASS); 33
-           BUILT (--fit keeps the MTP draft; it halves an untuned 12B — the user's item 5); the card checks PASS (item 6).
-        D. Docs: 35 BUILT (the kit's AGENTS.md (CLAUDE.md → @AGENTS.md), just-sqlite-sync's too; the guard checks both copies). 36 BUILT (app-structure: an
-           accessibility standard (WCAG 2.2 AA) with a template test — §17, e2e/tests/a11y.test.js on axe; "installers
-           are unsigned" family-wide — §Q.2 and the template's getting-started; no performance budgets — §18). 37 BUILT (the labeling law and the dismissal rules into §17/§19, from the code; the two IDEAS entries closed). 38 BUILT (feature-model-system.md
-           against the JavaScript — its two stale bug notes now the finding below, "two routing bugs"). 39 REVERSED by the user (2026-10-29, in JustWrite's session,
-           relayed): "what is husky and the ci i dont want tests just running or things just running on commit in
-           gituhb unless we need it often you take up so much time running tests after each little change i dont like
-           that", then on the rec to remove it family-wide: "remove hook your rec on rest" — no commit hooks,
-           family-wide: DONE in the template (its .husky, `prepare`, lint-staged and the two packages gone) and
-           app-structure §18; JustWrite's gone (324f0f59); docgen never installed it; house-paint's gone (5c7caa8);
-           JustVoice has none. 40 BUILT (AppearancePanel's Language row removed; JustVoice onto LanguagePicker — its hand-off line). 41 BUILT (the stale
-           docs and comments — the class key, the watch doc, two plan headers, serving-design's sleepers, the skill's
-           no-standard list, app-structure's docgen lines, the Bonsai verdicts and licence clause into model-research;
-           the skill's TASKS pointers move with F, then install-skills). 42 "tuned config" → "applied config" in the PC classes help BUILT; the Add-model note's last
-           sentence: the user's words (asked).
-        E. Removed: D5, D6, I3, the KV/context surface (record in its plans), the RAM probe's serial passes (kept),
-           Linux CUDA builds (Vulkan there), the template's phone (out of new apps), the per-band 27B trial,
-           "Recommended" by hand (no), a one-machine library (no), the unload-clicks watch, the prompt-audit line,
-           Bonsai 1/2, the model watchlist, the licence flag, the SDK pivot, the arch check, the MTP-variant steer,
-           TTS in llama.cpp, watch 6/7, --log-jsonl, /metrics, the fixture-only probe arms, the imaging trigger.
-        E + F DONE 2026-10-29 (the done sections deleted, each confirmed in code by that day's research; the KV surface's
-        record in docs/plans/archive/2026-09-19-kv-context-surface.md). G. The apps' items go to their trackers.
-DECIDED 2026-10-29 (the user, on four questions, the answers as chosen): round E — "JustVoice session (Recommended)":
-        the kit's half here, then a JustVoice session the user starts moves JustVoice's side. The sync conflict (JustWrite's
-        close-out dropped 14 "changes waiting" and 15 the remove-device button for JustWrite at 12:20, after this list's
-        10:51 go) — "Keep both (Recommended)". The pin move — "Every engine the kit pins (Recommended)": llama.cpp and
-        stable-diffusion.cpp to their latest releases, sd.cpp re-checked with one render. The two routing bugs below —
-        "Fix both (Recommended)" — BUILT: Set as default records the routing default the Reset reads
-        (ui/services/modelApply.js); the picker refreshes when a model lands on disk (ui/composables/useRunnerModels.js);
-        template tests kitModelApply / kitRunnerModelsPicker, not yet run.
-DECIDED 2026-10-29 (the user, verbatim: "your rec go", on the numbered list of eight, each fact checked first):
-        1 speech routing — transcription a kit feature on an stt preset (`captures.stt_model` retired into it by
-        retireSettings); speech (tts) no preset, the voice chooses. 2 the DSP program stays the app's (shipped with
-        it, started through the kit's spawnChild) — no kit work. 3 the fork's model_management API in the kit (models
-        registered into the running server). 4 eSpeak an extra archive on each audio.cpp build row; UniDic an
-        optional add-on row installed on demand from the Speech tab. 5 BUILT (runner/autotune.js, its tests not yet run) — auto-tune gains a measured layer walk for dense
-        models; then JustWrite runs it on its 12B (--fit's 1,094 MiB margin left 10 of 49 layers on the CPU: 21 vs 41
-        tok/s on b11960). 6 one coordinated card session now on b11960's open Gemma-4 + MTP bugs (#30419, #30698,
-        #31077, #30975, exactness); if #30419 or #30698 fires, the release stays on b11239. 7 a one-pool laptop walk
-        (the Radeon 780M) if it's at hand, else dropped. 8 the Add-model note's last sentence: "Embedding models keep
-        hand-set minimums for card memory and RAM; the Fits badge and Quick Setup both read them."
-FOUND 2026-10-29 (for the user's word at the end, not built): (a) sd.cpp master-1024 passed house-paint's real-app check
-        (Update 16 s; render 39.5 s cold / 33.4 s warm, ΔE 1.25; Cancel frees the card) but one pair of shutters stayed
-        light where master-1004's render painted them — not a clean A/B (different masks); rec: a bare A/B, the same
-        sd-server request on both builds, pixel-diffed. (b) A render's note named house-paint's OWN llama-server (its child)
-        as "other programs" holding 6.3 GB — the own-process filter (hardware.js processTreePids) missed it once; not
-        reproduced. (c) the speech bands' fast line (5×) is the kit's start value, not decided. (d) JustWrite's
-        WCAG 2.2 AA run (axe 4.14, relayed 2026-10-29) found 6 in kit components: 1 UiCheckbox/UiToggle wrapped in a
-        text <label> leave the focusable role="checkbox" root unnamed (aria-toggle-field-name — JW's Writing AI tab,
-        SyncPanel .lu-sync-toggle/.lu-sync-unit, ConfigColumn .cc-chk); 2 Breadcrumb .breadcrumb-link is 15.8 px tall
-        (target-size 2.5.8 — a visible change); 3 SyncPanel's interval and device-name boxes unnamed; 4 ConfigColumn's 2
-        inputs and 2 textareas unnamed; 5 the engine console's .lu-logbox scrolls with nothing focusable; 6 --success
-        used as TEXT (DownloadBar label, ConfigColumn .cc-inprod, TuneMeasureModal .lu-tune-applied, AiModelsArea
-        STATUS_COLOR.ok) — 4.29:1 at the template's worst hue; the contract's text token is --success-ink. Then (relayed
-        the same day, the user's real data): 7 the Usage tab's price boxes (PricingEditor.vue 95–109, UiInput in table cells)
-        unnamed; 8 a toast's caption at Quasar's 70 % opacity — but the kit resets it (quasar/theme.css:749 `.ui-toast
-        .q-notification__caption { opacity: 1 }`, every kit toast carries ui-toast — toastBridge.js:136): likely axe mid fade-in.
-DECIDED 2026-10-29 (the user, verbatim, on the FOUND items and the laptop): "no lpatop not avail" — item 7's walk dropped;
-        "dont do stuff after relase that is so stupid!!!!!!!!!!!!!!" — item 34's walks run now (JustWrite's session);
-        "just do it think on your recs adverserily i dont want to manualyy check anything i want this projuect done" — my
-        recs, each attacked first: (a) a bare A/B in house-paint's session, the same sd-server request and mask on
-        master-1004 and master-1024 — if 1024 leaves unpainted what 1004 paints, the release pins 1004; (b) a warning when
-        the process table comes back empty (the own-process filter can't tell its children then) — no behavior change; (c)
-        the speech bands stay 5× / 2× / 1× (JustVoice's measured speeds, its CPU bar 2.0); (d) JustWrite's 1–7 in the kit,
-        none moving anything on screen but 6: names by aria-label where a control sits in a <label> of its own (1, 3, 4,
-        7), the breadcrumb's hit box 24 px by padding and an equal negative margin (2), the log boxes focusable and named
-        (5), --success-ink for success TEXT (6); 8 withdrawn by JustWrite (the kit resets the caption).
-THE FINAL PASS 2026-10-29 (run once, every suite, on main): core 1593 passed (fixed on the way: installLlm's runtime
-        options reached no service; a load's refusal said "busy: tts"; the listing of a server on a port where netstat
-        sees nothing — Windows 26300; two tests); ui lint, check:pickers; template lint, i18n, server 63, unit 126,
-        build:unpacked, e2e 15 (axe light and dark, each scan after the animations end); the guard clean; house-paint
-        server 392, unit 196; docgen server 223, unit 52, build, e2e 19; JustVoice server 1384, unit 261, build — its
-        e2e loads all 11 views with no JS error, the rest of its script stale since its own 228a28ee (its e2e move is in
-        its hand-off); JustWrite lint, server 196, unit 807; just-sqlite-sync 75. Waiting on the card: JustWrite's C34
-        walks and 12B auto-tune, house-paint's A/B, then the realrouter smoke (JustWrite's app closed); JustWrite's
-        and house-paint's own build + e2e from their sessions (their apps are up there).
-RESULT (a) 2026-10-29, house-paint's session: master-1024 STAYS — the app's own request (House 1, the same 8 picks,
-        p_aiphoto: 4 steps, cfg 1, euler, seed 42) through each build's sd-server (the kit's sdServerArgv): mean ΔE2000
-        1004↔1024 0.00 inside the union mask (158,290 px), 0 % past 5 ΔE, every part and shutter piece alike; the PNGs
-        byte-identical across builds (final fc0ab344…, = the in-app render) though the builds differ (sd-server.exe
-        7dc541a8… vs 39cbd076…). The light shutter pair comes out on 1004 too: the website's picture had other inputs.
-RESULT 34, JustWrite's session on its built app and real data (b11960): Quick-setup Apply 5 s, its after-Apply measure
-        read 12.1 tok/s — the same 26B idle reads 33.5, 39.0, 39.3: the probe ran beside Apply's and the embedding's
-        loads (FIXED: QuickSetup's measure waits for every load to settle, then a warm-up it never records); the
-        uncurated check 26.93 GB/s (29.18 on 2026-09-19). Item 5: the 12B's auto-tune walk saved ngl 40 at 20.5 tok/s
-        (--fit 18.3; 48 layers can't fit while Windows holds ~830 MB) — FIXED: the chip read the last trial's 18.5, now
-        the saved winner (else the baseline) is recorded last; a trial past the 4-min cap says "most likely more than
-        the card's memory holds", not "load timed out". The realrouter smoke on JustWrite's data: 7 passed (Bonsai not
-        on disk) after its fix — a stop that cancelled a load left the router's child loaded and the model read
-        "loaded": the cancel now confirms its unload and resident() shows "cancelling" meanwhile.
-FOUND AND BUILT 2026-10-29 — JustVoice's plan §3 (JustVoice 5f8e6d90, docs/plans/2026-10-29-round-e-onto-the-kit.md),
-        the kit's audio.cpp half read against JustVoice's code; under the user's "just do it think on your recs
-        adverserily …", the plan's recs as written (JustVoice's user approved the same, 15510bbe): B1–B13 fixed (B12 a
-        shared cache's Clear removed the other apps' files; B9 macOS Intel back — its drop was mine, not the user's;
-        B11 one card-need field, the row's peakVramMb), B14 dropped (the per-line high-water raises); G1–G12 built —
-        runtimeSpeech hooks transcribe/sessionOptions/beforeDownload, the saved placement and Try the card again, Load
-        downloads first (202), terms-required, groups and filters, AiModelsArea's runtimeTabs, settingsUi controls, the
-        per-kind bands, Reinstall, `changed`, the strip's runtime bookings (useMemoryCells), on-demand companions, a
-        load cancelled by Unload. JustWrite's last axe items on Routing fixed (FeatureLab's variables, KnobGrid's rows,
-        the breadcrumb above its neighbours). New words mine, listed in the final report.
-STATE:  under way.
-
 ## The family releases together, once every app and all kit work are done [2026-10-29]
 DECIDED: the user, verbatim (2026-10-29, in JustWrite's session, relayed): "you dont understand we have several apps i
         want all kit work done for all apps before we release any app, i want to relase all apps that we are working on
@@ -169,6 +26,10 @@ STATE:  No app releases — JustWrite, JustVoice, docgen, house-paint — until 
         release together, each on the same kit commit. Dry runs only meanwhile (house-paint's 40823762045 green on
         6879a42, the kit at ddb1431 — publish skipped). Told: JustWrite's session (it relayed it), docgen's; JustVoice's
         when one runs.
+KIT 2026-10-29: every kit item done — the finish list and round E's kit half (with JustVoice's §3) closed, the last
+        pass green at 4d331e6 (core 1619, template e2e 15, the realrouter smoke 7 on JustWrite's data; house-paint e2e
+        18, docgen e2e 19, JustWrite e2e 9 on e45086d). JustVoice's move onto it runs in its session
+        (docs/plans/2026-10-29-round-e-onto-the-kit.md §4 there).
 OPEN:   - the workflows' actions at their latest majors (JustWrite's asks, 4); each app's roadmap and ideas listed with
           recommendations for the user (5).
 CHECKED 2026-10-29, once after the day's kit changes (5a429ad, 1dcce91, be584a9, 2c76636, ca087d0): 21 steps green — kit
@@ -197,41 +58,7 @@ STATE:  OPEN — each app (house-paint, JustVoice, docgen; JustWrite its own) li
         roadmap, IDEAS and any candidate pools — each with a recommendation, do it or remove it, its reasons and the
         attack, for the user to decide. House-paint's DONE 2026-10-29 (its TASKS has the user's words); docgen's DONE 2026-10-29 (the user on its whole
         list: "your rec on all go"; no roadmap file, IDEAS.md empty). The kit's:
-        "Finish the kit" above. JustVoice's session gets it when one runs.
+        DONE 2026-10-29 (the finish list, closed — `git log -S "Finish the kit" -- docs/dev/TASKS.md`). JustVoice's session
+        gets it when one runs.
         (The rest of that day's asks from JustWrite's session — multi-window, token budgets, q-inner-loading in dark,
         renderAiMarkdown, the website's lede, the workflows' latest majors — are built or cancelled: git history.)
-
-## Round E: JustVoice's audio.cpp engine and its jobs into the kit, the llama.cpp way [2026-10-24]
-PLAN:   `docs/plans/2026-10-24-engines-the-llama-way.md` (J1; rounds A–D BUILT — their records are there and in git).
-STATE:  OPEN — before the release ("Finish the kit", item 30): the kit's half first (audio.cpp's runtime row, its
-        `local-audiocpp` provider for tts/stt, the tts/stt presets' fields, its screens on `LuRuntimeTab`, its jobs on
-        `platform/jobs.js`), then JustVoice's own move by its session.
-DESIGN: researched 2026-10-29 — the kit's half in order: E0 audio.cpp's descriptor as a fixture → E1 the registry's
-        kinds → E2 RuntimeService instances, env/cwd/config file → E3 builds on disk, backend/device, extras → E4
-        runner/audiocpp.js and its rows → E5 booking → E6 routes and speech routing → E7 the jobs' forget → E8 the Speech
-        tab with slots.
-DECIDED 2026-10-29 (the user, the answers as chosen): "One runtime, two kinds (Recommended)" — one `audiocpp` runtime,
-        one install and pin, its tts/stt × GPU/CPU processes as instances, one Speech tab; "Kit code, every runtime
-        (Recommended)" — measured price beats declared, Auto/GPU/CPU placement and the worse-of-two admission are the
-        kit's; "Yes, pin the fork (Recommended)" — the kit pins github.com/delebash/audio.cpp's releases; "JustVoice's UI
-        in a kit slot (Recommended)" — the per-model options stay JustVoice's panel in the tab's slot.
-BUILT:  E3's Update to the kit's tested build (status `updateTo`, `POST …/engine/update`, the old pin and rows back on a
-        failure; the tab's button in llama.cpp's words) — found by house-paint's session 2026-10-29: no existing install
-        could reach sd.cpp's new pin. Tests written, not run.
-DECIDED 2026-10-29 (the user, verbatim, on "test pass now, round E now, or round E after the release"): "no test test
-        aat end after all items closed, go" — round E now, every suite once at the end.
-BUILT:  2026-10-29, tests written, none run (git: "Round E, E1" … "E8"): E1 the registry's kinds and the audiocpp row
-        (7 builds, tts/stt bands, a provider per kind, a model row's own kind); E2 one server per placement × kind
-        (`runner/audiocpp.js`), registering its models; E3 eSpeak NG with each build, the Japanese dictionary as an
-        add-on, the servers' environment following them; E4 the install probe and an app's development build
-        (`runtimeExeOverrides`); E6 transcription a kit feature on an stt preset (`params.placement`), speech through
-        `withSpeechModel`, the load/unload/loaded routes, declared settings and each kind's bands on the settings
-        route; E7 `jobs.forget(id)` and `onForget`; E8 the runtime tab for such an engine (kinds, Load where asked and
-        why, Unload, add-ons, settings, the app's slots). app-structure §19 rows, RESEARCH §12. E5 (2026-10-29): JustVoice's placement and measured booking ported
-        (`runner/speech_placement.js`; `RuntimeService` load with Auto, the card's admission, the CPU retry, the after-line
-        pass) with its locks (`useModel`: a line holds its kind; a load or unload waits); the ledger's card word is the
-        build's own (cuda12), an stt model's ledger id is stt; a development build carries its backend and version;
-        `installLlm` `runtimeSpeech`. Open: JustVoice's move by its session (seed `spec.minVramGb`, `refSpeed.cpu`,
-        `spec.unloadStopsProcess`; pass its hooks). Left out of the port, as JustVoice had them: fetching a missing model on
-        Load (the kit refuses, "isn't downloaded"), cancelling a load.
-
