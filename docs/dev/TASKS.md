@@ -109,7 +109,10 @@ FOUND 2026-10-29 (for the user's word at the end, not built): (a) sd.cpp master-
         (target-size 2.5.8 — a visible change); 3 SyncPanel's interval and device-name boxes unnamed; 4 ConfigColumn's 2
         inputs and 2 textareas unnamed; 5 the engine console's .lu-logbox scrolls with nothing focusable; 6 --success
         used as TEXT (DownloadBar label, ConfigColumn .cc-inprod, TuneMeasureModal .lu-tune-applied, AiModelsArea
-        STATUS_COLOR.ok) — 4.29:1 at the template's worst hue; the contract's text token is --success-ink.
+        STATUS_COLOR.ok) — 4.29:1 at the template's worst hue; the contract's text token is --success-ink. Then (relayed
+        the same day, the user's real data): 7 the Usage tab's price boxes (PricingEditor.vue 95–109, UiInput in table cells)
+        unnamed; 8 a toast's caption at Quasar's 70 % opacity — but the kit resets it (quasar/theme.css:749 `.ui-toast
+        .q-notification__caption { opacity: 1 }`, every kit toast carries ui-toast — toastBridge.js:136): likely axe mid fade-in.
 STATE:  under way.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]
