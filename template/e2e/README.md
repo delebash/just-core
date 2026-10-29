@@ -9,7 +9,7 @@ inspector Playwright attaches through.
 ## Prereqs
 
 ```bash
-npm install                 # once, here in e2e/ (playwright-core)
+npm install                 # once, here in e2e/ (playwright-core, @axe-core/playwright)
 npm run build:unpacked      # from the app's root — the harness drives the BUILT app
 ```
 
@@ -26,7 +26,8 @@ server on the registered port, **17490**: a run refuses to start while something
 
 - `npm test` — the contract scans and the smoke suite: the shell mounts, the nav works, the AI
   status button and the AI-tasks toggle behave, a note is created through the window and reaches
-  the server, the once-ever AI offer comes once, Settings has its sections in order.
+  the server, the once-ever AI offer comes once, Settings has its sections in order; and the
+  accessibility check: every page against WCAG 2.2 AA by axe-core, light and dark (app-structure §17).
 - `npm run screenshots` — every surface as a PNG in `e2e/shots/` (gitignored), on a temp folder
   with one example note.
 

@@ -111,6 +111,11 @@ every app. Its fields (the template's file is the reference; the guard checks th
 
 The window still loads `app://<id>/index.html` (the kit registers the protocol; Quasar's own
 template loads `file://`), with the hash router. **Packaging — `quasar.config.js > electron`:**
+- **Installers are unsigned, family-wide** (the user, 2026-10-29): no publisher's certificate on Windows or macOS.
+  Windows shows "Windows protected your PC" (More info → Run anyway) and Smart App Control blocks the app outright;
+  macOS refuses to open it until System Settings → Privacy & Security → Open Anyway (Control-click → Open on macOS 14
+  and earlier). A Mac can't install an unsigned update, so it only checks and links to the release (`updates`
+  above). Every app's `docs/getting-started.md` says so in its "Installing it" section, from the template's.
 - `bundler: 'builder'` — electron-builder (NSIS on Windows, `oneClick: false`), not Quasar's
   default @electron/packager; `builder: { appId: 'com.<id>.app', productName, win, nsis,
   asarUnpack: ['**/*.node'] }` — native modules can't load from inside the asar archive; the
@@ -1150,6 +1155,13 @@ JustWrite and JustVoice drop and reseed instead of migrating (an open deviation,
 - **Words** — every word is a vue-i18n key (§Q.11), in the user's terms (§11's copy law).
 - A long task (an AI call, a download, an export) runs through a kit runner and shows on the task
   strip (§8's AI-call convention); its trigger button is disabled while it runs.
+- **Accessibility — WCAG 2.2 AA** (w3.org/TR/WCAG22, the user, 2026-10-29), from what the kit measured (the kit's
+  RESEARCH §10): every control, link and image has a name (the kit's controls take a label; a `title` never repeats
+  an `aria-label`); news a user must hear goes through the kit's live regions (`common/services/announce.js` —
+  every toast and AI task already does); colors come from the tokens, whose contrast is measured at every hue
+  (text 4.5:1, a field's edge and other parts 3:1); a focus ring shows on every control; a drag has a
+  single-pointer way too (2.5.7). Checked by axe-core on every page, light and dark (§18); the keyboard path
+  through a screen and its reading order are a person's review before a release.
 
 ## 18 · Tests — every level, in every app
 
@@ -1161,12 +1173,14 @@ JustWrite and JustVoice drop and reseed instead of migrating (an open deviation,
 | Renderer units | stores, services, components (mounted with `@vue/test-utils` and Quasar) | beside the file (`*.test.js`) · Vitest (vuejs.org/guide/scaling-up/testing) |
 | Boot smoke | the boot steps by hand (`registerBootSmoke`) | `src/boot.smoke.test.js` |
 | Desktop e2e | the unpackaged app through Playwright's `_electron`, hermetic (§10) | `e2e/` · playwright-core |
+| Accessibility | every page against WCAG 2.2 AA, light and dark (§17) | `e2e/tests/a11y.test.js` · `@axe-core/playwright` (playwright.dev/docs/accessibility-testing) |
 
 Every test is hermetic: a temp data folder, `JUST_AI_HOME` pointed there, no network, no real model
 unless an env flag asks for one (`<APP>_REAL_*=1`). **Must pass before a commit:** `npm run lint &&
 npm run test:server && npm run test:unit` and the guard, run by hand — **no commit hooks, family-wide** (the user,
 2026-10-29: "i dont want tests just running or things just running on commit in gituhb unless we need it often").
-`npm run test:coverage` (Vitest's v8) reports coverage, with no gate.
+`npm run test:coverage` (Vitest's v8) reports coverage, with no gate. No performance budgets (the user,
+2026-10-29).
 A bug fix lands with the test that would have caught it.
 
 A mounted test clicks the way Vue Test Utils does — `await wrapper.find(…).trigger("click")` — not with

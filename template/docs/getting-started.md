@@ -4,6 +4,22 @@ Family Template is the family's reference app: the desktop window, its own serve
 setup, settings, help and backups that every app in the family starts with — plus one small
 example area, [Notes](notes.md), that shows how the pieces fit together.
 
+## Installing it
+
+Download the installer for your computer from the app's releases page: **Windows** the `…-win-x64.exe`,
+**macOS** (Apple silicon — M1 and later) the `.dmg`, **Linux** the `.AppImage`. The installers aren't signed with
+a publisher's certificate, so the first time:
+
+- **Windows** says "Windows protected your PC": press **More info**, then **Run anyway**.
+- **macOS** says the app can't be opened. On macOS 15 and later: open **System Settings → Privacy & Security**,
+  go to **Security** and press **Open Anyway** (it's there for about an hour after you try to open the app), then
+  enter your password. On macOS 14 and earlier: Control-click the app in Finder and choose **Open**. If it says the
+  app "is damaged", run `xattr -cr "/Applications/Family Template.app"` in Terminal once, then open it.
+- **Linux**: make the `.AppImage` executable (`chmod +x`) and run it — nothing else to install.
+- **Windows with Smart App Control on** (some new Windows 11 computers) blocks the app with no **Run anyway**: the
+  app's files aren't signed. It runs once Smart App Control is off (Windows Security → App & browser control →
+  Smart App Control).
+
 ## Where your data lives
 
 Everything the app keeps — your notes, your settings, the AI engine and downloaded models, and

@@ -1305,7 +1305,9 @@ re-checked by the session that saved them; paths are from before the just-core r
   envelope, validation, seeds, settings/prefs, background jobs, logging, the data folder, adopting sync, API
   key storage, the memory arbiter, updates, installers, testing, security, the docs convention,
   AGENTS.md, commits/CI. **A** — keyboard shortcuts, database and migrations, releases. **N** —
-  accessibility, client-side form validation, image/vision models, performance budgets, signing.
+  accessibility, client-side form validation, image/vision models, performance budgets, signing. (2026-10-29:
+  accessibility written — app-structure §17, WCAG 2.2 AA, axe in the template's e2e; signing decided — installers
+  unsigned, §Q.2; performance budgets decided — none.)
 - **Image/vision models were built app-local while still N (2026-10-24):** just-house-paint's AI photo
   (stable-diffusion.cpp) and part finder (SAM 3 on ONNX Runtime) were built inside the app instead of the
   kit first; audio.cpp is half in (JustVoice, on the kit's install/spawn/arbiter, its own pins and screens).
