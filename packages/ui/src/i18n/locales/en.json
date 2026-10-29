@@ -595,7 +595,7 @@
         "queryTpl": "Query template",
         "queryTplHint": "applied to questions/searches",
         "fitTitle": "Fit estimate",
-        "fitBody": "computed from the model file itself (read the link once and the app knows what the file needs); nothing here for you to figure out. Embedding models keep hand-set floors — they steer the wizard, not the badge.",
+        "fitBody": "computed from the model file itself (read the link once and the app knows what the file needs); nothing here for you to figure out. Embedding models keep hand-set minimums for card memory and RAM; the Fits badge and Quick Setup both read them.",
         "totalParams": "Total params",
         "activeParams": "Active params",
         "moeOnly": "MoE only",

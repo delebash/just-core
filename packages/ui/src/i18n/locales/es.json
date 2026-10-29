@@ -595,7 +595,7 @@
         "queryTpl": "Plantilla de consulta",
         "queryTplHint": "aplicada a preguntas/búsquedas",
         "fitTitle": "Estimación de compatibilidad",
-        "fitBody": "calculada a partir del propio archivo del modelo (lee el enlace una vez y la aplicación sabrá lo que el archivo necesita); no tienes que resolver nada aquí. Los modelos de embedding mantienen mínimos establecidos manualmente: guían al asistente, no a la insignia.",
+        "fitBody": "calculada a partir del propio archivo del modelo (lee el enlace una vez y la aplicación sabrá lo que el archivo necesita); no tienes que resolver nada aquí. Los modelos de embedding mantienen mínimos de memoria de la tarjeta y de RAM establecidos a mano; la insignia «Cabe» y la Configuración rápida los leen.",
         "totalParams": "Total de parámetros",
         "activeParams": "Parámetros activos",
         "moeOnly": "Solo MoE",

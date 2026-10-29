@@ -84,6 +84,17 @@ DECIDED 2026-10-29 (the user, on four questions, the answers as chosen): round E
         "Fix both (Recommended)" — BUILT: Set as default records the routing default the Reset reads
         (ui/services/modelApply.js); the picker refreshes when a model lands on disk (ui/composables/useRunnerModels.js);
         template tests kitModelApply / kitRunnerModelsPicker, not yet run.
+DECIDED 2026-10-29 (the user, verbatim: "your rec go", on the numbered list of eight, each fact checked first):
+        1 speech routing — transcription a kit feature on an stt preset (`captures.stt_model` retired into it by
+        retireSettings); speech (tts) no preset, the voice chooses. 2 the DSP program stays the app's (shipped with
+        it, started through the kit's spawnChild) — no kit work. 3 the fork's model_management API in the kit (models
+        registered into the running server). 4 eSpeak an extra archive on each audio.cpp build row; UniDic an
+        optional add-on row installed on demand from the Speech tab. 5 auto-tune gains a measured layer walk for dense
+        models; then JustWrite runs it on its 12B (--fit's 1,094 MiB margin left 10 of 49 layers on the CPU: 21 vs 41
+        tok/s on b11960). 6 one coordinated card session now on b11960's open Gemma-4 + MTP bugs (#30419, #30698,
+        #31077, #30975, exactness); if #30419 or #30698 fires, the release stays on b11239. 7 a one-pool laptop walk
+        (the Radeon 780M) if it's at hand, else dropped. 8 the Add-model note's last sentence: "Embedding models keep
+        hand-set minimums for card memory and RAM; the Fits badge and Quick Setup both read them."
 STATE:  under way.
 
 ## The family releases together, once every app and all kit work are done [2026-10-29]
@@ -134,4 +145,13 @@ PLAN:   `docs/plans/2026-10-24-engines-the-llama-way.md` (J1; rounds A–D BUILT
 STATE:  OPEN — before the release ("Finish the kit", item 30): the kit's half first (audio.cpp's runtime row, its
         `local-audiocpp` provider for tts/stt, the tts/stt presets' fields, its screens on `LuRuntimeTab`, its jobs on
         `platform/jobs.js`), then JustVoice's own move by its session.
+DESIGN: researched 2026-10-29 — the kit's half in order: E0 audio.cpp's descriptor as a fixture → E1 the registry's
+        kinds → E2 RuntimeService instances, env/cwd/config file → E3 builds on disk, backend/device, extras → E4
+        runner/audiocpp.js and its rows → E5 booking → E6 routes and speech routing → E7 the jobs' forget → E8 the Speech
+        tab with slots.
+DECIDED 2026-10-29 (the user, the answers as chosen): "One runtime, two kinds (Recommended)" — one `audiocpp` runtime,
+        one install and pin, its tts/stt × GPU/CPU processes as instances, one Speech tab; "Kit code, every runtime
+        (Recommended)" — measured price beats declared, Auto/GPU/CPU placement and the worse-of-two admission are the
+        kit's; "Yes, pin the fork (Recommended)" — the kit pins github.com/delebash/audio.cpp's releases; "JustVoice's UI
+        in a kit slot (Recommended)" — the per-model options stay JustVoice's panel in the tab's slot.
 
