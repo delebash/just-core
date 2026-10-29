@@ -53,6 +53,9 @@ test("the next free ports skip the reserved ones", () => {
     devPorts: { ...before.devPorts, "just-house-paint": { dev: 1460, hmr: 1461 } },
   };
   expect(nextPorts(after)).toEqual({ port: 17500, devPort: 1470, hmrPort: 1471 });
+  // 17504 is JustWrite's screenshot import: the fifth app after house-paint skips it
+  const taken = { ...after.appPorts, a: 17500, b: 17501, c: 17502, d: 17503 };
+  expect(nextPorts({ appPorts: taken, devPorts: after.devPorts }).port).toBe(17505);
   // and the live guard's registries read the same way
   expect(nextPorts(readRegistries(GUARD_SRC)).port).toBeGreaterThan(17498);
 });
