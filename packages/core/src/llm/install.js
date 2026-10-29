@@ -48,6 +48,7 @@ import { makeRunnerConfigRouter } from "./runner_config_api.js";
 import { makeRuntimesRouter } from "./runtimes_api.js";
 import { runtimeOf } from "../runner/runtimes.js";
 import { configureRuntimeServices, RuntimeService } from "../runner/runtime_service.js";
+import { AUDIOCPP_PROBE_ARGVS } from "../runner/audiocpp.js";
 import { SDCPP_PROBE_ARGVS, SDCPP_SERVER } from "../runner/sdcpp.js";
 import * as seed from "./seed.js";
 import * as stores from "./stores.js";
@@ -58,7 +59,7 @@ import { makeTestSamplesRouter } from "./test_samples_api.js";
 const log = getLogger("llm_runner.llm.install");
 
 // Each kit runtime's launch flags (a staged build must accept them before it replaces a working one) and its server.
-const RUNTIME_PROBES = { sdcpp: SDCPP_PROBE_ARGVS };
+const RUNTIME_PROBES = { sdcpp: SDCPP_PROBE_ARGVS, audiocpp: AUDIOCPP_PROBE_ARGVS };
 const RUNTIME_SERVERS = { sdcpp: SDCPP_SERVER };
 
 /** The memoized whole-machine tuning key (gpu|vram|cores|ramGB) the model_tunes layer uses. */
@@ -225,6 +226,9 @@ export async function installLlm(
     // the in-process ONNX runtime's module, the APP's onnxruntime-node (the engines plan's D2): `{ load: () =>
     // import("onnxruntime-node"), binDir }` — `binDir` where its native files are (the runtime check looks there)
     onnx = null,
+    // `{ <runtime id>: () => a program path or null }`: a server program to run instead of the installed build — an
+    // app's development build (JustVoice's `npm run dev` runs its audio.cpp checkout's own — round E)
+    runtimeExeOverrides = {},
     classTunesSeed = [],
     classTuneIdentity = {},
     embedTemplates = [],
@@ -504,6 +508,7 @@ export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = 
         measurements: stores.getModelMeasurementStore(),
         // an in-process runtime's engine: the app's module
         ort: id === "onnx" ? onnx : null,
+        exeOverride: runtimeExeOverrides?.[id] ?? null,
       }),
     ]),
   );

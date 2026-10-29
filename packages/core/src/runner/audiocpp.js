@@ -34,6 +34,10 @@ export const PLACEMENTS = Object.freeze(["gpu", "cpu"]);
 export const KINDS = Object.freeze(["tts", "stt"]);
 export const LOG_ROTATE_BYTES = 10 * 1024 * 1024;
 
+// A staged build must start before it replaces a working one: headless, no models, and --version LAST (arguments parse in
+// order and it exits there — JustVoice's runtime.install probe).
+export const AUDIOCPP_PROBE_ARGVS = Object.freeze([Object.freeze(["--no-ui", "--max-loaded-models", "0", "--version"])]);
+
 // The variables the runtime's environment sets for its side programs — part of a process's signature, so installing or
 // removing one starts it again with them. An inherited value is never passed on.
 export const RUNTIME_ENV = Object.freeze(["AUDIOCPP_ESPEAK_LIBRARY", "AUDIOCPP_ESPEAK_DATA", "AUDIOCPP_UNIDIC_DIR"]);

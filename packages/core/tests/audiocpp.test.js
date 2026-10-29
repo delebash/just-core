@@ -189,3 +189,9 @@ test("loadModel registers a model and its companions in its kind's server; one m
   await svc.stopServer();
   expect(svc.loaded()).toEqual([]);
 });
+
+test("a staged audio.cpp build is probed headless with no models, --version last (arguments parse in order)", async () => {
+  const { AUDIOCPP_PROBE_ARGVS } = await import("../src/runner/audiocpp.js");
+  expect(AUDIOCPP_PROBE_ARGVS).toEqual([["--no-ui", "--max-loaded-models", "0", "--version"]]);
+  expect(AUDIOCPP_PROBE_ARGVS.every((a) => a.at(-1) === "--version")).toBe(true);
+});
