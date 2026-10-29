@@ -561,9 +561,10 @@ test("the AI tasks panel is a modal dialog: the focus moves in, Escape closes it
 });
 
 test("Appearance's selects are named by their rows' titles, not their values", async () => {
-  await mountHost(() => h(AppearancePanel, { appearance: { mode: "system", uiScale: 1, uiFont: "System", accentHue: 166 }, locales: ["en", "es"] }));
+  // the language is the kit's LanguagePicker since 2026-10-29 — Appearance has no Language row
+  await mountHost(() => h(AppearancePanel, { appearance: { mode: "system", uiScale: 1, uiFont: "System", accentHue: 166 } }));
   const names = [...document.querySelectorAll('[role="combobox"]')].map((el) => computeAccessibleName(el));
-  expect(names).toEqual(["Theme", "Interface size", "UI font", "Language"]);
+  expect(names).toEqual(["Theme", "Interface size", "UI font"]);
 });
 
 test("a slider's number box is named as the slider, never with its value", async () => {

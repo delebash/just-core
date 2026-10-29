@@ -38,6 +38,16 @@ after(async () => {
  *  supported" — measured by docgen's session on its built app, 2026-10-29); legacy mode skips that page and only
  *  loses cross-origin frames, which the app has none of (axe-core-npm's playwright README, setLegacyMode). */
 async function violations() {
+  // every finite animation and transition ended first (the Web Animations API's document.getAnimations): a nav row
+  // that just stopped being the current one read mid-fade in the dark run (2026-10-29), as a toast did in JustWrite's
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().endTime !== Number.POSITIVE_INFINITY)
+        .map((a) => a.finished.catch(() => {})),
+    ),
+  );
   const { violations: found } = await new AxeBuilder({ page }).withTags(TAGS).setLegacyMode().analyze();
   return found.map((v) => `${v.id} (${v.impact}): ${v.help} — ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
 }

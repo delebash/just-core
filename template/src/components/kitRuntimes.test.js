@@ -306,7 +306,7 @@ function speechRoute(p, method, body) {
   const at = p.slice("/v1/ai/runtimes/audiocpp".length);
   if (at === "/engine/status") return json(S.engine);
   if (at === "/models") return json({ models: S.models });
-  const load = at.match(/^/models/([^/]+)/(load|unload)$/);
+  const load = at.match(/^\/models\/([^/]+)\/(load|unload)$/);
   if (load?.[2] === "load") {
     const held = { modelId: load[1], placement: "cpu", kind: S.models.find((m) => m.id === load[1]).kind, reason: "fast enough on the CPU" };
     S.engine = { ...S.engine, loaded: [...S.engine.loaded, held] };
