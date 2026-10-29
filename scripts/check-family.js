@@ -1567,9 +1567,10 @@ const WEBSITES = [
   { name: "docgen website", dir: join(FAMILY, "just-ai-i18n-docgen-website") },
 ];
 const WEBSITE_FILES = ["scripts/sync-docs.js", "scripts/deploy.js", ".github/workflows/deploy.yml"];
-// JustWrite's adopted it (justwrite-website 440a9e3); back on the list until it copies the latest majors and the dry run
+// docgen's adopted them (its site 8cd783f); JustWrite's had (justwrite-website 440a9e3) — back on the list until it copies
+// the latest majors and the dry run
 // (deploy.yml `publish`, deploy.js --dry-run — the kit, 2026-10-29; its session told)
-const WEBSITE_KNOWN = new Set(["docgen website", "JustWrite website"]);
+const WEBSITE_KNOWN = new Set(["JustWrite website"]);
 const sameText = (a, b) => a.replace(/\r\n/g, "\n") === b.replace(/\r\n/g, "\n");
 function checkWebsite(site) {
   if (!existsSync(site.dir)) return;
