@@ -804,6 +804,10 @@ export async function measureAction(store, config, body) {
   return ActionFit({ prompt_tokens: pyLen(tokens), context: ctx, model: mdl });
 }
 
+// A stream's error frame carries the message whole (JustWrite, 2026-10-29: cut at 200 the engine's memory refusal lost
+// what is free and what to do) — bounded, the screen ends it at a sentence within 400 (aiErrors.js friendlyAiError).
+const STREAM_ERROR_MAX = 1000;
+
 /** One SSE frame, as Python wrote it: `data: {json.dumps(frame)}\n\n` (`cost` and
  * `progress` are Python floats). */
 const sseFrame = (frame) => `data: ${pyJson(frame, { floats: ["cost", "progress"] })}\n\n`;
@@ -899,7 +903,7 @@ export function makeFeatureRouter(getStore, getConfig) {
     try {
       await ensureLocalReady(getConfig(), r.featureKey, body.action, r.providerOverride, r.modelOverride);
     } catch (e) {
-      ensureError = cpSlice(errText(e), 0, 200);
+      ensureError = cpSlice(errText(e), 0, STREAM_ERROR_MAX);
     }
 
     // Starlette's StreamingResponse: status 200, `text/event-stream; charset=utf-8`, no
@@ -948,7 +952,7 @@ export function makeFeatureRouter(getStore, getConfig) {
       } catch (e) {
         if (closed || isAbortError(e)) return; // the client left: nothing to say, nothing failed
         if (e instanceof dispatch.LLMNotConfiguredError) await send(sseFrame({ error: errText(e) }));
-        else await send(sseFrame({ error: cpSlice(errText(e), 0, 200) })); // an error frame, not a 500
+        else await send(sseFrame({ error: cpSlice(errText(e), 0, STREAM_ERROR_MAX) })); // an error frame, not a 500
       }
       await send("data: [DONE]\n\n");
     });

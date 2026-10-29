@@ -872,3 +872,18 @@ test("a run whose local model isn't ready answers 503 in its words; one whose pr
   expect(aiRunHttpError(new Error("other"))).toBe(null);
   expect(aiRunHttpError(Object.assign(new Error("x"), { localNotReady: true })).statusCode).toBe(503);
 });
+
+// JustWrite's report (2026-10-29, measured on its built app): the stream's error frame cut the engine's refusal at 200
+// characters — "…(+1024 MB safety margin) but" — losing what is free and what to do. The screen's friendlyAiError ends
+// a message at a sentence within 400 itself; the frame carries it whole (bounded at 1000 — the adapters already cap a
+// provider's body at 400).
+test("stream_error_frames_carry_the_whole_refusal", async () => {
+  const refusal = `The local model "m" can't load: it took about 9.6 GB of this machine's memory when it last loaded (+1024 MB safety margin) but only 8.2 GB is free now — close another program that uses a lot of memory, or unload another model on the AI page, then try again.`;
+  expect(refusal.length).toBeGreaterThan(200);
+  setEnsureLocalModel(async () => {
+    throw new Error(refusal);
+  });
+  const [c] = localRouteClient("local-llamacpp");
+  const body = await (await c.post("/v1/ai/stream", { action: "greet", variables: { name: "Sam", role: "bot" } })).text();
+  expect(body).toContain("then try again.");
+});
