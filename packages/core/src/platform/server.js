@@ -15,7 +15,7 @@
 //     (extra="forbid" → 422); the errors answer as pydantic's 422;
 //   - problem+json errors and FastAPI's `{"detail": "Not Found"}` (errors.js).
 //
-// Hono, not Fastify (since 2026-10-09 — the kit's TASKS, "The family's servers move to Hono";
+// Hono, not Fastify (since 2026-10-09 — app-structure §Q.3;
 // docs/plans/2026-10-09-hono-standard.md): a route takes the web-standard Request and returns a
 // Response, so the same app answers in Node (`@hono/node-server` — the desktop app and headless,
 // serve.js) and in a web worker (`app.fetch` — the phone, worker/runtime.js).

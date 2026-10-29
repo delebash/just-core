@@ -69,6 +69,11 @@ Subjects: [1 · Memory: the arbiter and the probes](#1--memory-the-arbiter-and-t
 [debate ledger](../plans/2026-08-09-fit-redesign-debate.md).
 What a speech model costs, measured, is in JustVoice's register §2.
 
+- **Arms never run on a real box** (2026-10-29, moved from the tracker): the ROCm (`rocm-smi --showmeminfo vram
+  --csv`), Windows `typeperf` and macOS `vm_stat` memory probes are pinned by fixtures from documented formats only —
+  no AMD card or Mac here; each answers null when unsure, which is the safety. The Apple-silicon fit and tune
+  refinements wait on a Mac (`docs/plans/archive/2026-07-06-outstanding-master-plan.md`, I3).
+
 - `make_room(needed, exclude=key)` never evicts the excluded key, and never evicts a kind that
   is protected or busy. So a booking left behind under the key being loaded can only be cleared
   by releasing it — no admission removes it. — *code, 2026-10-04* ·
@@ -2230,6 +2235,8 @@ claude-code-on-the-web, cloud-environments, remote-control, worktrees, workflows
 
 ## 7 · Cloud model adapters
 
+- **OpenAI, xAI and Mistral ship wired but were never run against the live services** (2026-10-29, moved from the
+  tracker: no funded keys — the user, "close 3 i dont have keys"); a provider SDK pivot would reopen only with keys.
 - **Claude's prompt cache, and what it costs per model** (platform.claude.com prompt caching + pricing, *read*
   2026-10-29): the top-level `cache_control: {type: "ephemeral"}` on a request caches its last cacheable block (5
   minutes; a prompt under the model's minimum — 512 to 4096 tokens — silently isn't cached). With caching on, usage's

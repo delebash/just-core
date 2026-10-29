@@ -294,7 +294,7 @@ export function parseArgs(argv) {
     else if (a === "--hmr-port") opts.hmrPort = Number(val());
     else if (a === "--no-phone") opts.phone = false;
     else if (a === "--phone") {
-      throw new Error("--phone: the template's phone app has no in-app server yet (it would show only the connection page) — apps are made without it until the template carries one (the kit's TASKS, the template audit)");
+      throw new Error("--phone: the template's phone app has no in-app server yet (it would show only the connection page) — apps are made without it until the template carries one (app-structure §1 and §Q.7)");
     }
     else if (a === "--skip-install") opts.install = false;
     else if (a === "--no-register") opts.register = false;

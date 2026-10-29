@@ -451,6 +451,10 @@ The template is the reference.
   and regenerate the lockfiles. The `/new-just-app` skill does all of this (`skills/new-just-app/`;
   its generator `scripts/new-app.js`; `node scripts/install-skills.js` puts it in Claude Code's user skills folder,
   `$CLAUDE_CONFIG_DIR/skills/` when that is set, else `~/.claude/skills/`).
+  **Not** (decided 2026-10-17): a GitHub template repo (it can't ask the questions or rename the id and port, and
+  the template reaches the kit by a relative path) · a Stop hook (it fires at the end of every turn) · an MCP server
+  per app (the `/v1` API already lets an agent drive everything) · renaming the existing repos ("just leave them" —
+  `just-<name>` is for new apps) · the phone in a new app until the template's phone has its in-app server (§Q.7).
 - **Names, one per layer** — every new app is `just-<name>` (the user, 2026-10-17; the existing
   apps keep their names): the repo `just-<name>` · the shell's `id` `just<name>` (the `app://`
   host; no hyphens, Q.2) and the identifier `com.<id>.app` · the server package
@@ -1270,6 +1274,7 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | A help page (the app's `docs/*.md`) | `ui/common/services/helpMarkdown.js` `renderHelpMarkdown` (its H1 and a leading front-matter block skipped — the `front-matter` package, a kit peer; a doc's `lede:` there is its one-line summary, which docgen's extract reads) in the kit's HelpDrawer; `docs/toc.json` the order | a page's own Markdown renderer; a doc's words copied into the app by hand |
 | A model's answer shown as Markdown | `ui/common/services/aiMarkdown.js` `renderAiMarkdown` (marked, then DOMPurify — a kit peer; raw HTML in the answer shown as text, web links opened outside) into `v-html` | marked's output unsanitized, `renderHelpMarkdown` (trusted docs only), the answer as plain text |
 | **Shipping** | | |
+| Start a new app | `/new-just-app` (`skills/new-just-app/`, `scripts/new-app.js`; §1) | copying `template/` by hand, a template repo |
 | The packaged app's acceptance start on your real data | `node scripts/start-packaged.js --data-dir data` after `npm run build:unpacked` — the build on the checkout's own data folder (what `npm run dev` and `npm run server` use): it must draw its window and answer; it writes no test data and never removes the folder (stop the app on that folder first). The e2e suite stays on its own temp data | the e2e suite on real data (it writes); `--default-data` (a fresh folder beside the build's copy on Windows) |
 | A release (installers, the update feed, the user docs) | `template/.github/workflows/release.yml` (manual only; each build started before it is attached; `docs.tar.gz` — `docs/*.md` + `docs/toc.json` — with the installers) + `template/scripts/release.js`, `bump.js`, `start-packaged.js`; the guard's release checks | a release started by a push or a tag |
 | An app's website | its own repository (`<app>-website`), Astro + Starlight on GitHub Pages, with the kit's `website/` files as they are: `scripts/sync-docs.js` (the docs of the app's latest release — its `docs.tar.gz`, or the tag's source), `scripts/deploy.js` (`npm run deploy`: names the release, asks, runs the site's own workflow on the user's `gh` login) and `.github/workflows/deploy.yml` (`workflow_dispatch` only); `package.json` `justSite` { appRepo, appDir, siteRepo }; the guard's check 26. The app's release attaches `docs.tar.gz` and starts nothing else (the user, 2026-10-28: "other github workflows shouldnt be running other workflows") | a release or a push rebuilding the site; a token to start another repository's workflow; the docs copied into the site by hand |

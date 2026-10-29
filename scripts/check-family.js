@@ -52,7 +52,7 @@ const APPS = [
 ];
 
 /** The reference app (`template/`) — a complete family app since 2026-10-18, checked as a product
- * like the apps (the kit's TASKS, "A standard start…": "checked by the guard as a product"). */
+ * like the apps (app-structure §1: the template is "checked by the guard as a product", 2026-10-17). */
 const TEMPLATE = { name: "template", dir: join(KIT, "template") };
 
 /** "quasar" (§Q), or "unknown" — which is a violation. */
@@ -219,7 +219,7 @@ function checkScripts(app) {
   return undefined;
 }
 
-// ── AGENTS.md carries the family rules (the kit's TASKS, "A standard start…", decision 2) ────
+// ── AGENTS.md carries the family rules (app-structure §13, AGENTS.md + CLAUDE.md, 2026-10-17) ────
 // Other AI tools read AGENTS.md and follow no @ imports, so the file holds a copy of
 // docs/family-rules.md between two markers; the copy must stay identical to the kit's. An app that
 // hasn't moved to AGENTS.md yet is an advisory; the template must have it.
@@ -242,7 +242,7 @@ function checkAgentsRules(app) {
 }
 
 // ── the common server parts (app-structure §14, §15) ─────────────────────────────
-// Sameness by construction (the kit's TASKS, "A standard start…", DIRECTION 2026-10-17): the parts
+// Sameness by construction (decided 2026-10-17, app-structure §14–§15): the parts
 // every server has in common come from the kit — /v1/health is the kit's makeHealthRouter, an
 // unhandled exception is the kit's family envelope (no app passes its own onUnhandled), and the
 // version is the package's, never a literal typed into code; the app's and the server's
@@ -289,8 +289,8 @@ function checkServer(app) {
     const p = JSON.parse(readFileSync(pkgPath, "utf8"));
     if (p.type !== "module") fail(app.name, `server/package.json "type" is ${JSON.stringify(p.type)} — the family is "module"`);
     if (!/-server$/.test(p.name || "")) fail(app.name, `server/package.json is named ${JSON.stringify(p.name)} — §Q.3 says "<app>-server"`);
-    // The family's servers are Hono, and ONE Hono: the kit's (2026-10-09 — the kit's TASKS, "The
-    // family's servers move to Hono"; docs/plans/2026-10-09-hono-standard.md §10).
+    // The family's servers are Hono, and ONE Hono: the kit's (2026-10-09 — app-structure §Q.3;
+    // docs/plans/2026-10-09-hono-standard.md §10).
     for (const d of Object.keys({ ...(p.dependencies || {}), ...(p.devDependencies || {}) })) {
       if (/^(fastify|@fastify\/(static|multipart|cors|formbody))$/.test(d)) {
         fail(app.name, `server/package.json depends on ${d} — the family's servers are Hono (${section})`);

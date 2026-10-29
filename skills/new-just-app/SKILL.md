@@ -7,8 +7,7 @@ description: Start a new just-family app (just-<name>) from the kit's complete t
 
 The family's apps are written 100% by AI; this skill is how every one of them starts. It follows the
 kit's standard — `../just-core/docs/app-structure.md` (§1 names and ports, §12 definition of done,
-§13 docs, §15–§18) — and the decisions recorded in the kit's `docs/dev/TASKS.md` ("A standard start
-for every new just app"). Read §1 and §12 before starting.
+§13 docs, §15–§18; §1 also lists what was decided against). Read §1 and §12 before starting.
 
 ## Never asked (decided for every family app)
 
@@ -58,7 +57,7 @@ mark every assumption "(assumed)" for them to correct.
 
 ## The steps
 
-1. Read the kit's `docs/dev/TASKS.md` item above and app-structure §1, §12, §13.
+1. Read app-structure §1, §12, §13.
 2. Run the generator from the kit (it prints every step; `--dry-run` first if the folder exists):
    ```bash
    node ../just-core/scripts/new-app.js --name <name> [--product "<Product>"]
