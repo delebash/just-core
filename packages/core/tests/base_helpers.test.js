@@ -84,3 +84,14 @@ test("a stream's lines end at CR, LF or CRLF only — a token holding U+2028, U+
   // a lone CR ends a line; a last line without an end is still read
   expect(await linesOf(["one\rtwo\nthree"])).toEqual(["one", "two", "three"]);
 });
+
+// The finish list's A15 (2026-10-29): the local adapters built ~10 of these messages by hand — one builder now, with an
+// "embeddings" kind and the transport failure as its cause.
+test("adapter_http_error_says_embeddings_and_keeps_the_cause", () => {
+  expect(adapterHttpError("ollama", 500, "boom", { kind: "embeddings" }).message).toBe("ollama embeddings 500: boom");
+  const cause = new Error("ECONNREFUSED");
+  const down = adapterHttpError("ollama", null, "ECONNREFUSED", { kind: "embeddings", cause });
+  expect(down.message).toBe("ollama embeddings request failed: ECONNREFUSED");
+  expect(down.unreachable).toBe(true);
+  expect(down.cause).toBe(cause);
+});

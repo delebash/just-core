@@ -6,9 +6,9 @@
 // official SDK adapter (openai_sdk.js); this file keeps byte-for-byte pass-through (the
 // samplers order array, llama-server's `prompt_progress` frames) the SDK path doesn't touch.
 
-import { cpSlice, isJsonObject, pyInt, pyStr, RuntimeError, rstrip, setdefault, truthy, ValueError } from "../platform/py.js";
+import { isJsonObject, pyInt, pyStr, RuntimeError, rstrip, setdefault, truthy, ValueError } from "../platform/py.js";
 import { pyFloatValue } from "../platform/pyjson.js";
-import { buildChatMessages, httpxRequest, httpxStream, iterLines, LLMResponse, popReasoning, StreamDelta, TransportError } from "./base.js";
+import { adapterHttpError, buildChatMessages, httpxRequest, httpxStream, iterLines, LLMResponse, popReasoning, StreamDelta, TransportError } from "./base.js";
 import * as dispatch from "./dispatch.js";
 
 // Per-provider default base URLs, used when the config's baseUrl is empty.
@@ -125,15 +125,11 @@ export class OpenAICompatAdapter {
     try {
       r = await httpxRequest("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds, signal });
     } catch (e) {
-      if (e instanceof TransportError) {
-        const err = new RuntimeError(`${this.provider_type} request failed: ${e.message}`);
-        err.cause = e;
-        err.unreachable = true; // (prompts.js aiRunHttpError: 502)
-        throw err;
-      }
+      // (unreachable — prompts.js aiRunHttpError: 502)
+      if (e instanceof TransportError) throw adapterHttpError(this.provider_type, null, e.message, { cause: e });
       throw e;
     }
-    if (r.status >= 400) throw new RuntimeError(`${this.provider_type} ${r.status}: ${cpSlice(r.text, 0, 400)}`);
+    if (r.status >= 400) throw adapterHttpError(this.provider_type, r.status, r.text);
 
     const payload = r.json();
     const choice = (truthy(payload.choices) ? payload.choices : [{}])[0];
@@ -183,7 +179,7 @@ export class OpenAICompatAdapter {
     const r = await httpxStream("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds, signal });
     if (r.status >= 400) {
       const detail = await r.text();
-      throw new RuntimeError(`${this.provider_type} stream ${r.status}: ${cpSlice(detail, 0, 400)}`);
+      throw adapterHttpError(this.provider_type, r.status, detail, { stream: true });
     }
     for await (const line of iterLines(r.body)) {
       if (!line || !line.startsWith("data:")) continue;
@@ -249,14 +245,10 @@ export class OpenAICompatAdapter {
     try {
       r = await httpxRequest("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds });
     } catch (e) {
-      if (e instanceof TransportError) {
-        const err = new RuntimeError(`${this.provider_type} embeddings request failed: ${e.message}`);
-        err.cause = e;
-        throw err;
-      }
+      if (e instanceof TransportError) throw adapterHttpError(this.provider_type, null, e.message, { kind: "embeddings", cause: e });
       throw e;
     }
-    if (r.status >= 400) throw new RuntimeError(`${this.provider_type} embeddings ${r.status}: ${cpSlice(r.text, 0, 400)}`);
+    if (r.status >= 400) throw adapterHttpError(this.provider_type, r.status, r.text, { kind: "embeddings" });
     const data = r.json().data || [];
     return data.map((d) => [...(d.embedding || [])]);
   }

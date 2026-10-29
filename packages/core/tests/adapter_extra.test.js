@@ -1212,3 +1212,16 @@ test("wire: gemini generateContent and embed send Python's bodies", async () => 
     },
   ]);
 });
+
+// The finish list's A15: Ollama's per-text embeddings fallback (an older server without /api/embed) sat outside the
+// error handling — a dropped connection there escaped as a bare transport error, not the adapter's words.
+test("ollama_embed_fallback_says_a_dropped_connection_in_the_adapters_words", async () => {
+  http.fetch.mockImplementation(async (url) => {
+    if (String(url).endsWith("/api/embed")) return new Response("not found", { status: 404 });
+    throw new TypeError("fetch failed", { cause: new Error("ECONNRESET") });
+  });
+  const a = new OllamaAdapter("o", { baseUrl: "http://127.0.0.1:11434" });
+  const err = await a.embed(["a"], { model: "nomic" }).catch((e) => e);
+  expect(err.message).toMatch(/^ollama embeddings request failed: /);
+  expect(err.unreachable).toBe(true);
+});

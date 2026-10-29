@@ -27,8 +27,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
            policy, words "Check every (minutes)" mine; a failure says the approved line). 12 BUILT (the llama.cpp download checked against GitHub's digest — the seeded rows get theirs
            at the pin's move).
            13 BUILT (a runtime's speed bands on its tab — words "Speed bands (seconds per image)", "Fast/Fine/Slow
-           at ≤" mine). 14 BUILT (Count and Measure share `_servingModel`). 15 the adapters' errors
-           through adapterHttpError; Ollama's embeddings fallback guarded. 16 shared_cache's two stale-fixture tests.
+           at ≤" mine). 14 BUILT (Count and Measure share `_servingModel`). 15 BUILT (the local adapters' errors through
+           adapterHttpError; §19 row). 16 shared_cache's two stale-fixture tests.
            17 a guard check for resourceIsolation + a §19 row: streamed server audio uses `crossorigin="anonymous"`
            (JustVoice moves its audio). 18 dead code: declared_claim_fn, startRunner/Runner, LoadRequest.jobId/
            profileSwitchesFn; the screenless CRUD routes stay as data doors.

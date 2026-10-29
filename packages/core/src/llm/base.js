@@ -147,11 +147,17 @@ export function selectAllowed(extra, allowed, renames = null) {
  * `"{ptype} {status}: {detail[:400]}"`; stream → `"{ptype} stream {status}: …"`;
  * `status` null (transport/connection) → `"{ptype} request failed: {detail}"`.
  */
-export function adapterHttpError(providerType, status, detail, { stream = false } = {}) {
+export function adapterHttpError(providerType, status, detail, { stream = false, kind = "", cause = null } = {}) {
+  // `kind` names the call when it isn't a chat ("embeddings" — the local adapters' own words, one builder since
+  // 2026-10-29); `cause` the transport failure underneath
+  const what = kind ? `${providerType} ${kind}` : providerType;
   // no status: the provider wasn't reached (connection, timeout) — marked, so a run answers 502 (prompts.js aiRunHttpError)
-  if (status == null) return Object.assign(new RuntimeError(`${providerType} request failed: ${detail}`), { unreachable: true });
-  const kind = stream ? "stream " : "";
-  return new RuntimeError(`${providerType} ${kind}${status}: ${cpSlice(pyStr(detail), 0, 400)}`);
+  if (status == null) {
+    const err = Object.assign(new RuntimeError(`${what} request failed: ${detail}`), { unreachable: true });
+    if (cause) err.cause = cause;
+    return err;
+  }
+  return new RuntimeError(`${what} ${stream ? "stream " : ""}${status}: ${cpSlice(pyStr(detail), 0, 400)}`);
 }
 
 // ── shared helpers (candidates for platform/) ────────────────────────────────

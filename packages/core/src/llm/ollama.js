@@ -5,9 +5,9 @@
 // `/v1/chat/completions`) so the `think` flag for reasoning models (deepseek-r1,
 // qwen3-thinking) actually surfaces their thinking.
 
-import { cpSlice, isJsonObject, pyInt, RuntimeError, rstrip, setdefault, truthy } from "../platform/py.js";
+import { isJsonObject, pyInt, rstrip, setdefault, truthy } from "../platform/py.js";
 import { pyFloatValue } from "../platform/pyjson.js";
-import { buildChatMessages, httpxRequest, httpxStream, iterLines, LLMResponse, popReasoning, StreamDelta, TransportError } from "./base.js";
+import { adapterHttpError, buildChatMessages, httpxRequest, httpxStream, iterLines, LLMResponse, popReasoning, StreamDelta, TransportError } from "./base.js";
 
 export const DEFAULT_BASE_URL = "http://localhost:11434";
 export const DEFAULT_MODEL = "llama3.2";
@@ -86,14 +86,10 @@ export class OllamaAdapter {
     try {
       r = await httpxRequest("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds, signal });
     } catch (e) {
-      if (e instanceof TransportError) {
-        const err = Object.assign(new RuntimeError(`ollama request failed: ${e.message}`), { unreachable: true });
-        err.cause = e;
-        throw err;
-      }
+      if (e instanceof TransportError) throw adapterHttpError("ollama", null, e.message, { cause: e });
       throw e;
     }
-    if (r.status >= 400) throw new RuntimeError(`ollama ${r.status}: ${cpSlice(r.text, 0, 400)}`);
+    if (r.status >= 400) throw adapterHttpError("ollama", r.status, r.text);
 
     const payload = r.json();
     const message = payload.message || {};
@@ -121,7 +117,7 @@ export class OllamaAdapter {
     const r = await httpxStream("POST", url, { json: body, headers: this._headers(), timeout: this._timeoutSeconds, signal });
     if (r.status >= 400) {
       const detail = await r.text();
-      throw new RuntimeError(`ollama stream ${r.status}: ${cpSlice(detail, 0, 400)}`);
+      throw adapterHttpError("ollama", r.status, detail, { stream: true });
     }
     // Ollama emits one JSON object per line (not SSE).
     for await (const line of iterLines(r.body)) {
@@ -176,11 +172,7 @@ export class OllamaAdapter {
         timeout: this._timeoutSeconds,
       });
     } catch (e) {
-      if (e instanceof TransportError) {
-        const err = new RuntimeError(`ollama embeddings request failed: ${e.message}`);
-        err.cause = e;
-        throw err;
-      }
+      if (e instanceof TransportError) throw adapterHttpError("ollama", null, e.message, { kind: "embeddings", cause: e });
       throw e;
     }
     if (r.status < 400) {
@@ -189,14 +181,20 @@ export class OllamaAdapter {
     }
     const out = [];
     for (const t of arr) {
-      // Python's fallback calls sit outside its try: a transport failure here propagates
-      // as itself (a TransportError), not as "request failed".
-      const rr = await httpxRequest("POST", `${this._baseUrl}/api/embeddings`, {
-        json: { model: m, prompt: t },
-        headers: this._headers(),
-        timeout: this._timeoutSeconds,
-      });
-      if (rr.status >= 400) throw new RuntimeError(`ollama embeddings ${rr.status}: ${cpSlice(rr.text, 0, 400)}`);
+      // (Python's fallback calls sat outside its try — a transport failure escaped as itself; said in the adapter's
+      // words since 2026-10-29)
+      let rr;
+      try {
+        rr = await httpxRequest("POST", `${this._baseUrl}/api/embeddings`, {
+          json: { model: m, prompt: t },
+          headers: this._headers(),
+          timeout: this._timeoutSeconds,
+        });
+      } catch (e) {
+        if (e instanceof TransportError) throw adapterHttpError("ollama", null, e.message, { kind: "embeddings", cause: e });
+        throw e;
+      }
+      if (rr.status >= 400) throw adapterHttpError("ollama", rr.status, rr.text, { kind: "embeddings" });
       out.push([...(rr.json().embedding || [])]);
     }
     return out;
