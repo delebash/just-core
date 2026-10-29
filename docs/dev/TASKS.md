@@ -170,9 +170,9 @@ STATE:  started 2026-10-24. P1 DONE (kit RESEARCH, "stable-diffusion.cpp's serve
         run history (`/v1/jobs`, `/current`, `/cancel`, `/stream`, RESEARCH §11). DECIDED 2026-10-28, the user's
         answer to "Which way?": **"Fold into the kit (Recommended)"** — "The kit's job system gains a live event
         stream beside polling, plus a run history. docgen moves onto it in a docgen session I start. This follows
-        your one-way rule. It's a sizable job, and it doesn't block JustWrite." OPEN: built after JustWrite's
-        release run has started (the kit holds still under it). Its `/v1/jobs/current` would be read as a job id
-        by the kit's `/v1/jobs/:id`: the move renames it.
+        your one-way rule. It's a sizable job, and it doesn't block JustWrite." BUILT 2026-10-28 (round D2): the kit's
+        half de1c46c + 0384b39, docgen's by its session (docgen ef66a54; `/v1/jobs/current`, `/cancel`, `/stream`
+        gone — RESEARCH §11, the plan's "Round D2 BUILT").
         Round E (JustVoice's audio.cpp into the kit, by its session): DECIDED 2026-10-28, the user's answer to "Start
         it?": **"Later, after releases (Recommended)"** — "It's a big change across the kit and JustVoice. Doing it
         after JustWrite ships keeps it off JustWrite's release path."
@@ -223,8 +223,8 @@ OPEN:   found by the checks, not caused by the rename: JustWrite's lint error
 
 ## What the kit's 2026-10-20 changes need in the apps [2026-10-20]
 STATE:  OPEN — kit 70e6df1 + 010360f (just-house-paint's fifteenth review). JustWrite's and JustVoice's sessions were told;
-        docgen has none, so for its next session: its e2e/tests/smoke.test.js:89 finds the AI page's tabs as links —
-        they are tabs now (`.lu-subnav [role=tab]`); its tokens.css lacks --border-field, --danger-ink, --info-ink,
+        docgen has none, so for its next session (its smoke test's tabs DONE in ef66a54 — the AI page's
+        `.lu-subnav [role=tab]`, the AI-tasks panel as #ai-tasks-panel): its tokens.css lacks --border-field, --danger-ink, --info-ink,
         --warn-ink and a dark --on-accent (the template's tokens.css has measured values); @internationalized/number is
         a kit peer to install; a Change folder move keeps the old folder, removed from Settings → Storage (StoragePanel
         or the shell's storageOldCopies / storageRemoveOldCopy) — an app that calls storageRelocate itself has no way to

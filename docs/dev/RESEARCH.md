@@ -2519,11 +2519,31 @@ design.
   - cancel through an AbortSignal; `onFinish` counts the end as the starting window's change;
   - `/v1/jobs/:id` (GET, DELETE) and `/v1/houses/:id/jobs` (the running ones);
   - the screen's side is `src/services/jobs.js` `runServerJob`, inside `withAiTask`.
+  - After (round D, 2026-10-28): those three moved into the kit as they were (`platform/jobs.js`,
+    `platform/jobs_api.js`, `ui/services/serverJob.js`); the app keeps only `/v1/houses/:id/jobs`.
 - **docgen — code, 2026-10-28:** `server/src/jobs.js` (a workspace's single run: `busy`, `start`, `status()`,
   `cancel()`, `subscribe`) behind `/v1/jobs` (POST, 409 while one runs), `/v1/jobs/current`, `/v1/jobs/cancel` and
   `/v1/jobs/stream` (server-sent events with a 15 s keepalive; the screen falls back to polling), states including
   "confirming", and a run history (`/v1/runs`); the screen (`src/stores/jobs.js`) holds one `withAiTask` per
   language, open until the stream reports the outcome.
+  - After (round D2 — docgen ef66a54 on kit 0384b39, its session's report 2026-10-28):
+    - `server/src/jobs.js` `startTranslateRun(jobs, …)` on the app's kit `JobRegistry` (`app_state.js` holds one
+      for the server's life): kind `translate`, key the language; `POST /v1/jobs` answers the snapshot (202), 409
+      while `jobs.busy(["translate"])`.
+    - Its fields through `update`: `{lang, engine, scope, total, done, requests, failed (the exhausted keys by
+      name), phase: translating|confirming}`; its events through `emit`: `item`, `confirming`, `confirm-error`.
+    - A cancelled translate throws AbortError after staging and ends "cancelled". A Cancel during the
+      confirmation pass or the last batch still ends "done": the loop checks between batches only.
+    - `makeJobsRouter` mounted; `/v1/jobs/current`, `/cancel` and `/stream` deleted; `job` dropped from
+      `/v1/state` and `/v1/summary`.
+    - The run history stays docgen's record (`state.js` runs). Each record keeps total, state, error and
+      failedKeys: the Runs card reads the newest record after a reload, since the registry lists running jobs only.
+    - `data_admin.js` teardown = `jobs.cancelAll()` then the runner's stop, as `beforeReplace` and inside
+      `resetWorkspace` (the data router calls `beforeReplace` for a restore only).
+    - The screen: `src/stores/jobs.js` on `runServerJob({start, feature: "translate", meta: {lang}, describe →
+      done/total, onJob, onEvent})`; the queue of languages stays the screen's; a reload rejoins through
+      `GET /v1/jobs?kind=translate`; Cancel is `DELETE /v1/jobs/:id`.
+    - Its gates: test:server 174/174, test:unit 17/17, npm test 20/20.
 - **JustVoice — code (the plan's grep, 2026-10-24):** `/v1/jobs/:job_id` (GET, DELETE) in
   `server/src/api/engines_models_api.js`; `src/services/ttsJobChannel.js` calls the same shape "the kit's channel
   contract".

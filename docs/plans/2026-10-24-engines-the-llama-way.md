@@ -300,6 +300,10 @@ its screen on `runServerJob` with `onEvent`. Blast radius (grep, 2026-10-28): `s
 `server/tests/jobs.test.js`, `server/tests/workspace.test.js`, `src/stores/jobs.js`, `src/pages/RunsPage.vue`,
 `src/pages/HomePage.vue`; house-paint's jobs (polling) unchanged; JustWrite and JustVoice none.
 
+**Round D2 BUILT (2026-10-28):** the kit's half (de1c46c; 0384b39 — the end snapshot reaches onJob, a job
+cancelled from elsewhere ends its task as cancelled) and docgen's, by its session (docgen ef66a54 on kit 0384b39:
+its JobManager gone, a translate is the kit's job, its screen on `runServerJob` with `onEvent`; RESEARCH §11).
+
 **Round D BUILT (2026-10-28):** K9 — house-paint's job registry, route and screen helper moved into the kit as they
 were (`platform/jobs.js` `JobRegistry`, `platform/jobs_api.js` `makeJobsRouter`, `ui/services/serverJob.js`
 `runServerJob`, the words `kit.jobs.*` in English and Spanish), their tests with them; house-paint on them (its
