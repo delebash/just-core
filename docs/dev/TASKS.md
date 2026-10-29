@@ -45,10 +45,10 @@ DECIDED: the user, verbatim (2026-10-28): "why would i run the website workflow 
 STATE:  The kit's half BUILT 2026-10-29: `website/` (sync-docs.js, deploy.js, deploy.yml, README — the one way, copied
         as they are); the template's release starts nothing (notify-website and WEBSITE_REPO gone; docs.tar.gz still
         attached); the guard's check 25 counts a dispatch or a call from another workflow and a workflow starting
-        another, check 26 checks every site beside the kit; §19's row. House-paint and its site on it. OPEN, by their
-        sessions (told 2026-10-29): JustWrite's release (its notify-website, its token) and justwrite-website (push and
-        dispatch triggers, .mjs scripts); docgen's release (the template's old notify job) and its site — each on the
-        guard's known list until then.
+        another, check 26 checks every site beside the kit; §19's row. House-paint and its site on it. JustWrite on it
+        (release.yml 53328251, dry run 40826175245 green; justwrite-website 6aa7f99, its build-only run 40826178027);
+        docgen's site on it (8cd783f) — the guard's known list empty (992f3d9). OPEN: docgen's release dry run
+        (40826540251, its session sends the result).
 
 ## Kit asks from JustWrite's session, for its roadmap [2026-10-29]
 GO:     JustWrite's user (relayed by its session): "do it all … just complete the app"; this session's user: "go ndo it
