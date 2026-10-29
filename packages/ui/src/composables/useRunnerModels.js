@@ -274,6 +274,12 @@ function serverTask(modelId) {
         : (m.error || kitT("kit.phase.err.lastAttempt")),
       // Retry runs the full workflow: engine check + install-if-missing, then load.
       retry: () => retryLoad(modelId),
+      // Dismiss (the user's screenshot, 2026-10-29: Retry and nothing else): the live task's own verb — stop THIS model,
+      // which drops the failed row on the server — then the list again
+      dismiss: async () => {
+        await request("/v1/llm-runner/stop", { method: "POST", body: { modelId } });
+        await refresh();
+      },
     };
   }
   return IDLE;
