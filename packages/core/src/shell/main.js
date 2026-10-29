@@ -45,10 +45,15 @@
 //     user presses Download, installed when the app quits (or at once, "Restart now").
 //   - Electron's security checklist (electronjs.org/docs/latest/tutorial/security), checked
 //     2026-10-08: context isolation, the sandbox and no Node in the renderer; a written CSP on
-//     app://; navigation, new windows and <webview> refused; permissions granted only to the
+//     app://; navigation away from the app and <webview> refused; permissions granted only to the
 //     app's own page and only from an allow-list; every IPC call checked against the sender's
 //     origin; one copy of the app at a time. The fuses are set per app at packaging
 //     (package.json `build.electronFuses`).
+//   - The app's own page may open another window of the app with plain `window.open` (2026-10-29, JustWrite's
+//     "Open in new window"; a new tab in a browser): the same preload, isolation, sandbox, right-click menu, guards
+//     and unsaved-work box. A second window closes alone; the main window's close (and any Quit) asks every window
+//     first and closes them all (Electron's `outlivesOpener` default). Any other window.open is refused — a web page
+//     opens in the browser.
 
 import fs from "node:fs";
 import os from "node:os";
@@ -155,6 +160,19 @@ const START_WAIT_MS = 60_000;
  *  label the shell hands a menu goes through here. */
 export function menuLabel(text, platform = process.platform) {
   return platform === "darwin" || typeof text !== "string" ? text : text.replace(/&/g, "&&");
+}
+
+/** A URL's origin as Chromium writes it — `scheme://host[:port]` — or null for one without a host (data:, about:,
+ *  javascript:, file:///). Node's URL gives every scheme but http(s), ws(s), ftp and blob the opaque origin "null"
+ *  (WHATWG), so `app://<id>/` compared as `new URL(u).origin` equalled data:, about:blank and another app's page
+ *  (2026-10-29, found by web-fc; measured in Electron 44.10: `senderFrame.origin` reads "app://probe" there). */
+export function originOf(url) {
+  try {
+    const u = new URL(url);
+    return u.host ? `${u.protocol}//${u.host}` : null;
+  } catch {
+    return null;
+  }
 }
 
 export function withCarriedToken(home, token) {
@@ -322,17 +340,12 @@ export function runDesktopApp(config) {
     }
   }
 
-  // The page the window loads, and so the one origin trusted with permissions and IPC.
+  // The page the window loads, and so the one origin trusted with permissions and IPC: a URL by its scheme and host
+  // (originOf), an IPC sender by Chromium's own origin (the checklist's "Validate the sender of all IPC messages").
   const devUrl = !app.isPackaged ? config.devUrl || process.env.DEV_URL || null : null;
   const home = devUrl || `app://${config.id}/index.html`;
-  const homeOrigin = new URL(home).origin;
-  const fromHome = (url) => {
-    try {
-      return new URL(url).origin === homeOrigin;
-    } catch {
-      return false;
-    }
-  };
+  const homeOrigin = originOf(home);
+  const fromHome = (url) => originOf(url) === homeOrigin;
 
   // ── the server ─────────────────────────────────────────────────────────────
   const serverUrl = () => (state.port ? `http://127.0.0.1:${state.port}` : null);
@@ -599,14 +612,105 @@ export function runDesktopApp(config) {
     }
   }
 
+  // every window of the app: the same page rules (the second windows window.open makes included)
+  const webPreferences = () => ({
+    preload: config.preload || path.join(import.meta.dirname, "preload.js"),
+    contextIsolation: true,
+    sandbox: true,
+    nodeIntegration: false,
+  });
+  // the screen a window opens on: no bigger than its work area, its minimum included — a 960 × 700 minimum is taller
+  // than a 1280 × 720 screen's work area (1080p at 150 %), and the window hung under the taskbar unable to shrink
+  // (just-house-paint's eleventh review, measured 2026-10-20)
+  const fit = (n, max) => (n ? Math.min(n, max) : n);
+
+  /** The right-click menu Electron doesn't draw by itself (2026-10-18; electron-context-menu, the pattern
+   *  electronjs.org/docs/latest/tutorial/spellchecker shows): spelling suggestions, Add to dictionary (the user's own
+   *  act), cut/copy/paste, copy link or image. No web search — nothing leaves the app unasked — and no macOS Look Up. A
+   *  page with its own menu (JustWrite's editor) cancels the browser's and never gets this one. */
+  function addContextMenu(win) {
+    contextMenu({
+      window: win,
+      labels: state.contextMenuLabels,
+      showSearchWithGoogle: false,
+      showLookUpSelection: false,
+    });
+  }
+
+  /** Unsaved work (2026-10-20, the eighteenth review: closing, a reload or Quit dropped a house's unsaved colors
+   *  silently): the page keeps its `beforeunload`, and Electron asks here — its documented pattern
+   *  (electronjs.org/docs/latest/api/web-contents#event-will-prevent-unload: preventDefault lets the page unload). Leave
+   *  lets it go; Stay keeps the page, and a Quit under way stops. True when the user stayed. */
+  function askBeforeUnload(win, event) {
+    const L = state.trayLabels;
+    // the box is the window's: a hidden window (the tray's Quit with keep-running on) shows first — else its box
+    // isn't seen and the app waits on it
+    if (win.isMinimized?.()) win.restore();
+    if (!win.isVisible?.()) win.show();
+    win.focus?.();
+    const choice = dialog.showMessageBoxSync(win, {
+      type: "question",
+      title: config.productName,
+      message: L.unloadTitle,
+      detail: L.unloadDetail,
+      buttons: [L.unloadLeave, L.unloadStay],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
+    });
+    if (choice === 0) {
+      event.preventDefault();
+      return false;
+    }
+    state.onUnloadStayed?.();
+    return true;
+  }
+
+  /** Where the app's pages may go: another window of the app (window.open of its own page — the window-open handler's
+   *  `allow` with the window's own options; electronjs.org/docs/latest/api/window-open, where the preload isn't
+   *  inherited), a web page in the browser, nothing else. Set on every page's webContents (the checklist's
+   *  `web-contents-created` pattern), so a second window has the same guards. */
+  function guardPage(contents) {
+    contents.setWindowOpenHandler(({ url }) => {
+      if (fromHome(url)) {
+        const w = config.window || {};
+        const area = screen.getPrimaryDisplay().workAreaSize;
+        // no width or height: the page's own (window.open's features) or Electron's 800 × 600 — this override would
+        // beat the page's; never below the app's minimum
+        return {
+          action: "allow",
+          overrideBrowserWindowOptions: {
+            title: w.title || config.productName,
+            minWidth: fit(w.minWidth, area.width),
+            minHeight: fit(w.minHeight, area.height),
+            backgroundColor: w.backgroundColor,
+            icon: config.icon,
+            autoHideMenuBar: true,
+            webPreferences: webPreferences(),
+          },
+        };
+      }
+      if (/^https?:/i.test(url)) shell.openExternal(url);
+      return { action: "deny" };
+    });
+    contents.on("will-navigate", (e, url) => {
+      if (!fromHome(url)) {
+        e.preventDefault();
+        if (/^https?:/i.test(url)) shell.openExternal(url);
+      }
+    });
+    // a second window: its menu and its unsaved-work box; it closes alone (the main window's close closes it —
+    // Electron's `outlivesOpener` default — after a Quit has asked it, closeAllForQuit)
+    contents.on("did-create-window", (child) => {
+      addContextMenu(child);
+      child.webContents.on("will-prevent-unload", (event) => askBeforeUnload(child, event));
+    });
+  }
+
   function createWindow() {
     const w = config.window || {};
     const saved = loadWindowState();
-    // the screen it opens on: no bigger than its work area, its minimum included — a 960 × 700 minimum is taller
-    // than a 1280 × 720 screen's work area (1080p at 150 %), and the window hung under the taskbar unable to
-    // shrink (just-house-paint's eleventh review, measured 2026-10-20)
     const area = (saved?.x !== undefined && saved?.y !== undefined ? screen.getDisplayMatching({ x: saved.x, y: saved.y, width: saved.width || 1, height: saved.height || 1 }) : screen.getPrimaryDisplay()).workAreaSize;
-    const fit = (n, max) => (n ? Math.min(n, max) : n);
     const win = new BrowserWindow({
       title: w.title || config.productName,
       width: fit(saved?.width || w.width || 1280, area.width),
@@ -619,36 +723,11 @@ export function runDesktopApp(config) {
       icon: config.icon,
       show: false,
       autoHideMenuBar: true,
-      webPreferences: {
-        preload: config.preload || path.join(import.meta.dirname, "preload.js"),
-        contextIsolation: true,
-        sandbox: true,
-        nodeIntegration: false,
-      },
+      webPreferences: webPreferences(),
     });
     if (saved?.maximized) win.maximize();
     win.once("ready-to-show", () => win.show());
-    // The right-click menu Electron doesn't draw by itself (2026-10-18; electron-context-menu, the
-    // pattern electronjs.org/docs/latest/tutorial/spellchecker shows): spelling suggestions, Add to
-    // dictionary (the user's own act), cut/copy/paste, copy link or image. No web search — nothing
-    // leaves the app unasked — and no macOS Look Up. A page with its own menu (JustWrite's editor)
-    // cancels the browser's and never gets this one.
-    contextMenu({
-      window: win,
-      labels: state.contextMenuLabels,
-      showSearchWithGoogle: false,
-      showLookUpSelection: false,
-    });
-    win.webContents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:/i.test(url)) shell.openExternal(url);
-      return { action: "deny" };
-    });
-    win.webContents.on("will-navigate", (e, url) => {
-      if (new URL(url).origin !== homeOrigin) {
-        e.preventDefault();
-        if (/^https?:/i.test(url)) shell.openExternal(url);
-      }
-    });
+    addContextMenu(win);
     let holding = false;
     win.on("close", (e) => {
       saveWindowState(win);
@@ -698,32 +777,9 @@ export function runDesktopApp(config) {
       if (win.isDestroyed() || state.quitting || state.closingForQuit) return;
       console.log("[shell] window failed: the app never drew its layout and first page");
     });
-    // Unsaved work (2026-10-20, the eighteenth review: closing, a reload or Quit dropped a house's unsaved colors
-    // silently): the page keeps its `beforeunload`, and Electron asks here — its documented pattern
-    // (electronjs.org/docs/latest/api/web-contents#event-will-prevent-unload: preventDefault lets the page unload).
-    // Leave lets it go; Stay keeps the page, and a Quit under way stops.
+    // its unsaved work asks (askBeforeUnload); Stay ends a close it was holding for
     win.webContents.on("will-prevent-unload", (event) => {
-      const L = state.trayLabels;
-      // the box is the window's: a hidden window (the tray's Quit with keep-running on) shows first — else its box
-      // isn't seen and the app waits on it
-      if (win.isMinimized?.()) win.restore();
-      if (!win.isVisible?.()) win.show();
-      win.focus?.();
-      const choice = dialog.showMessageBoxSync(win, {
-        type: "question",
-        title: config.productName,
-        message: L.unloadTitle,
-        detail: L.unloadDetail,
-        buttons: [L.unloadLeave, L.unloadStay],
-        defaultId: 1,
-        cancelId: 1,
-        noLink: true,
-      });
-      if (choice === 0) event.preventDefault();
-      else {
-        holding = false;
-        state.onUnloadStayed?.();
-      }
+      if (askBeforeUnload(win, event)) holding = false;
     });
     // the first page after a Change folder signs in with the token the old folder's profile kept (once)
     win.loadURL(withCarriedToken(home, carriedToken));
@@ -737,7 +793,11 @@ export function runDesktopApp(config) {
     state.win.show();
     state.win.focus();
   }
+  // the tray's words go to the main window (it is shown first); an update's status to every window of the app
   const send = (channel, ...args) => state.win && !state.win.isDestroyed() && state.win.webContents.send(channel, ...args);
+  const sendAll = (channel, ...args) => {
+    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(channel, ...args);
+  };
 
   // ── the tray ───────────────────────────────────────────────────────────────
   function buildTrayMenu() {
@@ -848,15 +908,26 @@ export function runDesktopApp(config) {
     if (state.quitting || state.quitStarted) return;
     if (state.moving) return holdQuit();
     state.quitStarted = true;
-    // the window closes first, through its page's beforeunload (the box above): Stay keeps the page — and the app
-    const win = state.win && !state.win.isDestroyed() ? state.win : null;
-    if (win && !(await closeForQuit(win))) {
+    // the windows close first, each through its page's beforeunload (the box above): Stay keeps the page — and the app
+    if (!(await closeAllForQuit())) {
       state.quitStarted = false;
       return;
     }
     state.quitting = true;
     await stopServer();
     app.quit();
+  }
+
+  /** Every window of the app closed for a Quit, the second windows first, then the main one: true once all have, false
+   *  when a page kept its window (Stay) — the rest stay as they are. (A second window still open when the server
+   *  stops could still keep app.quit() — the nineteenth review's Restart-now bug, for two windows.) */
+  async function closeAllForQuit() {
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (w === state.win || w.isDestroyed()) continue;
+      if (!(await closeForQuit(w))) return false;
+    }
+    const win = state.win && !state.win.isDestroyed() ? state.win : null;
+    return !win || closeForQuit(win);
   }
 
   /** Close `win` for a Quit: true once it has closed, false when its page kept it (Stay). Chromium itself closes a
@@ -911,7 +982,7 @@ export function runDesktopApp(config) {
   const firstLine = (e) => String(e?.message || e).split("\n")[0].slice(0, 200);
   function setUpdate(patch) {
     Object.assign(update, patch);
-    send("update:status", updateNow());
+    sendAll("update:status", updateNow());
   }
   async function loadUpdater() {
     if (updater || !updatesOn) return updater;
@@ -988,16 +1059,17 @@ export function runDesktopApp(config) {
 
   // ── the renderer's commands ────────────────────────────────────────────────
   const handlers = {
-    async pickDirectory({ title, defaultPath } = {}) {
-      const r = await dialog.showOpenDialog(state.win, {
+    // (a file dialog opens on the window that asked — the second windows window.open makes included)
+    async pickDirectory({ title, defaultPath } = {}, win = state.win) {
+      const r = await dialog.showOpenDialog(win, {
         title: title || "Choose a folder",
         defaultPath: defaultPath || undefined,
         properties: ["openDirectory", "createDirectory"],
       });
       return r.canceled || !r.filePaths.length ? null : r.filePaths[0];
     },
-    async pickFile({ title, filterName, filterExt, defaultDir } = {}) {
-      const r = await dialog.showOpenDialog(state.win, {
+    async pickFile({ title, filterName, filterExt, defaultDir } = {}, win = state.win) {
+      const r = await dialog.showOpenDialog(win, {
         title: title || "Open a file",
         defaultPath: defaultDir || undefined,
         properties: ["openFile"],
@@ -1007,8 +1079,8 @@ export function runDesktopApp(config) {
       const p = r.filePaths[0];
       return { name: path.basename(p), dir: path.dirname(p), dataBase64: fs.readFileSync(p).toString("base64") };
     },
-    async saveFile({ bytes, suggestedName, title, filterName, filterExt, defaultDir } = {}) {
-      const r = await dialog.showSaveDialog(state.win, {
+    async saveFile({ bytes, suggestedName, title, filterName, filterExt, defaultDir } = {}, win = state.win) {
+      const r = await dialog.showSaveDialog(win, {
         title: title || "Save as",
         defaultPath: path.join(defaultDir || app.getPath("downloads"), suggestedName || ""),
         filters: filterExt ? [{ name: filterName || filterExt, extensions: [String(filterExt).replace(/^\./, "")] }] : [],
@@ -1028,10 +1100,10 @@ export function runDesktopApp(config) {
     /** "Save as" for a file the app's own server makes (a backup — gigabytes of photos): streamed from the
      *  server straight to the chosen file, never held whole by the window or here (2026-10-20). Only this
      *  app's server: `url` must start at its address; `headers` carry the window's access token. */
-    async saveFromUrl({ url, headers, suggestedName, title, filterName, filterExt, defaultDir } = {}) {
+    async saveFromUrl({ url, headers, suggestedName, title, filterName, filterExt, defaultDir } = {}, win = state.win) {
       const base = serverUrl();
       if (!base || typeof url !== "string" || !url.startsWith(`${base}/`)) throw new Error("saveFromUrl: only this app's server's files");
-      const r = await dialog.showSaveDialog(state.win, {
+      const r = await dialog.showSaveDialog(win, {
         title: title || "Save as",
         defaultPath: path.join(defaultDir || app.getPath("downloads"), suggestedName || ""),
         filters: filterExt ? [{ name: filterName || filterExt, extensions: [String(filterExt).replace(/^\./, "")] }] : [],
@@ -1239,8 +1311,7 @@ export function runDesktopApp(config) {
       // review: Restart now stopped the server and quit past the page's check — Stay left a window with no server)
       if (state.quitStarted) return updateNow();
       state.quitStarted = true;
-      const win = state.win && !state.win.isDestroyed() ? state.win : null;
-      if (win && !(await closeForQuit(win))) {
+      if (!(await closeAllForQuit())) {
         state.quitStarted = false;
         return updateNow();
       }
@@ -1255,10 +1326,11 @@ export function runDesktopApp(config) {
     },
   };
   for (const name of COMMANDS) {
-    // Only the app's own page may call (the checklist's "validate the sender").
+    // Only the app's own page may call (the checklist's "validate the sender": Chromium's origin of the frame, never
+    // its URL's — Node reads every app:// URL's origin as "null"); the window it asked from is the dialogs' parent.
     ipcMain.handle(`shell:${name}`, (e, args) => {
-      if (!fromHome(e.senderFrame?.url)) throw new Error(`shell:${name} refused: not the app's page`);
-      return handlers[name](args || {});
+      if (!e.senderFrame || e.senderFrame.origin !== homeOrigin) throw new Error(`shell:${name} refused: not the app's page`);
+      return handlers[name](args || {}, (e.sender && BrowserWindow.fromWebContents(e.sender)) || state.win);
     });
   }
 
@@ -1282,8 +1354,10 @@ export function runDesktopApp(config) {
     state.win.show();
     state.win.focus();
   });
-  // No page in these apps embeds a <webview>; refuse one outright.
+  // Every page's guards (guardPage), its second windows' included. No page in these apps embeds a <webview>; refuse one
+  // outright.
   app.on("web-contents-created", (_e, contents) => {
+    guardPage(contents);
     contents.on("will-attach-webview", (ev) => ev.preventDefault());
   });
   app.on("window-all-closed", () => {

@@ -561,8 +561,8 @@ kit's peer dependencies go in THIS app's `package.json` (`packages/ui/package.js
 
   The opener stays the APP's — it is `native.js`'s, the one reader of the shell bridge
   (§Q.2), and the kit decides browser-vs-desktop from what it is handed. (The kit's Electron
-  shell hands an `http(s)` `target=_blank` link or `window.open` to the system browser and
-  refuses every other new window —
+  shell hands an `http(s)` `target=_blank` link or `window.open` to the system browser, opens the app's own
+  page as another window of the app (§19, "Another window of the app"), and refuses every other new window —
   `setWindowOpenHandler` in `packages/core/src/shell/main.js`.)
 - **`<LlmUiHosts />` in the shell, and the AI-tasks row from `useAiTasksNav()`.** The
   hosts are one tag because the failure mode was mounting SOME of them: with no
@@ -1228,6 +1228,7 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | A long server job (202, polled or followed, Cancel) | `platform/jobs.js` `JobRegistry` (its work's `update` and `emit`, `subscribe`, `list`) + `platform/jobs_api.js` `makeJobsRouter` (`/v1/jobs` what runs, `/v1/jobs/:id` GET and DELETE — 410 once ended and forgotten —, `/v1/jobs/:id/events`) · `ui/services/serverJob.js` `runServerJob` inside `withAiTask` (the screen; `onEvent` follows its events, polling again if they drop) | an app's own registry, poll loop or event stream |
 | A live event stream, server → screen | server-sent events: `platform/server.js` `stream` with `text/event-stream`, each frame `data: <json>` (`llm/prompts.js` a run, `platform/jobs_api.js` a job's events) · `ui/common/services/sseFrames.js` `readSseFrames` over the server transport (`client.js` `requestStream`, `runServerJob`) | EventSource (it can't send the access token), a reader of the screen's own |
 | A failure, a field's refusal | `ui/common/services/reportError.js` `reportError` · `ui/common/services/forms.js` `fieldErrors` | `alert`, hand-made words |
+| Another window of the app (a page beside the one in use) | `window.open(router.resolve(to).href, "_blank", "noopener")` — the kit's shell opens the app's own page as a window of the app (its preload, sandbox, menu and unsaved-work box; `shell/main.js` `guardPage`), a browser opens a tab; `noopener` so the new page starts fresh (no copy of this one's sessionStorage). Closing the main window closes the others, each asking about its unsaved work; on the phone there are no windows — hide the item there | an IPC command, a `BrowserWindow` in the app |
 | A toast · a confirm | `ui/common/services/toastBridge.js` `pushToast` · `ui/common/services/dialog.js` `confirmDialog` | — |
 | A size in bytes | `ui/common/services/downloadRate.js` `fmtBytes` | — |
 | A model's fit and speed, in words | `ui/common/services/modelPick.js` `fitLabel`, `speedBandLabel`, `fitWarning` + the `.lu-fit` chip (`ui/common/styles.css`) | notes of a screen's own |

@@ -176,6 +176,22 @@ the same on both; JustVoice's
   - reaches `http://127.0.0.1` with `fetch` and SSE, with `Origin: app://<host>`, cross-site;
   - a JSON `POST` sends a CORS preflight;
   - no Local Network Access block.
+- **An `app://` URL's origin, and a second window** (2026-10-29; web-fc's probe in Electron 44.10.0, a main window
+  with preload, contextIsolation and sandbox, `app` registered standard and secure; *measured*):
+  - Node's `new URL("app://x/").origin` is `"null"` — the WHATWG opaque origin of every scheme but http(s), ws(s), ftp
+    and blob — and so are data:, file:, about:blank and javascript:. A check comparing `URL.origin` passed them all as
+    the app's page (shell/main.js until 2026-10-29). Chromium's own origin — `senderFrame.origin`, the permission
+    check's `requestingOrigin` — reads `"app://x"`; the shell now matches a URL by scheme + host (`originOf`) and an
+    IPC sender by `senderFrame.origin` (Electron's checklist, "Validate the sender of all IPC messages").
+  - `setWindowOpenHandler` `{ action: "allow", overrideBrowserWindowOptions: { webPreferences } }`: the child runs the
+    preload (not inherited — name it; electronjs.org/docs/latest/api/window-open), sandboxed and isolated.
+    `did-create-window` fires for plain, `noopener` and relative (`"#/x"`) opens. With no width/height in the override
+    the child takes window.open's features (`width=700,height=500` → 700×500), else 800×600 — the override beats the
+    features.
+  - A plain window.open copies the opener's sessionStorage; `noopener` doesn't. localStorage is shared either way.
+  - A data: URL reaches the handler (denied); a file: URL never reached it.
+  - Closing the opener closed every child (`outlivesOpener` defaults to false). Whether a child's beforeunload asks
+    then wasn't settled — the shell's Quit closes the children first, each through its page.
 - The boot race: the server listened ~170 ms after main started and the page began loading at
   ~60 ms. The page's first request can come before the server listens — it did on 45.
 - better-sqlite3 13.0.3 and `node:sqlite` read all 17,374 cells of JustVoice's real database

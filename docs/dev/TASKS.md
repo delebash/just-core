@@ -19,11 +19,8 @@ GO:     the user, verbatim (2026-10-29, this session): "fix all kit bug look at 
         think adverserily on your recs again go"; then "and we should use the latest engine pin for the release of all
         apps and final testing after all features and bugs are fixed". The list (recs as shown, evidence file:line per
         item in the session's research notes) — close = delete each line as it lands:
-        A. Bugs: 1 multi-window (JustWrite's HELD 1, below) + the shell's own-page check (Node gives every app:// URL the
-           origin "null": data:, file:, about:blank and other app:// hosts passed IPC, permissions and navigation) —
-           closing the main window closes the app and its other windows, each asked about unsaved work (Electron's
-           default; a second window closes alone); a new window takes the size the page asks for, else Electron's
-           800×600, never below the app's minimum. 2 one-pool boxes (integrated GPU, Mac): every fit badge "CPU" —
+        A. Bugs: 1 BUILT (multi-window + the own-page check; the template's e2e test runs with the final pass).
+           2 one-pool boxes (integrated GPU, Mac): every fit badge "CPU" —
            score against the shared pool. 3 an engine update/uninstall deletes another app's build in a shared cache —
            keep every live sharer's pin; an uninstall says "kept for <app>". 4 the router loads any named model
            unbooked — every path to the local engine books first, then `--no-models-autoload` by build. 5 the

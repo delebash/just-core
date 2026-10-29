@@ -35,7 +35,7 @@ const fake = vi.hoisted(() => {
     }
   }
   // what the shell asked of Electron
-  const rec = { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [], pageHolds: false, unloadAnswer: 1 };
+  const rec = { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [], pageHolds: false, unloadAnswer: 1, windows: [], openDialogs: [], external: [], permissionRequest: null, permissionCheck: null };
   const app = Object.assign(new Emitter(), {
     isPackaged: false,
     setPath() {},
@@ -54,19 +54,37 @@ const fake = vi.hoisted(() => {
     getPath: () => "downloads",
   });
   class BrowserWindow extends Emitter {
+    // Electron's own: the windows still open, and the window a page's webContents belongs to
+    static getAllWindows() {
+      return rec.windows.filter((w) => !w.destroyed);
+    }
+    static fromWebContents(wc) {
+      return rec.windows.find((w) => w.webContents === wc) || null;
+    }
     constructor(options) {
       super();
       rec.order.push("window");
       this.options = options;
       this.webContents = Object.assign(new Emitter(), {
-        setWindowOpenHandler() {},
-        send() {},
+        setWindowOpenHandler(fn) {
+          this.openHandler = fn;
+        },
+        sent: [],
+        send(...args) {
+          this.sent.push(args);
+        },
         // the page's answers: the token the kit's sign-in keeps (localStorage), else the drawn-layout probe's true
         executeJavaScript: async (code) => (String(code).includes("localStorage") ? rec.pageToken : true),
         reload() {
           rec.reloads++;
         },
       });
+      rec.windows.push(this);
+      app.emit("web-contents-created", {}, this.webContents);
+    }
+    destroy() {
+      this.destroyed = true;
+      this.emit("closed");
     }
     maximize() {}
     loadURL(url) {
@@ -84,7 +102,7 @@ const fake = vi.hoisted(() => {
       const ev = { prevented: false, preventDefault() { this.prevented = true; } };
       this.emit("close", ev);
       if (ev.prevented) return;
-      if (rec.pageHolds) {
+      if (this.pageHolds ?? rec.pageHolds) {
         const u = { prevented: false, preventDefault() { this.prevented = true; } };
         this.webContents.emit("will-prevent-unload", u);
         if (!u.prevented) return;
@@ -135,6 +153,10 @@ const fake = vi.hoisted(() => {
         rec.dialogs.push(args.at(-1));
         return { response: rec.answer };
       },
+      showOpenDialog: async (...args) => {
+        rec.openDialogs.push(args);
+        return { canceled: true, filePaths: [] };
+      },
       showMessageBoxSync: (...args) => {
         rec.dialogs.push(args.at(-1));
         return rec.unloadAnswer;
@@ -154,12 +176,21 @@ const fake = vi.hoisted(() => {
     session: {
       defaultSession: {
         resolveProxy: async () => "DIRECT",
-        setPermissionRequestHandler() {},
-        setPermissionCheckHandler() {},
+        setPermissionRequestHandler(fn) {
+          rec.permissionRequest = fn;
+        },
+        setPermissionCheckHandler(fn) {
+          rec.permissionCheck = fn;
+        },
         webRequest: { onBeforeRequest: (...args) => rec.webRequest.push(args) },
       },
     },
-    shell: { openExternal() {}, openPath: async () => "" },
+    shell: {
+      openExternal(url) {
+        rec.external.push(url);
+      },
+      openPath: async () => "",
+    },
     Tray,
     utilityProcess,
   };
@@ -197,7 +228,7 @@ const { rec } = fake;
 const tmp = () => mkdtempSync(path.join(tmpdir(), "shell-"));
 
 beforeEach(() => {
-  Object.assign(rec, { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [], pageHolds: false, unloadAnswer: 1 });
+  Object.assign(rec, { forks: [], menus: [], dialogs: [], webRequest: [], relaunched: 0, exited: [], ipc: {}, answer: 0, loaded: [], reloads: 0, quits: 0, lock: true, pageToken: null, order: [], pageHolds: false, unloadAnswer: 1, windows: [], openDialogs: [], external: [], permissionRequest: null, permissionCheck: null });
   sweep.mockClear();
   fake.electron.session.defaultSession.resolveProxy = async () => "DIRECT";
   relocate.mockReset(); // the real relocate again, no answer queued by another test
@@ -220,7 +251,7 @@ async function startShell(repo = tmp()) {
 }
 
 /** The renderer's call to a shell command, from the app's own page. */
-const invoke = (name, args = {}) => rec.ipc[`shell:${name}`]({ senderFrame: { url: "app://demo/index.html" } }, args);
+const invoke = (name, args = {}) => rec.ipc[`shell:${name}`]({ senderFrame: { url: "app://demo/index.html", origin: "app://demo" } }, args);
 
 const SERVER_ITEMS = ["▶️ Start server", "⏹ Stop server", "🔄 Restart server"];
 const trayItem = (label) => rec.menus.at(-1).find((i) => i.label === label);
@@ -660,4 +691,124 @@ test("an \"&\" in a menu's words is shown, on every platform: the tray's and the
   expect(labels).toContain(menuLabel("ℹ️ About Just AI i18n & DocGen"));
   await invoke("setContextMenuLabels", { labels: { copy: "Copy & keep" } });
   expect(shell.state.contextMenuLabels.copy).toBe(menuLabel("Copy & keep"));
+});
+
+/** A second window of the app, as Electron makes one when the page calls window.open and the shell allows it. */
+function openChild(shell, url = "app://demo/index.html#/characters/1") {
+  const allowed = shell.state.win.webContents.openHandler({ url, features: "" });
+  const child = new fake.electron.BrowserWindow(allowed.overrideBrowserWindowOptions);
+  shell.state.win.webContents.emit("did-create-window", child, { url });
+  return child;
+}
+const prevented = () => ({ prevented: false, preventDefault() { this.prevented = true; } });
+
+// Node's URL gives every app:// URL the origin "null" — and data:, file:, about:blank too — so the shell took all of
+// them for its own page (web-fc's finding, 2026-10-29). Chromium's origin is "app://<id>": the IPC sender is judged by
+// it (Electron's security checklist, "Validate the sender of all IPC messages"), a URL by its scheme and host.
+test("only the app's own page may call the shell, get a permission or be navigated to — not data:, file:, about:blank or another app's page", async () => {
+  const { shell } = await startShell();
+  const call = (frame) => rec.ipc["shell:updateStatus"]({ senderFrame: frame }, {});
+  for (const frame of [
+    { url: "data:text/html,x", origin: "null" },
+    { url: "about:blank", origin: "null" },
+    { url: "file:///C:/Windows/win.ini", origin: "null" },
+    { url: "app://other/index.html", origin: "app://other" },
+  ]) {
+    expect(() => call(frame), frame.url).toThrow(/refused: not the app's page/);
+  }
+  expect(call({ url: "app://demo/index.html#/notes", origin: "app://demo" })).toMatchObject({ state: "off" });
+  expect(rec.permissionCheck(null, "clipboard-read", "app://demo")).toBe(true);
+  for (const origin of ["null", "app://other", "file://"]) expect(rec.permissionCheck(null, "clipboard-read", origin), origin).toBe(false);
+  const asked = (requestingUrl) => {
+    let answer = null;
+    rec.permissionRequest(null, "clipboard-read", (ok) => (answer = ok), { requestingUrl });
+    return answer;
+  };
+  expect(asked("app://demo/index.html")).toBe(true);
+  expect(asked("data:text/html,x")).toBe(false);
+  expect(asked("about:blank")).toBe(false);
+  for (const [url, kept] of [
+    ["app://demo/index.html#/x", false],
+    ["data:text/html,x", true],
+    ["file:///C:/Windows/win.ini", true],
+    ["app://other/index.html", true],
+  ]) {
+    const e = prevented();
+    shell.state.win.webContents.emit("will-navigate", e, url);
+    expect(e.prevented, url).toBe(kept);
+  }
+});
+
+// JustWrite's "Open in new window" (its HELD 1, decided 2026-10-29): window.open of the app's own page is another window of
+// the app (electronjs.org/docs/latest/api/window-open — the preload isn't inherited, so it is named again).
+test("window.open of the app's own page opens another window of the app; a web page opens outside; anything else is refused", async () => {
+  const { shell } = await startShell();
+  const open = (url, features = "") => shell.state.win.webContents.openHandler({ url, features });
+  const own = open("app://demo/index.html#/characters/1");
+  expect(own.action).toBe("allow");
+  expect(own.overrideBrowserWindowOptions.webPreferences).toEqual({ preload: expect.stringMatching(/preload\.js$/), contextIsolation: true, sandbox: true, nodeIntegration: false });
+  // its size is the page's (window.open's features) or Electron's own — the override would beat the page's
+  expect(own.overrideBrowserWindowOptions).not.toHaveProperty("width");
+  expect(own.overrideBrowserWindowOptions).not.toHaveProperty("height");
+  for (const url of ["data:text/html,x", "file:///C:/Windows/win.ini", "app://other/index.html", "about:blank", "javascript:alert(1)"]) {
+    expect(open(url).action, url).toBe("deny");
+  }
+  expect(rec.external).toEqual([]);
+  expect(open("https://example.com/help").action).toBe("deny");
+  expect(rec.external).toEqual(["https://example.com/help"]);
+  // the second window has the same guards: its own window.open and navigation are judged the same way
+  const child = openChild(shell);
+  expect(child.webContents.openHandler({ url: "data:text/html,x", features: "" }).action).toBe("deny");
+  expect(child.webContents.openHandler({ url: "app://demo/index.html#/notes", features: "" }).action).toBe("allow");
+  const e = prevented();
+  child.webContents.emit("will-navigate", e, "data:text/html,x");
+  expect(e.prevented).toBe(true);
+});
+
+test("Quit asks every window about its unsaved work before the server stops: Stay in a second window keeps the app; the main window's close closes them all", async () => {
+  const { shell, port } = await startShell();
+  rec.forks[0].child.emit("message", { type: "ready", host: "127.0.0.1", port });
+  const child = openChild(shell);
+  child.pageHolds = true;
+  rec.unloadAnswer = 1; // Stay
+  await shell.quitApp();
+  expect(rec.dialogs.at(-1)).toMatchObject({ message: "Leave without saving?" });
+  expect(rec.quits).toBe(0);
+  expect(child.isDestroyed()).toBe(false);
+  expect(shell.state.win.isDestroyed()).toBe(false);
+  expect(shell.state.server).toBe(rec.forks[0].child);
+  // a second window closes alone: the app and its server stay
+  child.pageHolds = false;
+  child.close();
+  expect(child.isDestroyed()).toBe(true);
+  expect(rec.quits).toBe(0);
+  // the main window's own close (keep-running off): every other window is asked first, then the app goes
+  const third = openChild(shell);
+  third.pageHolds = true;
+  rec.unloadAnswer = 0; // Leave
+  shell.state.win.close();
+  await vi.waitFor(() => expect(rec.quits).toBe(1));
+  expect(third.isDestroyed()).toBe(true);
+  expect(shell.state.win.isDestroyed()).toBe(true);
+  expect(shell.state.server).toBe(null);
+});
+
+test("a file dialog opens on the window that asked; an update's status reaches every window", async () => {
+  process.env.DEMO_UPDATE_FEED = "http://127.0.0.1:1/feed";
+  try {
+    const port = await freePort();
+    const repo = tmp();
+    const shell = runDesktopApp({ id: "demo", appName: "Demo", productName: "Demo", port, serverEntry: "server.js", dataDirEnv: "DEMO_DATA_DIR", repoRoot: repo, distDir: repo, window: {}, updates: { releasesUrl: "https://example.test/releases" } });
+    await vi.waitFor(() => expect(rec.forks.length).toBe(1));
+    const child = openChild(shell);
+    await rec.ipc["shell:pickDirectory"]({ senderFrame: { url: "app://demo/index.html#/characters/1", origin: "app://demo" }, sender: child.webContents }, {});
+    expect(rec.openDialogs.at(-1)[0]).toBe(child);
+    await invoke("pickDirectory");
+    expect(rec.openDialogs.at(-1)[0]).toBe(shell.state.win);
+    await vi.waitFor(() => expect(updater.handlers["update-downloaded"]).toBeTypeOf("function"));
+    updater.handlers["update-downloaded"]({ version: "9.9.9" });
+    for (const w of [shell.state.win, child]) expect(w.webContents.sent.at(-1)).toEqual(["update:status", expect.objectContaining({ state: "ready", version: "9.9.9" })]);
+  } finally {
+    delete process.env.DEMO_UPDATE_FEED;
+  }
 });

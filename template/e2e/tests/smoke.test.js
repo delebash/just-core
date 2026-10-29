@@ -128,3 +128,20 @@ test("a note is created through the window, saved by the server, and the AI offe
   await page.waitForTimeout(600);
   assert.equal(await page.locator(".ui-modal", { hasText: "Set up AI features" }).count(), 0, "the offer never comes twice");
 });
+
+// The kit's second windows (2026-10-29, JustWrite's "Open in new window"): window.open of the app's own page is another
+// window of the app — the shell's preload bridge, its server — and any other window.open is refused.
+test("window.open of the app's own page opens another window of the app, which closes alone; a data: page is refused", async () => {
+  const [child] = await Promise.all([d.app.waitForEvent("window"), page.evaluate(() => void window.open("#/notes", "_blank", "noopener"))]);
+  await child.waitForSelector(".shell", { timeout: 30_000 });
+  assert.match(child.url(), /^app:\/\/familytemplate\/.*#\/notes/);
+  assert.equal(await child.evaluate(() => typeof window.appShell?.invoke), "function", "the shell's preload ran in it");
+  assert.equal(await child.evaluate(() => window.appShell.invoke("updateStatus").then((s) => typeof s.state)), "string", "the shell answers it");
+  const open = d.app.windows().length;
+  await page.evaluate(() => void window.open("data:text/html,refused"));
+  await new Promise((r) => setTimeout(r, 1000));
+  assert.equal(d.app.windows().length, open, "no window for a data: page");
+  await child.close();
+  await waitFor(async () => d.app.windows().length === 1, { what: "the second window closed, the app still open" });
+  assert.ok(await page.evaluate(() => !!document.querySelector(".shell")));
+});
