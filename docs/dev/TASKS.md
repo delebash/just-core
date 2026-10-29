@@ -35,7 +35,10 @@ STATE:  1 BUILT 2026-10-29 (RunRequest `presetId` — preset_resolve `presetById
         holding exactly the app's sources; a name or source that would smuggle a directive in throws at start;
         tests/shell_csp.test.js). 4 BUILT 2026-10-29 (resourceIsolation `framePaths`: an iframe navigation to exactly
         those paths passes — no Origin to tell the app's window from another page's frame, so a listed path holds no
-        data; tests/resource_isolation.test.js). docgen's sync before its first release: below, 5.
+        data; tests/resource_isolation.test.js). 5 BUILT 2026-10-29: the kit's website/scripts/sync-docs.js takes
+        `justSite.untilFirstRelease: "main"` — for an app with no release at all, the docs on its main branch (the
+        same source-archive path a tag's uses; off by default, every other site release-only; docgen's decision
+        2026-10-28) — and deploy.js says so; tried on docgen (13 pages from main) and house-paint (v0.1.3's tag).
         1. `runAction` with a chosen preset: docgen's escalation runs a feature with a preset the user picks
            (`presetId`); RunRequest (`llm/prompts.js` ~301-332) has none, and passing provider/model/temperature as
            overrides still mixes in the assigned preset's samplers/topP (~474-480). Ask: `RunRequest.presetId` — when
