@@ -2,7 +2,7 @@
 
 **Every family app is a Quasar app (§Q), and a new one starts as a copy of the kit's
 `template/` (§1).** The rules every repo follows in every session are in
-[`family-rules.md`](family-rules.md), which each repo's CLAUDE.md imports; this document is the
+[`family-rules.md`](family-rules.md), which each repo's AGENTS.md carries a copy of; this document is the
 detail behind them. Read the section a change touches: layout, scripts, shell, server, the LLM
 stack, the app chrome, docs. `scripts/check-family.js` (the guard) checks what can be checked.
 
@@ -487,8 +487,8 @@ getting this wrong is the #1 confusion) — §Q.9.
   (agents.md): what it is, the commands, "must pass before a commit", "what bites", a Where-to-look
   table whose FIRST row points at this document, and a copy of `family-rules.md` between
   `<!-- family-rules:start -->` and `<!-- family-rules:end -->` (the guard keeps it identical).
-  `CLAUDE.md` is `@AGENTS.md` plus the Claude-only lines. Both start from the template's. (The three
-  older apps still have the 2026-10-09 shape — a CLAUDE.md importing `@../just-core/docs/family-rules.md`.)
+  `CLAUDE.md` is `@AGENTS.md` plus the Claude-only lines. Both start from the template's. The kit and just-sqlite-sync have the same pair (2026-10-29). (JustVoice
+  still has the 2026-10-09 shape — a CLAUDE.md importing `@../just-core/docs/family-rules.md`.)
 
 ## 3 · quasar.config.js — the kit consumption contract
 

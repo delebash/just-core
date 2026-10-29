@@ -1824,6 +1824,8 @@ checkSkeletonKit();
 checkClipboard("kit", KIT, walk(join(KIT, "packages", "ui", "src")), true);
 checkI18nKit();
 checkResearchRegister("kit", KIT);
+checkAgentsRules({ name: "kit", dir: KIT });
+checkAgentsRules({ name: "just-sqlite-sync", dir: join(KIT, "..", "just-sqlite-sync") });
 checkEsModules("kit", KIT, ["packages", "scripts", "skills"]);
 checkNoAutoBuilds("kit", KIT);
 for (const site of WEBSITES) checkWebsite(site);
