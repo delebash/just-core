@@ -289,7 +289,7 @@ export async function installLlm(
     const speechModels =
       speechModelsFn ??
       (runtimes.includes("audiocpp") ? () => (getRuntimeService("audiocpp")?.loaded() ?? []).map((l) => ({ id: l.modelId, placement: l.placement })) : null);
-    wireRunnerCatalog(dataDir, { cacheRoot, product, speechModelsFn: speechModels, runtimes, onnx });
+    wireRunnerCatalog(dataDir, { cacheRoot, product, speechModelsFn: speechModels, runtimes, onnx, runtimeExeOverrides, runtimeSpeech });
     // Seed-vs-file self-heal: re-derive catalog facts from ALREADY-DOWNLOADED GGUFs whose
     // rows never got the identify pass. A background task — boot never waits on file reads.
     background(
@@ -355,7 +355,10 @@ export function siblingCacheWithModels(dataDir) {
 }
 
 /** Point the bundled runner at the shared DB: catalog, switches, config, the cache. */
-export function wireRunnerCatalog(dataDir = null, { cacheRoot = null, product = "", speechModelsFn = null, runtimes = [], onnx = null } = {}) {
+export function wireRunnerCatalog(
+  dataDir = null,
+  { cacheRoot = null, product = "", speechModelsFn = null, runtimes = [], onnx = null, runtimeExeOverrides = {}, runtimeSpeech = {} } = {},
+) {
   const catalogFn = () =>
     stores
       .getModelCatalogStore()

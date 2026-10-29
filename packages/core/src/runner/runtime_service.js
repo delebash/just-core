@@ -1027,9 +1027,9 @@ export class RuntimeService {
   }
 
   /** The evictor `makeRoom` runs for one of the servers' bookings: its model leaves (`makeRoom` releases the booking).
-   *  No lock: makeRoom never evicts a busy kind, and a kind is busy from the moment a line, a load or an unload is asked
-   *  for it (_asKind) — so nothing runs on this model now, and taking the load lock here would wait on the very load
-   *  whose room this makes. */
+   *  No lock: makeRoom never evicts a busy kind, and a kind is busy while a line runs on it (useModel) — so no line runs
+   *  on this model now; a lock here would wait on the very load whose room this makes. A load of the kind in flight
+   *  finds its predecessor gone (_load unloads it anyway) and books its own once it registers. */
   async _evictInstance(kind, placement) {
     const h = this._heldOn(kind, placement);
     if (h) await this._unloadHeld(h.modelId, { release: false });
@@ -1299,23 +1299,16 @@ export class RuntimeService {
     return m;
   }
 
-  /** `work` under the kind's activity lock, the kind busy on the arbiter from now until it ends — its servers are
-   *  never evicted meanwhile (makeRoom skips a busy kind), queued or running. */
-  async _asKind(kind, work) {
-    const arb = this._arbiter();
-    arb.busyBegin(kind);
-    try {
-      return await this._activityOf(kind).run(work);
-    } finally {
-      arb.busyEnd(kind);
-    }
+  /** `work` under the kind's activity lock: a line on its model, or a load or unload of the kind, one at a time. */
+  _asKind(kind, work) {
+    return this._activityOf(kind).run(work);
   }
 
   /**
    * Run one line on `modelId` — `fn(server, held)`, `server` the one holding it, `held` `{modelId, placement, kind,
    * reason}` — loaded first when it isn't where asked (`placement` "auto": wherever it is, else the kit decides) or
    * holds other `sessionOptions`. The kind's activity lock is held throughout, so no load takes the model away
-   * mid-line (JustVoice's manager.js), and the kind is busy on the arbiter. Then its after-line pass (noteLine) with
+   * mid-line (JustVoice's manager.js), and the kind is busy on the arbiter for the line. Then its after-line pass (noteLine) with
    * `line(result)` → `{text, audioS}` (what the line said and its audio's seconds; no `line`: only its time).
    */
   async useModel(modelId, { placement = "auto", sessionOptions = undefined, line = null } = {}, fn) {
@@ -1335,6 +1328,9 @@ export class RuntimeService {
         ? { modelId, placement: h.placement, kind: h.kind, reason: h.reason ?? "" }
         : await this._loadLock.run(() => this._load(modelId, { placement, ...(sessionOptions !== undefined ? { sessionOptions } : {}) }));
       this._inUse.set(modelId, (this._inUse.get(modelId) ?? 0) + 1);
+      // busy on the arbiter for the line (JustVoice's _withKindBusy): makeRoom never evicts it mid-line
+      const arb = this._arbiter();
+      arb.busyBegin(kind);
       const t0 = performance.now();
       try {
         const result = await fn(this.serverFor(modelId), held);
@@ -1350,6 +1346,7 @@ export class RuntimeService {
         await this.noteLine(modelId, { wallS: (performance.now() - t0) / 1000, ok: false });
         throw e;
       } finally {
+        arb.busyEnd(kind);
         const n = (this._inUse.get(modelId) ?? 1) - 1;
         if (n > 0) this._inUse.set(modelId, n);
         else this._inUse.delete(modelId);

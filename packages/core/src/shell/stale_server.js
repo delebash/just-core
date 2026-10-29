@@ -27,7 +27,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const FREE_WAIT_MS = 5000;
 const POLL_MS = 150;
 
-/** The ids of the processes listening on `port` (netstat on Windows, lsof elsewhere). */
+/** The ids of the processes listening on `port` (netstat on Windows, lsof elsewhere). On Windows a netstat that lists
+ *  nothing for it is asked again of the TCP table's own cmdlet (Get-NetTCPConnection, its owning process): Windows 11
+ *  build 26300 listed six listeners machine-wide and none of a socket plainly listening, and reported its state as
+ *  nothing (measured 2026-10-29 — the cmdlet's -State Listen filter found none either). A socket whose LOCAL port is
+ *  the server's is the server's own: a client of it has a port of its own. */
 export async function listenerPids(port, platform = process.platform) {
   if (platform === "win32") {
     const out = await checkOutput(["netstat", "-ano"]);
@@ -38,6 +42,15 @@ export async function listenerPids(port, platform = process.platform) {
       if (!cols[1].endsWith(`:${port}`)) continue;
       const pid = Number(cols[cols.length - 1]);
       if (pid) pids.add(pid);
+    }
+    if (!pids.size) {
+      const ps = `Get-NetTCPConnection -LocalPort ${Number(port)} -ErrorAction SilentlyContinue | ForEach-Object { $_.OwningProcess }`;
+      // seconds: a PowerShell that hangs never holds up the window's start (the listing then says nobody)
+      const r = await run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], { timeout: 15 }).catch(() => ({ stdout: "" }));
+      for (const tok of String(r.stdout ?? "").split(/\s+/)) {
+        const pid = Number(tok);
+        if (pid > 4) pids.add(pid); // 0 and 4: the idle and system processes, never a server to stop
+      }
     }
     return [...pids];
   }

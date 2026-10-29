@@ -250,7 +250,9 @@ test("a shared cache keeps the runtime builds another app uses: the install's sw
     for (const b of ["b-old", "b-stale"]) mkdirSync(dir(b), { recursive: true });
     const svc = service({ acquire: fakeAcquire().fn });
     svc.install();
-    await until(() => svc.status().installed);
+    // the whole install, its sweep included — "installed" reads true once the program lands, before the sweep (a loaded
+    // full run checked in between, 2026-10-29)
+    await svc._task.promise;
     expect([existsSync(dir(DEFAULT_SDCPP_BUILD)), existsSync(dir("b-old")), existsSync(dir("b-stale"))]).toEqual([true, true, false]);
     const out = await svc.uninstall();
     expect([existsSync(dir(DEFAULT_SDCPP_BUILD)), existsSync(dir("b-old"))]).toEqual([false, true]);

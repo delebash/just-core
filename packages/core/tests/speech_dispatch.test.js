@@ -98,7 +98,7 @@ test("transcription runs its stt preset's model where the preset says, loaded fi
   // a placement asked that differs from where it is: loaded again there
   await withSpeechModel("audiocpp", "kokoro", { placement: "cpu" }, async () => {});
   expect(svc.loads.at(-1)).toEqual(["kokoro", "cpu"]);
-  await expect(withSpeechModel("nope", "kokoro", {}, async () => {})).rejects.toMatchObject({ status: 409 });
+  await expect(withSpeechModel("nope", "kokoro", {}, async () => {})).rejects.toMatchObject({ statusCode: 409 });
 });
 
 test("the routes: load where asked, unload, what's loaded; the settings route takes a kind's bands and the declared settings", async () => {
