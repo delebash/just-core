@@ -400,6 +400,16 @@ export const TABLES = [
         "kind": "float",
         "notNull": true,
         "default": 0.0
+      },
+      "cache_write_per_m": {
+        "kind": "float",
+        "notNull": true,
+        "default": 0.0
+      },
+      "cache_read_per_m": {
+        "kind": "float",
+        "notNull": true,
+        "default": 0.0
       }
     }
   },
