@@ -3930,6 +3930,15 @@ test("a shared cache keeps the builds the family's other apps use — the update
     await svc.installEngine();
     await svc._engineThread.join(5);
     expect(existsSync(dir("b0004"))).toBe(true);
+    // …a day on and not started again, it holds nothing back: its next start runs the newest build on disk and registers
+    // that (house-paint's update kept every build for five such names, 2026-10-29)
+    const reg = join(process.env.JUST_AI_HOME, "caches.json");
+    const saved = JSON.parse(readFileSync(reg, "utf8"));
+    for (const a of saved.apps) if (a.product === "docgen") a.lastSeen = new Date(Date.now() - 2 * 86_400_000).toISOString();
+    writeFileSync(reg, JSON.stringify(saved));
+    await svc.installEngine();
+    await svc._engineThread.join(5);
+    expect(existsSync(dir("b0004"))).toBe(false);
     // and JustVoice gone from this computer (its data folder removed): its build is no one's
     rmSync(jvData, { recursive: true, force: true });
     rmSync(oldData, { recursive: true, force: true });

@@ -270,6 +270,9 @@ export function recordBuild(folder, build) {
  * An install whose row records no builds at all (one that booted on a kit before 2026-10-29) is `unknown`: which
  * build it runs can't be told, so a sweep keeps every build. A row with builds but none for `folder` doesn't use it.
  */
+/** How long an install that never said its builds still holds them back (a day). */
+export const UNKNOWN_HOLDS_MS = 24 * 60 * 60_000;
+
 export function buildsInUse(root, folder) {
   const want = pyPath(root);
   const builds = new Map();
@@ -280,7 +283,12 @@ export function buildsInUse(root, folder) {
     if (thisInstall && e.product === thisInstall.product && where === thisInstall.dataDir) continue;
     const product = get(e, "product", "");
     if (!isJsonObject(e.builds)) {
-      if (product && !unknown.includes(product)) unknown.push(product);
+      // An install that never said its builds holds them all back — while it was seen this last day. Older (a test's
+      // scratch install, an app not started since builds were recorded): its pin swept, its next start runs the newest
+      // build on disk (the read path) and registers that — never a build lost under it (house-paint's update kept
+      // every build for five such names, 2026-10-29).
+      const seen = Date.parse(get(e, "lastSeen", "")) || 0;
+      if (product && Date.now() - seen < UNKNOWN_HOLDS_MS && !unknown.includes(product)) unknown.push(product);
       continue;
     }
     const build = e.builds[folder];

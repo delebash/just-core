@@ -318,8 +318,10 @@ async function updateToLatest() {
     await request("/v1/ai/engine-config", {
       method: "PUT", body: { pinnedBuild: latest, binaries: planBinaries(cfg.binaries, plan, latest) },
     });
+    // no `force`: the new build is another folder, fetched when it isn't there — and when the family's shared cache already
+    // holds it (another app's), used as it is (house-paint's Update fetched b11960's two zips again, 2026-10-29)
     await request("/v1/llm-runner/engine/install", {
-      method: "POST", body: { force: true, replaceBuild: previous },
+      method: "POST", body: { replaceBuild: previous },
     });
     updateInfo.value = null;
     await refreshEngine();
