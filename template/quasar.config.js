@@ -172,6 +172,10 @@ export default defineConfig(() => {
           onlyLoadAppFromAsar: true,
           grantFileProtocolExtraPrivileges: false
         },
+        // No `target` here: electron-builder's default makes the .dmg AND the .zip — the zip is what electron-updater
+        // updates a Mac from (the release attaches *.zip). An app that sets `mac.target` lists both:
+        // [ { target: 'dmg', arch }, { target: 'zip', arch } ] (the guard checks; JustVoice and JustWrite set dmg alone
+        // and their Mac updates had nothing to fetch — 2026-10-29).
         // one architecture per Mac runner (arm64 on macos-latest). An app that ships `arch: ['universal']`
         // also names in `mac.x64ArchFiles` the native binaries that are the same in both halves, which
         // @electron/universal refuses otherwise — koffi's and better-sqlite3's prebuilds ship every CPU's:

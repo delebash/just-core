@@ -384,9 +384,15 @@ function checkClipboard(name, dir, files, required) {
 function checkOneSaveDoor(app, files) {
   for (const file of files) {
     if (![".js", ".vue"].includes(extname(file))) continue;
-    if (!/\.download\s*=/.test(codeOf(file))) continue;
+    const code = codeOf(file);
     const rel = file.slice(app.dir.length + 1).replace(/\\/g, "/");
-    fail(app.name, `${rel} hand-rolls a file download (\`a.download =\`) — the kit exports saveBlob/downloadBlob (common/services/fileSave.js). JustVoice had FIVE of these.`);
+    if (/\.download\s*=/.test(code)) {
+      fail(app.name, `${rel} hand-rolls a file download (\`a.download =\`) — the kit exports saveBlob/downloadBlob (common/services/fileSave.js). JustVoice had FIVE of these.`);
+    }
+    // and a template's <a … download> (JustVoice's Home had one — 2026-10-29): the same hand-rolled save
+    if (extname(file) === ".vue" && /<a\b(?:[^>"]|"[^"]*")*\s:?download\b/.test(code.replace(/<!--[\s\S]*?-->/g, ""))) {
+      fail(app.name, `${rel} saves through an <a download> in its template — the kit's saveBlob/downloadBlob is the one save door (common/services/fileSave.js)`);
+    }
   }
 }
 
@@ -1500,6 +1506,16 @@ function checkConnectionReasons(app) {
 }
 function checkRelease(app) {
   const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
+  // a Mac update is fetched from the .zip (electron-updater): a mac.target set without one leaves the release's
+  // *.zip empty and every Mac on its first version (JustVoice and JustWrite, dmg alone — 2026-10-29). No target:
+  // electron-builder's default makes both.
+  const qc = join(app.dir, "quasar.config.js");
+  if (existsSync(qc)) {
+    const mac = /\bmac:\s*\{([\s\S]*?)\n\s{8}\}/.exec(readFileSync(qc, "utf8").replace(/\r\n/g, "\n"))?.[1] ?? "";
+    if (/\btarget:/.test(mac.replace(/\/\/[^\n]*/g, "")) && !/\btarget:\s*['"]zip['"]|['"]zip['"]/.test(mac.replace(/\/\/[^\n]*/g, ""))) {
+      fail(app.name, "quasar.config.js's mac.target has no zip — electron-updater updates a Mac from the .zip; list { target: 'zip', arch } beside the dmg (the template's quasar.config.js)");
+    }
+  }
   const workflow = join(app.dir, ".github", "workflows", "release.yml");
   if (!existsSync(workflow)) report("no .github/workflows/release.yml — the template's release (installers + the update feed, manual only)");
   else {
