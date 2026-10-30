@@ -867,3 +867,14 @@ test("resolve carries GitHub's digest for the asset and its runtime companion; a
   expect(got["windows/cuda12"]).toMatchObject({ resolved: true, sha256: hex("a"), runtimeSha256: hex("b") });
   expect(got["windows/vulkan"]).toMatchObject({ resolved: true, sha256: null, runtimeSha256: null });
 });
+
+// docgen, 2026-10-29: its pin (b9993) was gone from the shared cache and the read path ran b11960, the newest on disk —
+// while the family registry recorded b9993, so another app's sweep could have taken the build in use.
+test("buildInUse: the pin when it's on disk, else the newest build there (the read path's order), else null", () => {
+  const cache = mkdtempSync(path.join(tmpdir(), "kit-build-in-use-"));
+  expect(binmod.buildInUse(cache, "b11960")).toBeNull();
+  for (const b of ["b11239", "b11960"]) mkdirSync(path.join(cache, "llamacpp", b, "cuda12"), { recursive: true });
+  mkdirSync(path.join(cache, "llamacpp", "logs"), { recursive: true });
+  expect(binmod.buildInUse(cache, "b11239")).toBe("b11239");
+  expect(binmod.buildInUse(cache, "b9993")).toBe("b11960");
+});

@@ -17,6 +17,7 @@
 
 import nodePath from "node:path";
 import * as runnerArbiter from "../runner/arbiter.js";
+import { buildInUse } from "../runner/binary.js";
 import { makeAutotuneRouter } from "../runner/autotune.js";
 import { makeCalibrateRouter } from "../runner/calibrate.js";
 import * as cacheRegistry from "../runner/cache_registry.js";
@@ -453,7 +454,10 @@ export function wireRunnerCatalog(
     let builds = null;
     try {
       const store = stores.getRunnerConfigStore();
-      builds = { llamacpp: stores.buildRunnerConfig().llamacpp.pinnedBuild };
+      // the build that runs here: the pin, or — the pin gone from the cache — the newest build on disk the read path takes
+      // (docgen's b9993 ran b11960, 2026-10-29)
+      const pin = stores.buildRunnerConfig().llamacpp.pinnedBuild;
+      builds = { llamacpp: buildInUse(String(resolvedCache), pin) ?? pin };
       for (const id of runtimes || []) {
         const folder = runtimeOf(id)?.folder;
         const pin = folder && store.getRuntimeConfig(id)?.pinnedBuild;

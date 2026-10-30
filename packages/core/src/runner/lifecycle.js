@@ -4475,6 +4475,14 @@ export class RunnerService {
       if (idx > 0) {
         log.warning(`router running on FALLBACK backend ${gpu} (${exe}); the preferred build failed to launch — see the engine log`);
       }
+      // the family registry names the build that RUNS — not the pin, which may be gone from the cache (docgen's b9993 ran
+      // b11960, the newest on disk): another app's sweep keeps what runs here (2026-10-29)
+      try {
+        const running = binary.buildOfExe(this._cacheRoot, String(exe));
+        if (running) recordBuild("llamacpp", running);
+      } catch {
+        // the registry is advisory; a load never fails on it
+      }
       return exe;
     }
     throw new RunnerStartError(`the engine failed to launch on every installed backend:\n${errors.join("\n")}`);

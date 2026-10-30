@@ -336,6 +336,14 @@ export function _onDiskBuilds(cacheRoot) {
   return pySorted(names, buildNum, true);
 }
 
+/** The build this cache would run for `pinned`: the pin when it is on disk, else the newest build there (the read path's
+ *  order — _findInstalledExe), else null. What the family registry records (docgen, 2026-10-29: its pin b9993 was
+ *  gone and b11960 ran, while the registry said b9993 — another app's sweep could have taken the build in use). */
+export function buildInUse(cacheRoot, pinned) {
+  const disk = _onDiskBuilds(cacheRoot);
+  return disk.includes(pinned) ? pinned : (disk[0] ?? null);
+}
+
 /**
  * The build an installed exe IS — read from the dir it lives under (`llamacpp/<build>/…`).
  * Reliable because the install names the folder for the pin AND downloads the concrete URL
