@@ -651,6 +651,17 @@ editing is the agent's `edit_timeline`. ArtCraft's site says the AI generates fr
   surface, Storyboard, is off the top bar, and its UI hasn't been judged — the user's own trial decides that; (c) writing our own stays
   the fallback, with both apps as reference.
 
+### I.5 · Decision: start from Nomi (2026-10-30)
+
+The user, verbatim: "i am ok with niamo and users can just download the prebuilt image and video tools from artcraft like film i dont
+think the are integrated into the artcraft software itself, we can add anythingh we need to niamo".
+
+Checked: FilmCraft and PhotoCraft are separate Rust apps (MIT or Apache-2.0), installed through the Craft launcher or on their own, not part of
+ArtCraft's code. Nomi 0.24.0 (`package.json`): TypeScript 5.6, 2,363 `.ts` and 660 `.tsx` files, 21 MB without tests; Electron 43, Node 22.19 or
+later, pnpm, Vite 7, React 19, Tailwind 3, Mantine 8, Zustand, React Flow, Three.js 0.184 with React Three Fiber, Spark, Leafer, Tiptap,
+ffmpeg, vitest, Playwright; agent on pi-agent-core and Mastra; AGPL-3.0-only. No database import found in `electron/`: projects are files in folders.
+Still open: a go for the AI test; writing TypeScript inside Nomi differs from the family's JavaScript-only rule, so it is named to the user.
+
 ## D · The answer (argued against)
 
 - **Buildable on the kit: yes.** sd.cpp (image + video through sd-server's `img_gen`/`vid_gen` jobs), audio.cpp
