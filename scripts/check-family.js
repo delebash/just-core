@@ -1701,6 +1701,62 @@ function checkEngines(app) {
   }
 }
 
+// ── check 25 · a help page's section links land on a heading (2026-10-29) ─────────────────────────────────────────
+// The kit's Help slugs a heading as GitHub does (github-slugger — the repo, the website's Starlight build and the app
+// agree), so every `page.md#section` link in docs/*.md — and `#section` within a page — must name a heading's slug (or
+// an explicit id="…"). JustWrite found 16 dead the day the slug changed, its own test reading only its .vue links.
+const { default: GithubSlugger } = await import(new URL("../packages/ui/node_modules/github-slugger/index.js", import.meta.url));
+const ENTITY = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+/** A doc's anchors: each heading's slug as GitHub makes it (its text as rendered: link text, no emphasis, no tags),
+ *  repeated ones numbered; and every explicit id="…". */
+function docAnchors(md) {
+  const slugger = new GithubSlugger();
+  const out = new Set();
+  let fenced = false;
+  for (const line of md.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    if (fenced) continue;
+    const h = /^#{1,6}\s+(.*?)\s*#*\s*$/.exec(line);
+    if (h) {
+      const text = h[1]
+        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+        .replace(/<[^>]+>/g, "")
+        .replace(/(\*\*|__|\*|_|`)/g, "")
+        .replace(/&(amp|lt|gt|quot|apos);/g, (_, e) => ENTITY[e]);
+      out.add(slugger.slug(text));
+    }
+    for (const m of line.matchAll(/\bid=["']([^"']+)["']/g)) out.add(m[1]);
+  }
+  return out;
+}
+function checkHelpLinks(name, dir) {
+  const docs = join(dir, "docs");
+  if (!existsSync(docs)) return;
+  const pages = readdirSync(docs).filter((f) => f.endsWith(".md"));
+  const anchors = new Map(pages.map((f) => [f, docAnchors(readFileSync(join(docs, f), "utf8"))]));
+  for (const page of pages) {
+    const md = readFileSync(join(docs, page), "utf8");
+    let fenced = false;
+    md.split(/\r?\n/).forEach((line, i) => {
+      if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+      if (fenced) return;
+      for (const m of line.replace(/`[^`]*`/g, "").matchAll(/\]\(([^)\s]+)\)/g)) {
+        const [file, hash] = m[1].split("#");
+        if (hash === undefined || /^[a-z]+:/i.test(file)) continue;
+        const target = file === "" ? page : file.replace(/^\.\//, "");
+        if (!anchors.has(target)) continue; // another folder's page, or not a page: other checks
+        let id = hash;
+        try {
+          id = decodeURIComponent(hash);
+        } catch {
+          // a stray % — read as written
+        }
+        if (!anchors.get(target).has(id)) fail(name, `docs/${page}:${i + 1} links ${target}#${hash}, which no heading there makes — GitHub's slug (each space a "-")`);
+      }
+    });
+  }
+}
+
 // ── check 24 · a mounted test clicks the way Vue Test Utils does (app-structure §18, 2026-10-28) ─────────────────
 // A bare `element.click()` in a renderer test can land in the millisecond Vue's stale-event guard drops (vuejs/core
 // runtime-dom createInvoker: an event no later than its listener's attachment) and vanish at random; `trigger` — a
@@ -1817,6 +1873,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkEngines(app);
   checkKitLooks(app);
   checkTestClicks(app);
+  checkHelpLinks(app.name, app.dir);
 }
 checkCrossAppTwins(perApp, kitFiles);
 checkDocsCrossApp();
@@ -1831,6 +1888,7 @@ checkAgentsRules({ name: "kit", dir: KIT });
 checkAgentsRules({ name: "just-sqlite-sync", dir: join(KIT, "..", "just-sqlite-sync") });
 checkEsModules("kit", KIT, ["packages", "scripts", "skills"]);
 checkNoAutoBuilds("kit", KIT);
+checkHelpLinks("kit", KIT);
 for (const site of WEBSITES) checkWebsite(site);
 // The /new-just-app skill runs from Claude Code's user skills folder (install-skills.js
 // `userSkillsDir`) — advisory when that copy differs from the kit's.
