@@ -701,6 +701,9 @@ The user, on what "well" means and on Nomi's extras: "the other stuff i dont kno
 a priority and time is not priourity". So quality is the bar, judged by the user's eye. Times are recorded, not pass or fail. Nomi's skills and similar
 extras are out of scope for now.
 
+The user, on who it is for: "we want it to work on my specs but also different machines better specs as well this is not just for me it is for
+anyone". So 8 GB is the floor, not the target: each feature needs a working option there and a better option per tier on stronger machines.
+
 **Plain searches, 2026-10-30** (the user: "you dont do good broad but simple research"; web, mostly vendor and SEO pages, so names to check, not rankings):
 1. "latest techniques for consistent characters in AI video" → lock the look in stills first; reference sheets (front, back, full body); short clips stitched
    together; same light and camera distance; log drift and fix the sheet. Matches items 4 and 9.
