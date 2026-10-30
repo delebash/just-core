@@ -1293,7 +1293,6 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 - **§15–§18 in JustWrite and JustVoice** (recorded 2026-10-18; docgen meets them since its dd459c0 — its forms on
   `schemaRules` + `fieldErrors`, its table on `migrate`, §17's states, §18's route tests): the kit gives both the
   request ids, the 422 limits and the family 500 at once; their forms predate `schemaRules` /
-  `fieldErrors`. JustWrite's boot file calls `installErrorReporting`; JustVoice's doesn't yet (re-checked
-  2026-10-29).
+  `fieldErrors`. Both boot files call `installErrorReporting` (JustVoice's since its 38490662, 2026-10-29).
 - **§16 in JustWrite and JustVoice** (recorded 2026-10-18): both drop and reseed rather than migrate
   (JW `docs/dev/ARCHITECTURE.md` "Storage policy"; JV `database/session.js`).

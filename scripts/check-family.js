@@ -389,8 +389,10 @@ function checkOneSaveDoor(app, files) {
     if (/\.download\s*=/.test(code)) {
       fail(app.name, `${rel} hand-rolls a file download (\`a.download =\`) — the kit exports saveBlob/downloadBlob (common/services/fileSave.js). JustVoice had FIVE of these.`);
     }
-    // and a template's <a … download> (JustVoice's Home had one — 2026-10-29): the same hand-rolled save
-    if (extname(file) === ".vue" && /<a\b(?:[^>"]|"[^"]*")*\s:?download\b/.test(code.replace(/<!--[\s\S]*?-->/g, ""))) {
+    // and a template's <a … download>, or a component rendered as one (<UiButton as="a" :download>) — JustVoice's Home
+    // had both (2026-10-29): the same hand-rolled save
+    const tags = code.replace(/<!--[\s\S]*?-->/g, "").matchAll(/<([A-Za-z][\w-]*)\b((?:[^>"]|"[^"]*")*)>/g);
+    if (extname(file) === ".vue" && [...tags].some(([, tag, attrs]) => /\s:?download\b/.test(attrs) && (tag === "a" || /\bas=["']a["']/.test(attrs)))) {
       fail(app.name, `${rel} saves through an <a download> in its template — the kit's saveBlob/downloadBlob is the one save door (common/services/fileSave.js)`);
     }
   }
@@ -1808,18 +1810,8 @@ function checkHelpLinks(name, dir) {
 // wrapper's, or VTU's own DOMWrapper for an element outside one (a dialog teleported to the body) — stamps it a
 // millisecond on (vuejs/test-utils#1854). The files that did it before the rule are listed (CLICK_KNOWN) and printed
 // until their session moves them; any other file fails.
-const CLICK_KNOWN = new Map([
-  ["JustVoice", new Set([
-    "src/components/BookRunCard.test.js",
-    "src/components/CapturePill.test.js",
-    "src/components/EffectsChainEditorModal.test.js",
-    "src/components/ImportModal.test.js",
-    "src/components/kitThinkingNote.test.js",
-    "src/components/LeftoverEnginesHelp.test.js",
-    "src/components/mock/MockEffectsChainEditor.test.js",
-    "src/pages/LexiconsPage.test.js",
-  ])],
-]);
+// empty since JustVoice's clicks all go through trigger (its 8fc1d655, 2026-10-29)
+const CLICK_KNOWN = new Map();
 function checkTestClicks(app) {
   for (const f of walkAll(join(app.dir, "src"))) {
     if (!f.endsWith(".test.js")) continue;
