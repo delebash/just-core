@@ -38,6 +38,7 @@
     "dom-accessibility-api": "^0.7.1",
     "dompurify": "^3.4.17",
     "front-matter": "^4.0.2",
+    "github-slugger": "^2.0.0",
     "marked": "^18.1.0",
     "pinia": "^4.0.3",
     "quasar": "^2.35.0",

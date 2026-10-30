@@ -14,19 +14,19 @@
 //     scrollIntoView for a given "foo.md#section" link.
 
 import frontMatter from "front-matter";
+import GithubSlugger, { slug } from "github-slugger";
 import { marked } from "marked";
 
-// Heading text → URL/anchor slug. Mirrors GitHub-style slug rules so
-// "## Locations & places" and a docs link like `story-bible.md#locations--places`
-// resolve to the same id. Strips emoji + punctuation, collapses whitespace.
+// Heading text → URL/anchor slug: GitHub's own (github-slugger — what GitHub, the website's Starlight build and a docs
+// link all follow), so one anchor works in the repo, on the website and in the app: lowercase, punctuation and emoji
+// dropped, each space one "-" — never collapsed ("## Locations & places" → `locations--places`, "## The ⋯ menu" →
+// `the--menu`; JustVoice's docs pass, 2026-10-29: the old collapsing slug missed every "--" link).
 export function slugifyHeading(text) {
-  return String(text || "")
-    .toLowerCase()
-    .replace(/[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}☀-➿]/gu, "")
-    .replace(/[^\p{L}\p{N}\s-]/gu, "")
-    .trim()
-    .replace(/\s+/g, "-");
+  return slug(String(text || ""));
 }
+
+// One document's headings, numbered as GitHub numbers a repeated one ("usage", "usage-1" …) — made new per document.
+let slugger = new GithubSlugger();
 
 const renderer = new marked.Renderer();
 const baseLinkRenderer = renderer.link.bind(renderer);
@@ -55,7 +55,7 @@ renderer.link = ({ href, title, tokens }) => {
 renderer.heading = function headingRenderer({ tokens, depth }) {
   const inner = this.parser.parseInline(tokens);
   const plain = String(inner).replace(/<[^>]+>/g, "");
-  const id = slugifyHeading(plain);
+  const id = slugger.slug(plain);
   return `<h${depth}${id ? ` id="${id}"` : ""}>${inner}</h${depth}>\n`;
 };
 
@@ -73,5 +73,6 @@ export function renderHelpMarkdown(md) {
   // never stripped and every doc rendered its title twice — once in the host's
   // header bar, once at the top of the prose.
   const stripped = body.replace(/^#\s+[^\r\n]*\r?\n+/, "");
+  slugger = new GithubSlugger(); // this document's headings numbered from scratch
   return marked.parse(stripped);
 }
