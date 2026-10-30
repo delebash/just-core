@@ -662,6 +662,16 @@ later, pnpm, Vite 7, React 19, Tailwind 3, Mantine 8, Zustand, React Flow, Three
 ffmpeg, vitest, Playwright; agent on pi-agent-core and Mastra; AGPL-3.0-only. No database import found in `electron/`: projects are files in folders.
 Still open: a go for the AI test; writing TypeScript inside Nomi differs from the family's JavaScript-only rule, so it is named to the user.
 
+**Reopened the same day.** The user: "should we wwrite it in oor family with quasar add just reimplamnet featuresw we want?" Measured
+(screen and server code, no tests or assets): the Nomi parts on the wanted list are 5.4 MB — Director 1.55, script and storyboard 0.71, agent
+1.69, timeline, preview and export 0.70, providers and model profiles 1.70; the node canvas adds 3.54. JustVoice is 3.6 MB and JustWrite
+10.9 MB (not checked how much of that is data); the kit is 3.5 MB. Vue versions of Nomi's main libraries exist: `@vue-flow/core`, `@tiptap/vue-3`,
+`@tresjs/core`; Three.js and Leafer aren't tied to React. Nomi took about six months (created 2026-05-04, 6,658 commits by its main author).
+Rec, awaiting the user's word: a Quasar app on the kit, written from behaviour without copying Nomi's AGPL code, in stages: saved
+cards, shots, clips, simple assembly, then 3D later. Attacks: it is slower than Nomi, it loses about 20 ready providers (a kit gap), and
+the user tests more — **changed:** keep Nomi as a working reference and run the AI test on it first, since it proves the method for either route.
+FilmCraft and PhotoCraft stay separate downloads either way.
+
 ## D · The answer (argued against)
 
 - **Buildable on the kit: yes.** sd.cpp (image + video through sd-server's `img_gen`/`vid_gen` jobs), audio.cpp
