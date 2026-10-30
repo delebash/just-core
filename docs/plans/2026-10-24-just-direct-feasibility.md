@@ -697,6 +697,10 @@ So: no app code until this list is green. Nomi stays a reference. Before each te
 
 Cloud is left to the end: paid models need no proof that they run. Replaces the Nomi AI test: item 7 proves the same risk directly, with no bridge.
 
+The user, on what "well" means and on Nomi's extras: "the other stuff i dont know about the skills and other features not sure what they do but not
+a priority and time is not priourity". So quality is the bar, judged by the user's eye. Times are recorded, not pass or fail. Nomi's skills and similar
+extras are out of scope for now.
+
 ## D · The answer (argued against)
 
 - **Buildable on the kit: yes.** sd.cpp (image + video through sd-server's `img_gen`/`vid_gen` jobs), audio.cpp
