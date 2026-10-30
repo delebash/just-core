@@ -336,12 +336,12 @@ const displayRows = computed(() => {
 .ui-kg-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: start; }
 .ui-kg-namecell { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .ui-kg-name :deep(input) { font-family: var(--font-mono, monospace); }
-.ui-kg-origin { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; padding-left: 2px; }
+.ui-kg-origin { font-size: max(var(--text-floor, 0px), 9.5px); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; padding-left: 2px; }
 /* The per-request note — the muted note family (same --muted ink as .ui-kg-origin),
    but PROSE: sentence case, no uppercase/tracking, and it wraps. The negative top
    margin pulls it under its own row against the .ui-kg flex gap so it reads as that
    row's note, not a free-floating line. */
-.ui-kg-perreq { font-size: 10.5px; color: var(--muted); line-height: 1.35; margin: -4px 0 1px; padding-left: 2px; }
+.ui-kg-perreq { font-size: max(var(--text-floor, 0px), 10.5px); color: var(--muted); line-height: 1.35; margin: -4px 0 1px; padding-left: 2px; }
 
 /* Checklist mode */
 .ui-kg-check { gap: 0; }
@@ -372,15 +372,15 @@ const displayRows = computed(() => {
 .ui-kg-val :deep(input) { font-family: var(--font-mono, monospace); }
 /* Advanced expander — a disclosure affordance styled like the section eyebrows
    (muted uppercase), not a ghost action button. */
-.ui-kg-advtoggle { align-self: start; background: none; border: 0; cursor: pointer; font: inherit; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 6px 2px 2px; }
+.ui-kg-advtoggle { align-self: start; background: none; border: 0; cursor: pointer; font: inherit; font-size: max(var(--text-floor, 0px), 10px); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding: 6px 2px 2px; }
 .ui-kg-advtoggle:hover { color: var(--accent-ink, var(--accent)); }
 .ui-kg-advcount { font-weight: 600; }
 .ui-kg-resetspace { width: 0; }
-.ui-kg-extras-h { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; margin: 8px 0 1px; }
+.ui-kg-extras-h { font-size: max(var(--text-floor, 0px), 10px); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; margin: 8px 0 1px; }
 
 /* Grouped add-row sections (QC-10): a small bold heading per layer — the same
    voice as the Global bundles' section labels ("All models" · "MoE models"). */
-.ui-kg-group-h { font-weight: 600; font-size: 12px; color: var(--ink); margin-top: 6px; }
+.ui-kg-group-h { font-weight: 600; font-size: max(var(--text-floor, 0px), 12px); color: var(--ink); margin-top: 6px; }
 .ui-kg-group-h:first-child { margin-top: 0; }
 .ui-kg-add { align-self: start; }
 .ui-kg-foot { display: flex; align-items: center; margin-top: 9px; }

@@ -557,7 +557,7 @@ onMounted(load);
                used to sit here is gone (user ruling 2026-08-08: feature pages
                are hand-built and never need a fallback — a working control
                inside a bug state hides the bug). -->
-          <p v-else class="lu-error" style="font-size:12px;margin:0">{{ previewErr }}</p>
+          <p v-else class="lu-error" style="font-size:max(var(--text-floor, 0px), 12px);margin:0">{{ previewErr }}</p>
           </template>
         </section>
         <div v-else class="lu-muted" style="padding:20px">{{ t('kit.workbench.pickAction') }}</div>
@@ -569,14 +569,14 @@ onMounted(load);
 <style scoped>
 select.lu-input { cursor: pointer; appearance: auto; }
 .lu-fw-ghead { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 2px; }
-.lu-fw-gname { font-size: 12px; font-weight: 700; color: var(--ink-2); }
-.lu-fw-sublabel { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 6px 0 1px; }
+.lu-fw-gname { font-size: max(var(--text-floor, 0px), 12px); font-weight: 700; color: var(--ink-2); }
+.lu-fw-sublabel { font-size: max(var(--text-floor, 0px), 10px); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 6px 0 1px; }
 .lu-fw-aside-foot { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); display: flex; }
 /* The sectioned pane's text editors (2026-08-08 redesign). */
 .lu-fw-sections { display: flex; flex-direction: column; gap: 10px; margin: 0 0 14px; }
 .lu-fw-secrow { display: flex; flex-direction: column; gap: 4px; }
 .lu-fw-secrow-h { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .lu-fw-secrow-h b { font-size: 12.5px; }
-.lu-fw-secrow-h .lu-muted { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lu-fw-sectext { font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.45; resize: vertical; width: 100%; box-sizing: border-box; }
+.lu-fw-secrow-h .lu-muted { font-size: max(var(--text-floor, 0px), 11px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lu-fw-sectext { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 12px); line-height: 1.45; resize: vertical; width: 100%; box-sizing: border-box; }
 </style>

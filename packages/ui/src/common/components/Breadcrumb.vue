@@ -30,7 +30,7 @@ function activate(seg) {
 <style scoped>
 .breadcrumb {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
+  font-size: max(var(--text-floor, 0px), 10.5px); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--muted);
 }
 /* a 24 px hit box (WCAG 2.5.8 — the link's text is 15.8 px tall), its padding taken back by an equal negative margin:

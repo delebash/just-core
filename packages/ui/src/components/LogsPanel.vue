@@ -183,9 +183,9 @@ onMounted(() => {
 .lu-logs { display: flex; flex-direction: column; gap: 10px; }
 .lu-logs-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .lu-logs-actions { margin-top: -4px; }
-.lu-logs-sub { font-size: 11.5px; }
+.lu-logs-sub { font-size: max(var(--text-floor, 0px), 11.5px); }
 .lu-logs-spacer { flex: 1; }
-.lu-logs-dl { font-size: 12px; font-weight: 600; color: var(--accent-ink, var(--accent)); text-decoration: none; padding: 4px 6px; }
+.lu-logs-dl { font-size: max(var(--text-floor, 0px), 12px); font-weight: 600; color: var(--accent-ink, var(--accent)); text-decoration: none; padding: 4px 6px; }
 .lu-logs-dl:hover { text-decoration: underline; }
 /* Box chrome + the .lu-logline* level grammar are shared (.lu-logbox in
    common/styles.css). This box is never a scroller of its own: it sits in Settings' panel, which

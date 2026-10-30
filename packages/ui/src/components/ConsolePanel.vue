@@ -183,13 +183,13 @@ onMounted(async () => {
 <style scoped>
 .lu-console { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
 .lu-console-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.lu-console-sub { font-size: 11.5px; }
+.lu-console-sub { font-size: max(var(--text-floor, 0px), 11.5px); }
 .lu-console-spacer { flex: 1; }
 /* The level and source selects are as wide as their words (the kit fills its container by
    default, which put each on a full-width row of its own) — LuRunnerEngine.vue's precedent. */
 .lu-console-head :deep(.ui-select-trigger) { width: fit-content; }
-.lu-console-path { font-family: var(--font-mono, monospace); font-size: 11px; word-break: break-all; }
-.lu-console-stale { font-size: 11.5px; color: var(--warn-ink, #b54708); font-style: italic; }
+.lu-console-path { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 11px); word-break: break-all; }
+.lu-console-stale { font-size: max(var(--text-floor, 0px), 11.5px); color: var(--warn-ink, #b54708); font-style: italic; }
 /* The box fills the pane and is the single scroller (.lu-logbox brings overflow +
    the monospace chrome); the jump affordance floats over its bottom edge. */
 .lu-console-boxwrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }

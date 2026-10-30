@@ -31,6 +31,9 @@
  *   --ink-2            secondary text (button labels, field labels)
  *   --muted            tertiary text (placeholders, hints) — 4.5:1 or more on every ground it sits
  *                      on, the selected-row tint (--accent-soft) included (WCAG 2 AA)
+ *   --text-floor       OPTIONAL — the smallest text the app allows (a length, e.g. 12.5px): every kit text set
+ *                      smaller renders at it (max(var(--text-floor, 0px), …) — chips, hints, small buttons). Unset:
+ *                      the kit's own sizes. JustVoice sets 12.5px (its 2026-08-21 law, "stop using small text").
  *   --surface          base control background (input, card)
  *   --surface-2        recessed background (segmented track, disabled input)
  *   --surface-3        hover background for quiet controls

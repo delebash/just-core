@@ -121,9 +121,9 @@ function setModel(model) {
    column so the selected value shows in full — no max-width truncation. */
 .lu-mp { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; min-width: 0; }
 .lu-mp-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.lu-mp-lbl { font-size: 11px; font-weight: 600; color: var(--muted); }
+.lu-mp-lbl { font-size: max(var(--text-floor, 0px), 11px); font-weight: 600; color: var(--muted); }
 .lu-mp-sel { cursor: pointer; appearance: auto; width: 100%; min-width: 0; }
-.lu-mp--compact .lu-mp-sel { font-size: 11px; padding: 3px 6px; }
+.lu-mp--compact .lu-mp-sel { font-size: max(var(--text-floor, 0px), 11px); padding: 3px 6px; }
 /* Stacked: provider over model — full-width selects in a narrow column. */
 .lu-mp--stacked { grid-template-columns: 1fr; }
 /* The editable model field reuses LuCombobox — let it shrink to the grid cell

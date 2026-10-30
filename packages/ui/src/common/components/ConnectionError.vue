@@ -126,7 +126,7 @@ onBeforeUnmount(() => { stopped = true; clearTimeout(timer); offBack(); });
 .conn-err__card h1 { font-size: 18px; margin: 14px 0 8px; color: var(--ink, #2b2620); }
 .conn-err__card p { color: var(--muted, #6b6357); font-size: 13.5px; line-height: 1.55; margin: 0 0 10px; }
 .conn-err__hint { font-size: 12.5px; }
-.conn-err code { background: var(--surface-2, #f0ece4); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+.conn-err code { background: var(--surface-2, #f0ece4); padding: 1px 6px; border-radius: 5px; font-size: max(var(--text-floor, 0px), 12px); }
 .conn-err__btn { margin-top: 16px; padding: 9px 22px; border: 0; border-radius: 8px; background: var(--accent, #2f6e4f); color: var(--on-accent, #fff); font-size: 13px; font-weight: 600; cursor: pointer; }
 .conn-err__btn:hover { filter: brightness(1.06); }
 .conn-err__btn:disabled { opacity: .55; cursor: default; filter: none; }

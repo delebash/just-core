@@ -67,11 +67,11 @@ defineProps({
 }
 .lu-dlbar-h { display: flex; align-items: center; gap: 9px; }
 .lu-dlbar-title { font-size: 12.5px; }
-.lu-dlbar-role { font-size: 11px; }
+.lu-dlbar-role { font-size: max(var(--text-floor, 0px), 11px); }
 .lu-dlbar-spacer { flex: 1; }
 .lu-dlbar-ok {
-  font-size: 11px; font-weight: 800; letter-spacing: .04em;
+  font-size: max(var(--text-floor, 0px), 11px); font-weight: 800; letter-spacing: .04em;
   text-transform: uppercase; color: var(--success-ink, var(--success, #3a7d63));
 }
-.lu-dlbar-err { font-size: 11.5px; }
+.lu-dlbar-err { font-size: max(var(--text-floor, 0px), 11.5px); }
 </style>

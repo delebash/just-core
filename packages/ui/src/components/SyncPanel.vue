@@ -440,13 +440,13 @@ onBeforeUnmount(() => clearInterval(timer));
 .lu-sync-info { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
 .lu-sync-block > b, .lu-sync-info > b { font-size: 13.5px; color: var(--ink); }
 .lu-sync-sub { font-size: 12.5px; margin-top: 6px; }
-.lu-sync .lu-muted { font-size: 12px; line-height: 1.5; max-width: 60ch; }
+.lu-sync .lu-muted { font-size: max(var(--text-floor, 0px), 12px); line-height: 1.5; max-width: 60ch; }
 .lu-sync-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .lu-sync-field { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .lu-sync-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .lu-sync-pair { display: flex; gap: 14px; align-items: flex-start; }
 .lu-sync-pair img { border-radius: 6px; background: #fff; flex: none; }
-.lu-sync-code { display: block; max-width: 60ch; padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; overflow-wrap: anywhere; }
+.lu-sync-code { display: block; max-width: 60ch; padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; font-size: max(var(--text-floor, 0px), 12px); overflow-wrap: anywhere; }
 .lu-sync-units { display: flex; flex-direction: column; gap: 4px; }
 .lu-sync-unit { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .lu-sync-device { display: flex; align-items: center; gap: 10px; font-size: 13px; }

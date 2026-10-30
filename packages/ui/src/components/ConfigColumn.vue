@@ -822,43 +822,43 @@ defineExpose({ run, cancel });
 <style scoped>
 .cc { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .cc-head { display: flex; align-items: center; gap: 8px; }
-.cc-title { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.cc-title { font-size: max(var(--text-floor, 0px), 11px); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .cc-spacer { flex: 1; }
 .cc-field { display: flex; flex-direction: column; gap: 5px; }
-.cc-field > label { font-size: 12px; color: var(--muted); }
-.cc-ta { font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.5; resize: vertical; width: 100%; }
+.cc-field > label { font-size: max(var(--text-floor, 0px), 12px); color: var(--muted); }
+.cc-ta { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 12px); line-height: 1.5; resize: vertical; width: 100%; }
 .cc-presets { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
-.cc-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); cursor: pointer; }
+.cc-eyebrow { font-size: max(var(--text-floor, 0px), 10px); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); cursor: pointer; }
 .cc-name-in { max-width: 150px; }
-.cc-inprod { font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--success-ink, var(--success, #3a7d63)); white-space: nowrap; }
-.cc-prod { margin-left: auto; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 3px 9px; background: var(--accent); color: var(--on-accent, #fff); }
+.cc-inprod { font-size: max(var(--text-floor, 0px), 10px); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--success-ink, var(--success, #3a7d63)); white-space: nowrap; }
+.cc-prod { margin-left: auto; font-size: max(var(--text-floor, 0px), 10px); font-weight: 700; border-radius: 999px; padding: 3px 9px; background: var(--accent); color: var(--on-accent, #fff); }
 .cc-params { display: flex; gap: 14px 18px; align-items: flex-end; flex-wrap: wrap; }
 .cc-num { max-width: 92px; }
 .cc-reason { max-width: 120px; }
 /* The resolved local budget line — pulled up snug under the params row it reports on. */
-.cc-localbudget { font-size: 11px; margin-top: -4px; font-variant-numeric: tabular-nums; }
+.cc-localbudget { font-size: max(var(--text-floor, 0px), 11px); margin-top: -4px; font-variant-numeric: tabular-nums; }
 .cc-chk { display: flex; align-items: center; gap: 7px; }
 .cc-engsw { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.cc-engsw .lu-muted { font-size: 11px; }
+.cc-engsw .lu-muted { font-size: max(var(--text-floor, 0px), 11px); }
 .cc-samplers-body { margin-top: 8px; }
 .cc-samporder { margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 7px; }
 .cc-samporder-list { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .cc-samporder-row { display: grid; grid-template-columns: minmax(140px, 200px) auto auto; gap: 6px; align-items: center; }
-.cc-samporder-name { font-size: 12px; font-family: var(--font-mono, monospace); color: var(--ink); }
+.cc-samporder-name { font-size: max(var(--text-floor, 0px), 12px); font-family: var(--font-mono, monospace); color: var(--ink); }
 .cc-stops { margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 6px; }
-.cc-stops-ta { resize: vertical; min-height: 42px; font-family: var(--font-mono, monospace); font-size: 12px; }
+.cc-stops-ta { resize: vertical; min-height: 42px; font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 12px); }
 .cc-preview-body { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
-.cc-preview-foot { display: flex; align-items: center; gap: 10px; font-size: 11.5px; flex-wrap: wrap; }
-.cc-win { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.cc-preview-foot { display: flex; align-items: center; gap: 10px; font-size: max(var(--text-floor, 0px), 11.5px); flex-wrap: wrap; }
+.cc-win { display: inline-flex; align-items: center; gap: 5px; font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); }
 .cc-win-in { max-width: 80px; }
 .cc-over { color: var(--danger); font-weight: 700; }
-.cc-budget { font-size: 11.5px; border-radius: 7px; padding: 6px 9px; line-height: 1.4; }
+.cc-budget { font-size: max(var(--text-floor, 0px), 11.5px); border-radius: 7px; padding: 6px 9px; line-height: 1.4; }
 .cc-budget-over { background: var(--danger-soft, #fde8e8); color: var(--danger); border: 1px solid var(--danger); }
 .cc-budget-near { background: var(--accent-soft); color: var(--accent-ink, var(--accent)); }
 .cc-run { display: flex; align-items: center; gap: 10px; }
-.cc-running { font-size: 11.5px; } .cc-err { font-size: 12px; }
+.cc-running { font-size: max(var(--text-floor, 0px), 11.5px); } .cc-err { font-size: max(var(--text-floor, 0px), 12px); }
 .cc-out { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 10px 12px; }
 .cc-raw { margin-top: 8px; }
-.cc-pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: var(--font-mono, monospace); font-size: 11.5px; line-height: 1.5; max-height: 240px; overflow: auto; color: var(--ink); }
-.cc-stats { font-size: 11.5px; margin-top: 8px; }
+.cc-pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.5; max-height: 240px; overflow: auto; color: var(--ink); }
+.cc-stats { font-size: max(var(--text-floor, 0px), 11.5px); margin-top: 8px; }
 </style>

@@ -483,16 +483,16 @@ async function putReasoningRow(row) {
 .lu-pform--catalog > :not(.lu-mcat),
 .lu-pform--catalog > .lu-mcat > :not(.lu-mcat-bar):not(.lu-mcat-wrap):not(.lu-mcat-err):not(.lu-mcat-empty) { max-width: var(--w-edit, 880px); }
 .lu-pf-presets { margin-bottom: 12px; }
-.lu-pf-presets-h { display: block; font-size: 11px; margin-bottom: 6px; }
+.lu-pf-presets-h { display: block; font-size: max(var(--text-floor, 0px), 11px); margin-bottom: 6px; }
 .lu-pf-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .lu-pf-chip {
-  font: inherit; font-size: 12px; border: 1px solid var(--border); border-radius: 999px;
+  font: inherit; font-size: max(var(--text-floor, 0px), 12px); border: 1px solid var(--border); border-radius: 999px;
   padding: 5px 12px; background: var(--surface); color: var(--ink-2); cursor: pointer;
 }
 .lu-pf-chip:hover { border-color: var(--accent); color: var(--accent-ink, var(--accent)); background: var(--surface); }
 .lu-fgrid { display: grid; grid-template-columns: 130px minmax(0,1fr); gap: 9px 12px; font-size: 12.5px; align-items: center; }
-.lu-fl { color: var(--ink-2); font-size: 11.5px; }
-.lu-fh { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.lu-fl { color: var(--ink-2); font-size: max(var(--text-floor, 0px), 11.5px); }
+.lu-fh { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); margin-top: 3px; }
 .lu-fh-warn { color: var(--danger); }
 /* "N models hidden — show all" affordance under the chat dropdown (#8). */
 .lu-showall-btn { font: inherit; background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; }
@@ -503,7 +503,7 @@ async function putReasoningRow(row) {
 .lu-pf-eng { margin-top: 14px; }
 /* The launch-config library buttons under the catalog — same 14px rhythm. */
 .lu-pf-libs { margin-top: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.lu-pf-libs-cap { font-size: 11px; }
+.lu-pf-libs-cap { font-size: max(var(--text-floor, 0px), 11px); }
 .lu-pf-foot { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
 /* At phone width (Quasar's xs) what doesn't fit on the footer's row drops to the row below, as in
    AppModal's footer, rather than running off the screen — Save ended 40 px past a 390 px window
@@ -512,21 +512,21 @@ async function putReasoningRow(row) {
   .lu-pf-foot { flex-wrap: wrap; }
 }
 .lu-pf-spacer { flex: 1; }
-.lu-pf-test { font-size: 11.5px; }
+.lu-pf-test { font-size: max(var(--text-floor, 0px), 11.5px); }
 /* the native provider-type select reuses .lu-input; force select chrome */
 select.lu-input { cursor: pointer; appearance: auto; }
 /* fixed (non-editable) value for the built-in engine's locked fields */
 .lu-locked {
-  display: inline-flex; align-items: center; font-size: 12px; color: var(--ink-2);
+  display: inline-flex; align-items: center; font-size: max(var(--text-floor, 0px), 12px); color: var(--ink-2);
   background: var(--surface-3); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
 }
 .lu-pf-reason { margin-top: 14px; }
-.lu-pf-reason-h { font-size: 11.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+.lu-pf-reason-h { font-size: max(var(--text-floor, 0px), 11.5px); font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
 .lu-rtable { display: flex; flex-direction: column; gap: 6px; }
 .lu-rt-row { display: grid; grid-template-columns: 90px minmax(0,1fr) minmax(0,1fr); gap: 8px; align-items: center; }
 /* One value column when the provider speaks only words OR only numbers (the
    inapplicable column is hidden — an inert field must not render). */
 .lu-rtable--two .lu-rt-row { grid-template-columns: 90px minmax(0,1fr); }
-.lu-rt-head { font-size: 11px; color: var(--muted); }
-.lu-rt-lvl { font-size: 12px; color: var(--ink-2); }
+.lu-rt-head { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); }
+.lu-rt-lvl { font-size: max(var(--text-floor, 0px), 12px); color: var(--ink-2); }
 </style>

@@ -172,7 +172,7 @@
 }
 :where(.ui-checkbox .q-checkbox__inner)::before { display: none; }
 :where(.ui-checkbox .q-checkbox__icon-container) { position: static; }
-:where(.ui-checkbox .q-checkbox__icon) { font-size: 12px; color: inherit; }
+:where(.ui-checkbox .q-checkbox__icon) { font-size: max(var(--text-floor, 0px), 12px); color: inherit; }
 .ui-checkbox.is-checked .q-checkbox__inner { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); }
 .ui-checkbox:focus-visible .q-checkbox__inner { box-shadow: var(--focus-ring, 0 0 0 3px var(--accent-soft)); }
 .ui-checkbox.is-disabled { opacity: .55; cursor: not-allowed; }
@@ -258,7 +258,7 @@
 .ui-input .q-field__bottom {
   position: absolute; top: calc(100% + 6px); inset-inline-start: 0; z-index: 1;
   width: max-content; max-width: 34em; min-height: 0; padding: 0;
-  font-size: 11px; line-height: 1.35; color: var(--muted, var(--ink-2)); cursor: default;
+  font-size: max(var(--text-floor, 0px), 11px); line-height: 1.35; color: var(--muted, var(--ink-2)); cursor: default;
 }
 .ui-input .q-field__messages { line-height: inherit; }
 .ui-input.q-field--error .q-field__bottom { color: var(--danger-ink, var(--danger)); }
@@ -372,8 +372,8 @@
 .ui-select-indicator { display: inline-flex; align-items: center; justify-content: center; color: var(--accent); flex-shrink: 0; }
 /* An option's hint — under its label in the open list, never in the trigger. */
 .ui-select-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.ui-select-hint { font-weight: 400; font-size: 12px; color: var(--muted); }
-.ui-select-group { padding: 8px 10px 2px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--muted); }
+.ui-select-hint { font-weight: 400; font-size: max(var(--text-floor, 0px), 12px); color: var(--muted); }
+.ui-select-group { padding: 8px 10px 2px; font-size: max(var(--text-floor, 0px), 11px); font-weight: 600; letter-spacing: .02em; color: var(--muted); }
 
 /* ── Multi-select (UiMultiSelect on QSelect multiple) ──────────────────── */
 /* As the select above: QSelect's root holds the width and the text, its control is the trigger's
@@ -407,7 +407,7 @@
 .ui-select-trigger .q-field__bottom,
 .ui-mselect-trigger .q-field__bottom {
   flex: 0 0 100%; min-height: 0; padding: 6px 0 0;
-  font-size: 11px; font-weight: 400; line-height: 1.35; color: var(--muted, var(--ink-2)); cursor: default;
+  font-size: max(var(--text-floor, 0px), 11px); font-weight: 400; line-height: 1.35; color: var(--muted, var(--ink-2)); cursor: default;
 }
 .ui-select-trigger .q-field__messages,
 .ui-mselect-trigger .q-field__messages { line-height: inherit; }
@@ -500,8 +500,8 @@
 /* chosen AND keyboard-focused: the ring outside, the accent edge kept inside */
 .ui-seg .q-btn.active:focus-visible { box-shadow: inset 0 0 0 1px var(--accent), var(--focus-ring, 0 0 0 2px var(--accent-soft)); }
 .ui-seg .ui-seg__label { font-weight: 600; }
-.ui-seg .ui-seg__sub { font-size: 11px; color: var(--muted); }
-.ui-seg--small .q-btn { padding: 4px 8px; font-size: 12px; }
+.ui-seg .ui-seg__sub { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); }
+.ui-seg--small .q-btn { padding: 4px 8px; font-size: max(var(--text-floor, 0px), 12px); }
 /* connected — buttons flex to fill + stack label/sublabel; the 1px gap reads as
    a hairline divider. Caller owns row sizing (flex: 1; min-width). */
 .ui-seg--connected { border-radius: 9px; }
@@ -509,8 +509,8 @@
    AI page's Local/Online strip ran 112 px past a 390 px window). The words carry the wrap
    themselves: QBtnToggle's `no-wrap` sets nowrap on the button's content, which they inherit. */
 .ui-seg--connected .q-btn { flex: 1; flex-direction: column; align-items: center; gap: 1px; padding: 6px 4px; min-width: 0; text-align: center; }
-.ui-seg--connected .ui-seg__label { font-size: 12px; white-space: normal; }
-.ui-seg--connected .ui-seg__sub { font-size: 10px; color: var(--muted); white-space: normal; }
+.ui-seg--connected .ui-seg__label { font-size: max(var(--text-floor, 0px), 12px); white-space: normal; }
+.ui-seg--connected .ui-seg__sub { font-size: max(var(--text-floor, 0px), 10px); color: var(--muted); white-space: normal; }
 /* the chosen option's 10px sublabel in the full ink, never faded: 6.29:1 on the soft fill (faded to
    80 % it measured 4.49:1 — the AI page's Local/Online, 2026-10-20) */
 .ui-seg--connected .q-btn.active .ui-seg__sub { color: var(--accent-ink, var(--accent)); }
@@ -755,11 +755,11 @@
   cursor: pointer;
 }
 .ui-toast .ui-toast__close:hover { background: color-mix(in oklab, var(--ui-toast-text) 8%, var(--ui-toast-bg)); }
-:where(.ui-toast .ui-toast__close) .q-icon { font-size: 12px; }
+:where(.ui-toast .ui-toast__close) .q-icon { font-size: max(var(--text-floor, 0px), 12px); }
 .ui-toast .ui-toast__action {
   flex-shrink: 0; margin-left: auto; height: 24px; min-height: 0; padding: 0 8px;
   color: var(--ui-toast-normal-bg); background: var(--ui-toast-normal-ink); border: none; border-radius: 4px;
-  font-size: 12px; font-weight: 500; line-height: inherit; text-transform: none; letter-spacing: normal; cursor: pointer;
+  font-size: max(var(--text-floor, 0px), 12px); font-weight: 500; line-height: inherit; text-transform: none; letter-spacing: normal; cursor: pointer;
 }
 :where(.ui-toast .ui-toast__action)::before,
 :where(.ui-toast .ui-toast__close)::before { display: none; }

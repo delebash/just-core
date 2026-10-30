@@ -77,14 +77,14 @@ const label = computed(() => (errors.value
 }
 .ai-status-count {
   font-family: var(--font-mono, monospace);
-  font-size: 10px;
+  font-size: max(var(--text-floor, 0px), 10px);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--accent-ink);
 }
 .ai-status-errors {
   font-family: var(--font-mono, monospace);
-  font-size: 9.5px;
+  font-size: max(var(--text-floor, 0px), 9.5px);
   font-weight: 700;
   line-height: 1;
   padding: 2px 5px;

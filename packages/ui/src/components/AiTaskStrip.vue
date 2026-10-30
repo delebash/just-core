@@ -218,12 +218,12 @@ function openPanel() { tasks.openPanel(); }
   border-radius: 8px;
   background: var(--accent-soft);
   color: var(--accent-ink);
-  font-size: 12px;
+  font-size: max(var(--text-floor, 0px), 12px);
   margin: 4px 0 12px;
 }
 .sts-label { font-weight: 600; }
 .sts-stat {
-  font-family: var(--font-mono, monospace); font-size: 10.5px;
+  font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 10.5px);
   color: var(--accent-ink);
   opacity: 0.85;
   font-variant-numeric: tabular-nums;
@@ -263,7 +263,7 @@ function openPanel() { tasks.openPanel(); }
 .sts-badge {
   display: inline-grid; place-items: center;
   width: 17px; height: 17px; border-radius: 50%;
-  font-size: 10.5px; font-weight: 700; color: var(--on-accent, #fff); flex-shrink: 0;
+  font-size: max(var(--text-floor, 0px), 10.5px); font-weight: 700; color: var(--on-accent, #fff); flex-shrink: 0;
   background: var(--accent);
 }
 /* the solid danger, which --on-accent is measured on (the light --danger-ink of the dark theme
@@ -272,11 +272,11 @@ function openPanel() { tasks.openPanel(); }
 .sts--cancel .sts-badge { background: var(--ink-3, #71717a); }
 .sts-finish-tag {
   font-family: var(--font-mono, monospace);
-  font-size: 10px; font-weight: 700;
+  font-size: max(var(--text-floor, 0px), 10px); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .sts-error {
-  font-size: 11px; font-style: italic;
+  font-size: max(var(--text-floor, 0px), 11px); font-style: italic;
   max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 

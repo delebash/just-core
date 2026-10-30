@@ -375,7 +375,7 @@ async function save() {
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
-  font-size: 11.5px;
+  font-size: max(var(--text-floor, 0px), 11.5px);
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
@@ -393,7 +393,7 @@ async function save() {
 .afc-provider, .afc-model { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .afc-model {
   font-family: var(--font-mono, monospace);
-  font-size: 10.5px;
+  font-size: max(var(--text-floor, 0px), 10.5px);
   color: var(--ink-2);
   background: transparent;
 }
@@ -423,24 +423,24 @@ async function save() {
   border-radius: 10px;
   background: var(--surface);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
-  font-size: 12px; color: var(--ink-2);
+  font-size: max(var(--text-floor, 0px), 12px); color: var(--ink-2);
 }
-.afc-pop-h { font-size: 11.5px; color: var(--muted); }
+.afc-pop-h { font-size: max(var(--text-floor, 0px), 11.5px); color: var(--muted); }
 .afc-pop-h b { color: var(--ink); font-weight: 600; }
-.afc-pop-loading { color: var(--muted); font-size: 12px; padding: 4px 0; }
+.afc-pop-loading { color: var(--muted); font-size: max(var(--text-floor, 0px), 12px); padding: 4px 0; }
 .afc-pop-field { display: flex; flex-direction: column; gap: 4px; }
-.afc-pop-lbl { font-size: 11px; font-weight: 600; color: var(--muted); }
+.afc-pop-lbl { font-size: max(var(--text-floor, 0px), 11px); font-weight: 600; color: var(--muted); }
 .afc-pop-sel { cursor: pointer; appearance: auto; width: 100%; }
 .afc-pop-cap {
-  font-size: 11px; color: var(--ink-2);
+  font-size: max(var(--text-floor, 0px), 11px); color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   padding: 4px 8px; border-radius: 6px; background: var(--surface-2);
 }
 /* The -1 loop warning — a real hazard (verified on-box), so it carries warning ink,
    not the muted note voice the retired "always thinks" line used. */
-.afc-pop-warn { font-size: 10.5px; color: var(--danger); line-height: 1.4; }
-.afc-pop-blast { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.afc-pop-warn { font-size: max(var(--text-floor, 0px), 10.5px); color: var(--danger); line-height: 1.4; }
+.afc-pop-blast { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); line-height: 1.4; }
 .afc-pop-blast b { color: var(--ink-2); }
-.afc-pop-err { font-size: 11px; color: var(--danger); }
+.afc-pop-err { font-size: max(var(--text-floor, 0px), 11px); color: var(--danger); }
 .afc-pop-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
 </style>

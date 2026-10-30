@@ -236,10 +236,10 @@ async function reset() {
 .lu-engbin-summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; user-select: none; }
 .lu-engbin-title { font-weight: 700; color: var(--ink); }
 .lu-engbin-body { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
-.lu-engbin-help { font-size: 12px; line-height: 1.5; max-width: 720px; }
-.lu-engbin-help code { font-family: var(--font-mono, monospace); font-size: 11px; background: var(--surface-2, var(--surface)); padding: 0 3px; border-radius: 3px; }
+.lu-engbin-help { font-size: max(var(--text-floor, 0px), 12px); line-height: 1.5; max-width: 720px; }
+.lu-engbin-help code { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 11px); background: var(--surface-2, var(--surface)); padding: 0 3px; border-radius: 3px; }
 .lu-engbin-settings { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
-.lu-engbin-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.lu-engbin-field { display: flex; flex-direction: column; gap: 3px; font-size: max(var(--text-floor, 0px), 12px); color: var(--muted); }
 /* A URL / a 64-char hash: the label takes the kit's path width so the input can use its
    own ui-w-path cap (otherwise the column shrinks it to the input's default size). */
 .lu-engbin-field--path { width: var(--w-path, 480px); max-width: 100%; }

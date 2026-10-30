@@ -258,5 +258,5 @@ function onEnter(e, isLastField) {
   line-height: 1.2;
   color: var(--muted);
 }
-.ui-dialog__help { font-size: 11.5px; color: var(--muted); }
+.ui-dialog__help { font-size: max(var(--text-floor, 0px), 11.5px); color: var(--muted); }
 </style>

@@ -86,7 +86,7 @@ defineExpose({
 }
 .pane-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pane-eyebrow {
-  font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
+  font-size: max(var(--text-floor, 0px), 10.5px); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--muted);
 }
 .pane-h1 {

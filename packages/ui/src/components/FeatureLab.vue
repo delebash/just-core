@@ -399,17 +399,17 @@ const columnConfig = computed(() => {
 .lu-fw-tune { display: flex; flex-direction: column; gap: 12px; }
 .lu-fw-tune-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .lu-fw-tune-h b { font-size: 13px; color: var(--ink); }
-.lu-fw-tune-h .lu-muted { font-size: 11.5px; }
+.lu-fw-tune-h .lu-muted { font-size: max(var(--text-floor, 0px), 11.5px); }
 .lu-fw-testin { border: 1px solid var(--border); border-radius: 10px; padding: 13px; background: var(--surface-2); display: flex; flex-direction: column; gap: 10px; }
-.lu-fw-testin-h { display: flex; align-items: baseline; gap: 10px; } .lu-fw-testin-h b { font-size: 13px; } .lu-fw-testin-h .lu-muted { font-size: 11.5px; }
+.lu-fw-testin-h { display: flex; align-items: baseline; gap: 10px; } .lu-fw-testin-h b { font-size: 13px; } .lu-fw-testin-h .lu-muted { font-size: max(var(--text-floor, 0px), 11.5px); }
 .lu-fw-testin-fill { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.lu-fw-varcount { font-size: 11px; margin-left: 8px; }
+.lu-fw-varcount { font-size: max(var(--text-floor, 0px), 11px); margin-left: 8px; }
 .lu-fw-genprompt .lu-fw-testin-h { flex-wrap: wrap; }
 .lu-fw-gen-spacer { flex: 1; }
-.lu-fw-genprompt .ui-textarea { font-family: var(--font-mono, monospace); font-size: 11.5px; }
-.lu-fw-datalinks { font-size: 11.5px; display: flex; gap: 10px; flex-wrap: wrap; }
+.lu-fw-genprompt .ui-textarea { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 11.5px); }
+.lu-fw-datalinks { font-size: max(var(--text-floor, 0px), 11.5px); display: flex; gap: 10px; flex-wrap: wrap; }
 .lu-fw-datalinks a { color: var(--accent, var(--ink)); text-decoration: none; }
 .lu-fw-datalinks a:hover { text-decoration: underline; }
 .lu-field { display: flex; flex-direction: column; gap: 5px; }
-.lu-field > label { font-size: 12px; color: var(--muted); }
+.lu-field > label { font-size: max(var(--text-floor, 0px), 12px); color: var(--muted); }
 </style>

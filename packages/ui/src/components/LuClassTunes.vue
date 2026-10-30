@@ -615,37 +615,37 @@ async function runImport() {
 .lu-ct-summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; user-select: none; }
 .lu-ct-title { font-weight: 700; font-size: 12.5px; color: var(--ink); }
 .lu-ct-body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
-.lu-ct-help { font-size: 11.5px; line-height: 1.5; margin: 0; }
-.lu-ct-mine { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--ink); flex-wrap: wrap; }
+.lu-ct-help { font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.5; margin: 0; }
+.lu-ct-mine { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: max(var(--text-floor, 0px), 12px); color: var(--ink); flex-wrap: wrap; }
 .lu-ct-class { border: 1px solid var(--border); border-radius: var(--r-sm, 8px); overflow: hidden; }
 .lu-ct-chead { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; background: var(--surface-2); flex-wrap: wrap; }
 .lu-ct-cname { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink); }
-.lu-ct-chw { font-size: 10.5px; }
+.lu-ct-chw { font-size: max(var(--text-floor, 0px), 10.5px); }
 .lu-ct-cact { display: inline-flex; gap: 4px; }
-.lu-ct-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.lu-ct-tbl { width: 100%; border-collapse: collapse; font-size: max(var(--text-floor, 0px), 12px); }
 .lu-ct-tbl td { padding: 5px 10px; border-top: 1px solid var(--border-soft, var(--border)); vertical-align: top; }
 .lu-ct-model { color: var(--ink); white-space: nowrap; }
 /* One tag after the name — nowrap above is safe here because it is exactly one short
    tag, not a list that could outgrow the column. */
 .lu-ct-mtype { margin-left: 6px; }
-.lu-ct-sum { font-family: var(--font-mono, monospace); font-size: 10.5px; color: var(--ink-2); word-break: break-word; width: 100%; }
+.lu-ct-sum { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 10.5px); color: var(--ink-2); word-break: break-word; width: 100%; }
 .lu-ct-act { white-space: nowrap; text-align: right; }
 .lu-ct-addcfg { padding: 4px 8px 8px; }
 /* The not-tested disclosure: a quiet full-width row, not a button-looking control —
    it reveals a list, it doesn't change anything. */
 .lu-ct-untbtn { display: block; width: 100%; text-align: left; padding: 5px 10px; border: none;
   border-top: 1px solid var(--border-soft, var(--border)); background: none; font: inherit;
-  font-size: 11.5px; cursor: pointer; }
+  font-size: max(var(--text-floor, 0px), 11.5px); cursor: pointer; }
 .lu-ct-untbtn:hover { background: var(--surface-2); }
-.lu-ct-empty { margin: 0; font-size: 12px; }
+.lu-ct-empty { margin: 0; font-size: max(var(--text-floor, 0px), 12px); }
 .lu-ct-bar { display: flex; gap: 8px; }
 .lu-ct-editor { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: var(--r-sm, 8px); background: var(--surface-2); }
-.lu-ct-forrow { font-size: 12px; color: var(--ink-2); }
+.lu-ct-forrow { font-size: max(var(--text-floor, 0px), 12px); color: var(--ink-2); }
 .lu-ct-field { display: flex; flex-direction: column; gap: 3px; }
 .lu-ct-mrow { display: flex; gap: 10px; flex-wrap: wrap; }
-.lu-ct-cap { font-size: 11px; color: var(--muted); }
-.lu-ct-fixed { font-size: 12px; color: var(--ink-2); }
-.lu-ct-snap { font-size: 11px; line-height: 1.4; }
-.lu-ct-shortfall { margin: 0; font-size: 11px; line-height: 1.4; }
+.lu-ct-cap { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); }
+.lu-ct-fixed { font-size: max(var(--text-floor, 0px), 12px); color: var(--ink-2); }
+.lu-ct-snap { font-size: max(var(--text-floor, 0px), 11px); line-height: 1.4; }
+.lu-ct-shortfall { margin: 0; font-size: max(var(--text-floor, 0px), 11px); line-height: 1.4; }
 .lu-ct-edact { display: flex; justify-content: flex-end; gap: 8px; }
 </style>

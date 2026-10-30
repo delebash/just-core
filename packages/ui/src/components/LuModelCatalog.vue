@@ -1596,7 +1596,7 @@ refreshApplied();
 
 <style scoped>
 .lu-mcat { margin-top: 14px; }
-.lu-mcat-head { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.lu-mcat-head { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); margin-bottom: 6px; }
 .lu-mcat-head b { color: var(--ink-2); }
 .lu-mcat-err { margin-bottom: 8px; }
 .lu-mcat-empty { font-size: 12.5px; color: var(--muted); padding: 14px; text-align: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm, 8px); }
@@ -1642,7 +1642,7 @@ refreshApplied();
 /* Model is the ONE column that grows; its text wraps within a cap so the table stays tidy. */
 /* No width here at all — the Model column's share is declared once in COLUMNS. */
 .lu-mn { font-weight: 600; color: var(--ink); }
-.lu-mrowmeta { font-size: 10.5px; font-weight: 400; margin-top: 1px; }
+.lu-mrowmeta { font-size: max(var(--text-floor, 0px), 10.5px); font-weight: 400; margin-top: 1px; }
 /* The row's hardware line needs no rules of its own — it is one short sentence in the
    shared .lu-mrowmeta/.lu-muted treatment, like "Size on disk · …" above it. The chip
    styling that briefly lived here (2026-07-26) went with the class enumeration when that
@@ -1651,8 +1651,8 @@ refreshApplied();
    Under `table-layout: fixed` the column owns the width, so these need no cap of their
    own — the previous attempts put one on the <td> (ignored under `table-layout: auto`)
    and then on these children (a number to keep in sync forever). */
-.lu-mdesc { font-size: 11px; color: var(--ink-2); font-weight: 400; margin-top: 3px; line-height: 1.4; }
-.lu-mnotes { font-size: 10.5px; color: var(--muted); font-weight: 400; font-style: italic; margin-top: 2px; line-height: 1.4; }
+.lu-mdesc { font-size: max(var(--text-floor, 0px), 11px); color: var(--ink-2); font-weight: 400; margin-top: 3px; line-height: 1.4; }
+.lu-mnotes { font-size: max(var(--text-floor, 0px), 10.5px); color: var(--muted); font-weight: 400; font-style: italic; margin-top: 2px; line-height: 1.4; }
 .lu-setup-pick { margin-top: 7px; }
 /* Default / Embedding badges sit inline after the model name; the fit-group divider row. */
 .lu-mbadge { margin-left: 6px; vertical-align: middle; }
@@ -1667,7 +1667,7 @@ refreshApplied();
    classes") doesn't set the column's width. Not QBadge's `multi-line`: that is
    `word-break: break-all`, a break mid-word. */
 .lu-mtags .lu-mbadge { margin-left: 0; white-space: normal; }
-.lu-mgrid :deep(.lu-mgroup td) { background: var(--surface-2); color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; padding: 5px 11px; }
+.lu-mgrid :deep(.lu-mgroup td) { background: var(--surface-2); color: var(--muted); font-size: max(var(--text-floor, 0px), 10px); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; padding: 5px 11px; }
 /* The Type cell holds chips: let them WRAP onto a second line when the column is narrow
    (each chip stays intact via its own nowrap) rather than widening the table. */
 .lu-mm { color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px; }
@@ -1688,11 +1688,11 @@ refreshApplied();
 /* The badge WRAPS rather than forcing its column wider: the longest license name
    ("Llama-Community") needed +28px past its cell at the 1000px minimum window. Two lines
    inside the pill is better than a clipped column. */
-.lu-lic { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 8px; font-size: 10px; font-weight: 700; border: 1px solid var(--border-strong); color: var(--ink-2); background: var(--surface); text-align: center; }
+.lu-lic { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 8px; font-size: max(var(--text-floor, 0px), 10px); font-weight: 700; border: 1px solid var(--border-strong); color: var(--ink-2); background: var(--surface); text-align: center; }
 .lu-lic--warn { background: var(--gold-soft, #f5edda); border-color: var(--gold-line, #e2d2b0); color: var(--gold, #b08a3e); }
 
 /* .lu-pill* moved to shared common/styles.css (used by the grid too). */
-.lu-mstat { font-size: 11px; color: var(--muted); }
+.lu-mstat { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); }
 /* The in-flight bar's OWN full-width row, directly under its model (user, 2026-08-14:
    "move that to the bottom of the model so it doesnt need to wrap … it then has enough
    room to flex like the progress indicator at the top"). It previously lived in the
@@ -1706,17 +1706,17 @@ refreshApplied();
 .lu-mgrid :deep(.lu-mprogress .lu-dlbar) { margin-top: 0; }
 .lu-mgrid :deep(.lu-mprogress *) { overflow-wrap: anywhere; }
 
-.lu-mcat-foot { font-size: 11px; margin-top: 7px; }
+.lu-mcat-foot { font-size: max(var(--text-floor, 0px), 11px); margin-top: 7px; }
 .lu-mlink { color: var(--accent-ink, var(--accent)); }
 .lu-mm-lrow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.lu-mm-lrow .lu-mlink { font-weight: 400; font-size: 11px; }
+.lu-mm-lrow .lu-mlink { font-weight: 400; font-size: max(var(--text-floor, 0px), 11px); }
 
 /* The strip cards' live state + Load/Unload row + the pair caption (2026-07-07). */
-.lu-setup-live { display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: 11.5px; }
+.lu-setup-live { display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: max(var(--text-floor, 0px), 11.5px); }
 /* The shared bar fills the card's live row (its own margin-top is for QuickSetup's stack). */
 .lu-setup-dlbar { flex: 1; min-width: 0; margin-top: 0; }
-.lu-error-inline { color: var(--danger); font-size: 11px; }
-.lu-setup-cap { font-size: 11.5px; line-height: 1.5; margin: 8px 0 0; }
+.lu-error-inline { color: var(--danger); font-size: max(var(--text-floor, 0px), 11px); }
+.lu-setup-cap { font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.5; margin: 8px 0 0; }
 
 /* "Your setup" strip — the two required slots (General + Embedding), status-only cards. */
 .lu-setup {
@@ -1735,7 +1735,7 @@ refreshApplied();
   background: var(--lu-surface-2, var(--surface-2, #fafafa));
 }
 .lu-setup-role {
-  font-size: 11px;
+  font-size: max(var(--text-floor, 0px), 11px);
   font-weight: 700;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -1743,10 +1743,10 @@ refreshApplied();
 }
 .lu-setup-val { font-weight: 600; font-size: 13.5px; margin-top: 2px; }
 .lu-setup-card--empty .lu-setup-val { color: var(--lu-warn, #b45309); }
-.lu-setup-hint { font-size: 11.5px; color: var(--lu-ink-2, var(--ink-2, #666)); margin-top: 2px; line-height: 1.4; }
+.lu-setup-hint { font-size: max(var(--text-floor, 0px), 11.5px); color: var(--lu-ink-2, var(--ink-2, #666)); margin-top: 2px; line-height: 1.4; }
 /* The §8.23 honest-warning line under a slot picker holding a "no"-fit model —
    the warn tone the setup cards already use, sized like the hint it sits with. */
-.lu-setup-warn { font-size: 11.5px; color: var(--lu-warn, #b45309); margin: 2px 0 0; line-height: 1.4; }
+.lu-setup-warn { font-size: max(var(--text-floor, 0px), 11.5px); color: var(--lu-warn, #b45309); margin: 2px 0 0; line-height: 1.4; }
 
 /* Section-header rows (Chat & writing / Embedding) inside the one table — a
    pronounced band (#11) so you always know which kind of model you're looking
@@ -1766,20 +1766,20 @@ refreshApplied();
    modal form (#30). The heading's margin-top keeps the 2026-07-07 breathing room between
    the "Your setup" strip cards and this block. */
 .lu-mcat-title { font-weight: 700; font-size: 14px; color: var(--ink); margin-top: 14px; }
-.lu-mcat-thispc { font-size: 11.5px; margin-top: 2px; }
+.lu-mcat-thispc { font-size: max(var(--text-floor, 0px), 11.5px); margin-top: 2px; }
 .lu-mcat-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; margin-bottom: 8px; }
 .lu-mcat-search { flex: 0 1 220px; }
 .lu-mcat-spacer { flex: 1; }
 .lu-mm-form { display: flex; flex-direction: column; gap: 12px; }
-.lu-mm-l { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--ink-2); font-weight: 600; }
+.lu-mm-l { display: flex; flex-direction: column; gap: 4px; font-size: max(var(--text-floor, 0px), 11.5px); color: var(--ink-2); font-weight: 600; }
 .lu-mm-l .lu-muted { font-weight: 400; }
 .lu-mm-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.lu-mm-idline { font-size: 11px; font-variant-ligatures: none; margin-top: -2px; }
-.lu-mm-note { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.lu-mm-idline { font-size: max(var(--text-floor, 0px), 11px); font-variant-ligatures: none; margin-top: -2px; }
+.lu-mm-note { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); line-height: 1.4; }
 .lu-mm-note b { color: var(--ink-2); font-weight: 700; }
 .lu-mm-inspect { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .lu-mm-auto { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
-.lu-mm-auto-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; align-items: baseline; }
+.lu-mm-auto-row { display: flex; justify-content: space-between; gap: 12px; font-size: max(var(--text-floor, 0px), 12px); align-items: baseline; }
 .lu-mm-auto-row > .lu-muted:first-child { flex: 0 0 auto; }
 .lu-mm-spacer { flex: 1; }
 .lu-mm-caps { display: flex; flex-direction: column; gap: 6px; }

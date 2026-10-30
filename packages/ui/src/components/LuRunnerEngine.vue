@@ -426,7 +426,7 @@ onMounted(() => {
 .lu-eng-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .lu-eng-backend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .lu-eng-backend-cap { font-size: 12.5px; font-weight: 600; color: var(--lu-ink-2, var(--ink-2, #666)); }
-.lu-eng-backend-active { font-size: 11.5px; color: var(--lu-ink-2, var(--ink-2, #666)); font-variant-numeric: tabular-nums; }
+.lu-eng-backend-active { font-size: max(var(--text-floor, 0px), 11.5px); color: var(--lu-ink-2, var(--ink-2, #666)); font-variant-numeric: tabular-nums; }
 /* Content-size the backend select so its box hugs the current label (Auto / CUDA /
    Vulkan) instead of filling the width="name" max-width cap — the shared trigger is
    width:100% by default, so the cap alone leaves a wide dead gap before the chevron. */
@@ -442,7 +442,7 @@ onMounted(() => {
   border-radius: 6px;
   border: 1px solid var(--lu-border, var(--border, #e2e2e2));
   background: var(--lu-surface-2, var(--surface-2, #f6f6f6));
-  font-size: 11.5px;
+  font-size: max(var(--text-floor, 0px), 11.5px);
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
@@ -465,7 +465,7 @@ onMounted(() => {
 }
 .lu-eng-res-title { font-weight: 600; font-size: 13px; }
 .lu-eng-res-vram {
-  font-size: 11.5px;
+  font-size: max(var(--text-floor, 0px), 11.5px);
   color: var(--lu-ink-2, var(--ink-2, #666));
   font-variant-numeric: tabular-nums;
 }
@@ -481,7 +481,7 @@ onMounted(() => {
 }
 .lu-eng-res-status {
   flex-shrink: 0;
-  font-size: 10.5px;
+  font-size: max(var(--text-floor, 0px), 10.5px);
   font-weight: 700;
   letter-spacing: .03em;
   text-transform: uppercase;
@@ -495,17 +495,17 @@ onMounted(() => {
 .lu-eng-res-status.is-err { background: rgba(185, 28, 28, .14); color: #b91c1c; }
 .lu-eng-res-meta {
   flex-shrink: 0;
-  font-size: 11.5px;
+  font-size: max(var(--text-floor, 0px), 11.5px);
   color: var(--lu-ink-2, var(--ink-2, #666));
   font-variant-numeric: tabular-nums;
 }
 .lu-eng-res-empty { margin: 0; font-size: 12.5px; color: var(--lu-ink-2, var(--ink-2, #666)); }
 .lu-eng-knobs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .lu-eng-knob { display: flex; flex-direction: column; gap: 3px; }
-.lu-eng-knob-cap { font-size: 11.5px; color: var(--lu-ink-2, var(--ink-2, #666)); }
+.lu-eng-knob-cap { font-size: max(var(--text-floor, 0px), 11.5px); color: var(--lu-ink-2, var(--ink-2, #666)); }
 /* A titled sub-group of knobs (the speed bands): its title over its fields, a rule above. */
 .lu-eng-dlgroup { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--lu-border, var(--border, #e5e5e5)); }
 .lu-eng-dlgroup-head { display: flex; align-items: center; gap: 10px; }
-.lu-eng-dlgroup-title { font-size: 12px; font-weight: 700; letter-spacing: .01em; color: var(--lu-ink-1, var(--ink-1, #222)); }
+.lu-eng-dlgroup-title { font-size: max(var(--text-floor, 0px), 12px); font-weight: 700; letter-spacing: .01em; color: var(--lu-ink-1, var(--ink-1, #222)); }
 .lu-eng-dlgroup-fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 </style>

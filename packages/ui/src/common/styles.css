@@ -113,7 +113,7 @@ button:not(.ui-btn) { color: inherit; }
    height (at the label's full 14px the units stood 38% taller — the seventeenth review, 2026-10-20) */
 .ui-unit { text-transform: none; font-variant-caps: normal; }
 :is(.ui-field__label, .ui-field--block > label) .ui-unit { font-size: 0.8em; }
-.ui-field__hint { display: block; font-size: 11px; color: var(--muted, var(--ink-2)); margin-top: 4px; }
+.ui-field__hint { display: block; font-size: max(var(--text-floor, 0px), 11px); color: var(--muted, var(--ink-2)); margin-top: 4px; }
 
 /* Tag and Chip: their look is the kit's Quasar theme (../quasar/theme.css) since they moved
    onto QBadge / QChip (docs/plans/2026-10-09-kit-controls-on-quasar.md). */
@@ -162,8 +162,8 @@ button:not(.ui-btn) { color: inherit; }
 :where(.setting-row__title) { font-weight: 600; font-size: 13px; color: var(--ink); }
 /* a row's description at most 30em a line (~70 characters at its size; Appearance's ran 82 — the eighteenth
    review, 2026-10-20) */
-:where(.setting-row__desc) { color: var(--muted, var(--ink-2)); font-size: 12px; margin-top: 2px; line-height: 1.45; max-width: 30em; }
-:where(.setting-row__value) { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--ink-2); }
+:where(.setting-row__desc) { color: var(--muted, var(--ink-2)); font-size: max(var(--text-floor, 0px), 12px); margin-top: 2px; line-height: 1.45; max-width: 30em; }
+:where(.setting-row__value) { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 12px); color: var(--ink-2); }
 :where(.setting-row__slider) { margin-top: 10px; accent-color: var(--accent); }
 :where(.accent-preview) { display: inline-block; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--border); }
 
@@ -209,7 +209,7 @@ button:not(.ui-btn) { color: inherit; }
    the same header treatment, rhythm and rules as .ui-table without the machinery. */
 .ui-formgrid { width: 100%; border-collapse: collapse; font-size: 13px; }
 .ui-formgrid th {
-  text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  text-align: left; font-size: max(var(--text-floor, 0px), 11px); font-weight: 700; letter-spacing: .04em;
   text-transform: uppercase; color: var(--muted); padding: 6px 10px;
   border-bottom: 1px solid var(--border);
 }
@@ -225,7 +225,7 @@ button:not(.ui-btn) { color: inherit; }
 .ui-table-pager {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 8px 4px 4px;
-  font-size: 11.5px; color: var(--muted);
+  font-size: max(var(--text-floor, 0px), 11.5px); color: var(--muted);
   font-family: var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums;
 }
 .ui-table-pager-controls { display: inline-flex; align-items: center; gap: 6px; }
@@ -287,16 +287,16 @@ button:not(.ui-btn) { color: inherit; }
 .lu-fw-card-label { font-size: 12.5px; font-weight: 600; color: var(--ink); overflow-wrap: break-word; }
 /* Marks a feature that carries its OWN per-feature preset override (restored 2026-07-14). */
 .lu-fw-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-left: 6px; vertical-align: middle; }
-.lu-fw-card-desc { font-size: 11px; color: var(--muted); line-height: 1.4; margin-top: 3px; }
-.lu-fw-card-model { font-size: 10.5px; font-weight: 600; color: var(--accent-ink, var(--accent)); margin-top: 4px; }
+.lu-fw-card-desc { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); line-height: 1.4; margin-top: 3px; }
+.lu-fw-card-model { font-size: max(var(--text-floor, 0px), 10.5px); font-weight: 600; color: var(--accent-ink, var(--accent)); margin-top: 4px; }
 .lu-fw-cat { display: flex; flex-direction: column; gap: 7px; padding: 10px 2px 2px; margin-top: 8px; border-top: 1px solid var(--border); }
 .lu-fw-cat:first-child { border-top: 0; margin-top: 0; padding-top: 2px; }
-.lu-fw-cat-name { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); }
+.lu-fw-cat-name { font-size: max(var(--text-floor, 0px), 11px); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); }
 .lu-fw-edit { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 .lu-fw-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .lu-fw-h b { font-size: 15px; color: var(--ink); }
 .lu-fw-spacer { flex: 1; }
-.lu-fw-msg { font-size: 11.5px; }
+.lu-fw-msg { font-size: max(var(--text-floor, 0px), 11.5px); }
 
 /* ── Fit badge (shared by the model catalog + the Recommendation grid; moved here
    2026-07-03 from LuModelCatalog's scoped block so the grid consumes ONE badge, not a
@@ -305,7 +305,7 @@ button:not(.ui-btn) { color: inherit; }
    ("Tight · ~slow", "Won't fit"), and without this a table cell may break it
    at any space; a pill split across two lines is never right. Declared on the
    class so future chip content can't reintroduce the wrap. */
-.lu-fit { display: inline-flex; align-items: center; white-space: nowrap; border-radius: 999px; padding: 2px 9px; font-size: 11px; font-weight: 700; border: 1px solid var(--border-strong); color: var(--ink-2); background: var(--surface); }
+.lu-fit { display: inline-flex; align-items: center; white-space: nowrap; border-radius: 999px; padding: 2px 9px; font-size: max(var(--text-floor, 0px), 11px); font-weight: 700; border: 1px solid var(--border-strong); color: var(--ink-2); background: var(--surface); }
 .lu-fit--ok { background: var(--accent-soft); border-color: var(--accent-line, var(--accent)); color: var(--accent-ink, var(--accent)); }
 .lu-fit--tight { background: var(--gold-soft, #f5edda); border-color: var(--gold-line, #e2d2b0); color: var(--gold, #b08a3e); }
 .lu-fit--no { background: var(--danger-bg, #f7e7e4); border-color: var(--danger-line, var(--danger)); color: var(--danger); }
@@ -313,7 +313,7 @@ button:not(.ui-btn) { color: inherit; }
 
 /* ── Status pill (shared by the model catalog + the Recommendation grid; moved here
    2026-07-03 from both scoped blocks — a loaded/on-disk status chip). */
-.lu-pill { font-size: 10px; font-weight: 700; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.lu-pill { font-size: max(var(--text-floor, 0px), 10px); font-weight: 700; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
 .lu-pill--run { background: var(--accent); color: var(--on-accent, #fff); }
 .lu-pill--load { background: var(--gold-soft, #f5edda); color: var(--gold, #b08a3e); border: 1px solid var(--gold-line, #e2d2b0); }
 .lu-pill--disk { background: var(--surface-3); color: var(--ink-2); border: 1px solid var(--border); }
@@ -326,7 +326,7 @@ button:not(.ui-btn) { color: inherit; }
    pane. Level classes come from logLineClass(); engine output (no [LEVEL] tokens)
    renders as bare .lu-logline lines through the same box. */
 .lu-logbox {
-  margin: 0; font-family: var(--font-mono, monospace); font-size: 11.5px; line-height: 1.55;
+  margin: 0; font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.55;
   overflow: auto; background: var(--surface);
   border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--ink-2);
 }

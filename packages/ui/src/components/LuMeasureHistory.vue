@@ -156,18 +156,18 @@ async function clearHistory() {
 .lu-mh-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .lu-mh-title { font-weight: 700; font-size: 12.5px; color: var(--ink); display: flex; align-items: center; gap: 6px; }
 .lu-mh-count {
-  font-size: 10.5px; font-weight: 700; color: var(--muted);
+  font-size: max(var(--text-floor, 0px), 10.5px); font-weight: 700; color: var(--muted);
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 999px; padding: 0 6px; line-height: 16px;
 }
 .lu-mh-body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
 /* The grid itself is the shared UiTable now (2026-07-24) — no table CSS here. What remains
    styles CELL CONTENT, which is this component's business, not the table's. */
-.lu-mh-tbl { font-size: 12px; }
+.lu-mh-tbl { font-size: max(var(--text-floor, 0px), 12px); }
 .lu-mh-when { white-space: nowrap; color: var(--ink-2); }
 .lu-mh-run { white-space: nowrap; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
-.lu-mh-sum { font-family: var(--font-mono, monospace); font-size: 10.5px; color: var(--ink-2); word-break: break-word; }
+.lu-mh-sum { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 10.5px); color: var(--ink-2); word-break: break-word; }
 .lu-mh-tps { color: var(--accent-ink, var(--accent)); }
-.lu-mh-empty { margin: 0; font-size: 12px; }
+.lu-mh-empty { margin: 0; font-size: max(var(--text-floor, 0px), 12px); }
 .lu-mh-bar { display: flex; justify-content: flex-end; }
 </style>

@@ -1252,23 +1252,23 @@ defineExpose({ openWizard });
 .lu-qs--bare { border: none; border-radius: 0; background: transparent; padding: 0; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .lu-qs-barefor { font-size: 13.5px; font-weight: 600; color: var(--ink); }
 /* a note's lines at most 30em (~70 characters; it ran 91 — the seventeenth review, 2026-10-20) */
-.lu-qs-baresub { font-size: 12px; line-height: 1.4; max-width: 30em; }
+.lu-qs-baresub { font-size: max(var(--text-floor, 0px), 12px); line-height: 1.4; max-width: 30em; }
 .lu-qs-head { display: flex; align-items: center; gap: 12px; }
 .lu-qs-head > div { flex: 1; min-width: 0; }
 .lu-qs-title { font-size: 14px; color: var(--ink); }
-.lu-qs-sub { font-size: 11.5px; margin-left: 8px; }
+.lu-qs-sub { font-size: max(var(--text-floor, 0px), 11.5px); margin-left: 8px; }
 .lu-qs-loading { text-align: center; padding: 24px 0; }
 .lu-qs-sec { margin-bottom: 18px; }
 .lu-qs-k {
-  font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+  font-size: max(var(--text-floor, 0px), 10.5px); text-transform: uppercase; letter-spacing: .06em;
   color: var(--muted); margin-bottom: 8px; font-weight: 700;
   display: flex; align-items: center; gap: 8px;
 }
 .lu-qs-fit { margin-left: auto; }
 .lu-qs-detected { font-size: 13px; color: var(--ink-2); }
-.lu-qs-hint { font-size: 11.5px; line-height: 1.55; margin: 6px 0 0; }
+.lu-qs-hint { font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.55; margin: 6px 0 0; }
 .lu-qs-why {
-  font-size: 12px; line-height: 1.5; margin: 8px 0 0;
+  font-size: max(var(--text-floor, 0px), 12px); line-height: 1.5; margin: 8px 0 0;
   padding: 8px 10px; background: var(--surface-2); border-radius: 6px;
   color: var(--ink-2); border-left: 2px solid var(--accent);
 }
@@ -1277,34 +1277,34 @@ defineExpose({ openWizard });
 .lu-qs-rlist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; line-height: 1.45; }
 .lu-qs-rlist li { padding-left: 14px; position: relative; }
 .lu-qs-rlist li::before { content: "•"; position: absolute; left: 0; color: var(--muted); }
-.lu-qs-rlist code { font-family: var(--font-mono, monospace); font-size: 11.5px; }
+.lu-qs-rlist code { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 11.5px); }
 .lu-qs-empty { font-size: 12.5px; line-height: 1.55; padding: 8px 0; color: var(--ink-2); }
 .lu-qs-empty b { color: var(--ink); }
-.lu-qs-req { font-size: 12px; margin: 0 0 12px; }
+.lu-qs-req { font-size: max(var(--text-floor, 0px), 12px); margin: 0 0 12px; }
 .lu-qs-verdict { font-size: 15px; font-weight: 700; color: var(--ink); margin: 0 0 10px; }
-.lu-qs-goodtoknow { font-size: 12px; line-height: 1.5; margin: 14px 0 0; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; color: var(--ink-2); }
+.lu-qs-goodtoknow { font-size: max(var(--text-floor, 0px), 12px); line-height: 1.5; margin: 14px 0 0; padding: 8px 10px; background: var(--surface-2); border-radius: 6px; color: var(--ink-2); }
 .lu-qs-goodtoknow b { color: var(--ink); }
 .lu-qs-applying { font-size: 13px; }
-.lu-qs-applynote { font-size: 11.5px; margin-top: 8px; }
+.lu-qs-applynote { font-size: max(var(--text-floor, 0px), 11.5px); margin-top: 8px; }
 .lu-qs-summary { margin: 8px 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
-.lu-qs-opt { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; margin: 10px 0; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm, 8px); font-size: 12px; }
+.lu-qs-opt { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; margin: 10px 0; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm, 8px); font-size: max(var(--text-floor, 0px), 12px); }
 .lu-qs-opt-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .lu-qs-opt-run { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .lu-qs-opt-line { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .lu-qs-opt-title { font-size: 13.5px; color: var(--ink); }
 .lu-qs-opt-elapsed { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.lu-qs-opt-eta { font-size: 12px; margin: 0; line-height: 1.5; }
+.lu-qs-opt-eta { font-size: max(var(--text-floor, 0px), 12px); margin: 0; line-height: 1.5; }
 .lu-qs-opt-trials { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; max-height: 132px; overflow-y: auto; }
-.lu-qs-opt-trials li { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+.lu-qs-opt-trials li { display: flex; align-items: baseline; gap: 8px; font-size: max(var(--text-floor, 0px), 12px); }
 .lu-qs-opt-trials li.is-fail { opacity: .6; }
 .lu-qs-opt-tl { flex: 1; min-width: 0; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lu-qs-opt-tv { font-variant-numeric: tabular-nums; color: var(--accent-ink, var(--accent)); font-weight: 600; }
-.lu-qs-opt-tx { font-size: 11px; color: var(--muted); }
+.lu-qs-opt-tx { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); }
 .lu-qs-opt-act { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
-.lu-qs-opt-skiphint { font-size: 11.5px; }
+.lu-qs-opt-skiphint { font-size: max(var(--text-floor, 0px), 11.5px); }
 .lu-qs-opt-ok { font-size: 12.5px; color: var(--accent-ink, var(--accent)); font-weight: 600; }
 .lu-qs-spacer { flex: 1; }
-.lu-fit { display: inline-flex; align-items: center; white-space: nowrap; border-radius: 999px; padding: 1px 8px; font-size: 10.5px; font-weight: 700; border: 1px solid var(--border-strong); color: var(--ink-2); flex: none; }
+.lu-fit { display: inline-flex; align-items: center; white-space: nowrap; border-radius: 999px; padding: 1px 8px; font-size: max(var(--text-floor, 0px), 10.5px); font-weight: 700; border: 1px solid var(--border-strong); color: var(--ink-2); flex: none; }
 .lu-fit--ok { background: var(--accent-soft); border-color: var(--accent-line, var(--accent)); color: var(--accent-ink, var(--accent)); }
 .lu-fit--tight { background: var(--gold-soft, #f5edda); border-color: var(--gold-line, #e2d2b0); color: var(--gold, #b08a3e); }
 .lu-fit--no { background: var(--danger-bg, #f7e7e4); border-color: var(--danger-line, var(--danger)); color: var(--danger); }

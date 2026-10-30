@@ -267,7 +267,8 @@ export function applyAppearance(appearance, opts = {}) {
   s.setProperty("--btn-pad-y-sm", dens.padYSm);
   s.setProperty("--btn-pad-x-sm", dens.padXSm);
   s.setProperty("--btn-font-size", dens.fontSize);
-  s.setProperty("--btn-font-size-sm", dens.fontSizeSm);
+  // an app's text floor holds here too (--text-floor — JustVoice's 12.5px law, 2026-10-29)
+  s.setProperty("--btn-font-size-sm", `max(var(--text-floor, 0px), ${dens.fontSizeSm})`);
   if (a.btnLabelCase === "uppercase") {
     s.setProperty("--btn-text-transform", "uppercase");
     s.setProperty("--btn-letter-spacing", "0.06em");

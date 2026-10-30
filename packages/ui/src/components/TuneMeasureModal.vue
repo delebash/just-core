@@ -647,14 +647,14 @@ onBeforeUnmount(stopAutoPoll);
 
 <style scoped>
 .lu-tune { display: flex; flex-direction: column; gap: 12px; }
-.lu-tune-lede { font-size: 12px; margin: 0; }
+.lu-tune-lede { font-size: max(var(--text-floor, 0px), 12px); margin: 0; }
 .lu-tune-saved { display: flex; align-items: center; gap: 10px; }
 /* #16: the tune state reads BIG — a full-size badge, not row-note fine print. */
 .lu-tune-saved .lu-tune-savedtag { font-size: 13px; padding: 5px 14px; }
 /* §7.6 drift notice: one line + its action, quietly urgent (warn tint). */
 .lu-tune-drift {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  font-size: 11.5px; line-height: 1.45; color: var(--ink-2);
+  font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.45; color: var(--ink-2);
   padding: 7px 10px; border: 1px solid var(--warn-line, var(--border));
   background: var(--warn-soft, var(--surface-2)); border-radius: var(--r-sm, 8px);
 }
@@ -668,17 +668,17 @@ onBeforeUnmount(stopAutoPoll);
 }
 .lu-tune-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .lu-tune-libs { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.lu-tune-unk { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; }
-.lu-tune-applied { font-size: 12px; color: var(--success-ink, var(--success, #3a7d63)); font-weight: 600; }
+.lu-tune-unk { display: flex; align-items: baseline; gap: 8px; font-size: max(var(--text-floor, 0px), 11.5px); }
+.lu-tune-applied { font-size: max(var(--text-floor, 0px), 12px); color: var(--success-ink, var(--success, #3a7d63)); font-weight: 600; }
 .lu-tune-status { font-size: 12.5px; color: var(--ink-2); }
 .lu-tune-result { padding: 12px 14px; background: var(--accent-soft); border: 1px solid var(--accent-line, var(--accent)); border-radius: var(--r-sm, 8px); }
 .lu-tune-tps { font-size: 13px; color: var(--ink-2); }
 .lu-tune-tps b { font-size: 22px; color: var(--accent-ink, var(--accent)); font-weight: 800; }
-.lu-tune-meta { font-size: 11.5px; color: var(--ink-2); margin-top: 3px; }
-.lu-tune-cpu { font-size: 11px; margin-top: 3px; }
-.lu-tune-clsrow { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 11.5px; }
+.lu-tune-meta { font-size: max(var(--text-floor, 0px), 11.5px); color: var(--ink-2); margin-top: 3px; }
+.lu-tune-cpu { font-size: max(var(--text-floor, 0px), 11px); margin-top: 3px; }
+.lu-tune-clsrow { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: max(var(--text-floor, 0px), 11.5px); }
 .lu-tune-clsrow > span { flex: 1; min-width: 0; line-height: 1.45; }
-.lu-tune-trials { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; }
+.lu-tune-trials { display: flex; flex-wrap: wrap; gap: 6px; font-size: max(var(--text-floor, 0px), 11px); }
 .lu-tune-trial { padding: 2px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; }
 .lu-tune-trial-bad { opacity: 0.6; text-decoration: line-through; }
 .lu-tune-trial-win { border-color: var(--accent-line, var(--accent)); background: var(--accent-soft); color: var(--accent-ink, var(--accent)); }

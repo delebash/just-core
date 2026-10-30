@@ -374,7 +374,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
 .aip-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-shrink: 0; }
 .aip-head h2 { font-family: var(--font-display, inherit); font-size: 18px; font-weight: 600; margin: 3px 0 0; }
 .aip-eyebrow {
-  font-size: 10.5px; font-weight: 600;
+  font-size: max(var(--text-floor, 0px), 10.5px); font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--muted);
 }
@@ -391,7 +391,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
 .aip-section-h {
   display: flex; align-items: center; gap: 8px;
   font-family: var(--font-mono, monospace);
-  font-size: 10px; letter-spacing: 0.14em;
+  font-size: max(var(--text-floor, 0px), 10px); letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--muted);
   font-weight: 600;
 }
@@ -407,7 +407,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
   background: var(--surface-2);
   border-radius: 8px;
 }
-.aip-empty.aip-empty-small { padding: 8px 12px; font-size: 11.5px; }
+.aip-empty.aip-empty-small { padding: 8px 12px; font-size: max(var(--text-floor, 0px), 11.5px); }
 
 /* Running task card. The min-width:0 + ellipsis armor mirrors the history row
    below (.aip-hist-body / .aip-hist-label) — the running card never got it, so
@@ -429,7 +429,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .aip-task-feature {
-  font-family: var(--font-mono, monospace); font-size: 10px;
+  font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 10px);
   color: var(--muted); letter-spacing: 0.05em;
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -437,7 +437,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
 
 .aip-task-stats {
   display: flex; flex-wrap: wrap; gap: 6px 10px;
-  font-family: var(--font-mono, monospace); font-size: 10.5px;
+  font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 10.5px);
   color: var(--accent-ink); opacity: 0.92;
   font-variant-numeric: tabular-nums;
 }
@@ -459,7 +459,7 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
 }
 
 .aip-task-preview-row { display: flex; flex-direction: column; gap: 6px; }
-.aip-chars-note { color: var(--muted); font-size: 10.5px; margin-left: 4px; }
+.aip-chars-note { color: var(--muted); font-size: max(var(--text-floor, 0px), 10.5px); margin-left: 4px; }
 .aip-preview {
   background: var(--surface);
   border: 1px solid var(--border-soft);
@@ -471,18 +471,18 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
 .aip-preview pre {
   margin: 0;
   font-family: var(--font-serif, Georgia, serif);
-  font-size: 12px; line-height: 1.5;
+  font-size: max(var(--text-floor, 0px), 12px); line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--ink-2);
 }
 
 .aip-task-foot {
-  font-family: var(--font-mono, monospace); font-size: 9.5px;
+  font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 9.5px);
   color: var(--muted); letter-spacing: 0.05em;
 }
 .aip-task-foot code {
-  font-family: var(--font-mono, monospace); font-size: 9.5px;
+  font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 9.5px);
   background: transparent;
   color: var(--muted);
 }
@@ -511,14 +511,14 @@ const phaseLabel = (status) => (PHASES.has(status) ? t(`kit.aiTasks.phase.${stat
 .aip-hist-line { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
 .aip-hist-label { font-size: 12.5px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aip-hist-ago {
-  font-family: var(--font-mono, monospace); font-size: 10px;
+  font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 10px);
   color: var(--muted); white-space: nowrap;
 }
 .aip-hist-meta {
-  font-family: var(--font-mono, monospace); font-size: 10px;
+  font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 10px);
   color: var(--muted); font-variant-numeric: tabular-nums;
   display: flex; gap: 4px; flex-wrap: wrap;
 }
 .aip-hist-meta code { font-family: var(--font-mono, monospace); color: var(--muted); background: transparent; }
-.aip-hist-error { font-size: 11px; color: var(--danger-ink, #b91c1c); margin-top: 2px; }
+.aip-hist-error { font-size: max(var(--text-floor, 0px), 11px); color: var(--danger-ink, #b91c1c); margin-top: 2px; }
 </style>

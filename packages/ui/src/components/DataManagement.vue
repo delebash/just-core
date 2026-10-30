@@ -224,11 +224,11 @@ async function reset() {
 .lu-data { display: flex; flex-direction: column; gap: 12px; }
 .lu-data-row { display: flex; align-items: flex-start; gap: 16px; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; background: var(--surface); }
 .lu-data-info { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-.lu-data-opt { display: flex; align-items: center; gap: 7px; font-size: 12px; margin-top: 4px; }
+.lu-data-opt { display: flex; align-items: center; gap: 7px; font-size: max(var(--text-floor, 0px), 12px); margin-top: 4px; }
 .lu-data-info b { font-size: 13.5px; color: var(--ink); }
 /* a hint's lines at most 30em (~70 characters at its size; they ran 106 and 133 — the seventeenth
    review, 2026-10-20) */
-.lu-data-info .lu-muted { font-size: 12px; line-height: 1.5; max-width: 30em; }
+.lu-data-info .lu-muted { font-size: max(var(--text-floor, 0px), 12px); line-height: 1.5; max-width: 30em; }
 .lu-data-actions { display: flex; gap: 8px; align-items: center; flex: none; }
 .lu-data-danger { border-color: var(--danger-line, var(--danger)); }
 </style>

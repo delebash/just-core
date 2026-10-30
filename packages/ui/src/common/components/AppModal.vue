@@ -260,7 +260,7 @@ const contentStyle = computed(() => {
 .ui-modal__headmain > :deep(:first-child) { flex: 1 1 auto; }
 .ui-modal__titleblock { display: flex; flex-direction: column; gap: 3px; }
 .ui-modal__eyebrow {
-  font-size: 10.5px;
+  font-size: max(var(--text-floor, 0px), 10.5px);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;

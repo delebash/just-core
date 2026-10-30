@@ -969,15 +969,15 @@ onMounted(() => {
 .lu-hwstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 14px 22px; min-width: 0; }
 .lu-hwcopy { margin: 0; justify-self: end; white-space: nowrap; }
 .lu-hwstat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.lu-hwstat-k { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; }
+.lu-hwstat-k { font-size: max(var(--text-floor, 0px), 10px); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; }
 /* Long values (a full GPU name, "CUDA (in use) · VULKAN (supported)") wrap
    INSIDE their track rather than stretching it — `anywhere` so a model id with
    no spaces breaks instead of overflowing the cell. */
 .lu-hwstat-v { font-size: 13.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
-.lu-hwstat-sub { font-size: 11.5px; line-height: 1.35; color: var(--muted); font-weight: 500; overflow-wrap: anywhere; }
+.lu-hwstat-sub { font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.35; color: var(--muted); font-weight: 500; overflow-wrap: anywhere; }
 /* A cell's one action. Sits under the value so it can't widen the cell and
    push the strip's wrap point around as the number changes. */
-.lu-hwstat-act { font-size: 11px; font-weight: 600; color: var(--accent, #3b82f6); cursor: pointer; user-select: none; }
+.lu-hwstat-act { font-size: max(var(--text-floor, 0px), 11px); font-weight: 600; color: var(--accent, #3b82f6); cursor: pointer; user-select: none; }
 .lu-hwstat-act:hover, .lu-hwstat-act:focus-visible { text-decoration: underline; }
 
 /* The "who is using the GPU" panel — same card surface as the strip it hangs
@@ -991,12 +991,12 @@ onMounted(() => {
 .lu-gpuapp { display: flex; align-items: baseline; gap: 10px; padding: 3px 0; font-size: 12.5px; border-bottom: 1px solid var(--border); }
 .lu-gpuapp:last-child { border-bottom: 0; }
 .lu-gpuapp-n { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
-.lu-gpuapp-p { flex: 0 0 auto; color: var(--muted); font-size: 11px; }
+.lu-gpuapp-p { flex: 0 0 auto; color: var(--muted); font-size: max(var(--text-floor, 0px), 11px); }
 /* Tabular figures so the memory column lines up as a column. */
 .lu-gpuapp-m { flex: 0 0 auto; min-width: 72px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .lu-gpuapp.is-own .lu-gpuapp-n { font-weight: 700; }
-.lu-gpuapp-tag { margin-left: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent, #3b82f6); }
-.lu-gpuapps-note { margin: 8px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+.lu-gpuapp-tag { margin-left: 6px; font-size: max(var(--text-floor, 0px), 10px); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent, #3b82f6); }
+.lu-gpuapps-note { margin: 8px 0 0; font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.45; color: var(--muted); }
 
 /* Sticky tab strip — stays put while a long providers/features list scrolls
    under it. var(--surface) backing matches the host card so rows pass cleanly
@@ -1018,7 +1018,7 @@ onMounted(() => {
 /* naked control — the host wraps it in its own page card (.pane-card in JW) */
 .lu-pcard-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .lu-pcard-title { font-weight: 700; font-size: 14px; color: var(--ink); }
-.lu-pcard-count { font-size: 12px; }
+.lu-pcard-count { font-size: max(var(--text-floor, 0px), 12px); }
 .lu-pcard-head .lu-btn { margin-left: auto; }
 .lu-plus { font-weight: 700; }
 
@@ -1059,13 +1059,13 @@ onMounted(() => {
 .lu-prow-info { min-width: 0; }
 .lu-prow-name { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .lu-prow-name b { font-size: 13.5px; color: var(--ink); }
-.lu-cap { font-size: 9px; font-weight: 700; letter-spacing: .05em; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--ink-2); background: var(--surface); }
-.lu-prow-url { font-family: var(--font-mono, monospace); font-size: 11px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lu-prow-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.lu-cap { font-size: max(var(--text-floor, 0px), 9px); font-weight: 700; letter-spacing: .05em; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--ink-2); background: var(--surface); }
+.lu-prow-url { font-family: var(--font-mono, monospace); font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lu-prow-meta { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); margin-top: 2px; }
 .lu-prow-meta b { color: var(--ink-2); }
-.lu-prow-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+.lu-prow-status { display: inline-flex; align-items: center; gap: 6px; font-size: max(var(--text-floor, 0px), 11.5px); color: var(--ink-2); white-space: nowrap; }
 .lu-sdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.lu-pempty { font-size: 12px; text-align: center; padding: 14px; background: var(--surface-2); border-radius: 8px; font-style: italic; color: var(--muted); margin-top: 8px; }
+.lu-pempty { font-size: max(var(--text-floor, 0px), 12px); text-align: center; padding: 14px; background: var(--surface-2); border-radius: 8px; font-style: italic; color: var(--muted); margin-top: 8px; }
 /* The add-provider form carries the card chrome itself (QC-39 neutral .lu-pform);
    "new" keeps only the accent border-color as its affordance (chip-scale accent). */
 .lu-newform { border-color: var(--accent); }
@@ -1073,14 +1073,14 @@ onMounted(() => {
 
 /* Usage — header + rollup metric cards + per-feature/provider tables. */
 .lu-usagehead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }
-.lu-usagesub { font-size: 11.5px; flex: 1; }
+.lu-usagesub { font-size: max(var(--text-floor, 0px), 11.5px); flex: 1; }
 .lu-usage { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; max-width: 760px; }
 .lu-ucard { display: flex; flex-direction: column; gap: 4px; }
 .lu-uval { font-size: 23px; font-weight: 700; color: var(--ink); line-height: 1.1; }
-.lu-ulabel { font-size: 12px; color: var(--muted); }
+.lu-ulabel { font-size: max(var(--text-floor, 0px), 12px); color: var(--muted); }
 .lu-usage-empty { text-align: center; font-size: 12.5px; }
 .lu-usage-section { margin-top: 20px; }
-.lu-usage-h { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.lu-usage-h { font-size: max(var(--text-floor, 0px), 11px); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 /* These two breakdowns are the shared UiTable now, so the table mechanics (layout, header
    chrome, sort caret) come from common/styles.css. What is left here is what is specific to a
    usage ledger: figures right-aligned and tabular so digits line up down the column, with the

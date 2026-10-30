@@ -189,7 +189,7 @@ function openWeb() { helpConfig.onOpenWeb?.(slug.value); }
 }
 .help-drawer-titleblock { min-width: 0; }
 .help-drawer-eyebrow {
-  font-size: 10px;
+  font-size: max(var(--text-floor, 0px), 10px);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;

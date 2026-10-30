@@ -156,9 +156,9 @@ const ordered = computed(() =>
 .lu-gsw-summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; user-select: none; }
 .lu-gsw-title { font-weight: 700; font-size: 12.5px; color: var(--ink); }
 .lu-gsw-body { margin-top: 10px; display: flex; flex-direction: column; gap: 14px; }
-.lu-gsw-help { font-size: 11.5px; line-height: 1.5; margin: 0; }
+.lu-gsw-help { font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.5; margin: 0; }
 .lu-gsw-preset { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: var(--r-sm, 8px); background: var(--surface-2); }
 .lu-gsw-phead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.lu-gsw-plabel { font-weight: 600; font-size: 12px; color: var(--ink); }
+.lu-gsw-plabel { font-weight: 600; font-size: max(var(--text-floor, 0px), 12px); color: var(--ink); }
 .lu-gsw-foot { display: flex; }
 </style>

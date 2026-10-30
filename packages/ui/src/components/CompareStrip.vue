@@ -185,10 +185,10 @@ onMounted(() => {
 <style scoped>
 .lu-cmp { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .lu-cmp-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); position: sticky; top: 0; z-index: 2; }
-.lu-cmp-hint { font-size: 11px; }
+.lu-cmp-hint { font-size: max(var(--text-floor, 0px), 11px); }
 .lu-cmp-rank { display: inline-flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-left: auto; }
-.lu-cmp-rank-h { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-ink, var(--accent)); }
-.lu-cmp-rank-item { font-size: 11px; color: var(--ink-2); }
+.lu-cmp-rank-h { font-size: max(var(--text-floor, 0px), 10px); font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-ink, var(--accent)); }
+.lu-cmp-rank-item { font-size: max(var(--text-floor, 0px), 11px); color: var(--ink-2); }
 .lu-cmp-rank-item.win b { color: var(--accent-ink, var(--accent)); }
 /* The strip is flex: ONE column grows to full width; TWO split the row 50/50;
    three+ hit the min-width and the row scrolls horizontally. No hardcoded widths. */
