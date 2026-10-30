@@ -58,15 +58,16 @@ export async function sdReady(url, { fetchFn = fetch } = {}) {
   }
 }
 
-/** The native job body for one image edit (`init` + `refs` + `mask` as PNG Buffers; `params` the preset's recipe). */
-export function imageJobBody({ prompt, width, height, init = null, refs = [], mask = null, params = {} }) {
+/** The native job body for one image edit (`init` + `refs` + `mask` as PNG Buffers; `params` the preset's recipe; the
+ *  caller's own `seed` wins over the preset's — JustStage, 2026-10-29: a per-run seed reached sd.cpp as 42). */
+export function imageJobBody({ prompt, width, height, init = null, refs = [], mask = null, params = {}, seed = null }) {
   const b64 = (buf) => Buffer.from(buf).toString("base64");
   const body = {
     prompt: String(prompt ?? ""),
     width,
     height,
     strength: params.strength ?? 1,
-    seed: params.seed ?? 42,
+    seed: seed ?? params.seed ?? 42,
     output_format: "png",
     preview: "proj",
     preview_interval: 1,
@@ -84,7 +85,7 @@ export function imageJobBody({ prompt, width, height, init = null, refs = [], ma
  * recipe — `flowShift`, `sigmas` (sd-server's `custom_sigmas`), `vaeTiling` (its `vae_tiling_params`: the Wan VAE's
  * decode is the big one on a small card) beside the image's sampler, scheduler, steps, cfg and seed.
  */
-export function videoJobBody({ prompt, negativePrompt = "", width, height, frames, fps = 16, init = null, end = null, params = {} }) {
+export function videoJobBody({ prompt, negativePrompt = "", width, height, frames, fps = 16, init = null, end = null, params = {}, seed = null }) {
   const b64 = (buf) => Buffer.from(buf).toString("base64");
   const sample = { sample_method: params.sampler ?? "euler", sample_steps: params.steps ?? 4, guidance: { txt_cfg: params.cfg ?? 1 } };
   if (params.scheduler) sample.scheduler = params.scheduler;
@@ -97,7 +98,7 @@ export function videoJobBody({ prompt, negativePrompt = "", width, height, frame
     height,
     video_frames: frames,
     fps,
-    seed: params.seed ?? 42,
+    seed: seed ?? params.seed ?? 42, // the caller's own wins, as an image's
     output_format: "webm",
     preview: "proj",
     preview_interval: 1,

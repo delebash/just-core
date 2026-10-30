@@ -240,3 +240,13 @@ test("the video job: posted to vid_gen, step progress, then the whole encoded fi
   const empty = fakeSd({ status: "completed", result: {} }, { steps: 0 });
   await expect(runVideoJob("http://127.0.0.1:1", {}, { fetchFn: empty.fetchFn, sleep: async () => {} })).rejects.toThrow(/no video/);
 });
+
+// JustStage, 2026-10-29: a per-run seed (its skin-detail feature, a new look each run) reached sd.cpp as the preset's 42.
+test("the caller's own seed wins over the preset's, for a picture and for a clip; none: the preset's, else 42", () => {
+  const params = { steps: 4, cfg: 1, seed: 42 };
+  expect(imageJobBody({ prompt: "p", width: 256, height: 256, params, seed: 2 }).seed).toBe(2);
+  expect(imageJobBody({ prompt: "p", width: 256, height: 256, params, seed: 0 }).seed).toBe(0);
+  expect(imageJobBody({ prompt: "p", width: 256, height: 256, params }).seed).toBe(42);
+  expect(imageJobBody({ prompt: "p", width: 256, height: 256, params: {} }).seed).toBe(42);
+  expect(videoJobBody({ prompt: "p", width: 256, height: 256, frames: 9, params, seed: 7 }).seed).toBe(7);
+});
