@@ -672,6 +672,31 @@ cards, shots, clips, simple assembly, then 3D later. Attacks: it is slower than 
 the user tests more — **changed:** keep Nomi as a working reference and run the AI test on it first, since it proves the method for either route.
 FilmCraft and PhotoCraft stay separate downloads either way.
 
+## J · Decided: family app, and local proof comes first (2026-10-30)
+
+The user, verbatim: "the main things is that we want this as a local ai with option for paid, we really just need to continue our testing to
+prove that each ai feature we want we can actually run well on this machine, so we need to contine testing and looking at latest techniques
+models methods until we can get it working well, what do you think? yes we can write it in our family but we need to prove local ai can do it
+all well before we wrtie the actaul app".
+
+So: no app code until this list is green. Nomi stays a reference. Before each test, plain searches for the latest methods, logged here.
+
+| # | Feature | State on this PC | Next |
+|---|---|---|---|
+| 1 | Current engine | `jd` is 25 commits behind sd.cpp master, including H3 speed-ups; `ltxv.hpp` changed upstream, so our patch must be re-fitted | Merge, rebuild, re-run the LTX clip as a baseline |
+| 2 | 5 s 720p video | Proven: LTX-2.3, 410 s, user: "that is much better quality" | Baseline only |
+| 3 | Picture to video | 407 s with our patch; patch changes output (32.8 dB), visibility unchecked | Compare by eye |
+| 4 | Saved actor across shots | FLUX.2 klein `-r` 20 s, one woman held across three scenes | Cast, set and prop together in one keyframe |
+| 5 | Talking with lip-sync | Not proven. Plan: LTX speaks with its own lips, audio.cpp swaps the voice (`voice.ps1`); `ltx-talk` never finished | Finish it. Dub-It is the fallback |
+| 6 | Longer takes | Not proven: `take.js` has no output | Run a chain and judge the seams |
+| 7 | AI plans the film | Never tested: no local tool-call or shot-plan run in the register | Local LLM turns a story into shots and cards |
+| 8 | AI edits after the user | Depends on 7 | Change a shot by hand, then have the plan revised |
+| 9 | Stronger consistency | LTX Ingredients exists, sd.cpp can't run it | Add the IC-LoRA guide to sd.cpp, then measure on 8 GB |
+| 10 | AI uses a 3D scene | Layout-To-Render needs LTX-2.5, never run here; H3 takes a reference video, untried | Measure LTX-2.5, then a gray-clip test |
+| 11 | Music and sound effects | Not measured on this PC | ACE-Step and sound effects through audio.cpp |
+
+Cloud is left to the end: paid models need no proof that they run. Replaces the Nomi AI test: item 7 proves the same risk directly, with no bridge.
+
 ## D · The answer (argued against)
 
 - **Buildable on the kit: yes.** sd.cpp (image + video through sd-server's `img_gen`/`vid_gen` jobs), audio.cpp
