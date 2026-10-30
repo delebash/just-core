@@ -146,6 +146,9 @@ async function runNativeJob(url, mode, body, { onProgress = null, signal = null,
     fetchFn(`${url}/sdcpp/v1/jobs/${accepted.id}/cancel`, { method: "POST" }).catch(() => {});
   };
   signal?.addEventListener("abort", cancel, { once: true });
+  // a Cancel that came while the job was being submitted fired before the listener existed: heard now (JustStage,
+  // 2026-10-29 — a job cancelled right after it was submitted still finished and made its picture)
+  if (signal?.aborted) cancel();
   try {
     let lastStep = -1;
     for (;;) {

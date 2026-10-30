@@ -115,3 +115,33 @@ test("a running job's picture isn't ready (409); a cancelled one made none; DELE
   expect(none.status).toBe(409);
   expect(await none.json()).toMatchObject({ type: expect.stringMatching(/job-cancelled$/) });
 });
+
+// JustStage, 2026-10-29: a second job, accepted while one ran, ended at once "the graphics card is busy". They queue:
+// the second waits (and says so), runs when the first ends; a Cancel while it waits ends it at once.
+test("image jobs run one after the other: the second waits its turn; a queued one cancels at once", async () => {
+  const gates = [];
+  const ran = [];
+  IMAGE_ADAPTERS["local-sdcpp"] = ({ request }) => {
+    ran.push(request.prompt);
+    return new Promise((resolve) => gates.push(() => resolve(PNG)));
+  };
+  const { app, post } = host();
+  const state = async (id) => (await (await app.request(`/v1/jobs/${id}`)).json());
+  const a = await (await post({ feature: "stage.render", request: { prompt: "first" } })).json();
+  const b = await (await post({ feature: "stage.render", request: { prompt: "second" } })).json();
+  const c3 = await (await post({ feature: "stage.render", request: { prompt: "third" } })).json();
+  await until(() => gates.length === 1);
+  expect(ran).toEqual(["first"]); // the others wait — none refused as busy
+  expect(await state(b.id)).toMatchObject({ state: "running", message: "waiting for the picture before it" });
+  // the third, cancelled while it waits: ended now, the first still running
+  await app.request(`/v1/jobs/${c3.id}`, { method: "DELETE" });
+  await until(async () => (await state(c3.id)).state === "cancelled");
+  expect((await state(a.id)).state).toBe("running");
+  gates[0]();
+  await until(async () => (await state(a.id)).state === "done");
+  await until(() => gates.length === 2);
+  expect(ran).toEqual(["first", "second"]); // the cancelled third never ran
+  gates[1]();
+  await until(async () => (await state(b.id)).state === "done");
+  expect(ran).toEqual(["first", "second"]);
+});

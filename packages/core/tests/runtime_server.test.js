@@ -250,3 +250,17 @@ test("the caller's own seed wins over the preset's, for a picture and for a clip
   expect(imageJobBody({ prompt: "p", width: 256, height: 256, params: {} }).seed).toBe(42);
   expect(videoJobBody({ prompt: "p", width: 256, height: 256, frames: 9, params, seed: 7 }).seed).toBe(7);
 });
+
+// JustStage, 2026-10-29: a Cancel that came while the job was being submitted was never heard — the listener was added
+// after the submit — and the job finished and made its picture.
+test("the job client: a Cancel during the submit is heard — sd-server is asked to stop", async () => {
+  const ctl = new AbortController();
+  const sd = fakeSd({ status: "cancelled" }, { steps: 0 });
+  const fetchFn = async (url, init) => {
+    const r = await sd.fetchFn(url, init);
+    if (/\/sdcpp\/v1\/img_gen$/.test(url)) ctl.abort(); // the Cancel lands while the submit answers
+    return r;
+  };
+  await expect(runImageJob("http://127.0.0.1:1", {}, { fetchFn, sleep: async () => {}, signal: ctl.signal })).rejects.toMatchObject({ name: "AbortError" });
+  expect(sd.calls).toContainEqual(["POST", "/sdcpp/v1/jobs/job-1/cancel"]);
+});

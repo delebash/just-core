@@ -4,7 +4,8 @@
 // The one way an image feature runs is still llm/image_dispatch.js runImageFeature; this is its HTTP door, as
 // POST /v1/ai/run is runAction's:
 //   POST /v1/ai/image/jobs              {feature, request} → 202 with the job (the app's JobRegistry, kind "image") —
-//                                       refused at once (the kit's problems) when the feature can't run yet;
+//                                       refused at once (the kit's problems) when the feature can't run yet; jobs run
+//                                       one after the other (a later one waits, "waiting for the picture before it");
 //   GET  /v1/jobs/:id, …/events         its progress (platform/jobs_api.js — the app mounts it on the same registry);
 //   DELETE /v1/jobs/:id                 cancel;
 //   GET  /v1/ai/image/jobs/:id/result   the picture (image/png) once it's done — fetched once, then the job is forgotten
@@ -20,6 +21,7 @@ import { Hono } from "hono";
 import { ApiError, notFound } from "../platform/errors.js";
 import { opt, T } from "../platform/models.js";
 import { input } from "../platform/server.js";
+import { abortError } from "./base.js";
 import { imageFeatureReadiness, runImageFeature } from "./image_dispatch.js";
 
 const IdParams = T.Object({ id: T.String({ minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9_-]+$" }) });
@@ -65,6 +67,28 @@ export function makeImageJobsRouter(jobs, { resultDir }) {
     }
   };
 
+  // One picture at a time (JustStage, 2026-10-29: a second job, accepted, ended at once "the graphics card is busy"):
+  // each job waits for the one before it to end, says so while it waits, and a Cancel while it waits ends it at once.
+  let tail = Promise.resolve();
+  const inLane = (signal, progress, work) => {
+    const before = tail;
+    let release;
+    const mine = new Promise((r) => {
+      release = r;
+    });
+    tail = before.then(() => mine); // the next one waits for this one's predecessor AND this one
+    progress(0, "waiting for the picture before it");
+    const turn = new Promise((resolve, reject) => {
+      if (signal.aborted) return reject(abortError(signal));
+      signal.addEventListener("abort", () => reject(abortError(signal)), { once: true });
+      before.then(resolve);
+    });
+    return turn.then(() => {
+      progress(0, "");
+      return work();
+    }).finally(release);
+  };
+
   const app = new Hono();
   app.post("/v1/ai/image/jobs", input({ body: ImageJobIn }), async (c) => {
     const { feature, request } = c.req.valid("json");
@@ -75,17 +99,22 @@ export function makeImageJobsRouter(jobs, { resultDir }) {
     }
     sweep();
     mkdirSync(resultDir, { recursive: true });
-    // a key of its own: two callers' pictures are two jobs (the arbiter takes them one after the other)
+    // a key of its own: two callers' pictures are two jobs, run one after the other (the lane below)
     const key = randomUUID();
     const req = { ...request, init: pngOf(request.init), mask: pngOf(request.mask), refs: request.refs?.map(pngOf) };
-    const job = registry().start({ kind: "image", key, label: feature, failTitle: "The picture failed", clientId: c.req.header("x-client-id") ?? null, meta: { feature } }, async ({ signal, progress }) => {
-      const png = await runImageFeature(feature, req, {
-        signal,
-        onProgress: (p) => progress(p?.fraction ?? (p?.steps ? p.step / p.steps : 0), p?.steps ? `${p.step}/${p.steps}` : undefined),
-      });
-      await writeFile(fileOf(key), png);
-      return { contentType: "image/png", bytes: png.length };
-    });
+    const job = registry().start({ kind: "image", key, label: feature, failTitle: "The picture failed", clientId: c.req.header("x-client-id") ?? null, meta: { feature } }, ({ signal, progress }) =>
+      inLane(signal, progress, async () => {
+        const png = await runImageFeature(feature, req, {
+          signal,
+          onProgress: (p) => progress(p?.fraction ?? (p?.steps ? p.step / p.steps : 0), p?.steps ? `${p.step}/${p.steps}` : undefined),
+        });
+        // cancelled while the picture was being made but it came anyway: no picture (the registry would call a work that
+        // returned done — JustStage, 2026-10-29)
+        if (signal.aborted) throw abortError(signal);
+        await writeFile(fileOf(key), png);
+        return { contentType: "image/png", bytes: png.length };
+      }),
+    );
     return c.json(job, 202);
   });
 
