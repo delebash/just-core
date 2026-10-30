@@ -338,8 +338,94 @@ before we build so run whatever tests you need to"; licences aside for now.
 - **Voices** (*docs*): audio.cpp clones voices (Qwen3-TTS Base from ~3 s, Chatterbox, IndexTTS-2, MOSS-TTSD dialogue)
   and converts them (Chatterbox VC, MeanVC2, Vevo2, Seed-VC), splits stems (BS-RoFormer), makes Foley from video
   (ControlFoley) and music (ACE-Step 1.5, Stable Audio 3).
-- **Open (running):** the stills sheet with FLUX.3 klein and Qwen-Image 2.1, MiniMax-H3 (fit check, then 5 s at 480p),
-  the clean-build equivalence; then voice and long-take tests.
+- **Results of the last queue** (*read from the logs 2026-10-30*, `test-just-direct/logs/queue4.log`, `queue5.log`; the
+  runs were 2026-10-27/28, the pictures and clips were not looked at again here):
+  - The clean-build equivalence: built with the same toolchain, text-to-video from the patched and the clean sd.cpp is
+    identical (PSNR inf); picture-to-video differs (PSNR 32.8 dB). So the patch leaves text-to-video alone and does
+    change picture-to-video's output; whether that change can be seen is not recorded.
+  - MiniMax-H3, 5 s at 480p: `generate_video` 376 s (text 15.6, sampling 307, decode 40.9), card 7,024 MB, process
+    25.5 GB, lowest available RAM 5.13 GB. A smaller run (`h3-small`): 120 s. Ref2VA at 480p left a clip
+    (`h3-ref2va-480p.mp4`).
+  - FLUX.3 klein ran after the 7.7 GB failure above: `id-flux3-{train,books,lamp}.png`, `id-sheet-2.png`,
+    `k3-cafe-close.png` (20 s: text 1.9, sampling 14.2, decode 1.3).
+- **Open:** the voice and long-take tests have no output in `out/` (`take.js` and `voice.ps1` exist); `ltx-talk.log`
+  stops during model load with no result; Qwen-Image 2.1 in the stills sheet not checked.
+
+## I · Fork or write our own (*web and code, 2026-10-30*; the answer here is a rec, not a decision)
+
+The user, 2026-10-30: "we can fork it, the question is should we. it is not our quasar app, but that can be ok i mean
+if the advantages of forking the rust version of it and adding our local llm to it and adding and improving on it vs
+writing our own, i am not sure, i like keeping our family and controling our own but i also dont like duplicating work
+if we dont feel it is worth it".
+
+- **ArtCraft today** (GitHub API): 37,818 stars, 5,965 forks, MIT or Apache-2.0, 593 open issues. `main`'s last feature
+  commit is 2026-10-11; everything after it is CI. The last release is `artcraft-v0.41.0`, 2026-09-26. None of the 25
+  most recently updated pull requests is merged, and the 12 most recently merged came from four team logins. Every
+  other Craft app was pushed 2026-10-30, so the team's work is there.
+- **The Rust version** (`artcraft-native`, its README and Cargo.toml): 47 `.rs` files, 594 KB, egui. "Create Image,
+  Create Video and Create Audio are fully built. The other tools show a 'coming soon' page that links to the same tool
+  in the web app." **No canvas, no 3D stage, no video editor, no storyboard in Rust.** Generation goes through ArtCraft's
+  hosted OmniGen; the model list comes from that server; sign-in is required; "Provider choice (Midjourney direct, fal)
+  … Done (images; video runs on ArtCraft)", so own-key video isn't in it. By area: `backend` 129 KB and `models.rs` 32 KB
+  (the hosted side), `pages` 105, `prompt_box` 84, `overlays` 60, `ui` 54, `feed` 51, `app.rs` 38, `shell.rs` 18. It landed
+  as four PRs merged within 20 hours, 18,372 added lines (#2067, #2068, #2079, #2115; the dates show when they merged,
+  not when the writing began).
+- **Where ArtCraft's value is**: TypeScript/React — video editor 2.0 MB, app 1.1 MB, 3D stage 838 KB, moodboard 305 KB,
+  2D draw 258 KB (source sizes from the git tree). Those sit on Konva, Three.js, mediabunny and opencut-wasm (§A).
+  The Rust side: hosted client 3.4 MB, fal client 1.8 MB, Tauri app 1.1 MB. PhotoCraft's rule is "Never add Tauri (or any
+  webview/JS UI framework)", which may mean the React app stops being developed (my inference, nothing stated).
+- **Local models upstream**: still none in ArtCraft. Code search: `llama` 0, `stable-diffusion` 0, `ollama` 0, `comfyui`
+  7 (GitHub's index, default branch). Issues #968, #2225, #2152 are open; PR #2577 (U2-Netp background removal through
+  tract-onnx) is open and would be the first. `craft-ai-integrations` ("first draft", Apache-2.0) is their shared layer;
+  its `docs/STATUS.md`: generic image and video run through ComfyUI, "This does not make the generic ComfyUI image or
+  video workflows live-tested"; built-in engines are SAM and matting; "The built-in recommended-models catalogue
+  (`catalog.json`) is empty"; "No app imports the widgets"; no real hosted provider verified.
+- **FilmCraft** (README, ROADMAP): MIT or Apache-2.0, 45 crates, ~343k lines of Rust, its own codecs, 650+ commands behind
+  a CLI, a JSON control channel and an MCP server; takes FCP7 XML, AAF and OTIO; alpha, "Ready for real work ~56 %";
+  Windows start-up crashes are its G4. A program a film app can hand a cut to, without forking it.
+- **The kit a Rust fork can't reuse**: `packages/ui/src` 183 files, 1.6 MB, 81 Vue files at 1.0 MB — `LuModelCatalog` 117 KB,
+  `QuickSetup` 75, `AiModelsArea` 70, `ConfigColumn` 50, `LuRuntimeTab` 41, `ProviderForm` 31, `AiStatusPanel` 25,
+  `StoragePanel` 25. Measured against the 594 KB fork, that is the larger duplication. `packages/core/src` (2.1 MB of JS)
+  would be reached over HTTP through the engine host, not imported.
+- **Other open apps, the job is the same** (README via page summary, GitHub API; no code read):
+
+| App | Stars, last push | Stack | Local | Licence label | Worth taking |
+|---|---|---|---|---|---|
+| Toonflow | 19,988, 10-27 | Vue 3 + TypeScript on Bun, Electrobun | ComfyUI, local LLMs; keys | MIT (README; older versions differ) | script → shots → character and scene assets → multi-reference video; a third refactor is under way; no timeline |
+| huobao-drama | 16,800, 10-25 | Nuxt 3, Vue 3, Hono, Drizzle, better-sqlite3, Electron, Mastra | none, cloud only | CC BY-NC-SA 4.0 ("Commercial use is prohibited") | agent chain `script_rewriter` → `extractor` → `storyboard_breaker` → `prompt_generator`, `@name` references, FFmpeg assembly |
+| ViMax | 12,805, 09-30 | Python | configurable | MIT | Director, Screenwriter, Producer roles; 2 keyframe candidates, a vision model picks one |
+| Nomi | 618, 10-30 | Electron, React | ComfyUI; keys | AGPL-3.0 | one row per shot (prompt, first frame, model, duration), reference cards, timeline, 3D director, 24 MCP tools |
+| OmniChar (was Inline Studio) | 571, 10-29 | Python engine | own engine: LTX-2.5, MiniMax H3, FLUX, Z-Image; LoRA training | GPL-3.0 | a portable `.char` file (references, identity fingerprint, wardrobe) |
+| LTX Desktop | 2,190, 10-19 | Electron + Python (from its folders) | LTX 2.5 Fast | Apache-2.0 | its floor is 9 GiB of card with fp8, 15 GiB otherwise, else "Coming soon to your device" — it would not run on this 8 GB Turing card, where §G's route does |
+
+  Not read past stars and licence: OpenMontage (73,360, AGPL-3.0, Python), AIComicBuilder (1,929, Apache-2.0, last push
+  04-27), Openframe (135, AGPL-3.0), OpenCut (96,857, MIT, an editor). AI Movie Studio 2 and ComfyStudio need ComfyUI,
+  which the user ruled out (§H).
+- **Methods from the searches**: lock a style block, multi-angle sheets and approved stills before any motion; chain
+  clips by re-feeding the tail; expect to select — one production kept 41 of 164 clips (invideo.io FAQ pages, a vendor's
+  own figures, unverified); FilmWeaver (AAAI 2026, Tsinghua and Kuaishou), cache-guided multi-shot diffusion, a research
+  model, open weights not checked.
+- **Searches run**, the plain way:
+  1. "best open source AI filmmaking app local models 2026" → Inline Studio, Nomi; the rest model listicles.
+  2. "LTX Desktop open source local video editor github" → Lightricks' repo, its help pages, listings.
+  3. "open source AI movie maker script to video storyboard consistent characters github 2026" → OpenStory, Openframe,
+     SeeFactory, KupkaProd, AIComicBuilder, Shortify AI.
+  4. "latest techniques AI film production pipeline agent director multi-shot consistency local" → invideo.io FAQ pages,
+     FilmWeaver; nothing on local.
+  5. "new ways to make AI short film locally desktop app ComfyUI alternative storyboard timeline open source" → AI Movie
+     Studio 2, ComfyStudio, Companion for ComfyUI.
+  Toonflow, huobao-drama, ViMax, OpenMontage and OpenCut were looked up by name from what I already knew. A gap in these
+  searches is a gap in the searches: Chinese-language results and non-GitHub apps were barely covered.
+- **The rec: don't fork; write JustDirect as our Quasar app on the kit, and take methods from the table.** "Beside
+  JustStage" is already decided (R20, just-stage TASKS.md:451, "go your rec all"). Attacks: (a) "you are duplicating ArtCraft" — what a fork keeps is the prompt box, feed and shell, under
+  600 KB, while the kit's AI screens (1.0 MB of Vue) would be rewritten in egui, so the fork duplicates more; (b)
+  "merging gets the upstream work" — the family's fork rule merges upstream before any work, and we would have removed
+  the hosted backend every feature calls, so each merge lands on deleted code; (c) "fork the React app then" — it has the
+  stage and editor, but brings a second UI stack, and the 3D stage is JustStage's job; (d) "Toonflow is Vue and MIT" —
+  the strongest rival, but Bun and Electrobun instead of Node and Electron, no Quasar, a refactor under way and no
+  timeline, so its method is worth more than its code; (e) what a fork would not save: a fal or Replicate route is a kit
+  gap either way (no match in `packages/core/src`). **What flips it:** upstream shipping a real local path and the Rust
+  app gaining the stage and editor.
 
 ## D · The answer (argued against)
 
