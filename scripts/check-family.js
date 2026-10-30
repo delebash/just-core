@@ -1390,7 +1390,8 @@ function checkCorsOrigins(app) {
 // plays from its server takes crossorigin="anonymous", whose request carries the app's Origin and still streams
 // (app-structure §19; measured in Electron 44.10, 2026-10-29). JustVoice's <audio> loads without it — advisory there
 // until its session moves them (the finish list's A17).
-const ISOLATION_KNOWN = new Set(["JustVoice"]);
+// empty since JustVoice mounted it (its 5e7f05bc, 2026-10-29)
+const ISOLATION_KNOWN = new Set();
 function checkResourceIsolation(app) {
   const src = join(app.dir, "server", "src");
   if (!existsSync(src)) return;
@@ -1398,11 +1399,39 @@ function checkResourceIsolation(app) {
     .filter((p) => p.endsWith(".js"))
     .map(codeOf)
     .join("\n");
-  if (!/\bcsrfOrigin\s*\(/.test(code) || /\bresourceIsolation\s*\(/.test(code)) return;
+  if (/\bresourceIsolation\s*\(/.test(code)) return checkCrossOriginPlayers(app);
+  if (!/\bcsrfOrigin\s*\(/.test(code)) return;
   (ISOLATION_KNOWN.has(app.name) ? info : fail)(
     app.name,
     "server/src mounts csrfOrigin but not resourceIsolation — any web page could make this server work for it (an <img> of /v1/data/backup); mount the kit's resourceIsolation beside csrfOrigin (platform/csrf.js), and play the server's media with crossorigin=\"anonymous\" (app-structure §19)",
   );
+}
+
+// Under resourceIsolation the window's players must say crossorigin="anonymous" (app-structure §19, "The server's
+// audio or video played in the window"): the server refuses a no-cors load the browser marks cross-site, and the
+// desktop window and the dev server reach it cross-site — so a new player that forgets it plays nothing. Every
+// <audio> and <video> tag in src/ (.vue, .js; tests and comments aside) carries it, and every `new Audio()` sets
+// `.crossOrigin = "anonymous"` (JustVoice's src/audioCrossOrigin.test.js is the shape, 2026-10-29).
+function checkCrossOriginPlayers(app) {
+  const src = join(app.dir, "src");
+  if (!existsSync(src)) return;
+  const strip = (t) =>
+    t
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:"'`])\/\/[^\n]*/g, "$1");
+  for (const f of walk(src).filter((p) => /\.(vue|js)$/.test(p) && !/\.test\.js$/.test(p))) {
+    const rel = relative(app.dir, f).replace(/\\/g, "/");
+    if (rel.startsWith("src/phone/worker-bundle/")) continue; // the phone's generated server bundle (Biome skips it too) — no player
+    const text = strip(readFileSync(f, "utf8"));
+    // the whole tag: a quoted value may hold a `>` (`:ref="(el) => …"`)
+    for (const [tag] of text.matchAll(/<(audio|video)\b(?:[^>"]|"[^"]*")*>/g)) {
+      if (!/\bcrossorigin="anonymous"/.test(tag)) fail(app.name, `${rel}: ${tag.slice(0, 50)}… plays the server's media without crossorigin="anonymous" — resourceIsolation refuses it (app-structure §19)`);
+    }
+    const made = text.match(/\bnew Audio\(/g)?.length ?? 0;
+    const set = text.match(/\.crossOrigin\s*=\s*["']anonymous["']/g)?.length ?? 0;
+    if (made > set) fail(app.name, `${rel}: ${made} new Audio(), ${set} with .crossOrigin = "anonymous" — resourceIsolation refuses the rest (app-structure §19)`);
+  }
 }
 
 // ── a restore keeps the server's access tokens ────────────────────────────────

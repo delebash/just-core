@@ -496,8 +496,7 @@ getting this wrong is the #1 confusion) — §Q.9.
   (agents.md): what it is, the commands, "must pass before a commit", "what bites", a Where-to-look
   table whose FIRST row points at this document, and a copy of `family-rules.md` between
   `<!-- family-rules:start -->` and `<!-- family-rules:end -->` (the guard keeps it identical).
-  `CLAUDE.md` is `@AGENTS.md` plus the Claude-only lines. Both start from the template's. The kit and just-sqlite-sync have the same pair (2026-10-29). (JustVoice
-  still has the 2026-10-09 shape — a CLAUDE.md importing `@../just-core/docs/family-rules.md`.)
+  `CLAUDE.md` is `@AGENTS.md` plus the Claude-only lines. Both start from the template's. Every app, the kit and just-sqlite-sync have the pair (the last, JustVoice's, 2026-10-29).
 
 ## 3 · quasar.config.js — the kit consumption contract
 
