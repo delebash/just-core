@@ -416,7 +416,8 @@ if we dont feel it is worth it".
      Studio 2, ComfyStudio, Companion for ComfyUI.
   Toonflow, huobao-drama, ViMax, OpenMontage and OpenCut were looked up by name from what I already knew. A gap in these
   searches is a gap in the searches: Chinese-language results and non-GitHub apps were barely covered.
-- **The rec: don't fork; write JustDirect as our Quasar app on the kit, and take methods from the table.** "Beside
+- **First rec, WITHDRAWN 2026-10-30, see I.2 — it judged family fit and READMEs, not features and code:** don't fork;
+  write JustDirect as our Quasar app on the kit, and take methods from the table. "Beside
   JustStage" is already decided (R20, just-stage TASKS.md:451, "go your rec all"). Attacks: (a) "you are duplicating ArtCraft" — what a fork keeps is the prompt box, feed and shell, under
   600 KB, while the kit's AI screens (1.0 MB of Vue) would be rewritten in egui, so the fork duplicates more; (b)
   "merging gets the upstream work" — the family's fork rule merges upstream before any work, and we would have removed
@@ -426,6 +427,53 @@ if we dont feel it is worth it".
   timeline, so its method is worth more than its code; (e) what a fork would not save: a fal or Replicate route is a kit
   gap either way (no match in `packages/core/src`). **What flips it:** upstream shipping a real local path and the Rust
   app gaining the stage and editor.
+
+### I.2 · What is worth using, from the code (*code, 2026-10-30: shallow clones read, nothing run*)
+
+The user, 2026-10-30: "the point is to make film using ai with tools tools to manually adjust and edit"; "it does nto
+have to be our family, the whole point is is it worth using something that already made with most features that is not
+our family or using or family and starting from scracth but using these other apps as reference to get code and ideas
+from"; "toonflow doesnt look like it has really much at all with what we want to do". So family fit is not a criterion
+here. The test is what each app already does, and how hard our local engines are to plug in.
+
+- **Toonflow is out.** A node canvas with a chat agent: no timeline (`timeline` in 2 files), 0 test files, clips
+  download for editing elsewhere; 2.4 MB of app code plus node packages. Calling it "the strongest rival" above was
+  wrong, and came from its star count and README.
+- **Waoowaoo** (found by name search; 12.1k stars on a tracker, Next.js, MySQL): its README says solo-developed, early
+  beta, text models need OpenRouter. Not cloned.
+- **Nomi** (AGPL-3.0, older releases Apache-2.0; Electron, React 18, Tailwind 3, Zustand, React Flow, Vercel AI SDK):
+  `src` 26 MB, 2,043 test files, PR #1389 merged 2026-10-30; one main author (6,658 contributions, the next 140).
+  `generationCanvas` 8.3 MB, `ai` 1.3 MB, `timeline` 528 KB (clips, tracks, text track, transitions, shortcuts), 3D director,
+  24 MCP tools, project = a plain folder, no account. The agent reads the canvas, splits the story into shots, makes
+  keyframes and video and lays out the timeline, at three levels (ask each step, auto-edit, full auto). Reference cards
+  lock a character or place. **Local: ComfyUI natively; any other server through Settings → Models → Custom API /
+  gateway**, model type Text, Image or Video, video by "create and result/polling endpoints", with a custom request script
+  where needed (`docs/guide/model-connection-en.md`). So our engines can connect without changing Nomi — not tested.
+  Gaps: image editing found is crop only (`inpaint` in 1 file); lip-sync and voice cloning appear only as a handbook
+  title and a display label; text-to-speech is in 34 files, not read. "Next up: AI editing."
+- **ArtCraft's full app**: 17 pages — Image, Video, Audio, Draw, Scene (3D), Moodboard, Storyboard (one 47 KB file),
+  Video Editor, Angles, Background Change, Image to 3D Object and World, Remove Background, watermark removers, Frame
+  Extractor; `inpaint` in 52 files. No AI flow: `screenplay` 0 files, `shot list` 0 files. `MainApp.tsx` mounts the login
+  modal. Credential keys are `FalApiKey` and `ReplicateApiKey` plus web logins; `generate_video` providers are `artcraft`,
+  `grok`, `sora2`. `lipsync` is only leftover API fields (`VideoApi.ts`, `Prompts.ts`), so §A's "not found" stands.
+- **The two share a stack**: both are React, Zustand and Tailwind (AGENTS.md of each), and ArtCraft's code is MIT or
+  Apache-2.0, so its Draw and inpaint pieces could move into Nomi with their notices. Not tried.
+- **Searches added:**
+  6. "open source alternative to ArtCraft LTX Studio AI film studio self hosted" → LTX Desktop; "no direct open-source
+     competitor" (one source's claim about LTX Studio).
+  7. "开源 AI 短剧 漫剧 制作 工作台 本地部署 分镜 角色一致性 时间线 2026" → Toonflow mirrors, OpenClaw, LocalMiniDrama; community posts,
+     unverified; OpenClaw and LocalMiniDrama not checked.
+  8. "best free AI video studio infinite canvas storyboard timeline open source github 2026" → Diffusion Studio (an
+     editor), mostly proprietary tools.
+  9. "waoowaoo open source AI film studio github" → its repos.
+- **The rec: Nomi is worth trying as the base; ArtCraft is not, except as code to take from. Decide by one test, with no
+  fork yet.** Run Nomi on E:, connect the local engines through a small bridge and no change to Nomi, and make one
+  3-shot scene with a locked character. Pass: the AI plans the shots, the face holds, the clips land on the timeline, an
+  MP4 exports. If it fails, write our own with Nomi and ArtCraft as references (Nomi's code carries AGPL; its ideas don't).
+  Attacks: (a) one main author and a fast pace make a long fork costly — **changed:** no fork first, and a fork only if
+  the test shows Nomi itself must change; (b) unverified: Nomi's agent on a small local text model sharing an 8 GB card
+  with video, and 7-minute jobs through a custom provider — that is why the test comes first; (c) AGPL is a label, and our
+  apps are open source; (d) TypeScript and React are outside the family stack, which the user set aside for this question.
 
 ## D · The answer (argued against)
 
