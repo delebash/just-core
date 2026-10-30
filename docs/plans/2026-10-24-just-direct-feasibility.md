@@ -598,8 +598,8 @@ equivalent to try is H3 Ref2VA; multi-shot in one prompt not tested.
 **The rec: start from Nomi alone, use ArtCraft only for ideas, keep JustStage out, and prove it with one test on Nomi unchanged.**
 (was: "move ArtCraft's hand tools into it"; the user: "we have various mix of systems, sounds like a mess to me". Correct: ArtCraft's
 Draw is Konva on React 18.3.1 and Three.js 0.171; Nomi's board is Leafer on React 19.3 and Three.js 0.184, so that move would mean two
-drawing engines in one app. Nomi's fal edit route already sends `mask_url` with no control for it in the UI (`modelArchetypes/gptImage2.ts`),
-and sd-server takes `mask_image`, so the gap is a mask brush on Nomi's own board. That leaves one app, with our engines behind it as a
+drawing engines in one app. Nomi knows `mask_url` but strips or refuses it because the UI has no mask control (`modelArchetypes/gptImage2.ts`;
+was: "already sends" it, wrong). sd-server takes `mask_image`, so the gap is a mask brush on Nomi's own board. That leaves one app, with our engines behind it as a
 local service, connected like any provider.)
 The main route is the user's: AI makes saved cards → keyframes → clips, already measured here. A 3D scene is the optional precise
 route. Attacks: (a) it is read, not run, and Nomi's own debt list has no real-model receipt — so the test comes first, and writing
@@ -608,6 +608,48 @@ to build: Nomi's director, AI and agent layers are about 3.9 MB; (c) one main au
 fast, and the fork rule merges upstream before each work session — **changed:** no fork for the test, later changes kept in
 their own folders, and offered upstream (no CLA); (d) lip-sync and voice are gaps with every base; (e) AI can't edit hand-built
 3D scenes, a gap to close in Nomi or accept for now, while the card route isn't affected; (f) AGPL is a label.
+
+### I.4 · Every film tool in both apps (*2026-10-30: both full apps read, and ArtCraft used live*)
+
+The user: "what tools does artcraft already have built that users use besides the ai, it looks like it has a lot if soo then we are
+just adding scene managment vs making all other tools to niomi, i am not sure what each really use in fimle making from ai to manual
+editing". Then: "why dont you actually look at it, see how it works looke how they make films".
+
+Full lists with file and line for every tool, Stub and Dead rows included:
+[`2026-10-30-artcraft-tool-inventory.md`](2026-10-30-artcraft-tool-inventory.md) (with what the running app showed) and
+[`2026-10-30-nomi-tool-inventory.md`](2026-10-30-nomi-tool-inventory.md). Read from source and, for ArtCraft, seen live. Nomi has not been
+run. Re-checked by hand: ArtCraft's login with no dismiss control, `PromptBox3D` unmounted, Blur the only effect, no transition code, no
+caller for `openProject`, imports uploaded; Nomi's three fixed tracks, the manifest's "not first-class" warning, `mask_url` stripped.
+
+| Stage | ArtCraft desktop | Nomi 0.24 | Ahead |
+|---|---|---|---|
+| Story and script | nothing | script editor, AI writing, script to shots | Nomi |
+| Saved cast, sets, props | Characters only, one image, Seedance 2.0 only, hosted | cards for character, scene, prop, style, a look lock, per plan; no library across projects | Nomi |
+| Moodboard | real tool, beta, local only, no export | none | ArtCraft |
+| Shot planning | Storyboard behind an easter egg, lost on close | shot table: model, mode and references per shot, locks, variants, batches, duration rules | Nomi |
+| 3D staging by hand | FK only, one point light with fixed intensity, single camera, 30 fps keyframes and animation clips | IK and FK, 44 poses, 13 camera presets, 8 lenses, 3 light types, paths, close-up rig, recorded camera, phone camera, splats, 60 s timeline | Nomi |
+| Scene to AI | Capture a still, then Make Video; Record is 720p, silent, via the library; no prompt on the stage (`PromptBox3D` unmounted) | AI builds or edits the scene; gray preview attaches as a reference video; output to 4K | Nomi |
+| Image editing | Konva canvas, mask inpaint, Angles; canvas has no save without AI | sketch board, crop, rotate, grid split, local background removal, upscale and outpaint through models; no inpaint | ArtCraft |
+| Video generation | keyframe and Omni Reference modes | the same modes, plus batches, a local depth reference, ComfyUI, custom providers | Nomi |
+| Audio | Suno music and sounds; no voice tool | voice, cloning (one route), music, sounds, cloud and local transcription | Nomi |
+| 3D generation | image to object, image to world | text or image to GLB; no wire into the Director | ArtCraft |
+| Timeline editing | OpenCut port: many tracks, per-parameter keyframes, graph editor, 9 mask types, 17 blend modes, speed, detach audio, cut, ripple. No transitions, no colour, one effect. Desktop can't reopen a project; imports upload to their server | 3 fixed tracks and a text lane, trim, one-track ripple, dissolve and fade, fixed-style text. No keyframes, effects, colour, speed or masks; audio can't overlap | ArtCraft |
+| Post | frame extractor; BG Change is web only; captions a stub | frame capture, node trim, scene-cut detection, depth pass; SRT to clipboard | Nomi |
+| Export | MP4 or WebM, quality presets, canvas size | MP4 only, 720p or 1080p | ArtCraft |
+| Project | no film project; each tool saves differently; good library, but hosted | a local project folder, autosave, versions on every shot | Nomi |
+
+Corrections to earlier lines in this file: own keys in ArtCraft are effectively a Midjourney or Grok login, since no UI writes a fal key
+(was: "fal and Replicate"). Nomi's saved cards live in one plan, not across projects. Its "AI arrange" is a sort by shot number; real AI
+editing is the agent's `edit_timeline`. ArtCraft's site says the AI generates from the scene, but the stage has no prompt box in this build.
+
+**The rec stands, and is closer than it read: start from Nomi; its timeline is the largest job.**
+- "Just adding scene management to ArtCraft" doesn't hold. ArtCraft would need script, shot planning, saved sets and props, voice, an
+  AI that plans and acts, stronger staging, a film project, local engines, and login, library and scene saving moved off its server.
+- Nomi would need a real timeline or a hand-off to one, a mask brush, a fuller image canvas, a moodboard if wanted, lip-sync, local engines.
+- Attacks: (a) the gap in the timeline is real, and a hand-editing filmmaker will feel it first — **changed:** name it as the biggest job, and
+  plan an OTIO or FCPXML export to FilmCraft or Resolve as the cheap first step (neither app exports one; not built); (b) Nomi's main work
+  surface, Storyboard, is off the top bar, and its UI hasn't been judged — the user's own trial decides that; (c) writing our own stays
+  the fallback, with both apps as reference.
 
 ## D · The answer (argued against)
 
