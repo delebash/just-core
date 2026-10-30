@@ -37,6 +37,8 @@ test("headings are slugged the way GitHub slugs them, and a repeated one is numb
   const html = renderHelpMarkdown("# Doc\n\n## Usage\n\none\n\n## Usage\n\ntwo\n");
   expect(html).toContain('<h2 id="usage">');
   expect(html).toContain('<h2 id="usage-1">');
+  // the heading's text as GitHub reads it: marked's escapes undone ("world's" was `world39s`)
+  expect(renderHelpMarkdown("# D\n\n## The Timeline view — your world's history\n")).toContain('<h2 id="the-timeline-view--your-worlds-history">');
   // the next document starts its numbering again
   expect(renderHelpMarkdown("# Other\n\n## Usage\n")).toContain('<h2 id="usage">');
 });

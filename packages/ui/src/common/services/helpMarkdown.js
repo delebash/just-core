@@ -25,6 +25,13 @@ export function slugifyHeading(text) {
   return slug(String(text || ""));
 }
 
+// The entities marked writes into inline HTML (its escape: & < > " ' and numeric ones), back to their characters.
+const NAMED = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+const decodeEntities = (s) =>
+  s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_, e) =>
+    e[0] === "#" ? String.fromCodePoint(e[1].toLowerCase() === "x" ? Number.parseInt(e.slice(2), 16) : Number(e.slice(1))) : NAMED[e.toLowerCase()],
+  );
+
 // One document's headings, numbered as GitHub numbers a repeated one ("usage", "usage-1" …) — made new per document.
 let slugger = new GithubSlugger();
 
@@ -54,7 +61,9 @@ renderer.link = ({ href, title, tokens }) => {
 // Strip tags before slugifying so emojis/links don't pollute the id.
 renderer.heading = function headingRenderer({ tokens, depth }) {
   const inner = this.parser.parseInline(tokens);
-  const plain = String(inner).replace(/<[^>]+>/g, "");
+  // the heading's text as GitHub slugs it: tags stripped and marked's escapes undone — "world's" reached the slug as
+  // "world&#39;s" and became `world39s` (2026-10-29; GitHub has `worlds`)
+  const plain = decodeEntities(String(inner).replace(/<[^>]+>/g, ""));
   const id = slugger.slug(plain);
   return `<h${depth}${id ? ` id="${id}"` : ""}>${inner}</h${depth}>\n`;
 };
