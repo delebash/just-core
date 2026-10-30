@@ -534,8 +534,9 @@ modify things then ai pickup after user adjust things".
   attached video → confirm card has no receipt yet; the 10 s preview cap; real Windows walkthroughs.
 
 **ArtCraft's full app, from its source:**
-- AI: none. `\bagent\b` 0 files, auto-generate 0, batch-generate 0. `Storyboard.tsx` (47 KB) takes uploads and sketches, and
-  "Director notes" is a text field. Its site: "Compose the shot yourself — then let the model render it."
+- AI generation is what the app is for, on hosted and paid models (Seedance, Kling, Veo and the rest). What it lacks is an AI
+  agent that plans and runs the steps: `\bagent\b` 0 files, auto-generate 0, batch-generate 0. `Storyboard.tsx` (47 KB) takes
+  uploads and sketches, and "Director notes" is a text field. Its site: "Compose the shot yourself — then let the model render it."
 - Scene (`libs/components/pagescene`, 782 KB): objects, GLB and PMX characters, shapes, splats, FK posing, focal length, point
   lights added as shapes, a keyframe timeline, record to MP4 or WebM (`engine/recording/TimelineRecorder.ts`).
 - Scene → AI: one snapshot image into `GenerateImage` (`scene_image_media_token`, `useTauriPageSceneAdapter.tsx:172-186`). Stills
@@ -551,8 +552,26 @@ modify things then ai pickup after user adjust things".
 - `artcraftx` has no licence; code search found no agent or storyboard feature, only `user-agent` strings and client endpoints.
 
 **Local video guided by a scene, the part that decides the 3D route** (*code + docs*, `E:\Dev\Web\stable-diffusion.cpp`):
-- LTX: first and last frame only; `video.cpp:782` "LTXAV control_frames are not implemented". ComfyUI runs LTX-2 depth, canny and
-  pose through `LTXV Add Guide` and control LoRAs (runcomfy.com, comfy.org workflow pages), which would be an sd.cpp addition.
+- **LTX takes references; our engine doesn't pass them yet** (was: "LTX: first and last frame only", which described sd.cpp, not
+  LTX; the user: "i am sure ltx does take ref"). Lightricks' pipelines (github.com/Lightricks/LTX-2, `packages/ltx-pipelines/docs/`):
+  `ICLoraPipeline` conditions on a whole reference video (`--video-conditioning guide.mp4`, with an IC-LoRA, distilled checkpoint,
+  guide on stage 1 by default), keyframe images at any frame (`ImageGuide`), audio-to-video, retake, Dub-It. sd.cpp at master has
+  first and last frame only: `video.cpp:782` "LTXAV control_frames are not implemented"; A2V is open PR #1676.
+- Open LTX weights on Hugging Face, LTX community licence, several gated (accept the terms first):
+  - **Layout-To-Render** (LTX-2.5, 1,248 MB): a layout clip ("a 3D viewport animation or playblast", clay or "a blocky animation of
+    simple shapes") plus one keyframe gives a video that "moves like the layout and looks like that first frame", keeping camera
+    path and object placement. Do not use the gray frame as the keyframe: make it with an image model from the clay's first
+    frame. Stage 1 960×544 × 8 steps, stage 2 1920×1088 × 3; a mid and last keyframe hold the look.
+  - **Ingredients** (LTX-2.3 and 2.5, 1,248 MB): one reference sheet of the cast, props and location on black, no text; a character is
+    a face close-up plus a body turnaround. Looped as a static video at output size, at least 121 frames; "only reproduces elements
+    present on the sheet". Trained at 768×448, 121 frames, 24 fps; strength 1.4, 30 steps, guidance 4.0.
+  - **Union Control** (LTX-2.3, 624 MB): canny, depth and pose; the reference is half the output size, so it costs fewer tokens.
+  - **Dub-It** (LTX-2.3, 2,352 MB): lip dubbing from a reference video and audio. A lip-sync candidate. Reference at full output size.
+  - Also Relight, In-Outpainting, Clean-Plate, Day-To-Night, Motion-Track-Control; LTX-2 19B camera LoRAs (dolly, jib, static).
+- All of those are one engine feature: an IC-LoRA guide. Lightricks' docs say video conditioning uses `VideoConditionByKeyframeIndex`,
+  and sd.cpp already has that shape, `apply_video_condition_by_keyframe_index` (`video.cpp:802`), which takes multi-frame latents.
+  Not checked: sd.cpp loading these LoRAs, and the half-size reference path. Not measured: any of them on 8 GB, and LTX-2.5 on this PC
+  at all. A guide adds tokens to the stage it runs on.
 - **MiniMax-H3 Ref2VA has a reference-video input** (`docs/minimax_h3.md`): `--ref-image`, `--ref-video`, `--ref-audio`, each
   repeatable; a video's 24 fps latents condition the transformer. sd-server took `ref_videos` on 2026-10-25 (#2194), and H3 got
   faster on 10-29 (#2240). Measured here at 480p with no reference video: 376 s (§H). Never tried with a gray preview. Ref2VA
@@ -576,11 +595,16 @@ equivalent to try is H3 Ref2VA; multi-shot in one prompt not tested.
 14. "best way to keep camera and layout from 3D scene in AI video open source model reference video control 2026" → TriMotion,
     CamCloneMaster, CameraNoise, FlashMotion, Adobe LooseControlVideo.
 
-**The rec: start from Nomi, move ArtCraft's hand tools into it, keep JustStage out, and prove it with one test on Nomi unchanged.**
+**The rec: start from Nomi alone, use ArtCraft only for ideas, keep JustStage out, and prove it with one test on Nomi unchanged.**
+(was: "move ArtCraft's hand tools into it"; the user: "we have various mix of systems, sounds like a mess to me". Correct: ArtCraft's
+Draw is Konva on React 18.3.1 and Three.js 0.171; Nomi's board is Leafer on React 19.3 and Three.js 0.184, so that move would mean two
+drawing engines in one app. Nomi's fal edit route already sends `mask_url` with no control for it in the UI (`modelArchetypes/gptImage2.ts`),
+and sd-server takes `mask_image`, so the gap is a mask brush on Nomi's own board. That leaves one app, with our engines behind it as a
+local service, connected like any provider.)
 The main route is the user's: AI makes saved cards → keyframes → clips, already measured here. A 3D scene is the optional precise
 route. Attacks: (a) it is read, not run, and Nomi's own debt list has no real-model receipt — so the test comes first, and writing
 our own stays the fallback; (b) ArtCraft plus local, the user's idea, works per tool through its adapters, but leaves requirement 1
-to build: Nomi's director, AI and agent layers are about 3.9 MB, against 264 KB to move ArtCraft's Draw; (c) one main author moving
+to build: Nomi's director, AI and agent layers are about 3.9 MB; (c) one main author moving
 fast, and the fork rule merges upstream before each work session — **changed:** no fork for the test, later changes kept in
 their own folders, and offered upstream (no CLA); (d) lip-sync and voice are gaps with every base; (e) AI can't edit hand-built
 3D scenes, a gap to close in Nomi or accept for now, while the card route isn't affected; (f) AGPL is a label.
