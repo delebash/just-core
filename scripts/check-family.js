@@ -1506,14 +1506,14 @@ function checkConnectionReasons(app) {
 }
 function checkRelease(app) {
   const report = (msg) => (RELEASE_REQUIRED.has(app.name) ? fail : info)(app.name, msg);
-  // a Mac update is fetched from the .zip (electron-updater): a mac.target set without one leaves the release's
-  // *.zip empty and every Mac on its first version (JustVoice and JustWrite, dmg alone — 2026-10-29). No target:
-  // electron-builder's default makes both.
+  // the zip is what electron-updater installs a Mac update from (needed once the app is signed — today the shell only
+  // tells a Mac about a new version: canInstall is false on darwin, and latest-mac.yml comes from the dmg too). A
+  // mac.target keeps electron-builder's default pair, dmg + zip (JustVoice and JustWrite had dmg alone — 2026-10-29).
   const qc = join(app.dir, "quasar.config.js");
   if (existsSync(qc)) {
     const mac = /\bmac:\s*\{([\s\S]*?)\n\s{8}\}/.exec(readFileSync(qc, "utf8").replace(/\r\n/g, "\n"))?.[1] ?? "";
     if (/\btarget:/.test(mac.replace(/\/\/[^\n]*/g, "")) && !/\btarget:\s*['"]zip['"]|['"]zip['"]/.test(mac.replace(/\/\/[^\n]*/g, ""))) {
-      fail(app.name, "quasar.config.js's mac.target has no zip — electron-updater updates a Mac from the .zip; list { target: 'zip', arch } beside the dmg (the template's quasar.config.js)");
+      fail(app.name, "quasar.config.js's mac.target has no zip — the zip is what electron-updater installs a Mac update from (needed once the app is signed); keep { target: 'zip', arch } beside the dmg (the template's quasar.config.js)");
     }
   }
   const workflow = join(app.dir, ".github", "workflows", "release.yml");
