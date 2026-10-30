@@ -449,8 +449,8 @@ here. The test is what each app already does, and how hard our local engines are
   lock a character or place. **Local: ComfyUI natively; any other server through Settings → Models → Custom API /
   gateway**, model type Text, Image or Video, video by "create and result/polling endpoints", with a custom request script
   where needed (`docs/guide/model-connection-en.md`). So our engines can connect without changing Nomi — not tested.
-  Gaps: image editing found is crop only (`inpaint` in 1 file); lip-sync and voice cloning appear only as a handbook
-  title and a display label; text-to-speech is in 34 files, not read. "Next up: AI editing."
+  Its gaps are in I.3 (was: "image editing found is crop only", from English-only searches of code commented in Chinese).
+  "Next up: AI editing."
 - **ArtCraft's full app**: 17 pages — Image, Video, Audio, Draw, Scene (3D), Moodboard, Storyboard (one 47 KB file),
   Video Editor, Angles, Background Change, Image to 3D Object and World, Remove Background, watermark removers, Frame
   Extractor; `inpaint` in 52 files. No AI flow: `screenplay` 0 files, `shot list` 0 files. `MainApp.tsx` mounts the login
@@ -466,14 +466,124 @@ here. The test is what each app already does, and how hard our local engines are
   8. "best free AI video studio infinite canvas storyboard timeline open source github 2026" → Diffusion Studio (an
      editor), mostly proprietary tools.
   9. "waoowaoo open source AI film studio github" → its repos.
-- **The rec: Nomi is worth trying as the base; ArtCraft is not, except as code to take from. Decide by one test, with no
-  fork yet.** Run Nomi on E:, connect the local engines through a small bridge and no change to Nomi, and make one
+- **Second rec, replaced by I.3 (it came before the user's list and before any scene code was read):** Nomi is worth
+  trying as the base; ArtCraft is not, except as code to take from; decide by one test, with no fork yet. Run Nomi on E:, connect the local engines through a small bridge and no change to Nomi, and make one
   3-shot scene with a locked character. Pass: the AI plans the shots, the face holds, the clips land on the timeline, an
   MP4 exports. If it fails, write our own with Nomi and ArtCraft as references (Nomi's code carries AGPL; its ideas don't).
   Attacks: (a) one main author and a fast pace make a long fork costly — **changed:** no fork first, and a fork only if
   the test shows Nomi itself must change; (b) unverified: Nomi's agent on a small local text model sharing an 8 GB card
   with video, and 7-minute jobs through a custom provider — that is why the test comes first; (c) AGPL is a label, and our
   apps are open source; (d) TypeScript and React are outside the family stack, which the user set aside for this question.
+
+### I.3 · The confirmed list, checked in the source (*code, 2026-10-30: read file by file, nothing run*)
+
+The user, 2026-10-30: "but niamo it looks like you have little other control, can you make scene and make ai use scene we
+need both ai to do it and user needs full control as well, verify what niami does, i dont think you understand what we are
+building"; then on the list below: "yes your list is correct, however juststage is not the only option to make scene it
+may not even be necessary, we should be able to describe to ai to make scene or prop or whatever we want save the prop
+images and scense ect and resue as we create new clips for consistancy, i am not even sure what we weould need just stage
+for yet. What do you think? I want ai to be able to do most of the work but of course the user does need to be able to
+modify things then ai pickup after user adjust things".
+
+**What we are building (approved, item 7 changed by the user's words above):**
+1. AI and the user work on the same film: AI can handle story, shots, camera, lighting and the cut; the user can take over
+   any step by hand, and AI continues from that change. Includes a Seedance-style option: a prompt and references give a
+   multi-shot sequence.
+2. The scene is the centre: the user or AI builds it, either can edit it, and AI generates the shots from it.
+3. The film stays consistent: same actors and sets across shots, longer takes, voices, lip-sync. AI makes scenes, props and
+   the rest from a description; they are saved and reused in new clips.
+4. Full manual tools: everything ArtCraft has.
+5. Every feature runs local or cloud and the user chooses: local free, cloud on the user's key, no account, no ComfyUI or
+   Python.
+6. It runs on the 8 GB card: 5 s of 720p in about 5–6 minutes.
+7. JustStage is optional, "may not even be necessary": nothing in JustDirect waits on it.
+
+**Nomi, from its source:**
+- Scene (`nodes/director/model/directorTypes.ts`): a project holds several scenes; each holds characters (rigs: mixamo, ue4,
+  ual), imported models, Gaussian splats, groups and primitives; cameras (lens, follow and look-at rigs, paths, closeups);
+  directional, point and spot lights with colour, intensity and shadows; panorama, sky, ground; a timeline of paths, action
+  clips, bone keyframes and look-at clips. `director/` is 238 files, 1.6 MB, 98 test files. Its own audit
+  (`docs/audit/2026-09-07-director-functional-interaction-audit.md`) records real-window runs of the hand tools: IK/FK, crowd,
+  phone camera, PNG and H.264 MP4 output, saved and reopened.
+- AI builds a scene (`electron/shared/director/directorPlanSchema.ts`, tool `stage_shot`): environment (day, night, studio),
+  template (street, room, courtyard, product_stage), set pieces, actors, blocking verbs (walk_to, run_to, turn_to, chase…),
+  shots with size, angle, height and camera move. It compiles to a gray 3D blockout, not a finished set.
+- AI continues after the user (`agent/applyDirectorWrite.ts`, `model/directorPatchNotes.ts`): an edit recompiles the plan and
+  re-applies the user's hand changes by stable id. A hand change AI directly overwrote is dropped and named ("your tweak on
+  shot 2"), and undo restores it. Before writing, AI reads the current state and passes its revision; a stale one is refused
+  (`look_at_canvas`, `read_timeline`).
+- **Gap:** AI can't edit a scene built by hand: `patchPlan` refuses "has no 3D-BOX plan … create a new preview"
+  (`applyDirectorWrite.ts:221-223`), and `look_at_canvas` gives a scene summary only when a plan exists
+  (`canvasRead.ts:289-293`). A hand-built scene can still drive a generation: `requestDirectorPreviewRender` takes a
+  `manual:` revision.
+- Scene → video (`agent/attachCameraMoveToTarget.ts`): the gray preview (24 fps, at most 10 s, 720p) is attached as a reference
+  video with the line "follow this reference video's camera movement (camera movement only; picture content comes from the
+  character references and the text)". A model with no reference-video slot gets a text description and a low-accuracy
+  warning. Layout for stills goes through a staging picture on `composition_ref`. Captures are plain colour renders, with no
+  depth or pose pass (`scene/capture/directorCapture.ts`).
+- Saved references (`canvasModelShapes.ts` `storyboardAnchorSchema`): anchors of kind character, scene, prop or style, each
+  with a name, a description, a carrier (reference image or text) and a scope (every shot or named shots). AI makes them through
+  `draft_shots`; shots name them by `anchorIds`. Reuse across separate projects: not verified.
+- AI tools (`verbs/writeVerbs.ts`): `write_script`, `draft_shots`, `generate`, `stage_shot`, `edit_timeline` (move, remove,
+  split, trim, source-window, ripple, transition, text, audio), `export_video`, `undo`.
+- Hand tools outside 3D: a drawing board (`nodes/whiteboard/`, 264 KB), background removal (`src/lib/removeBackground.ts`),
+  crop. No paint-a-mask repaint in the UI: `局部重绘|蒙版|maskUrl|mask_url|inpaint|MaskEditor` in `src/workbench` hits one regex.
+- Audio: text-to-speech and transcription as synchronous OpenAI-shaped calls (`electron/audioTaskRunner.ts`); voices and
+  music through providers. **Lip-sync: its handbook says "Not supported yet."**
+- Its own open debt (`docs/engineering/director-3dbox-debt.md`, due 2026-11-15): a real model running one sentence → preview →
+  attached video → confirm card has no receipt yet; the 10 s preview cap; real Windows walkthroughs.
+
+**ArtCraft's full app, from its source:**
+- AI: none. `\bagent\b` 0 files, auto-generate 0, batch-generate 0. `Storyboard.tsx` (47 KB) takes uploads and sketches, and
+  "Director notes" is a text field. Its site: "Compose the shot yourself — then let the model render it."
+- Scene (`libs/components/pagescene`, 782 KB): objects, GLB and PMX characters, shapes, splats, FK posing, focal length, point
+  lights added as shapes, a keyframe timeline, record to MP4 or WebM (`engine/recording/TimelineRecorder.ts`).
+- Scene → AI: one snapshot image into `GenerateImage` (`scene_image_media_token`, `useTauriPageSceneAdapter.tsx:172-186`). Stills
+  only. Saving and loading a scene goes to `/v1/media_files/upload/new_scene` on their server.
+- Hand tools: real mask inpaint (`EnqueueImageInpaint`, `mask_image_raw_bytes`), Draw, Moodboard, Video Editor (2 MB).
+- Server ties: omni generation refuses without login, "You need to be logged into ArtCraft." (`omni/dispatch.rs:43-48`);
+  characters at `/v1/character/*`; hosted media library; 18 of 52 page files use the hosted API. The tool libraries barely
+  touch it (hosted-API files: Moodboard 0 of 66, Video Editor 2 of 505, Draw 3 of 32, Scene 4 of 201), and each page reaches its
+  host through an adapter (`PageSceneAdapter`, `PageDrawAdapter`), which is a clean place to swap in a local one.
+- `artcraft-services` (Rust 17.7 MB, TS 8.7 MB): accounts, billing, MySQL, Redis, Elasticsearch, object storage, under "ArtCraft
+  License (WIP)", which bars a competing product. Its commits since 10-10 are website, release and Kinovi/Suno work, so the
+  app has had no new features since 10-11. A local fork needs none of it.
+- `artcraftx` has no licence; code search found no agent or storyboard feature, only `user-agent` strings and client endpoints.
+
+**Local video guided by a scene, the part that decides the 3D route** (*code + docs*, `E:\Dev\Web\stable-diffusion.cpp`):
+- LTX: first and last frame only; `video.cpp:782` "LTXAV control_frames are not implemented". ComfyUI runs LTX-2 depth, canny and
+  pose through `LTXV Add Guide` and control LoRAs (runcomfy.com, comfy.org workflow pages), which would be an sd.cpp addition.
+- **MiniMax-H3 Ref2VA has a reference-video input** (`docs/minimax_h3.md`): `--ref-image`, `--ref-video`, `--ref-audio`, each
+  repeatable; a video's 24 fps latents condition the transformer. sd-server took `ref_videos` on 2026-10-25 (#2194), and H3 got
+  faster on 10-29 (#2240). Measured here at 480p with no reference video: 376 s (§H). Never tried with a gray preview. Ref2VA
+  can't combine with first or last frames.
+- Wan VACE is in sd.cpp (`vace_context`), but 14B ran out of card memory at 720p (§E). A Reddit comment says 1.3B may fit 8 GB;
+  guides conflict on 8 vs 16 GB.
+- Camera-control research on Wan bases, no head-to-head and not checked: TriMotion (ECCV 2026, takes a pose path), CamCloneMaster,
+  CameraNoise, FlashMotion.
+- The picture route needs none of this: saved references → a keyframe (FLUX.2 klein `-r`, 20 s) → LTX picture-to-video (407 s),
+  both measured in §H.
+
+**Seedance** (*web, third-party pages, no official docs*): up to 6 shots in one pass, each with its own prompt and duration, plus a
+character photo, a clip for camera movement and audio for pacing. "Seedance Studio" (tryseedance.ai) is an independent app. The local
+equivalent to try is H3 Ref2VA; multi-shot in one prompt not tested.
+
+**Searches added:**
+10. "Seedance app how it works agent one prompt multi-shot film workflow 2026" → third-party guides; a 2.0 vs 2.5 conflict.
+11. "ArtCraft AI agent auto storyboard script to video features review 2026" → one Feedbagel article; no agent found.
+12. "LTX-2 depth pose canny control video guide 3D blockout to video workflow" → RunComfy and Comfy workflow pages.
+13. "latest techniques 3D blockout to AI video local depth control Wan VACE low VRAM 8GB 2026" → VACE guides, WanGP, conflicting VRAM.
+14. "best way to keep camera and layout from 3D scene in AI video open source model reference video control 2026" → TriMotion,
+    CamCloneMaster, CameraNoise, FlashMotion, Adobe LooseControlVideo.
+
+**The rec: start from Nomi, move ArtCraft's hand tools into it, keep JustStage out, and prove it with one test on Nomi unchanged.**
+The main route is the user's: AI makes saved cards → keyframes → clips, already measured here. A 3D scene is the optional precise
+route. Attacks: (a) it is read, not run, and Nomi's own debt list has no real-model receipt — so the test comes first, and writing
+our own stays the fallback; (b) ArtCraft plus local, the user's idea, works per tool through its adapters, but leaves requirement 1
+to build: Nomi's director, AI and agent layers are about 3.9 MB, against 264 KB to move ArtCraft's Draw; (c) one main author moving
+fast, and the fork rule merges upstream before each work session — **changed:** no fork for the test, later changes kept in
+their own folders, and offered upstream (no CLA); (d) lip-sync and voice are gaps with every base; (e) AI can't edit hand-built
+3D scenes, a gap to close in Nomi or accept for now, while the card route isn't affected; (f) AGPL is a label.
 
 ## D · The answer (argued against)
 
