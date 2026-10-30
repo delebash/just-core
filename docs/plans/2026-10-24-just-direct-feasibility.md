@@ -701,6 +701,20 @@ The user, on what "well" means and on Nomi's extras: "the other stuff i dont kno
 a priority and time is not priourity". So quality is the bar, judged by the user's eye. Times are recorded, not pass or fail. Nomi's skills and similar
 extras are out of scope for now.
 
+**Plain searches, 2026-10-30** (the user: "you dont do good broad but simple research"; web, mostly vendor and SEO pages, so names to check, not rankings):
+1. "latest techniques for consistent characters in AI video" → lock the look in stills first; reference sheets (front, back, full body); short clips stitched
+   together; same light and camera distance; log drift and fix the sheet. Matches items 4 and 9.
+2. "best open source AI video models 2026" → Wan, LTX-2.3, HunyuanVideo, CogVideoX, Mochi 1, Open-Sora, SVD. Nothing new for us.
+3. "best AI video model for 8GB VRAM" → LTX-2.3 GGUF is the 8 GB pick; Wan 2.2 and HunyuanVideo 1.5 start at 16 GB. Agrees with §E–§G. No independent benchmark.
+4. "best open source lip sync 2026" → LatentSync, MuseTalk, Sonic, LivePortrait, DreamTalk, Wav2Lip, SadTalker. Sonic and LivePortrait are new to this file.
+5. "how to make longer AI videos new ways" → LTX: extend forward, bridge two clips with keyframes, retake a bad part. invideo ranks reference-to-video chaining first,
+   then extend, then last-frame-as-first-frame, which is what `take.js` does. So item 6 starts with the method ranked lowest.
+6. "best open source image models 2026" → FLUX.2, Qwen-Image 2.0, SD 3.5, Sana (sharp on 8 GB), HunyuanImage 3.0. Qwen-Image 2.0 and Sana to compare in item 4.
+7. "best local LLM for tool calling 2026" → Qwen3 7B on 8 GB (one guide), Qwen 3.6 27B, Mistral Small 3.1. No standard benchmark. Candidates for item 7, on llama.cpp.
+8. "best open source AI music generator 2026" → MusicGen in AudioCraft, Stable Audio; ACE-Step did not appear here but is already in §B.
+9. "open source AI sound effects generator 2026" → AudioGen in AudioCraft; commercial tools otherwise.
+Not checked yet: whether Sonic, LivePortrait, Sana and AudioCraft have a runtime without Python. A gap in these searches is a gap in the searches.
+
 ## D · The answer (argued against)
 
 - **Buildable on the kit: yes.** sd.cpp (image + video through sd-server's `img_gen`/`vid_gen` jobs), audio.cpp
