@@ -810,6 +810,32 @@ covers SDXL and Z-Image. Lightricks' `conditioning.md:34` is stale: the guide cl
 work, factor 1 in `video.cpp` and factor 2 also in `ltxv.hpp`. Layout-To-Render keeps the guide on both stages. The kit's law on JSON enforcement with thinking is outdated for
 `response_format` (`model-research.md` not edited yet).
 
+### J.3.1 · Audio and lip repair (*measured, 2026-10-31; `audio.cpp` built fresh from the merged fork into `build/jd`, so JustVoice's builds were left alone; quality not heard by anyone yet*)
+
+- **Sound effects (`queue22.ps1 sfx`, Stable Audio 3 Small SFX Q8):** 10 s of sound in 1.7–2.4 s. Spectrograms show real events: five sword clangs with ringing decay, a deep blast fading to debris, even footsteps. `out/audio/sfx-*.wav`.
+- **Film score (`queue22.ps1 score`, Stable Audio 3 Medium Q8):** 30 s in 4–4.5 s, 60 s in 6 s. Spectrograms show separate notes and a storm swell. `out/audio/score-*.wav`. The research's estimate of a tight fit was wrong in practice. Card peak was not captured.
+- **Songs and editing (`queue22.ps1 ace`, ACE-Step Turbo Q8):** 60 s in 12 s. Repaint not tested yet.
+- **LatentSync 1.6 Q8 runs on 8 GB (`queue23.ps1`, was unproven):** repair on `a2v-full-41`: 513.6 s with `mem_saver`, no out-of-memory, no visible seam at full size, 1280×704 kept. The output is 25 fps. Best match with the voice 0.42 with the mouth 3 frames ahead, against 0.49 at 5 frames ahead before; match at zero lag rose from 0.05 to 0.22, closer to true sync. `out/ls-a2v-full-41.mp4`.
+- **The talking pipeline is now:** TTS voice line, LTX one pass with the frozen track, LatentSync repair. About 15 minutes for a 3 s line. Whether it's good enough needs the user's eye and ear.
+
+### J.3.2 · The proof list at the end of 2026-10-31
+
+| # | Feature | State | What's left |
+|---|---|---|---|
+| 1 | Current engine | **Done:** `jd` on the latest upstream, one fix and four features ahead | Offer patches upstream |
+| 2 | 720p video | **Proven:** 13 s, one take | Past 13 s means joining windows |
+| 3 | Picture to video | **Proven** | Compare our patch by eye |
+| 4 | Saved actor, set, prop | **Proven** | |
+| 5 | Talking with a chosen voice | **Runs end to end** | The user's eye and ear |
+| 6 | Longer takes | **Proven to 13 s** | Latent carry for longer |
+| 7 | AI plans the film | **Works**, about 6 min a plan | Card repair step; the user's read of 3 plans |
+| 8 | AI edits after the user | **Works** on all 3 revisions | Same |
+| 9 | Stronger consistency | Guide proven; Ingredients untested | Ingredients is gated: the user must accept its terms on Hugging Face |
+| 10 | AI uses a 3D scene | **Works by depth** | Real bodies in the scene |
+| 11 | Music and sound effects | **Runs, very fast** | The user's ear |
+| 12 | Quality action | Cars and blasts strong; swords hold by depth | Real bodies or mocap for fights |
+| 13 | Anything in a movie | **12 of 12 shot kinds ran clean** | Exact action and camera control |
+
 ### J.4 · The list per machine (*2026-10-31, from the six research files; only the 8 GB row is measured here*)
 
 The user: "you have looked at other models larger ones for 5090 rtx ect i know you cant test but they should be in list, since other users have other pc and we can rent gpu once we build app". So every row above 8 GB is **untested here**, a test list for a rented GPU. The app should
