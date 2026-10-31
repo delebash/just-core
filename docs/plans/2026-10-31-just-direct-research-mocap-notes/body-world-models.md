@@ -26,7 +26,7 @@ The 2026 pattern is one recipe: detect and track the person, run a heavy frozen 
 
 | # | Method | Date | Why here | Main weakness |
 |---|---|---|---|---|
-| 1 | **FlowHMR** | code 2026-09-29 | Wins blind human comparison against GVHMR, PromptHMR, GENMO, DuoMo on 4,182 internet clips (paper). Independent app author ranks it best overall (user). Most physically trackable. Hands included. | Slowest; heavy moving-camera stage |
+| 1 | **FlowHMR** | code 2026-09-29 | Wins 61.5-79.2% of blinded pairwise human judgements against GVHMR, PromptHMR, GENMO, DuoMo, on pairs from a pool of 500 Wild-4K videos; the 4,182 clips are the physics test (paper, corrected 2026-10-31). Independent app author ranks it best overall (user). Most physically trackable. Hands included. | Slowest; heavy moving-camera stage |
 | 2 | **ExMR** | code 2026-10-21 | Best hand and foot numbers in its own tables; independent app makes it the default (user). | World position is a GVHMR-style estimate, not measured on EMDB-2 in its paper |
 | 3 | **DuoMo** | CVPR 2026, code 2026-04 | Best or near-best world-space numbers on EMDB and RICH (paper). Handles out-of-frame. | No hand articulation claimed. Release has no camera estimator **[app]** |
 | 4 | **GEM-X** (2026-10-20 "native77") | new release | The only one here with a body model needing no registration, and a C++ port of its previous version. | No public real-data benchmark for this release; the previous release scored clearly worse than SMPL models in an independent test |

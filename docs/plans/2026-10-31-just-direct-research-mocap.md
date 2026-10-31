@@ -20,8 +20,8 @@ The field moved past the pasted pipeline in 2026. The recipe now: track the pers
 | Job | Best found | Why | Labels |
 |---|---|---|---|
 | Video, body + hands | **ExMR** (code 2026-10-21) | Best hand numbers: hand jitter 5.2 against SAM 3D Body's 32.4 on ARCTIC (paper). An independent Windows app makes it the default (user) | SMPL-X + MANO by registration, SAM 3D Body gated at Meta. Code and weights research and non-profit only |
-| Video, best overall motion | **FlowHMR** (code 2026-09-29) | Wins a blind comparison on 4,182 clips against GVHMR, PromptHMR, GENMO, DuoMo (paper). Physics is trained into the weights, no simulator at run time | SMPL-H. Code Apache-2.0, weights non-commercial. Heavy: 24-31 GB dense moving camera, 2.77 GiB Low Memory on 60 frames (user) |
-| Video, 8 GB floor | **GVHMR + FootMR + HandFlow** | Peak 5.08 GiB allocated, 12.5 GiB RAM on a full clip (user, RTX 5090, Windows). Fallback: ExMR Low Memory | SMPL-X + MANO. GVHMR research and non-profit, HandFlow MIT |
+| Video, best overall motion | **FlowHMR** (code 2026-09-29) | Wins 61.5-79.2% of blinded pairwise human judgements against GVHMR, PromptHMR, GENMO, DuoMo (paper: pairs from a pool of 500 videos, annotator count not stated). Physics tracking 82.47% on 4,182 clips against 62.82% for GVHMR (paper). Physics is trained into the weights, no simulator at run time | SMPL-H. Code Apache-2.0, weights non-commercial. Heavy: 24-31 GB dense moving camera, 2.77 GiB Low Memory on 60 frames (user) |
+| Video, 8 GB floor | **GVHMR + HTD Refine + FootMR + HandFlow** | Peak 5.08 GiB allocated, 12.5 GiB RAM on a 25.7 s clip (user, RTX 5090, Windows; RGB MoCap's defaults, and its table is marked historical). Fallback: ExMR Low Memory | SMPL-X + MANO. GVHMR research and non-profit, HTD Refine AGPL-3.0, HandFlow MIT |
 | No registration | **GEM-X + EgoHand** | SOMA body, no account. Hand filter halves acceleration error (paper) | NVIDIA Open Model License, OpenMDW-1.1. The previous release lost to GVHMR by 22 mm MPJPE in the one same-protocol test; the 2026-10-20 release has no real-data benchmark |
 | Live webcam | **RTMW + hand crops + our own IK**, through the kit's `onnx` runtime | Expected 30 fps on the floor (inference from a GTX 1660 Ti row). PEAR (Apache-2.0, claims 100 FPS, needs SMPL-X and FLAME) is the direct-rotation test | Apache-2.0. One user got only 7 fps with rtmlib on an RTX 3080 Ti, so measure the whole pipeline |
 | Foot and contact fix | **Kimodo `MotionCorrection`** | C++17, CPU, rig-agnostic; root warp, IK, ADMM pop removal | Apache-2.0 |
@@ -101,7 +101,42 @@ Corrections for its docs: RealDenseFace on profile views is **unmeasured**; Sapi
 
 FLAME to ARKit gap: best is a bounded solve onto our own keys in vertex space. Fastest first test: EMAGE's `mat_final.npy`, inverted. Its FLAME version is unverified against FLAME 2023 Open.
 
-## 7. Plain searches run first by the coordinator
+## 7. Adversarial re-check of this research
+
+The user, 2026-10-31: "think adversily on this again make sure you did not over under research as you have in past limited it or did everything". No new agents were run for this: the coordinator checked the map below, reading the notes and sources directly.
+
+| Job | Coverage | Verdict |
+|---|---|---|
+| Body and world motion | `body-world-models.md`, repo and weight rows checked by API | Enough |
+| Hands | `hands.md`, MediaPipe cause checked in source | Enough. Hand size against accuracy stays unmeasured by anyone found |
+| Live webcam | `live-and-apps.md` | Enough on paper. No fps on this card |
+| Commercial techniques | `live-and-apps.md` | Enough. Core solvers are unreadable |
+| Cleanup, retarget, export | `cleanup-retarget.md` | Enough. **Over-researched:** physics trackers and streaming protocols go beyond what the next test needs |
+| Face | `face-landmarks-juststage.md` | Enough for JustStage. **Over-researched:** WFLW detector rankings |
+| **How motion reaches the film** | **Not asked in any brief. Under-researched.** Closed below from our own notes and local code | Fixed |
+| **Two actors in one shot** | Thin | Still a gap, below |
+| **Real user opinion (Reddit)** | Not reached | Still a gap, below |
+| **A real test** | None | Item 14 on the proof list |
+
+**Errors found in this report and corrected:**
+- FlowHMR's blind human study used a pool of 500 videos, not 4,182. The 4,182 clips are its physics test. The annotator count is not stated.
+- The 8 GB row left out HTD Refine (AGPL-3.0), which the 5.08 GiB figure includes.
+- The ExMR hand jitter numbers were re-read in the paper and hold: Table III, 5.2 against 32.4, unit 10 m/s³.
+
+**How motion reaches the film.** Mocap only helps JustDirect once it can steer a shot:
+- **Route A, 3D guide.** Mocap on a rigged character, render, then guide LTX. Our guide works at full size today (the action research's row 3).
+- **Route B, pose clip.** Union Control reads a half-size pose clip, and ComfyUI's LTX-2 Pose to Video template shows the pattern (web). ComfyUI's `comfy_extras/sam3d_body/export/openpose_2d.py` already draws SAM 3D Body output as DWPose-style skeletons (code, read here). It needs the half-size guide, which sd.cpp doesn't have yet (action research).
+- **Route C, no mocap.** Wan-Animate 2 transfers an actor's motion straight onto a character, but it is 31 GB and needs a 16 GB+ tier (consistency research).
+
+The next test should end with route A or B on a real shot. A mocap file alone proves little for this app.
+
+**Two actors.** No open single-camera tool was found that does two actors with hands in one shared world. PromptHMR-Vid places people jointly but has no fingers. RGB MoCap runs each person separately. `darcyjia/ue5-ai-mocap` does two people from AI video through GVHMR (one line from GitHub's topic page, unread). For now, capture each actor alone.
+
+**New names from the re-check.** BlendCap is a paid local Blender add-on doing body, hands, face and world motion from one clip, for about $60, with an 11 GB download. Its setup asks users to accept Meta's SAM License, so it is probably built on SAM 3D Body (inference, as with Mocai). `anymove` does any creature from AI video. `vid2anim` uses DWPose. None changes the ranking.
+
+**Search limits, stated plainly.** The coordinator repeated the plain queries with `curl` against DuckDuckGo and Bing using a browser user-agent. The first query returned the same vendor lists as before, and DuckDuckGo then returned bot checks while Bing returned junk. A further attempt to reach Google and Reddit through proxies and archives was blocked by the permission system and was not retried. **Google's own results and Reddit stay unread.** The user's own Google answer remains the one check we couldn't repeat.
+
+## 8. Plain searches run first by the coordinator
 
 Run by the coordinator after the user's "make sure you do good searches" note. The researchers' 200-odd queries are in their notes.
 
