@@ -2,7 +2,7 @@
 
 The user, 2026-10-31: "another app i want to build is signle source mocap like from webcam or video full mocap including hands, i used mediapipe in the past but hands where jittery"; "this whould be part of just direct"; "we can take ideas and write our own code based on techniques from commercial apps".
 
-**Nothing here was measured on this PC.** No weights were downloaded and nothing was run. No source reports any top model on an 8 GB card, so every 8 GB line is inference. Reddit could not be reached by any tool (a gap in the search). Evidence labels and full tables are in the notes.
+**Measured on this PC so far: section 9, SAM 3D Body against MediaPipe.** Everything else is unmeasured. No source reports the other models on an 8 GB card, so their 8 GB lines are inference. Reddit could not be reached by any tool (a gap in the search). Evidence labels and full tables are in the notes.
 
 Notes, each with its query log:
 - [`body-world-models.md`](2026-10-31-just-direct-research-mocap-notes/body-world-models.md)
@@ -150,3 +150,36 @@ Run by the coordinator after the user's "make sure you do good searches" note. T
 8. "ComfyUI motion capture video to BVH FBX SAM 3D Body GVHMR workflow": native SAM 3D Body nodes (merged 2026-08-23), ComfyUI-MotionCapture.
 
 Note: plain searches gave names, and the best finds (ExMR, RGB MoCap, HandFlow) came from following those names into GitHub and Hugging Face.
+
+## 9. Measured here: SAM 3D Body against MediaPipe (2026-10-31)
+
+RTX 2070 SUPER 8 GB, 32 GB RAM. ComfyUI 0.43.0, PyTorch 2.14.1 cu126, `sam_3d_body_dinov3_bf16` (2.83 GB, ungated re-host), RT-DETR for the person box. MediaPipe 1.2.0 on the CPU. Clip: ComfyUI's own `woman_holding_water_glass.mp4`, 1280×720, 30 fps, 150 frames, one person waist-up, static camera, hands about 170 px across. **One gentle clip, and not the user's. It proves it runs and sets a baseline, nothing more.** Scripts and results: `E:\Dev\Web\test-just-direct\mocap` (`runs.jsonl`, `jitter.js`).
+
+| Run | Time for 150 frames | Per frame | Peak card use, desktop included |
+|---|---|---|---|
+| Hands on, batch 8 | 48.8 s | 0.32 s | 4,853 MiB |
+| Hands on, batch 4, first run | 71.2 s, models loading | 0.47 s | 6,133 MiB |
+| Hands off, batch 4 | 22.6 s | 0.15 s | 3,925 MiB |
+
+The hands-on batch 8 run reused the loaded models, so its figure excludes load time. ComfyUI's dynamic VRAM loading did the staging with no settings changed. The card idles at about 770 MiB.
+
+Finger jitter, scored the same way for both: each finger joint's bend angle over time, RMS second difference in degrees per frame², median across joints. Spread is that angle's standard deviation, so a frozen hand can't look best.
+
+| Method | Jitter, hand 1 | Jitter, hand 2 | Spread | Hand found |
+|---|---|---|---|---|
+| SAM 3D Body, raw | 1.47 | 1.87 | 3.7, 4.2 | 150 of 150 (both) |
+| SAM 3D Body, Gaussian window 7 | 0.26 | 0.56 | 3.6, 4.2 | 150 of 150 (both) |
+| MediaPipe, raw | 8.21 | 7.37 | 6.1, 8.9 | Left 66 of 150, right 150 of 150 |
+| MediaPipe, Gaussian window 7 | 0.73 | 0.74 | 4.7, 8.2 | Same |
+| MediaPipe, One Euro (causal, as live) | 1.70 | 1.51 | 5.2, 8.2 | Same |
+
+Reading it:
+- SAM 3D Body raw is 4 to 5 times steadier than MediaPipe raw.
+- Most of MediaPipe's jitter on this clip goes with a filter, which fits the source: its hand graph has none.
+- The real gap left is coverage: MediaPipe lost one hand in 84 of 150 frames. SAM 3D Body kept both.
+- MediaPipe's higher spread is at least partly noise, since Gaussian smoothing cut the left hand's from 6.1 to 4.7. It can't be read as more real motion. Joint sets differ slightly (17 against 15), and handedness labels weren't matched between the two.
+- 21.6 ms a frame for MediaPipe on the CPU, so it is the live option on speed. SAM 3D Body at 0.32 s a frame is about 3 fps here: offline only.
+
+Checked by eye on two frames (`out/check-hands.png`): every finger on the right hand, including both hands interlaced around the glass and the raised hand gripping it. The full overlay is `out/sam3d-overlay.mp4`, the OpenPose-style render a pose guide would use.
+
+Not shown yet: fast motion, full-body shots with small hands, moving camera, world position. SAM 3D Body gives no world position.
