@@ -762,6 +762,14 @@ The user: "go on the engine work after the no-code tests your rec all go". Scrip
 - **First run, 3DREAL Strong v2 on a gray Blender blockout (`blockout.py`, `out/gray1`), 1280×704 × 121:** LoRA loaded, guide encoded, stage 1, upscale and stage 2 (147.68 s) and audio decode all
   finished on 8 GB. Claude Code then stopped the job during video decode because the system was critically low on memory. No clip yet. `ltx-talk` stopped at the same step on 2026-10-28.
   Fix to try: `--params-backend diffusion=disk` (§G: held 11.5 GB free, about 20 % slower).
+- **Second run, same test with `--params-backend diffusion=disk` (2026-10-31, `queue10.ps1`): the first finished clip driven by a 3D scene on 8 GB.** `out/gray1-3dreal-disk.webm`, 1280×704 × 121:
+  647.6 s (stage 1 367 s, stage 2 163 s, decode 37 s), card 6.66 GB, lowest free RAM 9.33 GB. The run shows the guide works: camera move, room layout, table, chair, lamps and the walk all follow the
+  blockout, and the blocky figure becomes a believable red-haired woman in a black jacket across frames 0, 60 and 120 (viewed by Claude). **It is not yet a café:** the walls, floor, table and chair stay gray, with a
+  concrete texture and no warm light, despite the prompt. 3DREAL keeps the input's colours, so a gray scene gives a gray room. Next to try: a coloured scene, or a keyframe for the look (`-i`) on top of the guide.
+- **Audio-to-video written into `jd` (2026-10-31), from PR #1676 and checked against Lightricks' source, which caught three faults:** (1) the PR pads the mel on the left only; Lightricks uses
+  `center=True, pad_mode="reflect"` (`ltx_core/model/audio_vae/ops.py:29-30`), so the PR's audio sits about 22 ms early; (2) the PR resamples linearly, Lightricks with torchaudio's windowed sinc
+  (`ops.py:40`); (3) our plan's "set `audio_timesteps_tensor` to 0" is wrong: that tensor also feeds the prompt and gate AdaLNs, which keep sigma (`transformer_args.py:304-305,433`), so only the audio lane's AdaLN and its
+  cross-attention scale-shift get 0 (`:427`). It uses the existing `--audio` flag and `ref_audios`, the way Wan S2V drives video, instead of a new `--init-audio`. Not yet run.
 
 Corrections: klein 4B LoRA needs 12 GB per BFL (was 24). LatentSync is 9,144 MiB in audio.cpp (18 GB is Python). MuseTalk's "4 GB" isn't in its README. sd.cpp ControlNet also
 covers SDXL and Z-Image. Lightricks' `conditioning.md:34` is stale: the guide class is `VideoConditionByReferenceLatent`, so "all one engine feature" holds in shape, with two sizes of

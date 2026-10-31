@@ -100,7 +100,7 @@ For rows 1, 2 and 3 no conversion is needed: JustVoice's measured TTS engines ma
   2. Add `--init-audio` (the `load_wav_from_file` loader already exists).
   3. Set the audio lane's denoise mask to 0 in both stages in `src/pipeline/video.cpp`.
   4. Return the input audio as the output.
-  5. Set `audio_timesteps_tensor` to 0 when audio is frozen (`diffusion_engine.cpp:2463`). This step is not in the PR.
+  5. Set `audio_timesteps_tensor` to 0 when audio is frozen (`diffusion_engine.cpp:2463`). This step is not in the PR. *Corrected 2026-10-31: that tensor also feeds the prompt and gate AdaLNs, which must keep sigma, so only the audio lane's AdaLN and cross-attention scale-shift get 0. See the register, §J.3.*
 - **Files:** the `ltx` preset in `cli.js`; no new weights.
 - **Run:** `node cli.js ltx-a2v ltx @base --video-frames <next 8k+1 at or above seconds×24> -i out\k3-cafe-close.png --init-audio out\talk\line-st.wav --seed 41 -p "<prompt>"`, where `@base` is the `$base` array in `queue5.ps1` (640×352, hires to 1280×704, 3 refine steps, 384-pixel tiles).
 - **Compare:** once with timesteps 0 and once as the PR has it, same seed, to learn whether the fix matters. Also run a prompt with the spoken line and one with only "woman speaking", since the PR author saw mixed results.
