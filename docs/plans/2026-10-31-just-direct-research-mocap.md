@@ -153,7 +153,7 @@ Note: plain searches gave names, and the best finds (ExMR, RGB MoCap, HandFlow) 
 
 ## 9. Measured here: SAM 3D Body against MediaPipe (2026-10-31)
 
-RTX 2070 SUPER 8 GB, 32 GB RAM. ComfyUI 0.43.0, PyTorch 2.14.1 cu126, `sam_3d_body_dinov3_bf16` (2.83 GB, ungated re-host), RT-DETR for the person box. MediaPipe 1.2.0 on the CPU. Clip: ComfyUI's own `woman_holding_water_glass.mp4`, 1280×720, 30 fps, 150 frames, one person waist-up, static camera, hands about 170 px across. **One gentle clip, and not the user's. It proves it runs and sets a baseline, nothing more.** Scripts and results: `E:\Dev\Web\test-just-direct\mocap` (`runs.jsonl`, `jitter.js`).
+RTX 2070 SUPER 8 GB, 32 GB RAM. ComfyUI 0.43.0, PyTorch 2.14.1 cu126, `sam_3d_body_dinov3_bf16` (2.83 GB, ungated re-host), RT-DETR for the person box. MediaPipe 1.2.0 on the CPU. Clip: ComfyUI's own `woman_holding_water_glass.mp4`, 1280×720, 30 fps, 150 frames, one person waist-up, static camera, hands about 170 px across. **One gentle clip, and not the user's. It proves it runs and sets a baseline, nothing more.** Scripts and results: `E:\Dev\Web\just-mocap\bench` (`runs.jsonl`, `jitter.js`).
 
 | Run | Time for 150 frames | Per frame | Peak card use, desktop included |
 |---|---|---|---|
@@ -184,4 +184,4 @@ Checked by eye on two frames (`out/check-hands.png`): every finger on the right 
 
 Not shown yet: fast motion, full-body shots with small hands, moving camera, world position. SAM 3D Body gives no world position.
 
-**Not run: GEM-X + EgoHand.** The permission system refused the install as code from outside, and it was not retried. The setup script is `E:\Dev\Web\test-just-direct\mocap\setup_gemx.sh`, unrun, and nothing of GEM-X is on this PC. The RGB MoCap step needs the same kind of install.
+**Not run: GEM-X + EgoHand.** The permission system refused the install as code from outside, and it was not retried. The setup script is `E:\Dev\Web\just-mocap\bench\setup_gemx.sh`, unrun, and nothing of GEM-X is on this PC. The RGB MoCap step needs the same kind of install.
