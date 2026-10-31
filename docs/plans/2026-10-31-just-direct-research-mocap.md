@@ -310,3 +310,25 @@ One idea in the Google answers holds up: a mocap product needs a separate hand m
 | [PoseCap](https://github.com/CorridorTech/PoseCap) | Apache-2.0, with Corridor Digital. Live webcam into Blender through PEAR (needs SMPL-X) or MediaPipe Lite. Pelvis-locked, no world path | Live only. Missing from the earlier notes |
 | EasyMocap | Project Registration License v1.0, read in full: free including commercial use once each project is registered. Single video is 2D fitting with SPIN and HRNet, needs SMPL-family files; its strength is several cameras | Not better for one camera |
 | MMPose, MMHuman3D, MotionBERT | Code Apache-2.0. MotionBERT takes 17 body keypoints and trains on Human3.6M. RTMW's config trains on COCO-WholeBody, marked non-commercial | Not a commercial base as they stand |
+
+## 12. Measured finger accuracy (2026-10-31)
+
+The ruler is CMU Panoptic `171204_pose1`, camera 00_00, hands 110-122 px, 300 frames a clip. Its 3D hand points come from about 30 cameras. It is research-only data, used here to measure and nothing else: nothing trained on it and nothing ships from it. Scored by `E:\Dev\Web\just-mocap\bench\truth_hands.js`.
+
+Left hand then right. Shape is hand-point error after alignment. "Follows" is correlation with the real bends. "Shown" is movement against the real movement, so 100% is right and frozen fingers can't win.
+
+| Clip | Real fingers move | Method | Shape, mm | Bend error, deg | Follows | Shown |
+|---|---|---|---|---|---|---|
+| Steady, 1080p | about 8° | SAM 3D Body | 6.2, 5.1 | 4.0, 3.4 | 0.87, 0.91 | 115%, 107% |
+| Steady, 1080p | about 8° | MediaPipe 3D | 11.6, 11.6 | 8.4, 7.6 | 0.67, 0.72 | 166%, 167% |
+| Steady, half size | about 8° | SAM 3D Body | 7.1, 6.2 | 4.7, 5.0 | 0.86, 0.82 | 115%, 94% |
+| Fast arms, 1080p | 4-5° | SAM 3D Body | 5.2, 5.2 | 7.3, 5.5 | no result | 154%, 158% |
+| Fast arms, 1080p, 61% of frames | 4-5° | MediaPipe 3D | 14.0, 13.7 | 11.2, 8.0 | no result | 288%, 216% |
+
+Image points, median error: steady MediaPipe 3.0-3.4 px against RTMW-x 5.0-6.3 px. With fast arms MediaPipe found 61% of frames and RTMW all of them, so PCK@0.2 counting misses is 57-59% against 69-73%.
+
+Checks: the wrong hand scores 29-30 mm, so the left-right mapping holds. On the fast clip the wrist error is lowest at frame offset 0, so the frames line up. SAM 3D Body doesn't under-move fingers; the earlier worry came from MediaPipe over-moving them.
+
+Limits: the "follows" figure on the fast clip is empty, because the real fingers barely moved and that is near the measuring noise. These clips hold small finger movement only. Windows with about 40° of real movement are cut (frames 2338 and 20728) and not yet run. The thumb moved least and scored low on every method.
+
+**The user's ViTPose, RTMW and YOLO paste, checked at source:** the idea is sound, since keypoints need no MANO, and it is `video2mocap`'s own finger plan. But keypoints are 2D, so depth and rotations still have to be solved. ViTPose's code is Apache-2.0, not MIT, its table lists 2D models, and ViTPose++ weights train on COCO-WholeBody, whose annotations are "ONLY for research and non-commercial use". RTMW needs a person box (it ran that way here) and its dataset mix includes the same annotations. YOLO pose is AGPL or paid, with 2D hand points. GEM-X's own `vitpose.pth` gives 77 2D points including fingers under NVIDIA's commercial licence, which is the clean version of this idea.
