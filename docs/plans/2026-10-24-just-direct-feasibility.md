@@ -769,7 +769,15 @@ The user: "go on the engine work after the no-code tests your rec all go". Scrip
 - **Audio-to-video written into `jd` (2026-10-31), from PR #1676 and checked against Lightricks' source, which caught three faults:** (1) the PR pads the mel on the left only; Lightricks uses
   `center=True, pad_mode="reflect"` (`ltx_core/model/audio_vae/ops.py:29-30`), so the PR's audio sits about 22 ms early; (2) the PR resamples linearly, Lightricks with torchaudio's windowed sinc
   (`ops.py:40`); (3) our plan's "set `audio_timesteps_tensor` to 0" is wrong: that tensor also feeds the prompt and gate AdaLNs, which keep sigma (`transformer_args.py:304-305,433`), so only the audio lane's AdaLN and its
-  cross-attention scale-shift get 0 (`:427`). It uses the existing `--audio` flag and `ref_audios`, the way Wan S2V drives video, instead of a new `--init-audio`. Not yet run.
+  cross-attention scale-shift get 0 (`:427`). It uses the existing `--audio` flag and `ref_audios`, the way Wan S2V drives video, instead of a new `--init-audio`. Committed `cf4af3a`.
+- **Audio round trip (`queue11.ps1`, `audiocheck.js`):** the voice line through the new encoder and back through the decoder matches the original at r = 0.988 on log-spectrograms. Encode takes 0.30 s. The decoded copy is 22.5 ms
+  early, under one video frame. The clip keeps the original wav, and the encoder input matches Lightricks', so this shift doesn't reach the clip.
+- **First A2V clip fails on sync (`queue12.ps1 41`, `out/a2v-41.mp4`):** 1280×704 × 81 with the keyframe and the designed voice: 404.8 s, card 6.89 GB, lowest free RAM 9.33 GB, face and voice hold. But the voice starts at frame 0 while the
+  mouth stays in the keyframe's closed smile until about frame 24, stays parted through the pause at frames 30–45, and barely moves after that. One seed, the "voice-over narrator" failure. Likely cause, from Lightricks' code: their A2V stage 1
+  runs with `modality_scale=3.0` (`constants.py`, "improve audio-visual sync" in `multimodal-guidance.md`), an extra pass per step without the audio-video cross-attention. We ran distilled at CFG 1, so the model's sync guidance never ran.
+  Neither PR #1676 nor our plan had it. Now added as `--modality-scale`, stage 1 only, with their rescale of 0.7. Built, not committed, not yet proven: the first run (`queue12.ps1 3 41`) was stopped by Claude Code's
+  low-memory reaper at 11:33:24 on 2026-10-31, 9 s after it started, with only the text encoder's 7 GB loaded and no sampling done, so the guidance never ran. The cause isn't recorded and doesn't look like this run's own
+  memory: the same clip without guidance held 9.33 GB free, and 21.9 GB was free once it had stopped. The JustStage round had finished just before it.
 
 Corrections: klein 4B LoRA needs 12 GB per BFL (was 24). LatentSync is 9,144 MiB in audio.cpp (18 GB is Python). MuseTalk's "4 GB" isn't in its README. sd.cpp ControlNet also
 covers SDXL and Z-Image. Lightricks' `conditioning.md:34` is stale: the guide class is `VideoConditionByReferenceLatent`, so "all one engine feature" holds in shape, with two sizes of
