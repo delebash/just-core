@@ -307,6 +307,6 @@ One idea in the Google answers holds up: a mocap product needs a separate hand m
 | SAM 3D Body with cleanup | Runs here. BlendCap and Mocai look built on it (inference) | Fallback |
 | MoCapAnything V2, CAST | Any skeleton, no body model. Trained on animals and objects. Human hand quality unknown | Worth one test later |
 | Epic MetaHuman plugin | Free, local, commercial use allowed. Closed, Unreal only, static camera, one person | Quality reference, can't be built in |
-| [PoseCap](https://github.com/CorridorTech/PoseCap) | Apache-2.0, with Corridor Digital. Live webcam into Blender through PEAR (needs SMPL-X) or MediaPipe Lite. Pelvis-locked, no world path | Live only, not new to the notes before today |
+| [PoseCap](https://github.com/CorridorTech/PoseCap) | Apache-2.0, with Corridor Digital. Live webcam into Blender through PEAR (needs SMPL-X) or MediaPipe Lite. Pelvis-locked, no world path | Live only. Missing from the earlier notes |
 | EasyMocap | Project Registration License v1.0, read in full: free including commercial use once each project is registered. Single video is 2D fitting with SPIN and HRNet, needs SMPL-family files; its strength is several cameras | Not better for one camera |
 | MMPose, MMHuman3D, MotionBERT | Code Apache-2.0. MotionBERT takes 17 body keypoints and trains on Human3.6M. RTMW's config trains on COCO-WholeBody, marked non-commercial | Not a commercial base as they stand |
