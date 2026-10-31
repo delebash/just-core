@@ -329,6 +329,21 @@ Image points, median error: steady MediaPipe 3.0-3.4 px against RTMW-x 5.0-6.3 p
 
 Checks: the wrong hand scores 29-30 mm, so the left-right mapping holds. On the fast clip the wrist error is lowest at frame offset 0, so the frames line up. SAM 3D Body doesn't under-move fingers; the earlier worry came from MediaPipe over-moving them.
 
-Limits: the "follows" figure on the fast clip is empty, because the real fingers barely moved and that is near the measuring noise. These clips hold small finger movement only. Windows with about 40° of real movement are cut (frames 2338 and 20728) and not yet run. The thumb moved least and scored low on every method.
+Limits: the "follows" figure on the fast clip is empty, because the real fingers barely moved and that is near the measuring noise. The thumb moved least and scored low on every method.
+
+**Big finger movement.** Two more clips, frames 2338 and 20728, where the real index to pinky bends move about 30° (spread) and the fingers open and close. Left hand then right, 1080p unless noted:
+
+| Clip | Method | Shape, mm | Bend error, deg | Follows | Shown |
+|---|---|---|---|---|---|
+| 2338 | SAM 3D Body | 7.3, 7.7 | 9.5, 8.5 | 0.95, 0.95 | 97%, 96% |
+| 2338 | MediaPipe 3D | 11.8, 10.6 | 16.0, 16.0 | 0.87, 0.88 | 103%, 97% |
+| 2338, half size | SAM 3D Body | 8.0, 8.6 | 9.5, 9.0 | 0.95, 0.95 | 98%, 97% |
+| 20728 | SAM 3D Body | 8.5, 8.6 | 11.7, 9.0 | 0.95, 0.91 | 86%, 101% |
+| 20728 | MediaPipe 3D | 13.0, 9.7 | 17.5, 19.2 | 0.80, 0.88 | 110%, 105% |
+| 20728, half size | SAM 3D Body | 8.6, 8.9 | 12.2, 9.6 | 0.95, 0.91 | 87%, 100% |
+
+Image points, median: MediaPipe 3.7-4.5 px, RTMW-x 7.3-9.1 px. Peak card use 4,833-4,918 MiB, desktop included. Smoothing barely changed these scores.
+
+Caveat: both hands open and close together in these clips, so the wrong hand "follows" nearly as well (0.90-0.96). The shape error still separates them, at 27-28 mm. A hand held still while the other moves is untested, as are fingers that move fast: these are slow open-close gestures, and the frame-offset check is flat on them.
 
 **The user's ViTPose, RTMW and YOLO paste, checked at source:** the idea is sound, since keypoints need no MANO, and it is `video2mocap`'s own finger plan. But keypoints are 2D, so depth and rotations still have to be solved. ViTPose's code is Apache-2.0, not MIT, its table lists 2D models, and ViTPose++ weights train on COCO-WholeBody, whose annotations are "ONLY for research and non-commercial use". RTMW needs a person box (it ran that way here) and its dataset mix includes the same annotations. YOLO pose is AGPL or paid, with 2D hand points. GEM-X's own `vitpose.pth` gives 77 2D points including fingers under NVIDIA's commercial licence, which is the clean version of this idea.
