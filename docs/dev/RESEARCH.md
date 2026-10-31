@@ -2812,6 +2812,6 @@ register when it exists) — [`2026-10-24-just-direct-feasibility.md`](../plans/
 
 **just-direct — one-camera mocap, body and hands** (web, code and API reads, plus SAM 3D Body, MediaPipe and RTMW measured
 on this PC) — [`2026-10-31-just-direct-research-mocap.md`](../plans/2026-10-31-just-direct-research-mocap.md), section 10 first;
-notes and query logs in the folder beside it. Video with commercial use allowed: SAM 3D Body. Video, non-commercial: ExMR, then
-FlowHMR, not run here. Live: MediaPipe with a causal filter, which fails on fast blur. RTMW was not better. MediaPipe's hand graph
-has no filter stage; its pose graph does. The test bench is `E:\Dev\Web\just-mocap`.
+notes and query logs in the folder beside it. The goal is a local QuickMagic. Best commercial: GEM-X + EgoHand with Kimodo
+MotionCorrection, not run here, with SAM 3D Body as the fallback. Best non-commercial: ExMR through RGB MoCap, not run here.
+MediaPipe is fast but low quality. Its hand graph has no filter stage; its pose graph does. Test bench: `E:\Dev\Web\just-mocap`.

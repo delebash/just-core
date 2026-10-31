@@ -2,7 +2,7 @@
 
 The user, 2026-10-31: "another app i want to build is signle source mocap like from webcam or video full mocap including hands, i used mediapipe in the past but hands where jittery"; "this whould be part of just direct"; "we can take ideas and write our own code based on techniques from commercial apps".
 
-**Read section 10 first: the audit supersedes anything above or below it that disagrees.** Measured on this PC: SAM 3D Body, MediaPipe and RTMW only. ExMR, FlowHMR, GVHMR and GEM-X are unmeasured. No source reports those on an 8 GB card, so their 8 GB lines are inference. Reddit could not be reached by any tool (a gap in the search). Evidence labels and full tables are in the notes.
+**Read sections 11 and 10 first: section 11 holds the current picks, and the audit supersedes anything else that disagrees.** Measured on this PC: SAM 3D Body, MediaPipe and RTMW only. ExMR, FlowHMR, GVHMR and GEM-X are unmeasured. No source reports those on an 8 GB card, so their 8 GB lines are inference. Reddit could not be reached by any tool (a gap in the search). Evidence labels and full tables are in the notes.
 
 Notes, each with its query log:
 - [`body-world-models.md`](2026-10-31-just-direct-research-mocap-notes/body-world-models.md)
@@ -271,3 +271,30 @@ MediaPipe's label matched RTMW's side on 242 of 242 hands on the violinist and 2
 | Live | **MediaPipe** with a causal filter. Fails on fast blur | RTMW with a hand model on crops, if it proves itself. Unmeasured |
 
 Not proven: SAM 3D Body's root path, any cleanup chain on its output, GEM-X, ExMR or FlowHMR on this card, and everything on the user's own footage. Next engine route to try for the winner: ONNX through the kit. A C++ port only if that fails.
+
+## 11. Picks after the goal was restated (2026-10-31, replaces section 10's table)
+
+The user: "simple a profressional version of ai mocap like quickmagic or many othe online singleshot or video ai to macap that can run on local machine for both commercial and non commercial use"; "best means best quality you can get with acceptable perfomance for my machine"; "ExMR or FlowHMR its oke not to run these yet asw they are not for commercial i what 2 iptions best non commercial best commercial".
+
+These picks come from the existing notes, with no new model research. Neither has run on this PC.
+
+| Option | Pick | Why | Risk |
+|---|---|---|---|
+| Best non-commercial | **ExMR through RGB MoCap** | Best hand numbers in its paper. RGB MoCap's default, with cleanup, retarget and FBX export already built. Moving camera without VGGT. 1m 44s for 25.7 s on an RTX 5090 | Nobody has reported it on 8 GB. Low Memory 3.87 GiB on 60 frames, stronger card. Needs SMPL-X, MANO and Meta's SAM 3D Body file |
+| Best commercial | **GEM-X + EgoHand**, then Kimodo MotionCorrection and the SOMA smoother | The only commercial-use option found with motion over time, a world path and fingers. No registration | Old release lost to GVHMR; the new one has no real-footage test. EgoHand is tested on first-person video only and its card lists Linux. VRAM unpublished. Clips up to 60 s, one person, rotation-only camera |
+
+Attack on ExMR against FlowHMR: FlowHMR won its own blind study and one independent user's eye, so it may be better on body motion. But it took 7m 32s on the same clip and card, and its moving-camera stage wants about 30 GB of free RAM on a 32 GB PC. No source compares their hands. ExMR stands for this machine.
+
+Withdrawn: SAM 3D Body as the commercial pick, because it works frame by frame with no motion model and no foot contacts. It stays the fallback. MediaPipe is withdrawn as a quality option. Section 10's jitter tables show steadiness only and decide nothing.
+
+**Accuracy evidence found late:**
+- MediaPipe against an 11-camera Vicon system: 22.5° RMSE against Leap Motion 2's 14.8°, correlation 0.45, falling from 0.55 at 0.5 Hz to 0.36 at 1.5 Hz ([PMC12473350](https://pmc.ncbi.nlm.nih.gov/articles/PMC12473350/), page read).
+- Baby Grow, Behavior Research Methods 2026, newborn video: RTMPose most accurate, MediaPipe fastest (search summary, the PDF refused the fetch).
+
+**The user's pasted Google answers, checked at source:**
+- FreeMoCap is AGPL-3.0, not MIT. One camera uses a "planar projection fallback" (`posthoc_mocap_task.py:75-79`). The "worse than just 2d" quote is a 2024 collaborator comment, not a current statement.
+- WHAM's code is MIT, but it needs SMPL, has no hands and was last pushed 2024-04. A code search of its repo finds no MotionBERT; its README names ViTPose and DPVO or DROID-SLAM.
+- MotionBERT takes 17 body keypoints, so no fingers. YOLOv8 (`ultralytics`) is AGPL-3.0. VideoPose3D is archived with no standard licence detected. MMPose and MMHuman3D are Apache-2.0, last pushed 2025-08 and 2024-11.
+- MediaPipe as fastest and lower quality matches the evidence above.
+
+Two things in the Google answers hold up as ideas: discarding the body mesh doesn't lift the model files' terms, but the point that a mocap product needs a separate hand model on crops agrees with `hands.md`.
