@@ -281,7 +281,7 @@ These picks come from the existing notes, with no new model research. Neither ha
 | Option | Pick | Why | Risk |
 |---|---|---|---|
 | Best non-commercial | **ExMR through RGB MoCap** | Best hand numbers in its paper. RGB MoCap's default, with cleanup, retarget and FBX export already built. Moving camera without VGGT. 1m 44s for 25.7 s on an RTX 5090 | Nobody has reported it on 8 GB. Low Memory 3.87 GiB on 60 frames, stronger card. Needs SMPL-X, MANO and Meta's SAM 3D Body file |
-| Best commercial | **GEM-X + EgoHand**, then Kimodo MotionCorrection and the SOMA smoother | The only commercial-use option found with motion over time, a world path and fingers. No registration | Old release lost to GVHMR; the new one has no real-footage test. EgoHand is tested on first-person video only and its card lists Linux. VRAM unpublished. Clips up to 60 s, one person, rotation-only camera |
+| Best commercial | **GEM-X + EgoHand**, with `video2mocap` as the cleanup base, then Kimodo MotionCorrection and the SOMA smoother | The only commercial-use option found with motion over time, a world path and fingers. No registration. Trained on NVIDIA-owned synthetic data, by `video2mocap`'s survey | Old release lost to GVHMR; the new one has no real-footage test. EgoHand is tested on first-person video only and its card lists Linux. Clips up to 60 s, one person, rotation-only camera. One 8 GB report only: RTX 3050, about 5 minutes per 10 s per person, older GEM-X through WSL2 |
 
 Attack on ExMR against FlowHMR: FlowHMR won its own blind study and one independent user's eye, so it may be better on body motion. But it took 7m 32s on the same clip and card, and its moving-camera stage wants about 30 GB of free RAM on a 32 GB PC. No source compares their hands. ExMR stands for this machine.
 
@@ -297,4 +297,16 @@ Withdrawn: SAM 3D Body as the commercial pick, because it works frame by frame w
 - MotionBERT takes 17 body keypoints, so no fingers. YOLOv8 (`ultralytics`) is AGPL-3.0. VideoPose3D is archived with no standard licence detected. MMPose and MMHuman3D are Apache-2.0, last pushed 2025-08 and 2024-11.
 - MediaPipe as fastest and lower quality matches the evidence above.
 
-Two things in the Google answers hold up as ideas: discarding the body mesh doesn't lift the model files' terms, but the point that a mocap product needs a separate hand model on crops agrees with `hands.md`.
+One idea in the Google answers holds up: a mocap product needs a separate hand model on crops, which agrees with `hands.md`. Discarding the body mesh doesn't lift the model files' terms.
+
+**Other tools checked for the commercial option. Plain searches for "local QuickMagic alternative" were first run here, after the user asked; they returned FreeMoCap, EasyMocap, RGB MoCap, BlendCap, `mixamo-llm-mocap` and paid Blender add-ons.**
+
+| Tool | Finding | Verdict |
+|---|---|---|
+| [`video2mocap`](https://github.com/freddysae0/video2mocap) | Apache-2.0, 0 stars, one author, v0.2. Commercial-clean GEM-X with tracking, smoothing, contacts, foot lock, review sheets, keyframe editor, BVH and FBX. Runs the pre-October GEM-X (`demo_soma_onnx.py`), static camera, no fingers yet, Linux or WSL2. README read in full; the earlier notes used only one line of it | Closest open code to the commercial goal. Base to read and adapt |
+| SAM 3D Body with cleanup | Runs here. BlendCap and Mocai look built on it (inference) | Fallback |
+| MoCapAnything V2, CAST | Any skeleton, no body model. Trained on animals and objects. Human hand quality unknown | Worth one test later |
+| Epic MetaHuman plugin | Free, local, commercial use allowed. Closed, Unreal only, static camera, one person | Quality reference, can't be built in |
+| [PoseCap](https://github.com/CorridorTech/PoseCap) | Apache-2.0, with Corridor Digital. Live webcam into Blender through PEAR (needs SMPL-X) or MediaPipe Lite. Pelvis-locked, no world path | Live only, not new to the notes before today |
+| EasyMocap | Project Registration License v1.0, read in full: free including commercial use once each project is registered. Single video is 2D fitting with SPIN and HRNet, needs SMPL-family files; its strength is several cameras | Not better for one camera |
+| MMPose, MMHuman3D, MotionBERT | Code Apache-2.0. MotionBERT takes 17 body keypoints and trains on Human3.6M. RTMW's config trains on COCO-WholeBody, marked non-commercial | Not a commercial base as they stand |

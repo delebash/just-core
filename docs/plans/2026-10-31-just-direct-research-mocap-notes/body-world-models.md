@@ -232,7 +232,7 @@ SAM alone: Original chunk 1 is 154.45 s at 4.10 GiB; Lite chunk 4 is 34.71 s at 
 
 ### Gaps
 
-- **No report found of any top model on an RTX 2070 Super or any 8 GB card.** Every 8 GB row above is inference from stronger cards.
+- **No report found of any top model on an RTX 2070 Super.** Corrected 2026-10-31: `video2mocap`'s README reports the older GEM-X on an RTX 3050 8 GB with 16 GB RAM through WSL2, about 5 minutes per 10 s of video per person. Every other 8 GB row above is inference from stronger cards.
 - GEM-X upstream VRAM has no number anywhere found.
 - Peak-allocated PyTorch figures understate real board use; driver and desktop overhead are extra.
 - Multi-minute clips: FlowHMR's RAM and VRAM growth is partly addressed by query batching; ExMR long-clip VRAM not reported.
