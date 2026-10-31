@@ -183,3 +183,5 @@ Reading it:
 Checked by eye on two frames (`out/check-hands.png`): every finger on the right hand, including both hands interlaced around the glass and the raised hand gripping it. The full overlay is `out/sam3d-overlay.mp4`, the OpenPose-style render a pose guide would use.
 
 Not shown yet: fast motion, full-body shots with small hands, moving camera, world position. SAM 3D Body gives no world position.
+
+**Not run: GEM-X + EgoHand.** The permission system refused the install as code from outside, and it was not retried. The setup script is `E:\Dev\Web\test-just-direct\mocap\setup_gemx.sh`, unrun, and nothing of GEM-X is on this PC. The RGB MoCap step needs the same kind of install.
