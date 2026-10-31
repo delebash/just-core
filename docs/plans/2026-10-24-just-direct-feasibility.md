@@ -738,6 +738,21 @@ Known gap in all six: Reddit was blocked, so user reports are second-hand. Re-ch
 | 10 | Scene | 3DREAL on LTX-2.3 is the 8 GB pick; Layout-To-Render's recipe prices 15 GiB, so 16 GB and up | Needs the sd.cpp guide; H3 and Wan VACE 1.3B baselines need no code |
 | 11 | Audio | audio.cpp has no CPU offload, so ACE-Step's "<4 GB" doesn't carry over; BF16 is slow on Turing | Stable Audio 3 Medium Q8, then ACE-Step Turbo Q8 |
 
+### J.2 · The no-code tests (*measured, 2026-10-30, this PC; frames viewed by Claude, clips not yet judged by the user*)
+
+The user: "go on the engine work after the no-code tests your rec all go". Scripts: `test-just-direct/queue6.ps1`, `queue7.ps1`, `queue8.ps1`; logs beside them.
+
+- **Cast, set and prop in one keyframe works on FLUX.2 klein 4B Q8 (`jd` build).** Three `-r` at 1280×704: 45–49 s, card 7.1–7.2 GB, 14.9 GB RAM; small references
+  (`vae_input_max_pixels=262144`) 20 s, card 6.7 GB, as good by eye. Hair, jacket and strap hold; freckles come out lighter than the reference; one seed added a watch; notebook
+  colour and clasp hold, the compass usually hidden; table and plant move between seeds.
+- **Set lock works.** `-i set --mask --strength 1 -r set -r actor -r prop`: 47 s, no visible seam, table, plant and lamps fixed; 33.3–36.2 dB against the set outside the mask.
+- **Three shots in a row work.** Keyframes, then LTX picture-to-video on `jd`: 388–391 s a clip, identity holds across the shots and inside each clip at frames 0, 60, 120. A
+  background car changed inside clip 1. `out/seq-joined.mp4`.
+- **The longer pass failed at 720p.** LTX 193 frames: stage 1 ran, stage 2 failed: "need 3663.85 MB device / 3497.18 MB budget"; 241 frames: need 4408.30 MB. The report's "241 to 361 may
+  fit" was wrong. Nothing past 121 frames has completed. Stage 1 is not the limit.
+- **Voice first on H3 ran with no engine work.** Qwen3-TTS VoiceDesign line 3.28 s, then H3 Ref2VA with `fully_copy` at 864×480 × 90 frames: 268 s, face strong, mouth moving. Sync and
+  whether H3 kept the audio are for the user to judge. `out/h3-lipsync-41.mp4`, `-42.mp4` (the real wav is muxed on).
+
 Corrections: klein 4B LoRA needs 12 GB per BFL (was 24). LatentSync is 9,144 MiB in audio.cpp (18 GB is Python). MuseTalk's "4 GB" isn't in its README. sd.cpp ControlNet also
 covers SDXL and Z-Image. Lightricks' `conditioning.md:34` is stale: the guide class is `VideoConditionByReferenceLatent`, so "all one engine feature" holds in shape, with two sizes of
 work, factor 1 in `video.cpp` and factor 2 also in `ltxv.hpp`. Layout-To-Render keeps the guide on both stages. The kit's law on JSON enforcement with thinking is outdated for
