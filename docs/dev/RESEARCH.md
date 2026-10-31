@@ -2809,3 +2809,8 @@ target tree are in [`../plans/archive/`](../plans/archive/).
 
 **just-direct — ArtCraft, and video/3D/voice/music models on an 8 GB card** (no repo yet; moves to the app's
 register when it exists) — [`2026-10-24-just-direct-feasibility.md`](../plans/2026-10-24-just-direct-feasibility.md).
+
+**just-direct — one-camera mocap, body and hands** (web, code and API reads, nothing measured here) —
+[`2026-10-31-just-direct-research-mocap.md`](../plans/2026-10-31-just-direct-research-mocap.md), notes and query logs in the
+folder beside it. ExMR and FlowHMR lead for video, GVHMR + HandFlow is the 8 GB candidate, RTMW is the live candidate.
+MediaPipe's hand graph has no filter stage; its pose graph does.
