@@ -33,6 +33,27 @@ Method labels: **code** read in the source, **card** from the model's card, **us
 4. MotionDeblur as a repair on the best clip.
 5. **Movie shot set:** dialogue close-up, two people talking, crowd, animals, hands at work, dance, water, fire, night exterior, wide landscape, a creature, stylized animation.
 
+## 3.1 Movie shot set, first pass (*measured, 2026-10-31; `queue21.ps1`; viewed by Claude as frame sheets, not judged by the user*)
+
+Each shot: a klein 4B keyframe (11–13 s), then LTX-2.3 distilled one pass, 1280×704 × 97 frames (4 s), `diffusion=disk,te=disk`. **377–389 s a clip, seed 11, every run clean.** Files: `out/movie-<name>.mp4`.
+
+| Shot | How it looks | Weak point |
+|---|---|---|
+| `twoshot`, two people talking | Natural; faces and hands hold | Lip fit not checked |
+| `crowd`, packed market | Very strong: hundreds of people stay coherent | Sign text is fake |
+| `horse`, gallop on a beach | Strong: legs, spray, silhouette | The sun moves oddly behind the head |
+| `hands`, chef chopping | Very strong: fingers correct, the carrot really slices | None seen in the sheet |
+| `dance`, ballet leap | Strong | Slightly stiff |
+| `ocean`, ship in a storm | Strong: rigging and lightning hold | The ship barely climbs the wave |
+| `fire`, firefighter | Strong | The model cut to a new angle by itself |
+| `alley`, rain and neon | Strong | Walks toward camera, not away; the keyframe decided that. Fake signs |
+| `vista`, mountains | Beautiful | Almost no camera move, though a flight was asked for |
+| `dragon`, over a castle | Beautiful, creature holds | Wrong action: fire from the wrong end, then it leaves frame |
+| `anime`, rooftop run | Style holds completely | Stiff: the pose barely changes, then a sudden reframe |
+| `scifi`, corridor and robot | Strong: suit, corridor and lights hold | The robot follows behind her instead of stepping out of a door |
+
+**Pattern:** the look is strong across all of it, far ahead of what the keyframe alone would suggest. The weak side is control: exact actions, camera moves, and the model cutting by itself. That matches the users' "great quality, weak motion", and it is what guides and Motion Track address. Lightricks' camera-control LoRAs exist for LTX-2 19B; check for 2.3. Text in a shot is unreliable, so titles and signs need a post step.
+
 ## 4. Query log
 
 - "best AI video model for fast action scenes fight scenes 2026" -> vendor lists: Seedance 2.0 and Kling 3 for fights (overchat, a seller), Veo 3.1 general. No head-to-head.
