@@ -2810,7 +2810,8 @@ target tree are in [`../plans/archive/`](../plans/archive/).
 **just-direct — ArtCraft, and video/3D/voice/music models on an 8 GB card** (no repo yet; moves to the app's
 register when it exists) — [`2026-10-24-just-direct-feasibility.md`](../plans/2026-10-24-just-direct-feasibility.md).
 
-**just-direct — one-camera mocap, body and hands** (web, code and API reads, nothing measured here) —
-[`2026-10-31-just-direct-research-mocap.md`](../plans/2026-10-31-just-direct-research-mocap.md), notes and query logs in the
-folder beside it. ExMR and FlowHMR lead for video, GVHMR + HandFlow is the 8 GB candidate, RTMW is the live candidate.
-MediaPipe's hand graph has no filter stage; its pose graph does.
+**just-direct — one-camera mocap, body and hands** (web, code and API reads, plus SAM 3D Body, MediaPipe and RTMW measured
+on this PC) — [`2026-10-31-just-direct-research-mocap.md`](../plans/2026-10-31-just-direct-research-mocap.md), section 10 first;
+notes and query logs in the folder beside it. Video with commercial use allowed: SAM 3D Body. Video, non-commercial: ExMR, then
+FlowHMR, not run here. Live: MediaPipe with a causal filter, which fails on fast blur. RTMW was not better. MediaPipe's hand graph
+has no filter stage; its pose graph does. The test bench is `E:\Dev\Web\just-mocap`.

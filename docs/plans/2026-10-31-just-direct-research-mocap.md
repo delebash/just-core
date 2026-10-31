@@ -23,7 +23,7 @@ The field moved past the pasted pipeline in 2026. The recipe now: track the pers
 | Video, best overall motion | **FlowHMR** (code 2026-09-29) | Wins 61.5-79.2% of blinded pairwise human judgements against GVHMR, PromptHMR, GENMO, DuoMo (paper: pairs from a pool of 500 videos, annotator count not stated). Physics tracking 82.47% on 4,182 clips against 62.82% for GVHMR (paper). Physics is trained into the weights, no simulator at run time | SMPL-H. Code Apache-2.0, weights non-commercial. Heavy: 24-31 GB dense moving camera, 2.77 GiB Low Memory on 60 frames (user) |
 | Video, 8 GB floor | **GVHMR + HTD Refine + FootMR + HandFlow** | Peak 5.08 GiB allocated, 12.5 GiB RAM on a 25.7 s clip (user, RTX 5090, Windows; RGB MoCap's defaults, and its table is marked historical). Fallback: ExMR Low Memory | SMPL-X + MANO. GVHMR research and non-profit, HTD Refine AGPL-3.0, HandFlow MIT |
 | No registration | **GEM-X + EgoHand** | SOMA body, no account. Hand filter halves acceleration error (paper) | NVIDIA Open Model License, OpenMDW-1.1. The previous release lost to GVHMR by 22 mm MPJPE in the one same-protocol test; the 2026-10-20 release has no real-data benchmark |
-| Live webcam | **MediaPipe with a causal filter and our own IK**, corrected by the audit | Measured steadier than RTMW on fingers, 22-30 ms a frame on the CPU, clean licence. It fails on fast, blurred motion. RTMW with a hand model on crops and PEAR stay unmeasured | Apache-2.0 |
+| Live webcam | **MediaPipe with a causal filter and our own IK**, corrected by the audit | Steadier than RTMW on the violinist and mixed on the guitarist, 22-30 ms a frame on the CPU, clean licence. It fails on fast, blurred motion. RTMW with a hand model on crops and PEAR stay unmeasured | Apache-2.0 |
 | Foot and contact fix | **Kimodo `MotionCorrection`** | C++17, CPU, rig-agnostic; root warp, IK, ADMM pop removal | Apache-2.0 |
 | Rotation smoothing | **SOMA-X RTS smoother on SO(3)** | Looks both ways, no lag, separate gains for hands | Apache-2.0, offline |
 | Self-collision | **Momentum capsule collision terms** | Training-free, no balance needed | MIT. Capsules reduce clipping, they can't promise none |
@@ -208,8 +208,8 @@ The user, after the "lost a hand" error: "this makes me think you do bad judgmen
 | # | What was said | What is true |
 |---|---|---|
 | 1 | MediaPipe lost a hand in 84 frames | That hand is out of frame. MediaPipe was right. SAM 3D Body's hand there is a guess |
-| 2 | SAM 3D Body is 3-5x steadier | True on one clip only. See the table below |
-| 3 | RTMW + hand crops is the live pick, 30 fps | Unsupported. RTMW alone is about 3x jitterier than MediaPipe on fingers. 34 ms inference, so about 26 fps at best for the -x model. Crops untested |
+| 2 | SAM 3D Body is 3-5x steadier | True on the woman's clip only (4.6x, 4.9x). On the violinist it is 2.6x on one hand and equal on the other. The dancer can't be compared. See the table below |
+| 3 | RTMW + hand crops is the live pick, 30 fps | Unsupported. RTMW alone is about 4x jitterier than MediaPipe's image points on the violinist and mixed on the guitarist (1.4x steadier on one hand, 2.5x worse on the other). 34 ms inference, so about 26 fps at best for the -x model. Crops untested |
 | 4 | RTMW is fine for commercial use | Code and the ONNX host say Apache-2.0, but its config trains on COCO-WholeBody, "**ONLY** for research and non-commercial use" |
 | 5 | 4.9 GB, then "6.1 GB is the honest peak" | Clean runs: 3.7-4.8 GB, desktop included. The 6.1 GB run did not reproduce; its cause is unknown |
 | 6 | Violinist's hands are large; woman's are about 170 px | Median 77 px and 146 px, measured from landmarks |
@@ -236,16 +236,28 @@ The user, after the "lost a hand" error: "this makes me think you do bad judgmen
 
 Person detection adds about 3.4 s for 150 frames (9.3 s cold). The other clips at batch 8, 121 frames: 0.32-0.35 s a frame, peak 4,609-4,812 MiB.
 
-**Finger jitter, matched joints, degrees per frame² (inner 10 finger joints, two hands):**
+**Finger jitter, re-scored after a re-read of the audit's own scripts (`bench/matched_hands.js`).** The first table here had three faults, all found the same day:
+- Its "MediaPipe 2D" dropped z from the world landmarks, while RTMW used image pixels. Both now use image pixels.
+- Hand order differed by column, so the violinist's pairs were crossed.
+- Each method was scored on its own frames. A frame now counts only if every method has it and the two before it.
 
-| Clip | Hand, median | SAM 3D Body raw | SAM 3D Body smoothed | MediaPipe 3D raw | MediaPipe 2D raw | RTMW-x 2D raw |
-|---|---|---|---|---|---|---|
-| Woman with glass | 146 px | 1.74, 2.40 | 0.32, 0.56 | 10.26, 8.56 | 9.67, 8.79 | not run |
-| Violinist | 77 px | 3.48, 1.18 | 1.07, 0.35 | 3.11, 3.77 | 3.57, 4.45 | 12.80, 9.80 |
-| Dancer | 63 px | 7.22, 12.03 | 3.12, 5.18 | 44.9, 58.0, 23 frames only | 43.8, 86.3 | 94.5, 106.6 |
-| Guitarist | 87 px | void: person switching | void | 12.47, 10.84 | 26.5, 24.8 | 11.5, 23.2 |
+Degrees per frame², inner 10 finger joints, person's left hand then right, Savitzky-Golay smoothing:
 
-No clip has ground truth, so this is steadiness, not accuracy. The clips look AI-made or stock and none is the user's. Smoothing on the woman's clip is Gaussian, on the others Savitzky-Golay. MediaPipe's labels swapped 10 times on the dancer and 5 on the guitarist, so tracks were followed by nearest wrist. On the woman's clip 3D and 2D jitter match, so depth noise is not shown to be its main jitter source.
+| Clip | Hand, median | Usable frames | SAM 3D Body raw | SAM 3D Body smoothed | MediaPipe 3D raw | MediaPipe image raw | RTMW-x image raw |
+|---|---|---|---|---|---|---|---|
+| Woman with glass | 146 px | 62, 148 | 2.25, 1.76 | 0.94, 0.48 | 10.26, 8.56 | 7.49, 4.88 | not run |
+| Violinist | 77 px | 119, 119 | 1.18, 3.48 | 0.35, 1.07 | 3.11, 3.77 | 3.02, 2.71 | 12.80, 9.80 |
+| Guitarist | 87 px | 106, 119 | void: person switching | void | 10.84, 12.47 | 16.09, 9.47 | 11.24, 23.21 |
+| Dancer | 63 px | 5, 1 | no comparison | no comparison | no comparison | no comparison | no comparison |
+
+MediaPipe has too few runs of three frames in a row on the dancer, so the earlier dancer figures for all three methods can't be compared.
+
+**Steadiness isn't accuracy, and this data shows the risk.** No clip has ground truth. The clips look AI-made or stock and none is the user's. Three checks from the same run:
+- SAM 3D Body's and MediaPipe's bends barely agree: median correlation 0.40 at best on the same hand, and the side mapping is only weakly shown (dancer, woman and guitarist favour it, the violinist is neutral). At least one of them isn't following the real fingers.
+- SAM 3D Body's fingers move less: its spread is about half MediaPipe's image spread on the woman and on the violinist's left hand (3.65 against 8.64). So part of its steadiness may be fingers that barely move. It needs a test with known finger motion.
+- MediaPipe's image points are steadier than its world points on 5 of 6 hands, so a live solve should start from image points.
+
+MediaPipe's label matched RTMW's side on 242 of 242 hands on the violinist and 226 of 229 on the guitarist, but only 16 of 29 on the dancer. Side comes from RTMW's wrists where it ran, from MediaPipe's label on the woman's clip.
 
 **MediaPipe with wrist crops, tried on the CPU:** dancer 24 and 20 of 121 frames, barely better than 23. Violinist 110 and 117, worse than full frame. Guitarist's left hand 48, worse. 44-59 ms a frame. The crop sizes were chosen here, not XR Animator's, so this tests the idea rather than that app.
 
