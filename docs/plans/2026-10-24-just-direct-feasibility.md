@@ -753,6 +753,16 @@ The user: "go on the engine work after the no-code tests your rec all go". Scrip
 - **Voice first on H3 ran with no engine work.** Qwen3-TTS VoiceDesign line 3.28 s, then H3 Ref2VA with `fully_copy` at 864×480 × 90 frames: 268 s, face strong, mouth moving. Sync and
   whether H3 kept the audio are for the user to judge. `out/h3-lipsync-41.mp4`, `-42.mp4` (the real wav is muxed on).
 
+### J.3 · Engine work, first round (*measured, 2026-10-30*; `jd` merged to master-1028, clean merge, `E:\Dev\Web\stable-diffusion.cpp`)
+
+- **Baseline on the new engine:** the seq1 clip ran 390 s (`nb-seq1`), the same as before. Old build kept in `build-jd-1004`.
+- **The longer pass is worse on the new engine.** 145 frames: stage 1 ran, stage 2 failed, "need 3671.85 MB device / 2910.29 MB budget". The old build failed at 193 frames, 166 MB short. Stage 1 is never the limit.
+- **IC-LoRA guide, factor 1, in `src/pipeline/video.cpp`:** `--control-video <dir>` now works on LTX; guide frames share the target's time positions, sit at mask 0, are cropped
+  with the LoRA cleared before the upscaler. A still is held for the whole clip, so an Ingredients sheet needs no extra step. NOT STANDARD until upstream takes it.
+- **First run, 3DREAL Strong v2 on a gray Blender blockout (`blockout.py`, `out/gray1`), 1280×704 × 121:** LoRA loaded, guide encoded, stage 1, upscale and stage 2 (147.68 s) and audio decode all
+  finished on 8 GB. Claude Code then stopped the job during video decode because the system was critically low on memory. No clip yet. `ltx-talk` stopped at the same step on 2026-10-28.
+  Fix to try: `--params-backend diffusion=disk` (§G: held 11.5 GB free, about 20 % slower).
+
 Corrections: klein 4B LoRA needs 12 GB per BFL (was 24). LatentSync is 9,144 MiB in audio.cpp (18 GB is Python). MuseTalk's "4 GB" isn't in its README. sd.cpp ControlNet also
 covers SDXL and Z-Image. Lightricks' `conditioning.md:34` is stale: the guide class is `VideoConditionByReferenceLatent`, so "all one engine feature" holds in shape, with two sizes of
 work, factor 1 in `video.cpp` and factor 2 also in `ltxv.hpp`. Layout-To-Render keeps the guide on both stages. The kit's law on JSON enforcement with thinking is outdated for
