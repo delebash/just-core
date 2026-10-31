@@ -43,6 +43,7 @@ Always `--params-backend diffusion=disk,te=disk`, and `--vae-tiling --vae-tile-s
 
 ## Waiting on the user
 
+- The review page: `http://127.0.0.1:18190/review.html`, served by `node E:\Dev\Web\test-just-direct\review-server.js`; start it again if the session that ran it has ended. It shows 23 clips, 10 sounds and the three AI plans, each with click answers and an Other box. Answers save by themselves to `E:\Dev\Web\test-just-direct\review-answers.json`, so read that file when the user says they're done; `E:\Dev\Web\test-just-direct\review-data.js` holds the questions.
 - Watch and listen; the full list of clips is below. Nothing has been judged by the user except earlier clips. Lip fit, music, sound effects and the AI's plans all need their eye or ear.
 - Earlier work still unjudged: `E:\Dev\Web\test-just-direct\out\seq-joined.mp4`, `E:\Dev\Web\test-just-direct\out\h3-lipsync-41.mp4`.
 
