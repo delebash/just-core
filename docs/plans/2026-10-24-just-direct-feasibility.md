@@ -694,7 +694,7 @@ So: no app code until this list is green. Nomi stays a reference. Before each te
 | 9 | Stronger consistency | LTX Ingredients exists, sd.cpp can't run it | Add the IC-LoRA guide to sd.cpp, then measure on 8 GB |
 | 10 | AI uses a 3D scene | Layout-To-Render needs LTX-2.5, never run here; H3 takes a reference video, untried | Measure LTX-2.5, then a gray-clip test |
 | 11 | Music and sound effects | Not measured on this PC | ACE-Step and sound effects through audio.cpp |
-| 14 | One-camera mocap, body and hands | SAM 3D Body runs here: 0.32 s a frame with hands at 4.9 GB on a sample clip, finger jitter 4-5x below MediaPipe raw. The user, 2026-10-31: "signle source mocap like from webcam or video full mocap including hands"; "this whould be part of just direct". Research: `2026-10-31-just-direct-research-mocap.md` | No-registration runs first (SAM 3D Body, GEM-X + EgoHand), then RGB MoCap on a real clip of the user once SMPL-X and MANO are registered, then one real shot through route A or B |
+| 14 | One-camera mocap, body and hands | SAM 3D Body runs here: 0.32 s a frame with hands at 4.9 GB on a sample clip, finger jitter 3-5x below MediaPipe raw, about 2x below once both are smoothed. Bench: E:\Dev\Web\just-mocap. The user, 2026-10-31: "signle source mocap like from webcam or video full mocap including hands"; "this whould be part of just direct". Research: `2026-10-31-just-direct-research-mocap.md` | No-registration runs first (SAM 3D Body, GEM-X + EgoHand), then RGB MoCap on a real clip of the user once SMPL-X and MANO are registered, then one real shot through route A or B |
 
 Cloud is left to the end: paid models need no proof that they run. Replaces the Nomi AI test: item 7 proves the same risk directly, with no bridge.
 

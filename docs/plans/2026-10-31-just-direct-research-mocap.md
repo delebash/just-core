@@ -165,20 +165,33 @@ The hands-on batch 8 run reused the loaded models, so its figure excludes load t
 
 Finger jitter, scored the same way for both: each finger joint's bend angle over time, RMS second difference in degrees per frame², median across joints. Spread is that angle's standard deviation, so a frozen hand can't look best.
 
-| Method | Jitter, hand 1 | Jitter, hand 2 | Spread | Hand found |
-|---|---|---|---|---|
-| SAM 3D Body, raw | 1.47 | 1.87 | 3.7, 4.2 | 150 of 150 (both) |
-| SAM 3D Body, Gaussian window 7 | 0.26 | 0.56 | 3.6, 4.2 | 150 of 150 (both) |
-| MediaPipe, raw | 8.21 | 7.37 | 6.1, 8.9 | Left 66 of 150, right 150 of 150 |
-| MediaPipe, Gaussian window 7 | 0.73 | 0.74 | 4.7, 8.2 | Same |
-| MediaPipe, One Euro (causal, as live) | 1.70 | 1.51 | 5.2, 8.2 | Same |
+**Corrected the same day.** The first version of this section scored all 150 frames and said MediaPipe lost a hand in 84 of them. That was wrong: in frames 38-121 the second hand is below the frame, so MediaPipe was right to report one hand, and SAM 3D Body's second hand there is a guess. These rows score visible hands only: both hands in frames 0-37 and 122-149, the raised hand in 38-121.
+
+| Method | Jitter across the visible windows | Fit for |
+|---|---|---|
+| SAM 3D Body, raw | 1.0-2.2 | |
+| SAM 3D Body, Gaussian window 7 | 0.21-0.52 | Offline |
+| MediaPipe, raw | 5.9-11.4 | |
+| MediaPipe, Gaussian window 7 | 0.40-0.97 | Offline |
+| MediaPipe, One Euro (causal) | 1.2-2.5 | Live |
 
 Reading it:
-- SAM 3D Body raw is 4 to 5 times steadier than MediaPipe raw.
-- Most of MediaPipe's jitter on this clip goes with a filter, which fits the source: its hand graph has none.
-- The real gap left is coverage: MediaPipe lost one hand in 84 of 150 frames. SAM 3D Body kept both.
-- MediaPipe's higher spread is at least partly noise, since Gaussian smoothing cut the left hand's from 6.1 to 4.7. It can't be read as more real motion. Joint sets differ slightly (17 against 15), and handedness labels weren't matched between the two.
+- SAM 3D Body raw is about 3 to 5 times steadier than MediaPipe raw, and about twice as steady once both are smoothed.
+- Most of MediaPipe's jitter on this clip goes with a filter, which fits the source: its hand graph has none. A live One Euro filter brings it to about SAM 3D Body's raw level.
+- There is no ground truth on this clip, so these are steadiness numbers, not accuracy. Joint sets differ slightly (17 against 15), and handedness labels weren't matched.
 - 21.6 ms a frame for MediaPipe on the CPU, so it is the live option on speed. SAM 3D Body at 0.32 s a frame is about 3 fps here: offline only.
+
+MediaPipe alone on the harder sample clips (likely AI-made, CPU, 22-30 ms a frame, raw):
+
+| Clip | Frames with a hand found | Both hands | Jitter |
+|---|---|---|---|
+| Street dancer: full body, fast, small hands | 23 of 121, switching 30 times | 6 | 36 |
+| Violinist: hands large, quick fingers | 121 of 121 | 121 | 3.0-3.7 |
+| Subway guitarist: hands medium | 121 of 121 | 108 | 8.0-12.9 |
+
+The dancer's hands are in view in the sampled frames, so that miss is real. A filter can't fill it: most frames have nothing to smooth.
+
+MediaPipe's model files have not changed since 2023 (Google Storage last-modified: hand 2023-04-26, pose 2023-04-28, face 2023-05-03, holistic 2023-12-21), while its releases carry on (v1.2.0, 2026-10-28). The recent hand-folder commits found are code clean-ups and doc notes.
 
 Checked by eye on two frames (`out/check-hands.png`): every finger on the right hand, including both hands interlaced around the glass and the raised hand gripping it. The full overlay is `out/sam3d-overlay.mp4`, the OpenPose-style render a pose guide would use.
 
