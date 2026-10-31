@@ -349,7 +349,7 @@ before we build so run whatever tests you need to"; licences aside for now.
   - FLUX.3 klein ran after the 7.7 GB failure above: `id-flux3-{train,books,lamp}.png`, `id-sheet-2.png`,
     `k3-cafe-close.png` (20 s: text 1.9, sampling 14.2, decode 1.3).
 - **Open:** the voice and long-take tests have no output in `out/` (`take.js` and `voice.ps1` exist); `ltx-talk.log`
-  stops during model load with no result; Qwen-Image 2.1 in the stills sheet not checked.
+  reached video decode and ends there with no output (was: "stops during model load"); Qwen-Image 2.1 in the stills sheet not checked.
 
 ## I · Fork or write our own (*web and code, 2026-10-30*; the answer here is a rec, not a decision)
 
@@ -717,6 +717,31 @@ anyone". So 8 GB is the floor, not the target: each feature needs a working opti
 8. "best open source AI music generator 2026" → MusicGen in AudioCraft, Stable Audio; ACE-Step did not appear here but is already in §B.
 9. "open source AI sound effects generator 2026" → AudioGen in AudioCraft; commercial tools otherwise.
 Not checked yet: whether Sonic, LivePortrait, Sana and AudioCraft have a runtime without Python. A gap in these searches is a gap in the searches.
+
+### J.1 · The verified round (*2026-10-30: six researchers read code and checked weights; nothing was run, every 8 GB outlook is reasoning*)
+
+The user: "check code find that latest best tecniques and verify them its useless just to list them if you cant actually reproduce them, test them, verify
+someones claims". Each report has ranked candidates, the best per hardware tier, exact tests, what could not be verified, and its query log:
+[consistency](2026-10-30-just-direct-research-consistency.md) · [talking](2026-10-30-just-direct-research-talking.md) ·
+[long takes](2026-10-30-just-direct-research-longtake.md) · [scene](2026-10-30-just-direct-research-scene.md) ·
+[images](2026-10-30-just-direct-research-images.md) · [planner and audio](2026-10-30-just-direct-research-planner-audio.md).
+Known gap in all six: Reddit was blocked, so user reports are second-hand. Re-checked by hand: `ic_lora.py` uses `VideoConditionByReferenceLatent`;
+`fal/LTX-2.3-3DREAL-LoRA` exists, ungated; `ltx-talk.log` reached decode; the audio.cpp source has LatentSync; sd.cpp's latest build is master-1028.
+
+| # | Feature | What changed | Best next test |
+|---|---|---|---|
+| 4 | Keyframes | Cast, set and prop together never run; FLUX 3 needs BFL's caption step and a newer build; `--mask` can lock the set | klein 4B with three references, then a set lock (no code, on disk) |
+| 5 | Talking | Voice first: TTS, then the model draws the mouth from it. `voice.ps1` drops to fourth | H3 `fully_copy` at 480p (no code); LTX A2V needs a small sd.cpp addition and a fix PR #1676 lacks |
+| 6 | Long takes | `take.js` ranks 13th of 18. Nothing past 121 frames has been tried | One longer pass, 193 to 361 frames (no code); then latent carry windows, Lightricks' `chunks` |
+| 7 | Planning | Only `response_format` forces a schema; `tools` can't on Gemma 4, and `required` doesn't force a call on Qwen | Three-pass plan with runtime enums (NOT STANDARD); Gemma 4 is on disk |
+| 9 | Consistency | Ingredients guide runs on the half-size stage; recipes disagree, reports mixed | Test across three shots first, then the sd.cpp guide |
+| 10 | Scene | 3DREAL on LTX-2.3 is the 8 GB pick; Layout-To-Render's recipe prices 15 GiB, so 16 GB and up | Needs the sd.cpp guide; H3 and Wan VACE 1.3B baselines need no code |
+| 11 | Audio | audio.cpp has no CPU offload, so ACE-Step's "<4 GB" doesn't carry over; BF16 is slow on Turing | Stable Audio 3 Medium Q8, then ACE-Step Turbo Q8 |
+
+Corrections: klein 4B LoRA needs 12 GB per BFL (was 24). LatentSync is 9,144 MiB in audio.cpp (18 GB is Python). MuseTalk's "4 GB" isn't in its README. sd.cpp ControlNet also
+covers SDXL and Z-Image. Lightricks' `conditioning.md:34` is stale: the guide class is `VideoConditionByReferenceLatent`, so "all one engine feature" holds in shape, with two sizes of
+work, factor 1 in `video.cpp` and factor 2 also in `ltxv.hpp`. Layout-To-Render keeps the guide on both stages. The kit's law on JSON enforcement with thinking is outdated for
+`response_format` (`model-research.md` not edited yet).
 
 ## D · The answer (argued against)
 
