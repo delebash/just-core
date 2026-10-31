@@ -2,7 +2,7 @@
 
 The user, 2026-10-31: "another app i want to build is signle source mocap like from webcam or video full mocap including hands, i used mediapipe in the past but hands where jittery"; "this whould be part of just direct"; "we can take ideas and write our own code based on techniques from commercial apps".
 
-**Measured on this PC so far: section 9, SAM 3D Body against MediaPipe.** Everything else is unmeasured. No source reports the other models on an 8 GB card, so their 8 GB lines are inference. Reddit could not be reached by any tool (a gap in the search). Evidence labels and full tables are in the notes.
+**Read section 10 first: the audit supersedes anything above or below it that disagrees.** Measured on this PC: SAM 3D Body, MediaPipe and RTMW only. ExMR, FlowHMR, GVHMR and GEM-X are unmeasured. No source reports those on an 8 GB card, so their 8 GB lines are inference. Reddit could not be reached by any tool (a gap in the search). Evidence labels and full tables are in the notes.
 
 Notes, each with its query log:
 - [`body-world-models.md`](2026-10-31-just-direct-research-mocap-notes/body-world-models.md)
@@ -23,7 +23,7 @@ The field moved past the pasted pipeline in 2026. The recipe now: track the pers
 | Video, best overall motion | **FlowHMR** (code 2026-09-29) | Wins 61.5-79.2% of blinded pairwise human judgements against GVHMR, PromptHMR, GENMO, DuoMo (paper: pairs from a pool of 500 videos, annotator count not stated). Physics tracking 82.47% on 4,182 clips against 62.82% for GVHMR (paper). Physics is trained into the weights, no simulator at run time | SMPL-H. Code Apache-2.0, weights non-commercial. Heavy: 24-31 GB dense moving camera, 2.77 GiB Low Memory on 60 frames (user) |
 | Video, 8 GB floor | **GVHMR + HTD Refine + FootMR + HandFlow** | Peak 5.08 GiB allocated, 12.5 GiB RAM on a 25.7 s clip (user, RTX 5090, Windows; RGB MoCap's defaults, and its table is marked historical). Fallback: ExMR Low Memory | SMPL-X + MANO. GVHMR research and non-profit, HTD Refine AGPL-3.0, HandFlow MIT |
 | No registration | **GEM-X + EgoHand** | SOMA body, no account. Hand filter halves acceleration error (paper) | NVIDIA Open Model License, OpenMDW-1.1. The previous release lost to GVHMR by 22 mm MPJPE in the one same-protocol test; the 2026-10-20 release has no real-data benchmark |
-| Live webcam | **RTMW + hand crops + our own IK**, through the kit's `onnx` runtime | Expected 30 fps on the floor (inference from a GTX 1660 Ti row). PEAR (Apache-2.0, claims 100 FPS, needs SMPL-X and FLAME) is the direct-rotation test | Apache-2.0. One user got only 7 fps with rtmlib on an RTX 3080 Ti, so measure the whole pipeline |
+| Live webcam | **MediaPipe with a causal filter and our own IK**, corrected by the audit | Measured steadier than RTMW on fingers, 22-30 ms a frame on the CPU, clean licence. It fails on fast, blurred motion. RTMW with a hand model on crops and PEAR stay unmeasured | Apache-2.0 |
 | Foot and contact fix | **Kimodo `MotionCorrection`** | C++17, CPU, rig-agnostic; root warp, IK, ADMM pop removal | Apache-2.0 |
 | Rotation smoothing | **SOMA-X RTS smoother on SO(3)** | Looks both ways, no lag, separate gains for hands | Apache-2.0, offline |
 | Self-collision | **Momentum capsule collision terms** | Training-free, no balance needed | MIT. Capsules reduce clipping, they can't promise none |
@@ -95,7 +95,7 @@ The ranking the user saw concerns live mocap. It applies to one planned JustStag
 | Crop box | Replace | Project the mesh's box through the known camera. This unblocks the two profile views |
 | Drift judge | Already replaced | Leave-one-out plan stands |
 | Live webcam face (planned) | Keep, with calibration | Recorded takes: RealDenseFace plus a bounded solve onto our ARKit keys. 33 ms a frame fills the live budget here |
-| Live webcam body and hands (planned) | Don't use MediaPipe's as-is | Same live answer as section 1. Its Python package is CPU only on Windows (snippet) |
+| Live webcam body and hands (planned) | Keep, with a causal filter | Same live answer as section 1. Its Python package is CPU only outside Ubuntu (`base_options.py`, read here) |
 
 Corrections for its docs: RealDenseFace on profile views is **unmeasured**; Sapiens2 pose weights are **not on disk**; Facepoints closes "no 2026 model benchmarked against MediaPipe", self-reported, 0 downloads, CC BY-NC, weak on profiles.
 
@@ -186,8 +186,8 @@ MediaPipe alone on the harder sample clips (likely AI-made, CPU, 22-30 ms a fram
 | Clip | Frames with a hand found | Both hands | Jitter |
 |---|---|---|---|
 | Street dancer: full body, fast, small hands | 23 of 121, switching 30 times | 6 | 36 |
-| Violinist: hands large, quick fingers | 121 of 121 | 121 | 3.0-3.7 |
-| Subway guitarist: hands medium | 121 of 121 | 108 | 8.0-12.9 |
+| Violinist: hands 77 px, quick fingers | 121 of 121 | 121 | 3.0-3.7 |
+| Subway guitarist: hands 87 px | 121 of 121 | 108 | 8.0-12.9 |
 
 The dancer's hands are in view in the sampled frames, so that miss is real. A filter can't fill it: most frames have nothing to smooth.
 
@@ -198,3 +198,64 @@ Checked by eye on two frames (`out/check-hands.png`): every finger on the right 
 Not shown yet: fast motion, full-body shots with small hands, moving camera, world position. SAM 3D Body gives no world position.
 
 **Not run: GEM-X + EgoHand.** The permission system refused the install as code from outside, and it was not retried. The setup script is `E:\Dev\Web\just-mocap\bench\setup_gemx.sh`, unrun, and nothing of GEM-X is on this PC. The RGB MoCap step needs the same kind of install.
+
+## 10. Audit (2026-10-31, supersedes anything above that disagrees)
+
+The user, after the "lost a hand" error: "this makes me think you do bad judgment in all things, rethink everything keep asking yourself questions until you are sure you give good reliable rec think adversiralyy aw many time check fact check code". Every recommendation was re-checked against licence texts, paper tables, source code and new runs on this PC. No agents.
+
+**Errors found in what the user was told:**
+
+| # | What was said | What is true |
+|---|---|---|
+| 1 | MediaPipe lost a hand in 84 frames | That hand is out of frame. MediaPipe was right. SAM 3D Body's hand there is a guess |
+| 2 | SAM 3D Body is 3-5x steadier | True on one clip only. See the table below |
+| 3 | RTMW + hand crops is the live pick, 30 fps | Unsupported. RTMW alone is about 3x jitterier than MediaPipe on fingers. 34 ms inference, so about 26 fps at best for the -x model. Crops untested |
+| 4 | RTMW is fine for commercial use | Code and the ONNX host say Apache-2.0, but its config trains on COCO-WholeBody, "**ONLY** for research and non-commercial use" |
+| 5 | 4.9 GB, then "6.1 GB is the honest peak" | Clean runs: 3.7-4.8 GB, desktop included. The 6.1 GB run did not reproduce; its cause is unknown |
+| 6 | Violinist's hands are large; woman's are about 170 px | Median 77 px and 146 px, measured from landmarks |
+| 7 | The dancer's miss is about small hands | His hands are 63 px against the violinist's 77 px, and MediaPipe found the violinist's in every frame. Blur and speed look like the cause (inference) |
+| 8 | "Same smoothing" | Same window and near-equal width (sigma 1.4 and 1.5), but rotations against positions |
+| 9 | C++ is about equal in speed | That figure is BF16 on supported cards, single image, no hand refinement. The port's strict F32 path measured about 395 ms. On a Turing card it may be slower than PyTorch |
+| 10 | Python or C++ were the choices | ONNX through the kit was left out. `runner/onnx.js` already runs DirectML on Windows; RTMW ran that way here |
+| 11 | SAM 3D Body + Apache cleanup is the likely default | Unproven chain. `correct_motion` needs contacts as input and SAM 3D Body gives none. `mhr2soma.py` converts dataset parquet files and is unproven on video |
+| 12 | SAM 3D Body has no world position | A camera-space root path exists (`camera_translation`). On a static camera that is a real path, but the dancer's depth swings 95 cm, so it needs checking |
+| 13 | Guitarist's fretting hand was 65 px off | The skeleton was on a passer-by. The run capped detection at one person with no tracking, against the template's own note. That clip's SAM 3D Body scores are void |
+| 14 | MoCapAnything V2 not assessed | MIT code and weights by its README. Trained on animals and objects (`zoo1030`, `obj1k`); RMBG-1.4 and Truebones data are outside the grant. Human hand quality unknown. CAST is the same class, under review, 0 stars |
+| 15 | "Cost is almost all in the image encoder" | Incomplete: with Sapiens2 keypoints that stage is 118.6 ms against SAM 3D Body's 25.3 ms. ExMR's fast mode swaps in RTMW-x, which costs foot accuracy (paper) |
+
+**Held up on checking:** ExMR's Table III and VIII numbers; FlowHMR's human study once corrected; the Motius leaderboard; SAM License has no non-commercial term (full text read); DINOv3's grant reads the same way; GVHMR, WiLoR and FlowHMR weight restrictions; SMPL-X's bar on commercial artifacts; NVIDIA's "Models are commercially usable"; EgoHand's OpenMDW-1.1; `gem-x.cpp`'s static camera in code; RGB MoCap's quoted verdicts; MediaPipe's missing hand filter (0 hits against 14 for pose); MediaPipe's Python GPU limit in `base_options.py`.
+
+**SAM 3D Body speed, models unloaded before each run, 150 frames, 1280×720:**
+
+| Setting | Prediction | Per frame | Peak card use, desktop included |
+|---|---|---|---|
+| Hands, batch 8 | 49.5 s | 0.33 s | 4,644 MiB |
+| Hands, batch 4 | 59.7 s | 0.40 s | 4,036 MiB |
+| Hands, batch 1 | 123.2 s | 0.82 s | 3,666 MiB |
+| Body only, batch 8 | 17.8 s | 0.12 s | 4,015 MiB |
+
+Person detection adds about 3.4 s for 150 frames (9.3 s cold). The other clips at batch 8, 121 frames: 0.32-0.35 s a frame, peak 4,609-4,812 MiB.
+
+**Finger jitter, matched joints, degrees per frame² (inner 10 finger joints, two hands):**
+
+| Clip | Hand, median | SAM 3D Body raw | SAM 3D Body smoothed | MediaPipe 3D raw | MediaPipe 2D raw | RTMW-x 2D raw |
+|---|---|---|---|---|---|---|
+| Woman with glass | 146 px | 1.74, 2.40 | 0.32, 0.56 | 10.26, 8.56 | 9.67, 8.79 | not run |
+| Violinist | 77 px | 3.48, 1.18 | 1.07, 0.35 | 3.11, 3.77 | 3.57, 4.45 | 12.80, 9.80 |
+| Dancer | 63 px | 7.22, 12.03 | 3.12, 5.18 | 44.9, 58.0, 23 frames only | 43.8, 86.3 | 94.5, 106.6 |
+| Guitarist | 87 px | void: person switching | void | 12.47, 10.84 | 26.5, 24.8 | 11.5, 23.2 |
+
+No clip has ground truth, so this is steadiness, not accuracy. The clips look AI-made or stock and none is the user's. Smoothing on the woman's clip is Gaussian, on the others Savitzky-Golay. MediaPipe's labels swapped 10 times on the dancer and 5 on the guitarist, so tracks were followed by nearest wrist. On the woman's clip 3D and 2D jitter match, so depth noise is not shown to be its main jitter source.
+
+**MediaPipe with wrist crops, tried on the CPU:** dancer 24 and 20 of 121 frames, barely better than 23. Violinist 110 and 117, worse than full frame. Guitarist's left hand 48, worse. 44-59 ms a frame. The crop sizes were chosen here, not XR Animator's, so this tests the idea rather than that app.
+
+**RTMW-x 384 through ONNX Runtime and DirectML, the kit's engine:** 34.4 ms inference, 53.6 ms for the whole loop including start-up, 1,086 MiB peak. CPU 143-147 ms. It always returns a position, and in the sampled dancer frames it mostly sat on the hand, once on his face, with fingers collapsed to a blob. Its jitter on that clip is the worst here.
+
+**The recommendations that survive:**
+
+| Job | Commercial use allowed | Non-commercial |
+|---|---|---|
+| Video | **SAM 3D Body**: run here on four clips, 0.33 s a frame, 3.7-4.8 GB. Turn tracking on | **ExMR**, then **FlowHMR**. Paper numbers and one independent user. Not run here |
+| Live | **MediaPipe** with a causal filter. Fails on fast blur | RTMW with a hand model on crops, if it proves itself. Unmeasured |
+
+Not proven: SAM 3D Body's root path, any cleanup chain on its output, GEM-X, ExMR or FlowHMR on this card, and everything on the user's own footage. Next engine route to try for the winner: ONNX through the kit. A C++ port only if that fails.
