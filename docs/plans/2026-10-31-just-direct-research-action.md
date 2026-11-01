@@ -191,6 +191,25 @@ All 12 clips finished: 331–342 s, and 433 s for `big`. Keyframe, prompt and se
 
 **Decision for now:** `ua` is the two-stage setting for the next test, being the only run that lost most of the stutter while staying sharp. The evidence is thin, because a seed change moved `ocean` as much as any setting did. That the maker uses a setting proved nothing here: their CRF 33 made our clips worse.
 
+## 3.7 Clips from the new keyframes (*measured and viewed by Claude, 2026-11-01, `queue27.ps1`; **not judged by the user**; one seed each*)
+
+`ua` is the §3.6 settings, 333–384 s, peak card 7,253 MiB, 7.75 GB or more RAM free. `one` is one pass 1280×704 from the clean keyframe, the recipe the user reviewed, 394–398 s, peak card 7,104 MiB, 9.96 GB or more free. Files: `out/new-<shot>-ua.mp4`, `out/new-<shot>-one.mp4`. The prompts were rewritten as well as the keyframes, so the gain can't be credited to the keyframes alone.
+
+| Shot | The user's fault on the old clip | `one` | `ua` | Better on the frames |
+|---|---|---|---|---|
+| `sword` | Extra blades | One blade each at the start, clear overhead swings, sparks at the clash, and he leaps at the end. The black samurai's blade vanishes in some frames, and the red one's goes stiff like a pole | One blade each at the start. Mid-clip, blades and hands tangle: at frame 50 the red samurai's hand seems to hold the black one's blade. No sparks | `one` |
+| `alley` | Umbrella nobody held; walked toward the camera | His back stays to the camera, and his fist stays on the shaft in all three zoomed frames. A clear cat crosses the wet street | His back stays to the camera, and the shaft is held at frame 24; the later crops miss the hand. Blurred animals stand in the background, and nothing crosses his path | `one` |
+| `dragon` | Fire from the tail, missing the castle | Fire from the mouth hits the battlements, then the dragon flies out of frame | Fire from the mouth hits the wall and burns on it, then the dragon flies off and shrinks. The wings warp mid-clip | About even |
+| `anime` | Three legs, stiff | Two legs, but she runs on the spot while the city scrolls, with no leap, and one frame has a smudged knee | Two legs. She reaches the ledge and leaps, and she's still in the air at the end, so she doesn't land | `ua` |
+
+**So on the frames viewed, the user's four deal breakers on these shots are gone.** That's not a pass: the blast's three arms also got past my frame sheets, and fast blades are where that's most likely. `sword` still loses and regains blades. Neither way wins on all four, so "pick per shot" stands.
+
+**The stutter comes from stage 1.** Stage 1 alone, at 640×352 with the `two` settings, already has it: `movie-ocean-s1` 5.76 and `movie-anime-s1` 4.39, against 6.48 and 5.27 for the full clips. So stage 2 only carries it on. That fits one pass at 1280×704, which has never shown it: all 4 `one` clips here are 1.02 or under. Why the small size makes paired frames on some clips isn't known.
+
+**`ua` reduces it, but doesn't clear it.** Three `ua` clips are at 1.00. `new-anime-ua` is 1.48, starting at 1.9 and easing to 1.2, and `movie-ocean-ua` is 1.51. Those are the two shots that stuttered before, so the user's eye has to say whether 1.5 shows. It's also not known whether the sampler matters most at stage 1, which would fit this result. Testing that needs an engine change, because `video.cpp:2047` uses one sampler for both stages.
+
+**User's review:** `http://127.0.0.1:18190/review.html?set=new`, questions in `E:\Dev\Web\test-just-direct\review-data-new.js`, answers in `E:\Dev\Web\test-just-direct\review-answers-new.json`. The page also compares `movie-ocean` with `movie-ocean-ua`, and `movie-hands` with `movie-hands-big`.
+
 ## 4. Query log
 
 Added 2026-10-31, for camera moves and the stutter:
