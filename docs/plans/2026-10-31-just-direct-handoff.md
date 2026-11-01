@@ -33,7 +33,7 @@ Always `--params-backend diffusion=disk,te=disk`, and `--vae-tiling --vae-tile-s
 
 The user's review reordered this: results and fault layers are in `E:\Dev\Web\just-core\docs\plans\2026-10-31-just-direct-research-action.md` §3.2.
 
-0. `E:\Dev\Web\test-just-direct\queue24.ps1`: two-stage against one pass on the same keyframes, then better keyframes (several seeds, pick the best, name the hand and object in the prompt), then a new side-by-side review page that says plainly what each comparison is.
+0. `E:\Dev\Web\test-just-direct\queue24.ps1` is done: 12 two-stage clips, results in §3.3 of `E:\Dev\Web\just-core\docs\plans\2026-10-31-just-direct-research-action.md`, not yet judged by the user. The side-by-side page is up: `http://127.0.0.1:18190/review.html?set=two`, questions in `E:\Dev\Web\test-just-direct\review-data-two.js`, answers saved to `E:\Dev\Web\test-just-direct\review-answers-two.json`. Next on the card: `E:\Dev\Web\test-just-direct\queue25.ps1` (six seeds each of better keyframes for sword, alley, anime and dragon, not yet run), then a re-roll of `ocean` and `anime` on another seed for the every-other-frame stutter.
 1. Test Ingredients with the ungated `ingredients-multishot.safetensors`, factor 1, a sheet on black as a still guide. Failure reports: the sheet animates, faces melt at 1280×720. Measure across three shots. The official version, `Lightricks/LTX-2.3-22b-IC-LoRA-Ingredients`, is gated and needs the user to accept it on its page; only worth asking if the multishot one looks promising.
 2. Real bodies in a 3D scene for fights: a rigged human, with pose through Union Control, and mocap from `E:\Dev\Web\just-mocap` when it's ready. The sword test used ellipsoids, and the model copied them exactly.
 3. Motion Track on swords, on a clean single-blade keyframe; `queue16.ps1 one sword` now asks for one. Check the keyframe first.
@@ -46,7 +46,7 @@ The user's review reordered this: results and fault layers are in `E:\Dev\Web\ju
 
 ## Waiting on the user
 
-- The review page: `http://127.0.0.1:18190/review.html`, served by `node E:\Dev\Web\test-just-direct\review-server.js`; start it again if the session that ran it has ended. It shows 23 clips, 10 sounds and the three AI plans, each with click answers and an Other box. Answers save by themselves to `E:\Dev\Web\test-just-direct\review-answers.json`, so read that file when the user says they're done; `E:\Dev\Web\test-just-direct\review-data.js` holds the questions.
+- The review pages: `http://127.0.0.1:18190/review.html` (first review) and `http://127.0.0.1:18190/review.html?set=two` (second), served by `node E:\Dev\Web\test-just-direct\review-server.js`; start it again if the session that ran it has ended. A new review is a new `E:\Dev\Web\test-just-direct\review-data-<name>.js`, opened with `?set=<name>`, and it saves to its own `review-answers-<name>.json`. Read that file when the user says they're done.
 - The first review is done: `E:\Dev\Web\test-just-direct\review-answers.json` holds the user's answers. Keep that file; the next review needs its own answers file or a copy of this one first.
 - Earlier work still unjudged: `E:\Dev\Web\test-just-direct\out\seq-joined.mp4`, `E:\Dev\Web\test-just-direct\out\h3-lipsync-41.mp4`.
 

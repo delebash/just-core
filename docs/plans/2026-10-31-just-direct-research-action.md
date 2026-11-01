@@ -91,6 +91,33 @@ Movie set: 2 film ready, 3 good, 7 not good enough.
 
 **My earlier words were wrong:** "12 of 12 ran clean" meant the runs finished, and my frame-sheet notes ("strong", "the soldier dives and lands believably") missed faults the user found by watching. Three arms was called strong.
 
+## 3.3 Two-stage against one pass (*measured and viewed by Claude, 2026-10-31, `queue24.ps1`; **not judged by the user yet**; one seed each, so a result for that clip only*)
+
+Same keyframes, prompts and seed 11, 97 frames. Two-stage: 640×352, then the x2 upscaler and 3 refining steps to 1280×704. **329–343 s a clip** against 377–470 s for one pass, peak card 7,253 MiB, 8.8 GB or more RAM free. Files: `out/action-<shot>-two.mp4`, `out/movie-<shot>-two.mp4`.
+
+"Change" is the mean frame-to-frame brightness difference per quarter of the clip, at 320 px wide. It shows where the picture moves. It says nothing about whether a body is right.
+
+| Shot | One pass, change per quarter | Two-stage | What the frames show on two-stage (Claude's view) | Verdict on the frames |
+|---|---|---|---|---|
+| `blast` | 4.1 5.7 19.4 2.3 | 3.9 5.1 10.9 11.7 | One continuous shot, no cut. He runs, dives and lands. Two arms in all 9 close frames of the dive. Only one leg is visible at the end, the other hidden behind him | Better; the user's eye needed on the leg |
+| `car` | 16.0 22.1 21.2 2.0 | 11.8 14.5 20.1 16.1 | No cut; the car turns and drives off. "POLCE" gone in the frames viewed, a badge on the door instead. New fault: the police cars face the camera, driving against the chase | Trade-off: the user rated one pass film ready |
+| `fire` | 3.0 5.8 2.5 1.9 | 5.7 11.8 8.5 8.0 | No cut (one pass had a hard cut at frame 37). He reaches out to a door, then walks on with a flashlight. He doesn't kick it. His name tape is garbled | Better |
+| `dance` | 1.0 1.2 2.3 1.6 | 0.7 1.7 1.8 1.8 | She really spins and leaps; the body holds. Her face turns away, so the face fault is mostly avoided, not fixed | Better |
+| `anime` | 1.2 2.5 7.7 1.2 | 5.3 4.2 4.3 3.1 | She runs away, leaps and lands on the next building: the action asked for. She ends tiny, and the keyframe's stray sock is still there at the start. **Stutter, below** | Better motion, stutter |
+| `ocean` | 1.1 1.0 5.3 2.6 | 6.0 5.2 7.0 5.0 | All the water moves from the start, and the ship climbs and crashes. At the end the masts smear as it's swamped. **Stutter, below** | Better motion, stutter |
+| `sword` | 0.3 1.3 3.5 2.6 | 0.3 2.0 4.5 3.8 | They fight sooner, no cut. Still two blades each from the keyframe, and blades blur or vanish in the fast frames | Same fault; the keyframe comes first |
+| `alley` | 1.6 1.5 1.6 1.6 | 1.1 1.9 2.8 1.6 | Still walks toward the camera. Both hands at his sides with the umbrella floating over him. He leaves the frame | Same fault; the keyframe decides it |
+| `vista` | 0.8 0.9 0.9 0.8 | 1.5 1.5 1.3 1.3 | Still no flight, only clouds drifting | Same fault; needs camera control |
+| `dragon` | 2.9 4.4 8.9 1.0 | 3.3 6.7 3.6 1.0 | Smoother, but the fire still comes from the tail and misses the castle, and the dragon leaves frame | Same deal breaker |
+| `horse` | 1.1 1.1 1.1 1.0 | 3.4 3.8 3.7 4.1 | One pass barely moves: six frames across 1 s are almost the same pose, yet the user rated it film ready. Two-stage has real strides and a moving camera, but slows toward a walk, and the sun shines through his back | The user must choose |
+| `hands` | 5.3 6.2 10.2 8.2 | 5.0 4.7 5.7 6.8 | **Worse:** the carrot splits into long halves instead of slices, and the chopping is lost | One pass wins |
+
+**Stutter:** `movie-ocean-two` and `movie-anime-two` come in near-identical pairs of frames, so they move at about 12 fps. Odd steps against even steps: 10.06 to 1.55 and 7.10 to 1.35, a ratio of 6.5 and 5.3. All the others among the 80 mp4 and webm files measured are 1.31 or under, including the other ten two-stage clips. It's already in the raw `.webm`, so it comes from generation, not from our conversion. The cause isn't known. Hand-drawn anime is often animated on every second frame, so the model may be copying that, but that doesn't explain the ocean. Next: re-roll both on another seed, and read the upscaler path if it comes back.
+
+**Hard cuts:** a check of one frame against its neighbours finds one hard cut, `movie-fire` at frame 37. `action-car-one` also cuts by eye, and that check misses it. My rough first figure, "6 of 12 jumped", was wrong: on one pass `blast`, `dragon` and `anime` lurch over several frames, and `ocean`'s spikes are lightning.
+
+**So far, on the frames only:** two-stage is about 12% faster and fixes the "still for half the clip, then jump" fault on the shots that had it. It fixes none of the keyframe faults, nor camera moves or wrong actions, and it lost the chopping. So the app needs both recipes until the user's judgement says otherwise.
+
 ## 4. Query log
 
 - "best AI video model for fast action scenes fight scenes 2026" -> vendor lists: Seedance 2.0 and Kling 3 for fights (overchat, a seller), Veo 3.1 general. No head-to-head.
