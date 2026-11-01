@@ -359,3 +359,18 @@ Caveat: both hands open and close together in these clips, so the wrong hand "fo
 GEM-X's fingers under-move, showing about half the real movement. EgoHand's detector misses many frames at this distance, and on clip 2338 its 2D points sit about 420 px from the labelled hand, so its left and right look swapped there; a shape score can still pass because both hands make the same gesture. Supplying hand boxes ourselves would remove the detector problem and is untested. EgoHand's smoothing barely changed its scores. GEM-X's 2D finger points are 8.0-8.8 px off, the same class as RTMW-x and about twice MediaPipe's.
 
 Run here on native Windows, on the 2070 Super, no WSL: GEM-X body 270-283 s for 10 s of video (static camera, ContactIK on), peak 4,700 MiB. EgoHand 141-147 s for 10 s, peak 6,055 MiB. Installed with the normal steps from GEM-X's docs, run one at a time.
+
+**Body against measured joints.** Same two clips, 12 limb joints, Panoptic's own joint definitions, so a fixed offset is part of every score. Pose aligns each frame alone. Motion aligns the clip once, so path and drift count. Accel error is mm per frame² against the truth. Scored by `bench/truth_body.js`.
+
+| Clip | Method | Pose, mm | Motion, mm | Accel error | Hip travel, mm (real) |
+|---|---|---|---|---|---|
+| 2338 | SAM 3D Body raw | 42.7 | 50.7 | 10.69 | 125 (33) |
+| 2338 | SAM 3D Body smoothed | 42.7 | 50.6 | 3.75 | 122 (33) |
+| 2338 | GEM-X world, contact IK | 57.8 | 60.7 | 3.15 | 60 (33) |
+| 2338 | GEM-X world, raw | 57.9 | 96.6 | 4.31 | 242 (33) |
+| 20728 | SAM 3D Body raw | 29.8 | 34.6 | 8.22 | 80 (15) |
+| 20728 | SAM 3D Body smoothed | 29.8 | 34.5 | 2.28 | 72 (15) |
+| 20728 | GEM-X world, contact IK | 28.8 | 31.4 | 1.62 | 33 (15) |
+| 20728 | GEM-X world, raw | 28.7 | 68.1 | 2.54 | 243 (15) |
+
+The person barely moves through space in these clips, so this says nothing about walking or world path. Clean walks exist at frames 4648, 13858, 18478 and 23158, with 2.6-2.9 m of real hip travel, and two are cut from camera 00_07, where hands are about 50 px. Windows with ankle speeds of 50 m/s and more were rejected as tracking glitches in the data.
