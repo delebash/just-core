@@ -2,7 +2,7 @@
 
 The user, 2026-10-31: "another app i want to build is signle source mocap like from webcam or video full mocap including hands, i used mediapipe in the past but hands where jittery"; "this whould be part of just direct"; "we can take ideas and write our own code based on techniques from commercial apps".
 
-**Read sections 11 and 10 first: section 11 holds the current picks, and the audit supersedes anything else that disagrees.** Measured on this PC: SAM 3D Body, MediaPipe and RTMW only. ExMR, FlowHMR, GVHMR and GEM-X are unmeasured. No source reports those on an 8 GB card, so their 8 GB lines are inference. Reddit could not be reached by any tool (a gap in the search). Evidence labels and full tables are in the notes.
+**Read sections 11 and 12 first: section 11 holds the current picks, and section 12 the measured accuracy. Section 10's audit supersedes anything older that disagrees.** Measured on this PC: SAM 3D Body, GEM-X, EgoHand, MediaPipe and RTMW. ExMR, FlowHMR and GVHMR are unmeasured. No source reports those on an 8 GB card, so their 8 GB lines are inference. Reddit could not be reached by any tool (a gap in the search). Evidence labels and full tables are in the notes.
 
 Notes, each with its query log:
 - [`body-world-models.md`](2026-10-31-just-direct-research-mocap-notes/body-world-models.md)
@@ -276,16 +276,16 @@ Not proven: SAM 3D Body's root path, any cleanup chain on its output, GEM-X, ExM
 
 The user: "simple a profressional version of ai mocap like quickmagic or many othe online singleshot or video ai to macap that can run on local machine for both commercial and non commercial use"; "best means best quality you can get with acceptable perfomance for my machine"; "ExMR or FlowHMR its oke not to run these yet asw they are not for commercial i what 2 iptions best non commercial best commercial".
 
-These picks come from the existing notes, with no new model research. Neither has run on this PC.
+The non-commercial pick comes from the existing notes and hasn't run on this PC. The commercial pick was changed by the measurements in section 12. Its parts ran here one by one; they aren't joined yet.
 
 | Option | Pick | Why | Risk |
 |---|---|---|---|
 | Best non-commercial | **ExMR through RGB MoCap** | Best hand numbers in its paper. RGB MoCap's default, with cleanup, retarget and FBX export already built. Moving camera without VGGT. 1m 44s for 25.7 s on an RTX 5090 | Nobody has reported it on 8 GB. Low Memory 3.87 GiB on 60 frames, stronger card. Needs SMPL-X, MANO and Meta's SAM 3D Body file |
-| Best commercial | **GEM-X + EgoHand**, with `video2mocap` as the cleanup base, then Kimodo MotionCorrection and the SOMA smoother | The only commercial-use option found with motion over time, a world path and fingers. No registration. Trained on NVIDIA-owned synthetic data, by `video2mocap`'s survey | Old release lost to GVHMR; the new one has no real-footage test. EgoHand is tested on first-person video only and its card lists Linux. Clips up to 60 s, one person, rotation-only camera. One 8 GB report only: RTX 3050, about 5 minutes per 10 s per person, older GEM-X through WSL2 |
+| Best commercial | **GEM-X for body, feet and world path, with contact IK on, plus SAM 3D Body's fingers joined at the wrist.** `video2mocap` stays the cleanup and export base, then Kimodo MotionCorrection and the SOMA smoother. Face and eyes: ComfyUI's `SAM3DBody_FaceExpression` route, unrun | Measured in section 12 on four clips. GEM-X with contact IK wins both walking clips on every score and plants feet as steadily as the measured data. SAM 3D Body has the best fingers close up and ties GEM-X far away. No registration. GEM-X was trained on NVIDIA-owned synthetic data, by `video2mocap`'s survey | The join isn't built, and the rigs differ (SOMA, MHR). Face and eyes unmeasured. Fingers are weak when hands are about 50 px, in every source. Moving camera untested: only GEM-X's static mode ran. With hidden legs it lost one clip to SAM 3D Body and tied one. About 7 minutes of processing per 10 s of video here: 4.5 for GEM-X, 2 for SAM 3D Body. Clips up to 60 s, one person |
 
 Attack on ExMR against FlowHMR: FlowHMR won its own blind study and one independent user's eye, so it may be better on body motion. But it took 7m 32s on the same clip and card, and its moving-camera stage wants about 30 GB of free RAM on a 32 GB PC. No source compares their hands. ExMR stands for this machine.
 
-Withdrawn: SAM 3D Body as the commercial pick, because it works frame by frame with no motion model and no foot contacts. It stays the fallback. MediaPipe is withdrawn as a quality option. Section 10's jitter tables show steadiness only and decide nothing.
+Withdrawn: SAM 3D Body as the commercial body, because it works frame by frame with no motion model and no foot contacts, and section 12 measured the cost. It stays the body fallback, and it is now the finger source. EgoHand is withdrawn as the finger source: section 12 found it lost on fingers and missed frames. MediaPipe is withdrawn as a quality option. Section 10's jitter tables show steadiness only and decide nothing.
 
 **Accuracy evidence found late:**
 - MediaPipe against an 11-camera Vicon system: 22.5° RMSE against Leap Motion 2's 14.8°, correlation 0.45, falling from 0.55 at 0.5 Hz to 0.36 at 1.5 Hz ([PMC12473350](https://pmc.ncbi.nlm.nih.gov/articles/PMC12473350/), page read).
@@ -374,3 +374,37 @@ Run here on native Windows, on the 2070 Super, no WSL: GEM-X body 270-283 s for 
 | 20728 | GEM-X world, raw | 28.7 | 68.1 | 2.54 | 243 (15) |
 
 The person barely moves through space in these clips, so this says nothing about walking or world path. Clean walks exist at frames 4648, 13858, 18478 and 23158, with 2.6-2.9 m of real hip travel, and two are cut from camera 00_07, where hands are about 50 px. Windows with ankle speeds of 50 m/s and more were rejected as tracking glitches in the data.
+
+**Walking against measured joints.** Frames 4648 and 13858, camera 00_07, 1080p, 300 frames, a high angle looking down, static camera, two different people. Neither clip is walking alone: in the frames looked at, one person raises both arms and the other leans over a laptop. The scoring is the same as above. Foot slide is how far the ankle wanders along the floor while the measured ankle stays under 0.15 m/s for at least 8 frames, averaged over 10-11 stances a clip. The real figure in brackets is the measured data's own wander, which includes the heel rolling and measuring noise.
+
+| Clip | Method | Pose, mm | Motion, mm | Accel error | Hip path error, mm | Hip travel, mm (real) | Foot slide, mm (real) |
+|---|---|---|---|---|---|---|---|
+| 4648 | SAM 3D Body smoothed | 34.3 | 186.1 | 14.03 | 153.5 | 3028 (2464) | 26.6 (4.6) |
+| 4648 | GEM-X world, contact IK | 26.2 | 79.2 | 7.20 | 70.8 | 2631 (2464) | 3.1 (4.6) |
+| 4648 | GEM-X world, raw | 26.5 | 115.0 | 8.21 | 100.1 | 2656 (2464) | 25.4 (4.6) |
+| 13858 | SAM 3D Body smoothed | 39.9 | 173.2 | 12.30 | 143.7 | 3307 (2498) | 20.0 (3.4) |
+| 13858 | GEM-X world, contact IK | 37.1 | 83.4 | 9.38 | 69.8 | 2617 (2498) | 3.3 (3.4) |
+| 13858 | GEM-X world, raw | 37.4 | 150.4 | 10.82 | 124.8 | 2789 (2498) | 23.9 (3.4) |
+
+GEM-X with contact IK halves SAM 3D Body's path error and overstates travel by 5-7% against 23-32%. SAM 3D Body has no world solve, so it is really a camera-space result; GEM-X's own camera-space output scores about the same on motion, 182-194 mm. Foot slide on the standing clips, same order, smoothed SAM then contact IK then raw GEM-X: 2338 18.4, 3.8, 77.3 (real 0.9); 20728 10.9, 2.4, 60.8 (real 0.4). Those two clips have the feet out of frame, so their figures only show how steady a hidden foot stays. Raw GEM-X slides about as badly as SAM 3D Body on the walks and worse on the standing clips, so contact IK is not optional.
+
+Step-to-step stance height, a rough floor check on the walking clips: real 24-30 mm, GEM-X with contact IK 51-60 mm, SAM 3D Body 65-77 mm. Neither stays as level as the real floor. Tilt and heel lift are mixed into this number, so it only says floor height still needs a check by eye and probably a cleanup step.
+
+**Why GEM-X lost clip 2338.** The camera cuts that person off at the thighs, and clip 20728 cuts its person's legs off too. Scoring arms and shoulders alone, with their own alignment, GEM-X wins all four clips, smoothed SAM 3D Body then GEM-X: 2338 30.3, 21.4 mm; 20728 28.0, 17.1 mm; 4648 25.4, 18.8 mm; 13858 38.3, 28.2 mm. So the loss is in the hidden legs: SAM 3D Body guessed them better on one clip and tied on the other, and GEM-X is better on all the visible joints scored this way.
+
+**Fingers far away.** The same two walking clips, hands about 50 px, 278-284 frames with measured hands. EgoHand wasn't run here:
+
+| Clip, hand | Real fingers move, deg | Method | Shape, mm | Bend error, deg | Follows | Shown |
+|---|---|---|---|---|---|---|
+| 4648 left | 5-26 | SAM 3D Body smoothed | 11.1 | 18.0 | 0.63 | 97% |
+| 4648 left | 5-26 | GEM-X fingers | 10.7 | 17.3 | 0.79 | 50% |
+| 4648 right | 6-11 | SAM 3D Body smoothed | 5.5 | 6.8 | 0.35 | 63% |
+| 4648 right | 6-11 | GEM-X fingers | 6.5 | 6.5 | 0.48 | 69% |
+| 13858 left | 6-8 | SAM 3D Body smoothed | 6.8 | 6.4 | 0.53 | 97% |
+| 13858 left | 6-8 | GEM-X fingers | 6.1 | 8.5 | 0.12 | 83% |
+| 13858 right | 8-14 | SAM 3D Body smoothed | 9.2 | 9.8 | 0.49 | 77% |
+| 13858 right | 8-14 | GEM-X fingers | 9.8 | 9.0 | 0.60 | 63% |
+
+The wrong hand scores 26-29 mm, so the mapping holds. Far away the two are about tied and neither is professional: the one hand with real movement, 4648 left, is 17-18° off. SAM 3D Body stays the finger source because it wins close up and shows the full movement here, where GEM-X shows half. The honest reading is that a full-body 1080p shot doesn't carry enough finger detail. More pixels on the hands, from 4K or a closer shot, is the likely fix, and Panoptic's HD video can't test that.
+
+Speed for these 10 s clips on the 2070 Super: SAM 3D Body 113-120 s, peak 4,586 MiB. GEM-X 273-280 s. Limits: two walks, two people, one camera angle, about 2.5 m of net travel in 10 s, static camera. No run, jump or fast fingers yet. Scored by `bench/truth_body.js` and `bench/truth_hands.js`.

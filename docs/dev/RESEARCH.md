@@ -2810,8 +2810,9 @@ target tree are in [`../plans/archive/`](../plans/archive/).
 **just-direct — ArtCraft, and video/3D/voice/music models on an 8 GB card** (no repo yet; moves to the app's
 register when it exists) — [`2026-10-24-just-direct-feasibility.md`](../plans/2026-10-24-just-direct-feasibility.md).
 
-**just-direct — one-camera mocap, body and hands** (web, code and API reads, plus SAM 3D Body, MediaPipe and RTMW measured
-on this PC) — [`2026-10-31-just-direct-research-mocap.md`](../plans/2026-10-31-just-direct-research-mocap.md), section 10 first;
-notes and query logs in the folder beside it. The goal is a local QuickMagic. Best commercial: GEM-X + EgoHand with Kimodo
-MotionCorrection, not run here, with SAM 3D Body as the fallback. Best non-commercial: ExMR through RGB MoCap, not run here.
+**just-direct — one-camera mocap, body and hands** (web, code and API reads, plus SAM 3D Body, GEM-X, EgoHand, MediaPipe and
+RTMW measured on this PC against CMU Panoptic) — [`2026-10-31-just-direct-research-mocap.md`](../plans/2026-10-31-just-direct-research-mocap.md),
+sections 11 and 12 first; notes and query logs in the folder beside it. The goal is a local QuickMagic. Best commercial, by
+measurement: GEM-X body, feet and world path with contact IK, plus SAM 3D Body fingers; not joined yet, face and eyes unmeasured.
+Best non-commercial: ExMR through RGB MoCap, not run here.
 MediaPipe is fast but low quality. Its hand graph has no filter stage; its pose graph does. Test bench: `E:\Dev\Web\just-mocap`.
