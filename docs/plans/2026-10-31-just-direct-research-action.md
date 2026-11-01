@@ -254,6 +254,18 @@ This is my own use of the LoRA, not one Lightricks describes, and it's one shot.
 
 **`new-sword-track-720`: the sword paths at full size fit.** 1280×704 × 97, 631 s, peak card 6,876 MiB, so Motion Track doesn't have to run smaller than the other clips. Blades are sharp and solid in the close frames, and the low slash now happens. But the sparks are gone, the fight is tamer, and in frames 65–85 what looks like a third blade appears near the black samurai's hip. So the same paths and seed at another size gave a different fight, and a seed can still add a blade. This is why the user's eye comes before any claim on swords.
 
+**More moves, `queue31.ps1`, all 1280×704 × 97, about 630 s, peak card 6,876 MiB or under:**
+
+| Clip | What the paths ask for | On the frames | Measured |
+|---|---|---|---|
+| `vista-pan` | Every point slides left by 35% of the width, so the camera pans right | **A real pan.** The peak slides left by about 32% of the width, and new peaks, clouds and the sun come in from the right | Change 6.9 against 0.8, edges within 3% of `movie-vista`, stutter 1.07 |
+| `crowd-track` | Points spread out from the middle of the street, for a push through the market | **A real push.** Signs and people grow toward the camera, faces hold, and people keep moving. Signs are still garbled, as they are in the keyframe | Change 5.3 against 1.2, edges within 3% of `movie-crowd`, stutter 1.06 |
+| `new-sword-track-720-s12` | The sword paths, seed 12 | **The cleanest fight so far.** A diagonal cut meets a parry with sparks at the contact, then one blade drops low and the other rises. One solid blade each in all the close frames viewed | Stutter 1.00 |
+
+**So paths have now given a push, a pan and a push through people, all at full size,** with no extra download and no visible loss of sharpness. They also keep the stutter away, since they run in one pass. The cost is 10.5 minutes a clip against 6.6, and the clips have no special handling for what comes in from the frame edge: the model invents it. Pans and pushes only so far, each on one shot and one seed.
+
+**What this means for the app, if the user agrees after review:** camera moves and fight beats become paths. The app can draw simple camera paths itself from a button such as "push in" or "pan right" with `tracks-vista.js`'s method. A fight's paths can come from the user, from the AI planner or from a 3D scene. Whether the planner can write good paths isn't tested yet.
+
 ## 4. Query log
 
 Added 2026-10-31, for camera moves and the stutter:
