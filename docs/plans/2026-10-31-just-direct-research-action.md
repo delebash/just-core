@@ -54,6 +54,43 @@ Each shot: a klein 4B keyframe (11–13 s), then LTX-2.3 distilled one pass, 128
 
 **Pattern:** the look is strong across all of it, far ahead of what the keyframe alone would suggest. The weak side is control: exact actions, camera moves, and the model cutting by itself. That matches the users' "great quality, weak motion", and it is what guides and Motion Track address. Lightricks' camera-control LoRAs exist for LTX-2 19B; check for 2.3. Text in a shot is unreliable, so titles and signs need a post step.
 
+## 3.2 The user's review (*2026-10-31, answers in `E:\Dev\Web\test-just-direct\review-answers.json`; this overrides the "viewed by Claude" notes above and in the register*)
+
+Ratings are one clip each, seed 11 unless marked. Notes are the user's own words.
+
+| Clip | Rating | The user's note |
+|---|---|---|
+| `take-241`, `take-313` | **Film ready**, both | 13 s can't be told from 10 s |
+| `movie-twoshot`, `movie-horse` | **Film ready** | |
+| `action-car-one` | **Film ready**, but "POLCE" is a deal breaker | The model's own cut: good |
+| `movie-crowd`, `movie-scifi`, `depth1-union` | Good | |
+| `movie-hands` | Good | "the carrot bended a little when it shouldnt but close" |
+| `track-car` | Close, control useful | "it kind slides left instead of turning left" |
+| `movie-dance` | Not good enough | "the face either has shodows or is blurry" |
+| `movie-ocean` | Not good enough | "half the water is frozen while the one wave htis the ship" |
+| `movie-fire` | Not good enough | "his hand never actually touched anything" |
+| `movie-alley` | Not good enough | "umbrella is attached to should instead of him holding it" |
+| `movie-vista` | Not good enough; no camera move is annoying | "not as realisitc as i would like the mountains look very similiar" |
+| `movie-dragon` | Not good enough; wrong action is a deal breaker | |
+| `movie-anime` | Not good enough; stiffness is a deal breaker | "three legs" |
+| `action-sword-one` | Not good enough | "extra blades like one sticking from the right persons right sword" |
+| `action-blast-one` | **Unusable** | "body has three arms after the explosion" |
+| `depth-sword` | Not rated | Blades straight: yes. Cut and block: can't tell, "because it is stiff". "i dont know what i am comparing and what control you are talking about": the page failed to explain this section |
+
+Movie set: 2 film ready, 3 good, 7 not good enough.
+
+**Where each fault comes from, checked against the keyframes and frame sheets:**
+
+| Layer | Faults | Evidence |
+|---|---|---|
+| Keyframe (FLUX.2 klein 4B) | Extra blades; umbrella with no hand; what looks like a third leg | `out/kf-sword.png` gives each fighter two blades despite "one single katana". `out/kf-alley.png` has both hands at his sides. `out/kf-anime.png` has a white sock behind the thigh that belongs to neither leg |
+| Video, right after a cut the model made itself | Three arms (`blast`), "POLCE" (`car`) | The fault appears in the new shot, where the keyframe no longer holds anything in place |
+| Video, weak motion | The picture holds nearly still for about half the clip, then jumps or cuts (`blast`, `sword`, `fire`, `anime`); frozen water; no camera move; fire from the tail | Frame sheets |
+
+**Attack on my own recipe:** every clip above except the two long takes ran one pass at 1280×704. One pass won for lip movement only; I carried it to action and the movie set with no comparison, though Lightricks calls that pipeline "primarily for educational purposes" (section 1). No `action-*-two` clip exists. The only two-stage clips the user has judged are the long takes, both film ready, in a calm scene with no "no cuts" in the prompt. So two-stage is the first test. It may not help: `horse` and `twoshot` were film ready on one pass, and a calm café proves little about action.
+
+**My earlier words were wrong:** "12 of 12 ran clean" meant the runs finished, and my frame-sheet notes ("strong", "the soldier dives and lands believably") missed faults the user found by watching. Three arms was called strong.
+
 ## 4. Query log
 
 - "best AI video model for fast action scenes fight scenes 2026" -> vendor lists: Seedance 2.0 and Kling 3 for fights (overchat, a seller), Veo 3.1 general. No head-to-head.

@@ -826,15 +826,15 @@ work, factor 1 in `video.cpp` and factor 2 also in `ltxv.hpp`. Layout-To-Render 
 | 2 | 720p video | **Proven:** 13 s, one take | Past 13 s means joining windows |
 | 3 | Picture to video | **Proven** | Compare our patch by eye |
 | 4 | Saved actor, set, prop | **Proven** | |
-| 5 | Talking with a chosen voice | **Runs end to end** | The user's eye and ear |
-| 6 | Longer takes | **Proven to 13 s** | Latent carry for longer |
-| 7 | AI plans the film | **Works**, about 6 min a plan | Card repair step; the user's read of 3 plans |
+| 5 | Talking with a chosen voice | **Judged good (user, 3 clips):** seed 42 good alone; seed 41 close, good after LatentSync; side by side the user can't tell a difference | Decided: repair is an option, off by default, because a re-roll costs about the same. More seeds |
+| 6 | Longer takes | **Proven to 13 s; both takes judged film ready by the user** | Latent carry for longer |
+| 7 | AI plans the film | **Works**, about 6 min a plan; the user: good enough to work from | Card repair step |
 | 8 | AI edits after the user | **Works** on all 3 revisions | Same |
-| 9 | Stronger consistency | Guide proven; Ingredients untested | Ingredients is gated: the user must accept its terms on Hugging Face |
-| 10 | AI uses a 3D scene | **Works by depth** | Real bodies in the scene |
-| 11 | Music and sound effects | **Runs, very fast** | The user's ear |
-| 12 | Quality action | Cars and blasts strong; swords hold by depth | Real bodies or mocap for fights |
-| 13 | Anything in a movie | **12 of 12 shot kinds ran clean** | Exact action and camera control |
+| 9 | Stronger consistency | Guide proven; Ingredients untested | Test the ungated `ingredients-multishot` download; the gated official one only if that looks promising |
+| 10 | AI uses a 3D scene | **Works by depth:** room judged good by the user; blades stay straight | Real bodies in the scene, then the user can judge the fight |
+| 11 | Music and sound effects | **Score proven:** all 4 Stable Audio cues "use as is", ACE-Step "use with edits". **Effects usable with edits only;** the sword is weak | Better effects: test Foley-V2A and Stable Audio Medium |
+| 12 | Quality action | **Not proven (user's review):** car film ready but garbled text; blast unusable (three arms); prompt swords not good enough; depth swords stay straight | §3.2 of the action research: two-stage against one pass, better keyframes, real bodies |
+| 13 | Anything in a movie | **Not proven (user's review):** all 12 finished, but 2 film ready, 3 good, 7 not good enough. "Ran clean" meant only that they finished | Same, plus camera control |
 
 ### J.4 · The list per machine (*2026-10-31, from the six research files; only the 8 GB row is measured here*)
 
