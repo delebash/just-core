@@ -118,7 +118,7 @@ Same keyframes, prompts and seed 11, 97 frames. Two-stage: 640×352, then the x2
 
 **So far, on the frames only:** two-stage is about 12% faster and fixes the "still for half the clip, then jump" fault on the shots that had it. It fixes none of the keyframe faults, nor camera moves or wrong actions, and it lost the chopping. So the app needs both recipes until the user's judgement says otherwise.
 
-## 3.4 We weren't running the maker's recipe (*code, read 2026-10-31; none of it tested yet*)
+## 3.4 We weren't running the maker's recipe (*code, read 2026-10-31; tested in §3.6*)
 
 Found while looking for the stutter's cause and for camera control. All the clips so far differ from Lightricks' own LTX-2.3 two-stage setup in ways nobody chose. Sources: `example_workflows/2.3/LTX-2.3_T2V_I2V_Two_Stage_Distilled.json` in [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo), and `ltx_pipelines/utils/media_io/decode.py`, `utils/constants.py` and `distilled.py` in [LTX-2](https://github.com/Lightricks/LTX-2).
 
@@ -144,6 +144,52 @@ The two Lightricks sources disagree on CRF, sampler and stage 2 sigmas, so both 
 - [`elismasilva/LTX-2.3-LoRa-Camera-Controls`](https://huggingface.co/elismasilva/LTX-2.3-LoRa-Camera-Controls): 322 MB, phrases such as "the camera pans to the left"; the author intends it for non-commercial use. Not on disk.
 - [`Cseti/LTX2.3-22B_IC-LoRA-Cameraman_v2`](https://huggingface.co/Cseti/LTX2.3-22B_IC-LoRA-Cameraman_v2): copies a camera move from a reference clip; the author says not for commercial use, not below 960×512 for the first pass, and image strength "0.5 or 0.7 for more motion". Not on disk.
 - [LTX's prompting guide](https://docs.ltx.io/open-source-model/usage-guides/prompting-guide): "Describing how subjects appear *after* the movement helps the model complete the motion accurately." A [Runware guide for LTX-2.5 Pro](https://runware.ai/docs/models/lightricks-ltx-2-5-pro/guides/camera-movement.md) says a move "completes more reliably when it has a target". My `vista` prompt had no end point, so that's the first thing to try, and it costs nothing.
+
+## 3.5 Better keyframes (*measured and viewed by Claude, 2026-10-31, `queue25.ps1`; the user hasn't seen them; no clip made from them yet*)
+
+Six seeds each, 10–12 s a picture. Prompts now name the hand, the object and the body. FLUX.2 klein has no negative prompt, so each one says what should be there rather than what shouldn't: "Their belts are empty", "one foot on the ground and the other leg stretched behind her", "the first flames pouring from its mouth, its tail trailing far behind it".
+
+| Shot | Result across six seeds | Pick | Files |
+|---|---|---|---|
+| `sword` | **Fixed:** one blade per man in all 6, against two each before. Some keep a long hilt or scabbard at the belt | Seed 13, full bodies with room to fight; seed 14 is closer | `out/kf2-sword-<seed>.png` |
+| `anime` | **Fixed:** two clean legs in all 6. The pose reads more as a long stride than a run. Seed 16 has a doubled fist | Seed 13 | `out/kf2-anime-<seed>.png` |
+| `dragon` | **Fixed:** fire from the mouth in all 6, tail well away from it. Fire in the first frame may stop the "sweeps down, then breathes" beat, so that prompt needs changing | Seed 15, fire on the battlements | `out/kf2-dragon-<seed>.png` |
+| `alley` | **Better, not solved:** he walks away and an arm is raised in all 6, but in none does the shaft run from his hand to the canopy; hands sit at the rim or by a loose hook | See `kf3` below | `out/kf2-alley-<seed>.png` |
+
+So the extra blades, the third leg and the fire from the tail were largely prompt faults in the picture. I had asked for a single blade before and it failed, but naming what fills the space did work. That's from these four shots only.
+
+`kf3-alley` retry, same six seeds: "He carries an open black umbrella: his right fist at shoulder height grips the handle, and the straight shaft runs from his fist up to the center of the umbrella above his head. His left arm hangs at his side."
+
+**Fixed on the zoomed frame:** in `out/kf3-alley-11.png` his fist grips the shaft by his shoulder and the shaft runs straight up to the canopy, with the other arm down. **Pick: seed 11.** In seeds 13 and 14 the shaft passes behind his head. The lesson is the same as `sword`: spell out how the object is held, and the arm follows. Whether the grip survives motion isn't known until a clip is made from it.
+
+## 3.6 The maker's settings, tested (*measured and viewed by Claude, 2026-10-31, `queue26.ps1`; **not judged by the user**; 3 shots, one seed each except `s12`*)
+
+All 12 clips finished: 331–342 s, and 433 s for `big`. Keyframe, prompt and seed as `movie-<shot>-two`, except where the run says otherwise. Files: `out/movie-<shot>-<run>.mp4`.
+
+| Run | What it changes | Stutter, `ocean` | First-frame edges: `ocean`, `vista`, `hands` |
+|---|---|---|---|
+| `two` | Baseline: clean keyframe, strength 0.75, Euler | **6.48** | 43.7, 42.5, 19.8 |
+| `py` | Lightricks' Python: CRF 33, strength 0.7 | 1.10 | **31.6, 34.2, 16.2** |
+| `ui` | Their workflow: CRF 18, strength 0.7, stage 2 from 0.85 | **5.05** | 40.4, 41.1, 18.4 |
+| `ua` | `ui` plus the ancestral sampler, on both stages | 1.51 | 40.9, 41.2, 18.2 |
+| `s12` | Baseline with seed 12 | 1.21 | 43.9 (`ocean` only) |
+
+"Edges" is the mean Sobel edge strength of the first frame at 1280×704, higher being sharper, and only comparable within one shot. Stutter is the odd and even step ratio from §3.3; `vista` and `hands` stayed at 1.34 or under on every run.
+
+**CRF 33 blurs the clip: dropped.** First-frame edges fall 28%, 20% and 18% on the three shots, clip size falls about 40% on `ocean` and `vista`, and zoomed crops show soft rigging and trees. The likely cause is that our `-i` image goes to both stages and stage 2 holds it at strength 1.0 (`video.cpp:1629`), which stamps the compression into the clip. Lightricks' workflow compresses for stage 1 only. Trying it that way needs an engine change. CRF 18 costs 3–8%.
+
+**The stutter isn't one setting.** The same settings on another seed lose it (`s12`), `ui` keeps it, and `ua` and `py` lose it. Where it occurs, it runs the whole clip: 3.9–9.5 per 16-frame window on `two`, 3.2–9.5 on `ui`, 1.3–2.0 on `ua`, so `ua` still has a little. The cause is still open. `queue27.ps1` runs stage 1 alone with the `two` settings to show which stage makes it.
+
+**`vista`: the camera still doesn't fly.** All five runs, including `end`, the prompt with an end point, leave the peak the same size in the frame; only the clouds drift. So a prompt doesn't fix it, and a camera LoRA is the next thing to try (§3.4). That download needs the user's yes.
+
+**`hands`: nothing beats one pass, which the user rated Good.**
+- `py` and `ui`: the carrot still splits into long halves.
+- `ua`: round slices appear beside a carrot the knife never cuts through, so it looks like slices but isn't chopping.
+- `big`, 768×416 to 1536×832: the knife does take a strip off, and more happens, but there's no chopping rhythm and the left hand crosses over the right arm once. It took 433 s; its peak card use wasn't captured, because `queue26.ps1` cut the result line short.
+
+**`ocean` by eye:** `py` swamps the ship in a huge wave, but soft. `ua` is sharp, and the ship heels over with spray rising, though by the end it's capsizing with its masts at odd angles. `s12` makes one big move early, then the ship sits still among waves like dark cloth.
+
+**Decision for now:** `ua` is the two-stage setting for the next test, being the only run that lost most of the stutter while staying sharp. The evidence is thin, because a seed change moved `ocean` as much as any setting did. That the maker uses a setting proved nothing here: their CRF 33 made our clips worse.
 
 ## 4. Query log
 
