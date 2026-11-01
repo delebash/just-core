@@ -26,27 +26,25 @@ Always `--params-backend diffusion=disk,te=disk`, and `--vae-tiling --vae-tile-s
 - **Action or anything with a keyframe:** a klein keyframe whose prompt names how each object is held and what fills the space, then one pass 1280×704 × 97 (about 395 s), or two-stage with the `ua` settings (about 335 s). `queue27.ps1`. Neither wins on every shot, §3.7, and the user hasn't judged them yet.
 - **Talking:** TTS wav, one pass 1280×704 with `--audio`, then LatentSync. `queue14.ps1`, `queue23.ps1`.
 - **3D scene:** depth frames from the scene, `<lora:ltx-2.3-22b-ic-lora-union-control-ref0.5:1>`, `--control-video`, one pass 1152×640. W and H must be multiples of 64. `queue19.ps1`, `queue20.ps1`.
-- **Motion path:** `drawtracks.js`, `<lora:motion-track-ref0.5:1>`, `--control-video`, 1152×640. `queue17.ps1`.
+- **Motion path, for blades, cars or the camera:** `drawtracks.js`, `<lora:motion-track-ref0.5:1>`, `--control-video`, 1152×640 or 1280×704 (9.5–10.5 minutes). `queue28.ps1`, `queue30.ps1`.
 - **Planning:** Gemma 4 26B-A4B, `response_format`, thinking on, budget 4,000. `planner\run2.ps1`, `planner\planner-test.js`.
 
 ## Next, in order
 
 The user's review reordered this: results and fault layers are in `E:\Dev\Web\just-core\docs\plans\2026-10-31-just-direct-research-action.md` §3.2.
 
-0. `E:\Dev\Web\test-just-direct\queue24.ps1` is done: 12 two-stage clips, results in §3.3 of `E:\Dev\Web\just-core\docs\plans\2026-10-31-just-direct-research-action.md`, not yet judged by the user. The side-by-side page is up: `http://127.0.0.1:18190/review.html?set=two`, questions in `E:\Dev\Web\test-just-direct\review-data-two.js`, answers saved to `E:\Dev\Web\test-just-direct\review-answers-two.json`. `E:\Dev\Web\test-just-direct\queue25.ps1` (better keyframes, §3.5), `E:\Dev\Web\test-just-direct\queue26.ps1` (Lightricks' settings, §3.6) and `E:\Dev\Web\test-just-direct\queue27.ps1` (clips from the new keyframes, §3.7) are done, and "card free" was sent. Next: read the user's answers from both open reviews, and the user's word on the two downloads in "Waiting on the user". The camera LoRA comes first if they say yes. If 1.5 on the stutter check shows to the eye, the next engine change is a separate sampler for stage 1 (`video.cpp:2047`).
-1. Test Ingredients with the ungated `ingredients-multishot.safetensors`, factor 1, a sheet on black as a still guide. Failure reports: the sheet animates, faces melt at 1280×720. Measure across three shots. The official version, `Lightricks/LTX-2.3-22b-IC-LoRA-Ingredients`, is gated and needs the user to accept it on its page; only worth asking if the multishot one looks promising.
+0. `E:\Dev\Web\test-just-direct\queue24.ps1` is done: 12 two-stage clips, results in §3.3 of `E:\Dev\Web\just-core\docs\plans\2026-10-31-just-direct-research-action.md`, not yet judged by the user. The side-by-side page is up: `http://127.0.0.1:18190/review.html?set=two`, questions in `E:\Dev\Web\test-just-direct\review-data-two.js`, answers saved to `E:\Dev\Web\test-just-direct\review-answers-two.json`. `E:\Dev\Web\test-just-direct\queue25.ps1` (better keyframes, §3.5), `E:\Dev\Web\test-just-direct\queue26.ps1` (Lightricks' settings, §3.6) and `E:\Dev\Web\test-just-direct\queue27.ps1` (clips from the new keyframes, §3.7), `E:\Dev\Web\test-just-direct\queue28.ps1` (swords, §3.8), `E:\Dev\Web\test-just-direct\queue29.ps1` and `E:\Dev\Web\test-just-direct\queue30.ps1` (Ingredients failed, drawn paths move the camera, §3.9 and §3.10) are done. Next: read the user's answers from both open reviews. Then more camera moves through paths, `E:\Dev\Web\test-just-direct\tracks-vista.js` being the example. If 1.5 on the stutter check shows to the eye, the next engine change is a separate sampler for stage 1 (`video.cpp:2047`).
+1. Ingredients with the ungated multishot file failed (§3.9). The official file is gated, and isn't worth asking the user for yet.
 2. Real bodies in a 3D scene for fights: a rigged human, with pose through Union Control, and mocap from `E:\Dev\Web\just-mocap` when it's ready. The sword test used ellipsoids, and the model copied them exactly.
-3. Motion Track on swords, on a clean single-blade keyframe; `queue16.ps1 one sword` now asks for one. Check the keyframe first.
-4. MotionDeblur as a repair on a fast clip.
-5. Longer than 13 s: latent carry windows, `2026-10-30-just-direct-research-longtake.md` §5.
-6. Camera control: look for LTX-2.3 camera LoRAs; the LoRAs on Hugging Face are LTX-2 19B. `vista` barely moved.
-7. Add the planner's repair step, which adds any card whose name appears in a shot.
-8. Kit gaps for later: `videoJobBody` needs hires and control frames, `model-research.md`'s JSON law is out of date for `response_format`.
-9. Offer the sd.cpp patches upstream, when the user wants.
+3. MotionDeblur gave no real gain on `new-sword-one` (§3.8), so don't repeat it unless a new reason turns up.
+4. Longer than 13 s: latent carry windows, `2026-10-30-just-direct-research-longtake.md` §5.
+5. Add the planner's repair step, which adds any card whose name appears in a shot.
+6. Kit gaps for later: `videoJobBody` needs hires and control frames, `model-research.md`'s JSON law is out of date for `response_format`.
+7. Offer the sd.cpp patches upstream, when the user wants.
 
 ## Waiting on the user
 
-- Two downloads, neither done: `ltx-2.3-lora-camera-controls.safetensors` (322 MB, `elismasilva/LTX-2.3-LoRa-Camera-Controls`) and `ltx-2.3-spatial-upscaler-x1.5-1.0.safetensors` (1,040 MB, `Lightricks/LTX-2.3`). My rec is yes on both.
+- Two downloads, neither done and both on hold, because drawn paths moved the camera with no download (§3.10): `ltx-2.3-lora-camera-controls.safetensors` (322 MB, `elismasilva/LTX-2.3-LoRa-Camera-Controls`) and `ltx-2.3-spatial-upscaler-x1.5-1.0.safetensors` (1,040 MB, `Lightricks/LTX-2.3`).
 - The review pages: `http://127.0.0.1:18190/review.html` (first review), `http://127.0.0.1:18190/review.html?set=two` (second) and `http://127.0.0.1:18190/review.html?set=new` (third), served by `node E:\Dev\Web\test-just-direct\review-server.js`; start it again if the session that ran it has ended. A new review is a new `E:\Dev\Web\test-just-direct\review-data-<name>.js`, opened with `?set=<name>`, and it saves to its own `review-answers-<name>.json`. Read that file when the user says they're done.
 - The first review is done: `E:\Dev\Web\test-just-direct\review-answers.json` holds the user's answers. Keep that file; the next review needs its own answers file or a copy of this one first.
 - Earlier work still unjudged: `E:\Dev\Web\test-just-direct\out\seq-joined.mp4`, `E:\Dev\Web\test-just-direct\out\h3-lipsync-41.mp4`.

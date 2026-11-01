@@ -210,6 +210,50 @@ All 12 clips finished: 331–342 s, and 433 s for `big`. Keyframe, prompt and se
 
 **User's review:** `http://127.0.0.1:18190/review.html?set=new`, questions in `E:\Dev\Web\test-just-direct\review-data-new.js`, answers in `E:\Dev\Web\test-just-direct\review-answers-new.json`. The page also compares `movie-ocean` with `movie-ocean-ua`, and `movie-hands` with `movie-hands-big`.
 
+## 3.8 Three ways at the sword fight (*measured and viewed by Claude, 2026-11-01, `queue28.ps1`; **not judged by the user***)
+
+All from `out/kf2-sword-13.png`, aimed at the blades that come and go in `new-sword-one`.
+
+| Run | What it is | Time, peak card | On the frames |
+|---|---|---|---|
+| `new-sword-track` | One pass 1152×640 with Motion Track: four drawn paths, both blade tips and both pairs of hands (`tracks-sword.json`) | 568 s, 6,952 MiB | **The best fight so far.** The black samurai raises his sword overhead as drawn and lunges, the red one meets it, and sparks burst at the point of contact. Blades stay solid in the close frames viewed. The low slash and the leap in the prompt don't happen, and a blade shortens in a few frames |
+| `new-sword-s12` | One pass, seed 12 | 409 s, 7,214 MiB | One blade each. They lock and push, then the red samurai is thrown to the ground. Reads as a fight, but it's not what was asked, and there are no sparks |
+| `new-sword-s13` | One pass, seed 13 | 408 s, 7,218 MiB | One blade each. Blades streak to white blur in the swings, and he leaps straight up. No sparks |
+| `new-sword-deblur-1152` | MotionDeblur repair of `new-sword-one`, its frames as the guide | 793 s, 6,994 MiB | **No real gain:** edge strength moves 0–2% across the clip, and the blurred blades and faces stay blurred. Hands are slightly crisper in one frame. Not worth 13 minutes |
+
+**So drawn paths are the first thing that has directed a fight on this card.** Text alone gave three different fights from three seeds, none of them the one asked for. Four paths gave the raised sword, the lunge and the clash, in order. That matches the `track-car` result, and it points the app at paths drawn by the user, the AI or a 3D scene, rather than at better wording. One clip, one seed.
+
+**All three seeds kept one blade each**, so the `kf2-sword-13` fix holds across seeds on the frames viewed.
+
+**A full-size guide fits:** factor 1 at 1152×640 ran at 6,994 MiB, where I'd expected it to run out of memory. So a repair pass that needs the whole clip as a guide can run on 8 GB, at 13 minutes a clip.
+
+## 3.9 Ingredients, first test (*measured and viewed by Claude, 2026-11-01, `queue29.ps1`; multishot fine-tune, not the official file*)
+
+Sheet: `out/sheet-cast/0001.png`, 1456×825, face, seated body and notebook on top, the empty cafe below, on black. No keyframe. 960 of 960 LoRA tensors applied.
+
+| Run | Size | Time, peak card | Result |
+|---|---|---|---|
+| `ing-wire` | 512×288 × 49, one stage, LoRA 1.0 | 270 s, 6,968 MiB | **Failed the gate:** the sheet's panels and black bars are in the clip |
+| `ing-10` | 640×352 to 1280×704 × 121, LoRA 1.0 | 554 s, 7,198 MiB | **Failed:** the clip is the sheet, gently animated, with no scene |
+| `ing-14` | Same, LoRA 1.4 | 553 s, 7,198 MiB | **Failed:** same |
+
+This is the reported failure, "the sheet animates itself", and it fits on 8 GB, so memory isn't the block.
+
+**My test differed from the official graph,** `LTX-2.3_ICLoRA_Ingredients_Single_Stage_Distilled.json`, which I should have read before running it:
+- Its prompt has a `### Reference Sheet Description` section with a `**Top Row Left (Character):**` entry per panel, then a `### Target Description` section. I used the card's `Reference sheet:` and `Generated video:` shape.
+- It uses the official file on the dev model with the distilled LoRA at 0.5, at 960×544. I used the multishot fine-tune on the distilled model.
+- Guide: frame 0, strength 1, factor 1, the sheet repeated for every frame, short side 544. Ours matches that.
+
+**Retried with the official prompt format (`queue30.ps1`), 640×352 × 49, 288 s each: failed again.** `ing-fmt` is the sheet from the first frame. `ing-kf`, with `-i out/seq1.png`, starts on the keyframe, then the clip jumps to the sheet by frame 12. **So the multishot file is out.** The official file might behave differently, but it's gated and the keyframe route already works (§J.3.2 row 4), so it's not worth asking the user for now. Whether the copying comes from this file or from our guide code isn't known. Motion Track and Union Control don't copy their guides on the same code.
+
+## 3.10 Drawn paths move the camera (*measured and viewed by Claude, 2026-11-01, `queue30.ps1`; **not judged by the user***)
+
+**`vista-track` gives the mountain shot the camera move that no prompt could.** It's one pass, 1152×640 × 97, 550 s, peak card 6,990 MiB, with Motion Track and ten points spreading out from the peak (`tracks-vista.js`), the way the scene moves when a camera flies forward. In zoomed crops the peak really grows, about 1.5× by eye against the 1.7× drawn, and the near ridge and clouds slide out of the bottom of the frame. The mountains keep their shape. Frame-to-frame change is 3.9, against 0.8 on `movie-vista`, with no stutter (1.02). Edge strength is 2–11% lower than `movie-vista`, so the picture softens a little.
+
+This is my own use of the LoRA, not one Lightricks describes, and it's one shot. If pans and moves on scenes with people work too, the app could draw camera moves as paths, and the camera LoRAs in §3.4 aren't needed. So those downloads, and the x1.5 upscaler, can wait.
+
+**`new-sword-track-720`: the sword paths at full size fit.** 1280×704 × 97, 631 s, peak card 6,876 MiB, so Motion Track doesn't have to run smaller than the other clips. Blades are sharp and solid in the close frames, and the low slash now happens. But the sparks are gone, the fight is tamer, and in frames 65–85 what looks like a third blade appears near the black samurai's hip. So the same paths and seed at another size gave a different fight, and a seed can still add a blade. This is why the user's eye comes before any claim on swords.
+
 ## 4. Query log
 
 Added 2026-10-31, for camera moves and the stutter:
