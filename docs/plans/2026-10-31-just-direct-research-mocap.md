@@ -347,3 +347,15 @@ Image points, median: MediaPipe 3.7-4.5 px, RTMW-x 7.3-9.1 px. Peak card use 4,8
 Caveat: both hands open and close together in these clips, so the wrong hand "follows" nearly as well (0.90-0.96). The shape error still separates them, at 27-28 mm. A hand held still while the other moves is untested, as are fingers that move fast: these are slow open-close gestures, and the frame-offset check is flat on them.
 
 **The user's ViTPose, RTMW and YOLO paste, checked at source:** the idea is sound, since keypoints need no MANO, and it is `video2mocap`'s own finger plan. But keypoints are 2D, so depth and rotations still have to be solved. ViTPose's code is Apache-2.0, not MIT, its table lists 2D models, and ViTPose++ weights train on COCO-WholeBody, whose annotations are "ONLY for research and non-commercial use". RTMW needs a person box (it ran that way here) and its dataset mix includes the same annotations. YOLO pose is AGPL or paid, with 2D hand points. GEM-X's own `vitpose.pth` gives 77 2D points including fingers under NVIDIA's commercial licence, which is the clean version of this idea.
+
+**Commercial finger sources compared.** The same two clips, frames 2338 and 20728, 1080p, 300 frames each, real fingers moving about 30°. Ranges cover both hands on both clips:
+
+| Finger source | Shape, mm | Bend error, deg | Follows | Shown | Frames with a result |
+|---|---|---|---|---|---|
+| SAM 3D Body hand model | 7.3-8.6 | 8.5-11.7 | 0.91-0.95 | 86-101% | 100% |
+| EgoHand, its own hand detector | 9.0-11.4 | 11.1-12.9 | 0.86-0.95 | 85-103% | 28-83% |
+| GEM-X native77 fingers | 13.4-20.2 | 13.3-17.6 | 0.65-0.91 | 49-66% | 100% |
+
+GEM-X's fingers under-move, showing about half the real movement. EgoHand's detector misses many frames at this distance, and on clip 2338 its 2D points sit about 420 px from the labelled hand, so its left and right look swapped there; a shape score can still pass because both hands make the same gesture. Supplying hand boxes ourselves would remove the detector problem and is untested. EgoHand's smoothing barely changed its scores. GEM-X's 2D finger points are 8.0-8.8 px off, the same class as RTMW-x and about twice MediaPipe's.
+
+Run here on native Windows, on the 2070 Super, no WSL: GEM-X body 270-283 s for 10 s of video (static camera, ContactIK on), peak 4,700 MiB. EgoHand 141-147 s for 10 s, peak 6,055 MiB. Installed with the normal steps from GEM-X's docs, run one at a time.
