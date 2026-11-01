@@ -118,7 +118,45 @@ Same keyframes, prompts and seed 11, 97 frames. Two-stage: 640×352, then the x2
 
 **So far, on the frames only:** two-stage is about 12% faster and fixes the "still for half the clip, then jump" fault on the shots that had it. It fixes none of the keyframe faults, nor camera moves or wrong actions, and it lost the chopping. So the app needs both recipes until the user's judgement says otherwise.
 
+## 3.4 We weren't running the maker's recipe (*code, read 2026-10-31; none of it tested yet*)
+
+Found while looking for the stutter's cause and for camera control. All the clips so far differ from Lightricks' own LTX-2.3 two-stage setup in ways nobody chose. Sources: `example_workflows/2.3/LTX-2.3_T2V_I2V_Two_Stage_Distilled.json` in [ComfyUI-LTXVideo](https://github.com/Lightricks/ComfyUI-LTXVideo), and `ltx_pipelines/utils/media_io/decode.py`, `utils/constants.py` and `distilled.py` in [LTX-2](https://github.com/Lightricks/LTX-2).
+
+| Setting | Lightricks' workflow | Lightricks' Python | Ours | Can we test it now? |
+|---|---|---|---|---|
+| Re-compress the keyframe | H.264 CRF 18, stage 1 only | CRF 33 "through LTX-2.3", 18 from 2.4: "to match the compression the model was trained on" | **None:** a clean PNG; sd.cpp has no such step | Yes, ffmpeg before `-i` |
+| Image strength, stage 1 | 0.7 | Set per image; docs example 1.0 | **0.75 by accident:** the `--strength` default (`common.h:220`, used at `video.cpp:937`); `cli.js` never set it | Yes, `--strength` |
+| Image strength, stage 2 | 1.0 | Same as stage 1 | 1.0, fixed (`video.cpp:1629`) | No need |
+| Stage 1 sampler | `euler_ancestral_cfg_pp` | Plain Euler before 2.5 (`ANCESTRAL_SAMPLER_SINCE_VERSION = (2, 5)`) | Euler | Partly: `euler_a` exists, but `video.cpp:2047` uses the same sampler for both stages |
+| Stage 2 sampler | `euler_cfg_pp` | Euler | Euler | No need |
+| Stage 2 sigmas | **0.85**, 0.725, 0.4219, 0 | 0.909375, 0.725, 0.421875, 0 | The Python values | Yes, `--hires-sigmas` |
+| Stage 1 size | 960×544 | 768×512 default, half the output | 640×352 | Larger needs the x1.5 upscaler, or 768×416 to 1536×832 with the x2 |
+| Image resize | Longer side to 1536, lanczos | Resized per stage | Keyframe is 1280×704 | No |
+| Model | Dev with the distilled LoRA at 0.5 | Distilled | Full distilled Q4_K_M | Not on 8 GB without new files |
+
+The two Lightricks sources disagree on CRF, sampler and stage 2 sigmas, so both are worth testing. Any of this may help or do nothing: that the maker uses it doesn't prove it on our clips.
+
+**Why it may matter:** the compression step exists because the model trained on compressed video, so a clean still may not read to it as the start of a video. That's my reasoning, not a stated finding. A smaller stage 1 may be why the small carrot slices were lost: `hands` is the only shot that got clearly worse.
+
+**The stutter's cause is still open:** the decoder's upsample block repeats its input across the two output frames of each temporal step (`DepthToSpaceUpsample`, `ltx_vae.hpp:400`), so paired frames are a natural failure of that design, but that doesn't explain why only two clips show it. Searches found no report of this on LTX: a gap in the search, not proof it's rare.
+
+**Camera control:**
+- [`elismasilva/LTX-2.3-LoRa-Camera-Controls`](https://huggingface.co/elismasilva/LTX-2.3-LoRa-Camera-Controls): 322 MB, phrases such as "the camera pans to the left"; the author intends it for non-commercial use. Not on disk.
+- [`Cseti/LTX2.3-22B_IC-LoRA-Cameraman_v2`](https://huggingface.co/Cseti/LTX2.3-22B_IC-LoRA-Cameraman_v2): copies a camera move from a reference clip; the author says not for commercial use, not below 960×512 for the first pass, and image strength "0.5 or 0.7 for more motion". Not on disk.
+- [LTX's prompting guide](https://docs.ltx.io/open-source-model/usage-guides/prompting-guide): "Describing how subjects appear *after* the movement helps the model complete the motion accurately." A [Runware guide for LTX-2.5 Pro](https://runware.ai/docs/models/lightricks-ltx-2-5-pro/guides/camera-movement.md) says a move "completes more reliably when it has a target". My `vista` prompt had no end point, so that's the first thing to try, and it costs nothing.
+
 ## 4. Query log
+
+Added 2026-10-31, for camera moves and the stutter:
+
+- "LTX-2.3 camera control lora dolly pan orbit" -> the 2.3 Camera Controls LoRA on Hugging Face, Cameraman workflows, Lightricks' 19B dolly LoRAs. No orbit LoRA found.
+- "LTX 2.3 how to get camera movement prompt camera not moving static fix" -> vendor and community guides, no official cause. The Runware guide (LTX-2.5 Pro) says a stated target helps; its "three root causes" came through in the search summary but aren't on the page, so they're not used here.
+- "LTX-2 video choppy stutter duplicate frames every other frame looks like 12 fps" -> nothing on this fault in LTX; general playback threads only.
+- "LTXVPreprocess img_compression value more motion LTX-2.3 image to video" -> copies of one ComfyUI page, nothing on compression.
+- "LTX 2.3 image to video strength 1.0 vs 0.7 first frame more motion static result workflow" -> no direct comparison. fal's docs via Oxen: lower gives the model more freedom, example 0.7.
+- Read at the source with the GitHub API: `constants.py`, `media_io/decode.py`, `blocks/image_conditioner.py`, `distilled.py`, `samplers.py`, `args.py`, `types.py`, `docs/conditioning.md`, `docs/pipelines.md`, `CHANGELOG.md`, `packages/ltx-pipelines/CLAUDE.md`; both 2.3 distilled workflow files, traced node by node.
+- Hugging Face API: search "cameraman"; the file list of the camera LoRA; Lightricks/LTX-2.3's upscalers: x1.5 1,040 MB, x2 950 MB, temporal x2 250 MB.
+- Failed: `ltx.io/blog/camera-motion-with-ai-video` (header overflow).
 
 - "best AI video model for fast action scenes fight scenes 2026" -> vendor lists: Seedance 2.0 and Kling 3 for fights (overchat, a seller), Veo 3.1 general. No head-to-head.
 - "how to fix motion blur and warping fast motion AI video generation local LTX Wan" -> the r/StableDiffusion snapshot in section 1; LTX's warble blog (fetch failed, header overflow, unread); hosted Retake.
