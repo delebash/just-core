@@ -408,3 +408,24 @@ Step-to-step stance height, a rough floor check on the walking clips: real 24-30
 The wrong hand scores 26-29 mm, so the mapping holds. Far away the two are about tied and neither is professional: the one hand with real movement, 4648 left, is 17-18° off. SAM 3D Body stays the finger source because it wins close up and shows the full movement here, where GEM-X shows half. The honest reading is that a full-body 1080p shot doesn't carry enough finger detail. More pixels on the hands, from 4K or a closer shot, is the likely fix, and Panoptic's HD video can't test that.
 
 Speed for these 10 s clips on the 2070 Super: SAM 3D Body 113-120 s, peak 4,586 MiB. GEM-X 273-280 s. Limits: two walks, two people, one camera angle, about 2.5 m of net travel in 10 s, static camera. No run, jump or fast fingers yet. Scored by `bench/truth_body.js` and `bench/truth_hands.js`.
+
+**SAM 3D Body's fingers joined onto GEM-X's body (2026-11-02).** SAM 3D Body's per-frame MHR mesh is turned into SOMA joint rotations by SOMA's own `PoseInversion`, using SAM's shape for each frame. SOMA's `remove_joint_orient_local` then puts them in the convention GEM-X uses; its docstring names this exact use. Only the 48 finger joints are copied. GEM-X keeps its body, wrists and world path. Code: `E:\Dev\Web\just-mocap\bench\join_fingers.py`; the mesh is saved by a small ComfyUI node in `bench/comfy_nodes`, loaded through ComfyUI's extra-paths file so the shared install is unchanged.
+
+Same four clips and scoring as above. Ranges cover both hands on both clips. SAM 3D Body is the raw run the join was built from:
+
+| Clips | Finger source | Shape, mm | Bend error, deg | Follows | Shown |
+|---|---|---|---|---|---|
+| Close, 2338 and 20728 | GEM-X body + SAM 3D Body fingers | 7.5-9.1 | 7.5-11.2 | 0.90-0.95 | 78-86% |
+| Close, 2338 and 20728 | SAM 3D Body alone | 7.3-8.6 | 8.5-11.7 | 0.91-0.95 | 86-101% |
+| Close, 2338 and 20728 | GEM-X alone | 13.4-20.2 | 13.3-17.6 | 0.65-0.91 | 49-66% |
+| Far, walks 4648 and 13858 | GEM-X body + SAM 3D Body fingers | 6.0-11.3 | 7.4-18.6 | 0.20-0.66 | 77-102% |
+| Far, walks 4648 and 13858 | SAM 3D Body alone | 5.7-11.1 | 7.2-18.3 | 0.33-0.62 | 66-106% |
+| Far, walks 4648 and 13858 | GEM-X alone | 6.1-10.7 | 6.5-17.3 | 0.12-0.79 | 50-83% |
+
+The joined hand puts in the wrong place scores 25.9-29.3 mm, so the sides hold. The join keeps SAM 3D Body's finger shape and bend accuracy. It loses some of the movement shown close up, 78-86% against 86-101%, and that loss happens in the mesh-to-SOMA conversion, not in the copy.
+
+What was tried: the conversion's other rest-pose setting changed nothing; SOMA's finger refinement (`finger_iters 2, lie_iters 5`) and weighting hand vertices 3x were no better. One average shape for the whole clip was clearly worse far away: walk 4648's left hand was 22.5° off and followed at 0.42, against 18.6° and 0.66 with a shape per frame. Fitting the mesh takes 1.5-2 minutes per 10 s on the CPU; mesh fit error 6.0-9.7 mm.
+
+Two bugs in py-soma-x 0.3.3: `PoseInversion`'s default low-detail path imports `soma.fitting.body`, which doesn't exist, and the low-detail MHR file `mhr_model_lod6.pt` isn't in GEM-X's assets. `low_lod=False` with the full-detail mesh avoids both.
+
+Still open: the wrist keeps GEM-X's rotation and hand orientation isn't scored; the movement lost close up; and SAM's raw mesh is used, so smoothing comes later in the pipeline.
