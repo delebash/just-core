@@ -331,6 +331,26 @@ No hard cuts: the largest frame-to-frame change score in any of the six is 0.04,
 
 **User's review:** `http://127.0.0.1:18190/review.html?set=fix`, questions in `E:\Dev\Web\test-just-direct\review-data-fix.js`, answers to `E:\Dev\Web\test-just-direct\review-answers-fix.json`.
 
+## 3.14 Swords next: real bodies in a 3D scene (*coverage and research, 2026-11-02; nothing built yet; waits for the fourth review, which asks the user what to fix next*)
+
+**What we already have:**
+- **Depth from a 3D scene keeps blades straight.** It's the only thing the user has said that about: `depth-sword`, "at least swords are straight and not bending" (§3.2). The fault was stiff motion from ellipsoid bodies, which the model copied exactly. Made by `E:\Dev\Web\test-just-direct\blockout-sword.py` in Blender 5.3 beta (`E:\blender-5.3.0-beta\blender.exe`), with Union Control.
+- **A free human body with a skeleton is already on disk:** JustStage's fetched MakeHuman data, `E:\Dev\3D\just-stage\extension\juststage\data\fetched\makehuman\`. It has `3dobjs\base.obj` (the base mesh), `rigs\standard\rig.game_engine.json` and `weights.game_engine.json` (the skeleton and its skin weights), and targets. Its `LICENSE.md` says the assets, including "The base mesh and proxies" and "Rigs, poses and expressions", are CC0 1.0. MPFB's own code is GPLv3, so we write our own loader.
+- **Mocap from video** is measured on this card (SAM 3D Body, mocap research), and route A there is "Mocap on a rigged character, render, then guide LTX".
+
+**What the searches found** (query log in section 4):
+- No sword-specific method or workflow anywhere. OpenAI says Sora 2 "struggles with sustained, physically plausible humanoid combat or weapon choreography" (via Notebookcheck). So the bar is hard for the leading cloud model too.
+- **Depth beats pose for fast action** in one stress test of LTX-2.3's controls (stork.ai review: depth "often held up better than pose on complex action"). That fits our `depth-sword` result. **web**
+- **Two-person motion from text exists:** InterGen ([paper](https://arxiv.org/abs/2304.05684), code `tr3e/intergen`) and an inference-only copy, [`ZeyuLing/motius-intergen-interhuman`](https://huggingface.co/ZeyuLing/motius-intergen-interhuman): 0.3B parameters, F32, licence CC BY-NC-SA 4.0, output shaped `(1, 120, 2, 262)`. Its InterHuman training data includes boxing but no weapons found. Text2Interact (ICLR 2026) is newer, code not confirmed. SocialStructureHHI builds on HunyuanMotion. None of these is checked further yet. **card, paper**
+- A community LTX-2.3 fine-tune card ([`wolf1280/Singularity-LTX-2.3_OmniCine_V1`](https://huggingface.co/wolf1280/Singularity-LTX-2.3_OmniCine_V1)) recommends a timed action-timeline prompt and first-and-last-frame mode. That's a cheap prompt test, unchecked. **card**
+
+**Where the fight motion comes from, three options:**
+1. **Keyed by script with the hands locked on the hilt** (inverse kinematics): no download, sword-specific, and it tests whether real bodies plus blades hold up before choosing a motion source. It risks the same stiffness the user saw.
+2. **Two-person text-to-motion** (InterGen or newer): the AI planner could write a fight in words. It needs a download and the user's yes, its data is boxing rather than swords, and its skeleton needs retargeting to the MakeHuman rig.
+3. **Mocap of a person acting the fight** with a stick, through JustDirect's planned mocap feature: real motion, but the user would have to film it.
+
+**Rec: option 1 first**, to prove the route on blades and hands, then a real motion source. *Attack:* if option 1 looks stiff, the user may reject it for that alone; so the review must ask about blades and hands separately from stiffness, which the `depth-sword` page failed to do (§3.2).
+
 ## 4. Query log
 
 Added 2026-10-31, for camera moves and the stutter:
@@ -359,3 +379,11 @@ Added 2026-10-31, for camera moves and the stutter:
 Lightricks' Motion Track example workflow (`LTX-2.3_ICLoRA_Motion_Track_Distilled.json`): a chase scene, one pass at 960×544 × 121, the same 8 distilled sigmas, `euler_ancestral_cfg_pp`, CFG 1, the dev model with the distilled LoRA at 0.5, IC-LoRA at 1. **Note for quality:** that is the dev model at half distilled strength, not our full distilled file.
 
 Not searched yet: Civitai directly (named by a user; blocked to the fetch tools so far), LTX-Director, Reddit directly.
+
+Added 2026-11-02, for swords through a 3D scene (§3.14):
+
+- "latest techniques AI video sword fight weapons stay consistent 2026" -> no method. Notebookcheck on Sora 2, quoting OpenAI on weapon choreography; vendor lists and filler pages.
+- "text to motion two person fight interaction model open source 2026" -> Text2Interact (ICLR 2026), InterGen through `ZeyuLing/motius-intergen-interhuman`, SocialStructureHHI.
+- "LTX 2.3 pose control fight scene workflow sword" -> no sword workflow. stork.ai review (depth beat pose on complex action), MindStudio pose and depth guide, `ekokeko/LTX-2.3-Workflows` (RealisDance and Union Control, a copy of RuneXX's), the OmniCine fine-tune card.
+- "InterHuman dataset fighting boxing sword two person interactions InterGen weights" -> the InterGen paper: about 107M frames, boxing named, no weapons found; official repo `tr3e/intergen`, weights not confirmed.
+- Read: the `motius-intergen-interhuman` model card; `E:\Dev\3D\just-stage\extension\juststage\data\fetched\makehuman\LICENSE.md`.
