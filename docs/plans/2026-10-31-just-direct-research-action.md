@@ -312,6 +312,25 @@ The user's overall answers: the default is **full size in one pass**; swords are
 
 Not this round: the face-crop pass, which is a bigger build, and higher frame rates, which aren't understood yet.
 
+## 3.13 The fixes, tested (*measured and viewed by Claude, 2026-11-02, `queue32a.ps1`, `queue32b.ps1`; **not judged by the user**; one seed each except the swords*)
+
+Keyframes `kf4-dragon-14`, `kf4-anime-14` and `kf4-sword-16`, picked from six seeds each. Twelve of the 18 stills first stopped on the RAM guard or the full card: a stray JustStage image server (8.7 GB) and a JustMocap CPU job (7 GB) were running. Both ended and the stills were re-run. Clips: 400–431 s one pass, 631–634 s with paths; peak card 7,345 MiB; 8.19 GB or more RAM free. Files: `out/<label>.mp4`.
+
+| Clip | On the frames | Change per quarter | Against |
+|---|---|---|---|
+| `dragon-fix` | **Flies forward now, head first, left to right.** It breathes on the tower, passes over it and flies on into the sky to the right, fire still from the mouth, while the camera turns to follow and the castle burns below. Mid-clip, around frames 36–60, its body and wings twist into odd poses | 2.8 6.1 10.0 7.3 | `new-dragon-one` drifted backwards: 2.4 4.1 7.0 3.8 |
+| `anime-fix` | **A real leap.** She runs to the edge, jumps, is in the air over the gap, and lands on the lower roof, then crouches there. She's small at the end. The first second barely moves | 1.0 9.9 7.1 0.3 | `new-anime-one` ran on the spot: 3.1 3.1 3.1 2.7 |
+| `sword-mid-11` | **Not fixed.** Nearly still for the first quarter, then a swing in which the blades blur and break into fragments around frame 72 | 0.4 1.9 7.9 8.9 | `new-sword-one`: 0.3 2.3 5.3 4.4 |
+| `sword-mid-12` | **Not fixed.** From about frame 40 to 64 the black samurai holds a second blade pointing back past his body. It ends on a fast camera swing | 1.2 4.9 4.0 11.9 | |
+| `vista-slow` | A steady push: the peak grows about 1.25× over the clip, as drawn | 2.2 2.1 2.0 1.9 | `vista-track` 4.4 4.0 3.6 3.6; `movie-vista` 0.8 |
+| `crowd-slow` | A steady push, about 1.2×. Faces look right in still frames, but the user judges faces by watching, and they failed in `crowd-track` | 2.4 2.5 2.5 2.6 | `crowd-track` 4.8 5.1 5.5 5.8; `movie-crowd` 1.2 |
+
+No hard cuts: the largest frame-to-frame change score in any of the six is 0.04, against 0.50 for the known cut in `movie-fire`. Stutter 1.01–1.07 on all six.
+
+**So, on the frames only:** the direction and the leap were keyframe-and-prompt faults, and stating where the move goes and how it ends fixed both. That repeats §3.5's lesson for motion: give the move room in the picture and say how it ends. **Framing closer didn't fix the swords**: both medium shots still break up or add a blade, so the "blade thinner than a cell" idea isn't supported. Swords need a different approach: real bodies and blades from a 3D scene kept the blades straight in `depth-sword` (user: "at least swords are straight and not bending"), which makes that the lead.
+
+**User's review:** `http://127.0.0.1:18190/review.html?set=fix`, questions in `E:\Dev\Web\test-just-direct\review-data-fix.js`, answers to `E:\Dev\Web\test-just-direct\review-answers-fix.json`.
+
 ## 4. Query log
 
 Added 2026-10-31, for camera moves and the stutter:
