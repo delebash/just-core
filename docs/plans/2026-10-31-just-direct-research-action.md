@@ -266,6 +266,52 @@ This is my own use of the LoRA, not one Lightricks describes, and it's one shot.
 
 **What this means for the app, if the user agrees after review:** camera moves and fight beats become paths. The app can draw simple camera paths itself from a button such as "push in" or "pan right" with `tracks-vista.js`'s method. A fight's paths can come from the user, from the AI planner or from a 3D scene. Whether the planner can write good paths isn't tested yet.
 
+## 3.11 The user's third review (*2026-11-02, answers in `E:\Dev\Web\test-just-direct\review-answers-new.json`; this overrides the "viewed by Claude" notes in §3.7, §3.8 and §3.10*)
+
+`one` is one pass at 1280×704; `ua` is two-stage with the §3.6 settings. The notes are the user's own words.
+
+| Comparison, left against right | Left | Right | Better | What the user found |
+|---|---|---|---|---|
+| `new-sword`: `one`, `ua` | **Good** | Not good enough | Left clearly | Only the left keeps one sword each. "left swords bends a little at start" |
+| `new-alley`: `one`, `ua` | **Good** | Not good enough | Left clearly | Both hold the umbrella, walk away and have a cat cross. "right had dup cats both where walking aways instead of torwards the camera" |
+| `new-dragon`: `one`, `ua` | Close | Close | Left a little | Both breathe fire from the mouth onto the castle, body and wings right. "both run in reverse" |
+| `new-anime`: `one`, `ua` | **Good** | Not good enough | Left clearly | Legs right on both; a real leap on neither. "the end for both is wring they arent leaping correctl more like walking in air" |
+| `sword-track`: `new-sword-one`, `new-sword-track-720-s12` | Not good enough | Not good enough | Right a little | One solid blade each on the right only; its sparks land where the blades meet. "both swords bend, right hands get a little off after 1st swing" |
+| `sword-track-720`: `new-sword-track`, `new-sword-track-720` | Not good enough | Not good enough | Can't tell | Neither keeps one sword each. "multiple sword fragments" |
+| `vista-track`: `movie-vista`, `vista-track` | Close | Not good enough | Left clearly | The camera really moves, the mountains keep their shape. "right camer moves reall;y fast forward makes the shot wrong" |
+| `vista-pan`: `movie-vista`, `vista-pan` | Good | Close | Can't tell | Pan, new mountains and sun: "Mostly" each |
+| `crowd-track`: `movie-crowd`, `crowd-track` | Good | Close | Left a little | Camera moves: yes. People move naturally: mostly. **Faces hold up: no** |
+| `ocean-again`: `movie-ocean`, `movie-ocean-ua` | Not good enough | **Close** | Right clearly | `ua` smooth, all the water moves, the ship mostly holds. "left water stuck again, right all water moves, it loooks like ship will turn over at the end" |
+| `hands-again`: `movie-hands`, `movie-hands-big` | **Good** | Close | Left clearly | Both slice, hands right on both. "right clip only did 1 chop" |
+
+The user's overall answers: the default is **full size in one pass**; swords are **not** good enough to stop working on; drawn paths at 10.5 minutes a clip: **"Can't tell yet"**; what to fix first: "you think on what to fix".
+
+**What it settles:**
+- **One pass is the default.** It won 6 of the 7 comparisons against `ua`. `ua` won only `ocean`, where one pass leaves half the water frozen, so it stays as a per-shot choice for scenes where everything has to move. That's one shot of evidence.
+- **The keyframe fix worked:** three of the four shots that failed the first review are now Good on one pass, and the fourth is Close. Extra blades, the unheld umbrella, the third leg and the fire from the tail are all gone.
+- **Paths aren't proven to the user yet.** The push I drew, 1.7× in 4 s, is too fast. The pan looks no better than no move. The faces fail in the push through the crowd, and the paths make the sword fight only a little better.
+- **My frame views missed faults again:** I wrote "faces hold" on `crowd-track`. A rating also moves with what it sits beside: `new-sword-one` was Good next to `new-sword-ua` and Not good enough next to the paths clip, and `movie-vista` was Close in one comparison and Good in the next. So a choice between two ways needs both side by side.
+
+**Faults left, by kind, on the best judged version of each shot:**
+
+| Kind | Shots | The layer it comes from, checked on the frames |
+|---|---|---|
+| Wrong direction or action | `new-dragon`: it faces the castle and breathes on it, but drifts backwards, tail first, out of the left of the frame. `new-anime`: she runs on the spot while the city scrolls, then the roof ends under her and she runs on in the air. Earlier: `movie-fire`'s hand never touches, `track-car` slides | Keyframe and prompt. The dragon's keyframe has the tower right in front of its head and no space ahead, and the prompt gives no direction. The anime keyframe is a side view of a run with no gap in sight, so a leap has nowhere to start |
+| Thin, fast objects | Swords bend, break into fragments, and hands slip after the first swing, with or without paths | The model. In this wide shot a blade is a few pixels wide, and each cell the model works in covers 32×32 pixels and 8 frames, so a fast blade is far finer than one cell |
+| Small faces in motion | `crowd-track` faces; `movie-dance` "shodows or is blurry" (first review) | Same scale limit. The face-crop pass in `2026-10-30-just-direct-research-talking.md` (track, crop, regenerate the face to fill the frame, paste back) is researched and never built |
+| Camera moves | The push too fast | My path setting |
+| Not judged yet | Two-stage `blast`, `car`, `fire`, `dance`, `horse` in the second review | — |
+
+**Higher frame rate isn't a cheap fix:** Lightricks' own notes (`packages/ltx-pipelines/CLAUDE.md` in LTX-2) say a 48 fps time base is outside the trained range and "decodes as a motion spike at each 8-frame latent border followed by a stall". Their pipelines map high rates to 60 (`dfr_stages.py`) or 30 (`hdr_ic_lora.py`), so the range isn't clear and I haven't tested it.
+
+## 3.12 What to fix first (*decided 2026-11-02; the user: "you think on what to fix"; `queue32a.ps1` keyframes, `queue32b.ps1` clips, all one pass*)
+
+1. **Wrong direction and action, at the keyframe and prompt:** `dragon-fix` puts open sky ahead of the dragon's head and has the prompt say it flies left to right, head first, and how the shot ends. `anime-fix` puts the edge and the gap in the keyframe, and the prompt describes the push-off, the arc and the landing in a crouch. These go first because they're cheap and because this layer already fixed three of the user's deal breakers. *Attack:* a prompt with an end point didn't move the camera (§3.6), so words may not move a body either. If they fail, the next step is a drawn path for the body.
+2. **Swords, by framing:** `sword-mid-11` and `sword-mid-12` are the same duel and the same words as `new-sword-one`, but from the waist up, so a blade is several cells long and wide. *Attack:* a closer shot also moves each blade more pixels per frame, which may smear it more, and a wide fight shot is still part of the bar. If the closer shot holds, the planner frames sword fights closer, and wide shots wait for a crop pass.
+3. **Camera paths at a gentle speed:** `vista-slow` at 1.25× and `crowd-slow` at 1.2×, both 1280×704, against the 1.7× and 1.5× the user saw. Without a natural speed, the question "are paths worth 10.5 minutes?" can't be answered. *Attack:* `vista-track` ran at 1152×640, so the size changes too; 1280×704 matches every other clip, and the user didn't fault the picture.
+
+Not this round: the face-crop pass, which is a bigger build, and higher frame rates, which aren't understood yet.
+
 ## 4. Query log
 
 Added 2026-10-31, for camera moves and the stutter:
