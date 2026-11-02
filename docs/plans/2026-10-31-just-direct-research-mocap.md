@@ -429,3 +429,29 @@ What was tried: the conversion's other rest-pose setting changed nothing; SOMA's
 Two bugs in py-soma-x 0.3.3: `PoseInversion`'s default low-detail path imports `soma.fitting.body`, which doesn't exist, and the low-detail MHR file `mhr_model_lod6.pt` isn't in GEM-X's assets. `low_lod=False` with the full-detail mesh avoids both.
 
 Still open: the wrist keeps GEM-X's rotation and hand orientation isn't scored; the movement lost close up; and SAM's raw mesh is used, so smoothing comes later in the pipeline.
+
+## 13. Face and eyes, measured (2026-11-02)
+
+**What the body models give.** GEM-X's skeleton has `Jaw`, `LeftEye` and `RightEye` joints, but on all four clips they barely move: the eyes sit at about 11.8° with a spread across the clip of 0.01-0.08° (0.73° on one walk), the jaw stays near 1°. Its head turns normally (spread 0.25-6.4°). SAM 3D Body's face output is multiplied by zero in its MHR head (`mhr_head.py`, `pred_face = ... * 0`). So face and eyes must come from a face model. ComfyUI's `SAM3DBody_FaceExpression` node is MediaPipe Face Landmarker's 52 ARKit blendshapes mapped by hand onto MHR's 72 expression axes; for our output the ARKit values themselves are what's needed.
+
+**Rulers tried.**
+- CMU Panoptic `171204_pose1` measured faces (`hdFace3d`, 70 points with pupils): unusable for faces. Over 3,586 frames the mouth opens more than 3.4 mm in only 5% of them, nobody talks, and the measured eye opening never drops below 0.12 of the eye width, so no blink is captured. Scores there were noise-level and are not reported as results. The CMU server ran at about 15 KB/s and reset parallel connections, so only some frames were fetched by byte range (`bench/panoptic_tar_range.py`).
+- KeyframeFace ([paper](https://arxiv.org/abs/2512.11321), [repo](https://github.com/wjc12345123/KeyframeFace), [data](https://modelscope.cn/datasets/chaochaooooooo/KeyframeFace_Dataset)): 21 actors, 2,100 clips, ARKit from an iPhone's TrueDepth through Live Link Face at 60 Hz. The 336 MB release has the ARKit values but no videos (only `video_metadata.json`), and it is CC BY-NC. Not usable as a ruler.
+- Meta's [Multiface](https://github.com/facebookresearch/multiface) (CC BY-NC 4.0, archived, used here to measure only): a face mesh per frame tracked from 38 cameras. Mini subject `6795937`, one front camera (`400048`, chosen from the calibration and checked by eye), eight sequences: neutral, blink, mouth open, jaw drop with brows up, smile with mouth open, lowered brows, raised inner brows, hidden lips looking up. One camera's frames were fetched out of the 3-8 GB per-sequence tars by range requests (`bench/tar_camera.py`), about 200 MB each. The mesh has no eyeballs, so gaze isn't measured.
+
+**MediaPipe Face Landmarker against Multiface** (`bench/truth_face_mf.js`, 440 measured frames, MediaPipe found 428). Each MediaPipe point is tied once to the nearest front-facing mesh vertex; the same ratios (to the eye-corner distance) are measured on both. "Follows" is correlation with the real movement, "shown" is the movement's size against the real one. Faces shrunk to the size of a medium and a full-body shot, then enlarged back as a head crop would be:
+
+| Movement | Real spread | Points follow, full / 140 px / 70 px | Points show | ARKit blendshape follows, full / 70 px |
+|---|---|---|---|---|
+| Mouth opening | 0.084 | 0.99 / 0.99 / 0.99 | 97-100% | `jawOpen` 0.96 / 0.96 |
+| Mouth width | 0.052 | 0.95 / 0.94 / 0.93 | 114-121% | `mouthSmile` 0.87 / 0.87 |
+| Right eye opening | 0.110 | 0.97 / 0.98 / 0.98 | 95-101% | `eyeBlinkRight` -0.94 / -0.94 |
+| Left eye opening | 0.085-0.095 | 0.95 / 0.97 / 0.96 | 110-133% | `eyeBlinkLeft` -0.92 / -0.94 |
+| Right brow | 0.052 | 0.97 / 0.96 / 0.94 | 70-72% | `browOuterUpRight` 0.81 / 0.82 |
+| Left brow | 0.044 | 0.92 / 0.90 / 0.88 | 65-67% | `browOuterUpLeft` 0.74 / 0.74 |
+
+MediaPipe's points follow mouth and lids closely at every size tested, because it crops and resizes the face to its own input size. Brows are the weak part: the points show about two thirds of the movement and the brow blendshapes follow at only 0.73-0.82, below the points. That gap is what our earlier note on a bounded solve from points onto ARKit keys would address. Speed: 300 frames in 3-4 s on the CPU.
+
+Limits: one person, posed expressions, studio light, a front camera; shrinking imitates resolution, not blur, compression or motion; blendshape sizes against the iPhone's ARKit aren't checked, only how well they follow; gaze is unmeasured. A Live Link Face recording on an iPhone with Face ID saves the ARKit values and the video together, and would measure gaze and blendshape sizes directly.
+
+Searches run for this section: "best open source facial motion capture from video ARKit blendshapes 2026" (returned mocap4face, GodotARKit, DeepMotion; nothing current and open); "dataset video paired with iPhone ARKit blendshape ground truth face capture" (KeyframeFace, Express4D, ARKitFace, REFA); "MediaPipe face blendshapes accuracy compared to iPhone ARKit Live Link Face" (a Reallusion forum comparison with no numbers, arXiv 2601.08234 with no numbers or code); "KeyframeFace dataset github ARKit coefficients video download" (the repo and ModelScope). Multiface came from earlier knowledge, read at source.
