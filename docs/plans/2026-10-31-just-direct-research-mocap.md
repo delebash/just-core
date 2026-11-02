@@ -422,7 +422,7 @@ Same four clips and scoring as above. Ranges cover both hands on both clips. SAM
 | Far, walks 4648 and 13858 | SAM 3D Body alone | 5.7-11.1 | 7.2-18.3 | 0.33-0.62 | 66-106% |
 | Far, walks 4648 and 13858 | GEM-X alone | 6.1-10.7 | 6.5-17.3 | 0.12-0.79 | 50-83% |
 
-The joined hand puts in the wrong place scores 25.9-29.3 mm, so the sides hold. The join keeps SAM 3D Body's finger shape and bend accuracy. It loses some of the movement shown close up, 78-86% against 86-101%, and that loss happens in the mesh-to-SOMA conversion, not in the copy.
+Scored against the other hand, the joined fingers are 25.9-29.3 mm off, so the sides hold. The join keeps SAM 3D Body's finger shape and bend accuracy. It loses some of the movement shown close up, 78-86% against 86-101%, and that loss happens in the mesh-to-SOMA conversion, not in the copy.
 
 What was tried: the conversion's other rest-pose setting changed nothing; SOMA's finger refinement (`finger_iters 2, lie_iters 5`) and weighting hand vertices 3x were no better. One average shape for the whole clip was clearly worse far away: walk 4648's left hand was 22.5° off and followed at 0.42, against 18.6° and 0.66 with a shape per frame. Fitting the mesh takes 1.5-2 minutes per 10 s on the CPU; mesh fit error 6.0-9.7 mm.
 
