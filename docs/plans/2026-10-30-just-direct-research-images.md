@@ -249,7 +249,9 @@ Only these were relied on, so only these were checked.
   zero applied tensors means it silently did nothing (#2212).
 - **The upsampler in llama.cpp.** The GGUF exists and is tagged for llama.cpp. Vision support in the kit's pinned build was not
   checked.
-- **Licence texts.** FLUX Kommunity and Qwen Research were not read. Licences are labels only, here.
+- **Licence texts.** Qwen Research was not read. FLUX Kommunity was read 2026-11-05: the model only for non-commercial
+  purposes, its outputs commercially only under US$5M a year in revenue (`2026-10-31-just-direct-research-action.md`,
+  "Licences of the route"). Licences are labels only, here.
 - **All "Card" numbers.** They are each author's own tests. The ausboss figures are detailed and open about limits, but not
   independently reproduced.
 - **My look at `id-sheet-2.png`** is one person, one seed. Row order confirmed from `queue3.ps1`: klein, flux3, qi21. The user's
