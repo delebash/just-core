@@ -571,7 +571,7 @@ It reports what a viewer would see go wrong: actors out of view or in view under
   - the creature size floor (380 px is a guess, and most plans sit at 340–370);
   - dragon fire shots only as attack runs at the castle: the test descriptions all fly past it.
 - **Next, in order:**
-  1. The dragon test shot reworded as an attack run at the castle, and a planner round on it.
+  1. The dragon test shot reworded as an attack run at the castle, and a planner round on it. Added 2026-11-05 as shot `attack` in `scene-test.js` (`dragon` kept, so earlier rounds re-run as they were): "At dusk a huge red dragon dives straight at a castle, wings beating, and breathes a stream of fire onto the battlements of the tall tower as it closes in." The round (`queue39.ps1 -shots attack -seeds 1,2,3 -format 3 -tag h`) waits for the card.
   2. One clip of a dragon at about 350 px, to test the 380 px floor.
   - Proposed, waiting for the user's word: a search cost and a report fault for a camera that spins the picture more than 30° in the shot; a fault for a subject far smaller than the distance asked for.
 
