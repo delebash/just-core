@@ -555,15 +555,25 @@ It reports what a viewer would see go wrong: actors out of view or in view under
   - *So the search now costs a camera 2* for each actor in frame but behind the set for 30% of those frames (the report's rule, on every 4th frame). Rebuilt on all 89 planner plans: 77 unchanged (both passed clips, every single-car and dragon plan), 12 with fewer faults, none with more; **clean 26 → 34**; 561 s → 644 s for all 89.
   - Still faulted: `e-corner-2`, `f-corner-2` and `f-corner-2-r1`. No camera sees both cars at frame 1 without one behind a building for its last 36–45 frames; that is the planner's to change, and the fault now says so.
   - *Not every clean plan is a good shot:* the taxi plan (`e-taxi-1-r1`, the action moved 8 frames) got a camera 92 m off on 85 mm, its saloon 27 px and taxi 86 px long at the middle frame; `f-taxi-2-r1` (moved 0) one 111 m off, cars 18 and 28 px. They asked for "medium", about 280 px. The search pays for a small subject but nothing faults it, and the old builder already chose 90 m for `f-taxi-2-r1`. Open: a fault when the subject is far smaller than the distance asked for.
+- **`plan-f-taxi-1-r1-j`** (2026-11-05; both cars clear in frame 1 at the planner's timing; first frames seeds 11–14, 67–68 s each, card 6,548–6,559 MiB; clip from seed 14, 668 s, card 7,351 MiB, lowest free RAM 6.38 GB):
+  - *First frames:* every seed put both cars where the depth has them. Seed 11 added three or four cars far up the street, two in the driving lane, and drew the saloon as a 1940s car; 12 put garbled lettering on the taxi's door and a box on the saloon's roof; 13 put the taxi's roof box on the saloon too. Seed 14 is clean: a plain black saloon, empty lanes, one car parked far past the intersection, and about ten pedestrians on the right-hand pavement (unasked, not a named fault). `queue40.ps1 frames <name> 13,14` now takes the seeds.
+  - *The extra car: none.* One taxi and one saloon from frame 1 to 97; the saloon leaves the frame for a few frames mid-turn and comes back as the same car behind the taxi. In `e-taxi-1-r1-y` and `-z` a copy came in with the late saloon. One clip, so a first sign, not proof.
+  - *Still fails the bar:* from about frame 44 to 66 the saloon melts into a blob and the left-hand building and the pedestrians smear; at frame 96 two small cars appear at the far end of the new street (background traffic, but the plan says the road is empty).
+- **Why it melts: the picture spins.** The camera stands 12 m up on the corner and pans after the taxi, which passes nearly beneath it, looking down up to 66°. Turning a camera that looks steeply down spins the picture instead of sliding it. Measured from the builder's own camera keys (a scratch copy of `shot-scene.py`; the camera's turn frame to frame split into roll about the look axis and the rest):
+  - *How fast the set crosses the screen doesn't explain it:* the passed `d-corner-2-b2g` slides up to 133 px a frame, this one 39.
+  - *The spin does:* this clip spins 85° in total, up to 2.9° a frame (70° a second) around frames 33–60, where the melt is; `d-corner-2-b2g` spins 8° in total, 0.6° a frame at most; both passed dragons under 2°.
+  - *Across all 91 planner plans* only 5 spin more than 20° (85–120° each; `f-taxi-1`, `f-taxi-1-r1`, `f-taxi-1-r1-j`, `f2-taxi-1`, `f2-taxi-1-r1`), every one a high camera looking 66–75° down as a taxi passes under it, and three of them have no fault. Every other plan spins 17° or less, most under 10°.
+  - *Not separated:* in the same frames the depth is nearly all flat road, so the model has almost nothing to hold the scene to. Both come from the same camera, so a rule against one removes the other here.
 - **Still open from E–G:**
-  - proof in a clip that every car in frame 1 stops the extra car;
+  - a camera that spins the picture (above): neither the search nor the report counts it;
+  - proof in more than one clip that every car in frame 1 stops the extra car;
   - cars far smaller than the shot asked for, unfaulted (above);
   - the creature size floor (380 px is a guess, and most plans sit at 340–370);
   - dragon fire shots only as attack runs at the castle: the test descriptions all fly past it.
 - **Next, in order:**
-  1. A clip with both cars in frame 1: `f-taxi-1-r1-j` (planner's timing, 18 mm, taxi 279 px and saloon 209 px; its saloon came in at frame 9 under the old builder), not `e-taxi-1-r1-j`, whose 27 px saloon would leave an extra car's cause unclear.
-  2. The dragon test shot reworded as an attack run at the castle, and a planner round on it.
-  3. One clip of a dragon at about 350 px, to test the 380 px floor.
+  1. The dragon test shot reworded as an attack run at the castle, and a planner round on it.
+  2. One clip of a dragon at about 350 px, to test the 380 px floor.
+  - Proposed, waiting for the user's word: a search cost and a report fault for a camera that spins the picture more than 30° in the shot; a fault for a subject far smaller than the distance asked for.
 
 **Not standard, for the app later:** the spec format and the builder are test code. In the app the planner's job belongs in the kit's feature and prompt system (`app-structure.md` §19 row), and the 3D scene would be JustStage's.
 
