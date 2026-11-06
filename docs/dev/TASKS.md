@@ -63,3 +63,34 @@ STATE:  OPEN — each app (house-paint, JustVoice, docgen; JustWrite its own) li
         gets it when one runs.
         (The rest of that day's asks from JustWrite's session — multi-window, token budgets, q-inner-loading in dark,
         renderAiMarkdown, the website's lede, the workflows' latest majors — are built or cancelled: git history.)
+
+## JustDirect's kit gaps, filled before the app [2026-11-06]
+DECIDED: the user, verbatim, 2026-11-06: "your rec go", on item 4 of the session's list: "Four gaps to fill in the kit
+        before the app. These aren't NOT STANDARD, but kit changes reach every app, so I want your go: the video job
+        needs guide frames, audio input and the upscaler stage; audio.cpp needs music, sound-effect and lip-sync kinds;
+        a chat request needs to carry an image, for the first-frame check (the runner already loads vision models);
+        Blender as an engine, if you take item 2."
+        Items 1–3 of that list are NOT STANDARD (the sd.cpp `jd` build pinned as the kit's, the Blender shot builder on
+        the engine host, `drawtracks.js` in the kit): a blanket go never covers one, so they wait for the user's word on
+        each by name, and Blender as an engine waits with item 2. Record: `docs/plans/2026-10-31-just-direct-handoff.md`.
+CORRECTED: "the runner already loads vision models" was wrong — the kit DOWNLOADS a row's `mmproj` (runner/models.js
+        selectFiles) but never passes it to llama-server (process.js emitModelsIni writes `model =` only), so the image gap
+        includes loading it. No seeded catalog row in any app names an mmproj (grep, 2026-11-06), so no current model
+        changes.
+PLAN (each its own test, the suites once at the end):
+  1. Image in a chat request — standard: OpenAI's chat content parts (`text`, `image_url` with a data URL), which
+     llama-server takes when started with `--mmproj` (llama.cpp tools/server/README.md, "multimodal").
+     `runner/models.js` cachedMmprojPath; `ModelIniEntry.mmprojPath` at its four builders (lifecycle.js) → `mmproj =`;
+     RunRequest `images` → the user turn's parts (prompts.js resolveAction); the adapters map the parts to their own
+     shapes (anthropic image blocks, gemini inlineData, openai_sdk input_image, ollama images; openai_compat as is).
+     Real test: the kit's emitModelsIni + the pinned llama-server with Qwen3-VL-8B (on disk) answering about a frame.
+  2. Video job — standard: sd-server's own vid_gen fields (examples/server/api.md): `control_frames`, `ref_audios`,
+     `hires`, `lora`, `strength`; sdServerArgv `--lora-model-dir`, `--hires-upscalers-dir`, `--params-backend`;
+     videoGen records its speed as imageEdit does. Only the `jd` build makes LTX read the guide and the audio (item 1),
+     so the real test runs the kit's path on that build.
+  3. audio.cpp music, sfx and lipsync kinds, each its own process as tts and stt are — standard: audio.cpp's
+     `POST /v1/tasks/run` (app/server/api.md), task `gen`, the one route its music (Stable Audio 3, ACE-Step), effects
+     (Stable Audio 3 SFX) and lip-sync (LatentSync) families run by. Needs the merged fork (281de44a; the pinned v0.9.2-jv.6 has no LatentSync) — the pin moves with the family
+     release (JustVoice TASKS, "Our audio.cpp fork is released with the family"). LatentSync runs `ffmpeg` from PATH.
+FOUND, not on the approved list (for the user's next list): no `runVideoFeature` (a video feature's preset and
+        dispatch — `videoGen` has no feature routing); no kit FFmpeg (JustVoice asks the user to install it).

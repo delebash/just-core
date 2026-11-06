@@ -7,7 +7,7 @@
 
 import { isJsonObject, pyInt, rstrip, setdefault, truthy } from "../platform/py.js";
 import { pyFloatValue } from "../platform/pyjson.js";
-import { adapterHttpError, buildChatMessages, httpxRequest, httpxStream, iterLines, LLMResponse, popReasoning, StreamDelta, TransportError } from "./base.js";
+import { adapterHttpError, buildChatMessages, contentParts, contentText, httpxRequest, httpxStream, iterLines, LLMResponse, popReasoning, StreamDelta, TransportError } from "./base.js";
 
 export const DEFAULT_BASE_URL = "http://localhost:11434";
 export const DEFAULT_MODEL = "llama3.2";
@@ -68,7 +68,12 @@ export class OllamaAdapter {
   _body(messages, { model, temperature, maxTokens, system, think, extra }, stream) {
     const body = {
       model: model || this.default_model,
-      messages: buildChatMessages(messages, system),
+      // a turn with an image (content parts): Ollama's `images` beside its text
+      messages: buildChatMessages(messages, system).map((m) => {
+        if (typeof m.content === "string") return m;
+        const parts = contentParts(m.content);
+        return { role: m.role, content: contentText(m.content), images: parts.filter((p) => p.type === "image").map((p) => p.data) };
+      }),
       stream,
       options: temperature == null ? {} : { temperature: pyFloatValue(temperature) },
     };

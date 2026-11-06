@@ -3053,7 +3053,10 @@ export class RunnerService {
    * shared with selectFiles/cachedGgufPath) — a plain substring would resolve quant "Q2_0" to
    * a co-cached "…-PQ2_0.gguf" (sorts first) and load the WRONG file. Uses no `this`. */
   _mainGguf(snapshotDir, quant) {
-    const cands = sortedPaths(rglobSuffix(String(snapshotDir), ".gguf").filter((p) => models._quantMatches(quant, path.basename(p))));
+    // a vision projector carrying the quant token is never the model (models.cachedGgufPath's rule)
+    const cands = sortedPaths(
+      rglobSuffix(String(snapshotDir), ".gguf").filter((p) => models._quantMatches(quant, path.basename(p)) && !path.basename(p).toLowerCase().includes("mmproj")),
+    );
     if (!cands.length) throw new FileNotFoundError(`no .gguf for quant ${pyRepr(quant)} in ${snapshotDir}`);
     return cands[0]; // first shard of a split model loads the rest
   }
@@ -3536,6 +3539,7 @@ export class RunnerService {
       const entry = new ModelIniEntry({
         modelId,
         ggufPath: String(ggufPath),
+        mmprojPath: models.cachedMmprojPath(model.hfRepo, model.mmproj, { cacheRoot: path.join(this._cacheRoot, "hf") }),
         nGpuLayers: fit.nglExplicit ? fit.nGpuLayers : null,
         nCpuMoe: fit.ncmoeExplicit ? fit.nCpuMoe : null,
         ctxLen: fit.ctxLen,
@@ -4347,6 +4351,7 @@ export class RunnerService {
           new ModelIniEntry({
             modelId: m.id,
             ggufPath: String(ggufPath),
+            mmprojPath: models.cachedMmprojPath(m.hfRepo, m.mmproj, { cacheRoot: hfCache }),
             nGpuLayers: fit.nglExplicit ? fit.nGpuLayers : null,
             nCpuMoe: fit.ncmoeExplicit ? fit.nCpuMoe : null,
             ctxLen: fit.ctxLen,
@@ -4729,6 +4734,7 @@ export class RunnerService {
         entry = new ModelIniEntry({
           modelId: entry.modelId,
           ggufPath: entry.ggufPath,
+          mmprojPath: entry.mmprojPath,
           nGpuLayers: fit.nGpuLayers,
           nCpuMoe: fit.nCpuMoe,
           ctxLen: entry.ctxLen,
@@ -4820,6 +4826,7 @@ export class RunnerService {
         entry = new ModelIniEntry({
           modelId: entry.modelId,
           ggufPath: entry.ggufPath,
+          mmprojPath: entry.mmprojPath,
           nGpuLayers: ngl,
           nCpuMoe: ncmoe,
           ctxLen: entry.ctxLen,

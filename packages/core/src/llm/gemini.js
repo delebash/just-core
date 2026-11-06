@@ -26,7 +26,7 @@
 
 import * as http from "../platform/http.js";
 import { errText, isJsonObject, rstrip, ValueError } from "../platform/py.js";
-import { abortError, adapterHttpError, LLMResponse, popReasoning, removePrefix, StreamDelta, selectAllowed, splitSystem } from "./base.js";
+import { abortError, adapterHttpError, contentParts, LLMResponse, popReasoning, removePrefix, StreamDelta, selectAllowed, splitSystem } from "./base.js";
 
 let sdk = null;
 /** The google-genai SDK, imported on first use (Python measured the import at ~918 ms of
@@ -146,7 +146,11 @@ export class GeminiAdapter {
 
   /** Turns → the SDK's Content/Part shape (role "model" for the assistant). */
   static _contents(turns) {
-    return turns.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
+    return turns.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      // a turn with an image (content parts): an inline-data part
+      parts: contentParts(m.content).map((p) => (p.type === "text" ? { text: p.text } : { inlineData: { mimeType: p.mimeType, data: p.data } })),
+    }));
   }
 
   async _d10(e, { stream = false } = {}) {

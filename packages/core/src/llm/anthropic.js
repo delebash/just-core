@@ -16,7 +16,7 @@
 
 import * as http from "../platform/http.js";
 import { errText, pyInt, rstrip } from "../platform/py.js";
-import { abortError, adapterHttpError, LLMResponse, popReasoning, StreamDelta, selectAllowed, splitSystem } from "./base.js";
+import { abortError, adapterHttpError, contentParts, LLMResponse, popReasoning, StreamDelta, selectAllowed, splitSystem } from "./base.js";
 
 let sdk = null;
 /** The Anthropic SDK, imported on first use (Python measured `import anthropic` at ~584 ms
@@ -148,7 +148,10 @@ export class AnthropicAdapter {
    * in `messages`: base.splitSystem, then the remainder as plain dicts. */
   _splitSystem(messages, system) {
     const [sysText, turns] = splitSystem(messages, system);
-    return [sysText, turns.map((m) => ({ role: m.role, content: m.content }))];
+    // a turn with an image (content parts): Anthropic's base64 image block
+    const blocks = (c) =>
+      contentParts(c).map((p) => (p.type === "text" ? { type: "text", text: p.text } : { type: "image", source: { type: "base64", media_type: p.mimeType, data: p.data } }));
+    return [sysText, turns.map((m) => ({ role: m.role, content: typeof m.content === "string" ? m.content : blocks(m.content) }))];
   }
 
   /**

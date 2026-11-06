@@ -478,3 +478,17 @@ test("cached_gguf_path_word_bounded_quant", () => {
   expect(pq !== null && basename(pq) === "Ternary-Bonsai-27B-PQ2_0.gguf").toBe(true);
   expect(models.isCached("owner/repo", "Q2_0", { cacheRoot: tmpPath })).toBe(true);
 });
+
+test("cached_mmproj_path_finds_the_projector_and_the_model_never_takes_it", () => {
+  // The vision projector a row names (selectFiles' rule: a .gguf whose path holds the mmproj token) is found on disk,
+  // and a projector carrying the model's quant token is never picked as the model (JustDirect's first-frame check).
+  const snap = join(tmpPath, "models--owner--vl", "snapshots", "sha");
+  mkdirSync(snap, { recursive: true });
+  writeFileSync(join(snap, "mmproj-VL-8B-Q8_0.gguf"), Buffer.from("GGUF"));
+  writeFileSync(join(snap, "VL-8B-Q8_0.gguf"), Buffer.from("GGUF"));
+  expect(basename(models.cachedMmprojPath("owner/vl", "mmproj", { cacheRoot: tmpPath }))).toBe("mmproj-VL-8B-Q8_0.gguf");
+  expect(basename(models.cachedGgufPath("owner/vl", "Q8_0", { cacheRoot: tmpPath }))).toBe("VL-8B-Q8_0.gguf");
+  expect(models.cachedMmprojPath("owner/vl", null, { cacheRoot: tmpPath })).toBe(null);
+  expect(models.cachedMmprojPath("owner/vl", "mmproj-F16", { cacheRoot: tmpPath })).toBe(null);
+  expect(models.cachedMmprojPath("owner/none", "mmproj", { cacheRoot: tmpPath })).toBe(null);
+});

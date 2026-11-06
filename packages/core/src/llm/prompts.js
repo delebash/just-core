@@ -334,6 +334,10 @@ export const RunRequest = T.Object({
   // character chat). Inserted between the system + the rendered user message, so follow-ups
   // keep proper message roles.
   history: opt(T.Array(T.Record(T.String(), T.Any())), []),
+  // Optional images for the rendered user turn, each a data URL (`data:image/png;base64,…`): the turn goes as OpenAI's
+  // content parts, the images first, then the text — a vision model (a catalog row with an mmproj) reads them
+  // (JustDirect's first-frame check, 2026-11-06).
+  images: opt(T.Array(T.String()), []),
 });
 
 export const RunResponse = T.Object({
@@ -581,7 +585,10 @@ function resolveAction(store, body) {
   const sysTpl = body.system == null ? (spec ? spec.system : "") : body.system;
   const usrTpl = body.userTemplate == null ? (spec ? spec.user_template : "") : body.userTemplate;
   const [systemText, userText] = renderPair(sysTpl, usrTpl, body.variables);
-  const messages = [...historyMessages(body.history), LLMMessage("user", userText)];
+  const userContent = body.images?.length
+    ? [...body.images.map((url) => ({ type: "image_url", image_url: { url } })), { type: "text", text: userText }]
+    : userText;
+  const messages = [...historyMessages(body.history), LLMMessage("user", userContent)];
   // the run's chosen preset (presetId) in place of the feature's assigned one — whole, never mixed with it
   let preset;
   if (body.presetId) {

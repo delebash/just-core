@@ -436,6 +436,8 @@ export class ModelIniEntry {
     requireFields("ModelIniEntry", fields, ["modelId", "ggufPath", "nGpuLayers", "nCpuMoe", "ctxLen"]);
     this.modelId = fields.modelId;
     this.ggufPath = fields.ggufPath;
+    // The row's vision projector on disk (models.cachedMmprojPath), or null: `mmproj =` loads it beside the model.
+    this.mmprojPath = fields.mmprojPath ?? null;
     // null = OMIT the flag from this section — the child's default `--fit` places tensors
     // (the 1b untuned path); an int renders as ever. ctxLen stays required.
     this.nGpuLayers = fields.nGpuLayers;
@@ -529,7 +531,7 @@ export function emitModelsIni(entries, { engineBuild = "" } = {}) {
       engineBuild,
     });
     pairs.push(..._extraFlagsToIniPairs(e.overrides?.extraFlags));
-    const section = [`[${e.modelId}]`, `model = ${e.ggufPath}`, renderIni(pairs)];
+    const section = [`[${e.modelId}]`, `model = ${e.ggufPath}`, e.mmprojPath ? `mmproj = ${e.mmprojPath}` : "", renderIni(pairs)];
     if (e.embeddings) {
       section.push("embeddings = true");
       if (e.pooling) section.push(`pooling = ${e.pooling}`);

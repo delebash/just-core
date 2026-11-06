@@ -131,6 +131,15 @@ What a speech model costs, measured, is in JustVoice's register §2.
   `current` + `value`) / stages) of the model file's bytes on the row (`lifecycle.js` `_followLoadProgress`,
   `_loadFraction`); the `GET /models` poll stays the judge. An engine without the stream answers 404 — the bar stays as
   it was. — *source + code + test, 2026-10-29* (the real engine's run with the GPU checks).
+- **A chat request carries an image when the row's vision projector is loaded** (JustDirect's first-frame check,
+  2026-11-06): until then the kit downloaded a row's `mmproj` (`runner/models.js` selectFiles) but never passed it, so
+  llama-server had no projector. Now `cachedMmprojPath` finds it, the router's `.ini` section gets `mmproj = <path>`
+  beside `model =`, RunRequest `images` (data URLs) make the user turn OpenAI's content parts (images first, then the
+  text), and the cloud adapters map the parts to their own image shapes. No seeded row in any app names an mmproj, so no
+  current model loads one. Real run (`E:\Dev\Web\test-just-direct\kit-vision.js`, b11960 CUDA 12, Qwen3-VL-8B Q4_K_M +
+  its F16 projector, the kit's emitModelsIni and composeRouterArgv, POST /models/load, the kit's OpenAICompatAdapter):
+  loaded in 8.8 s; three 1280×704 taxi frames at 4.4–5.7 s each, 940 prompt tokens each, answers that match the
+  pictures (one with a readable TAXI sign flagged). — *measured + code + test, 2026-11-06*.
 - **The router loads a model a request names unless told not to** (llama.cpp b11239 `tools/server/server-models.cpp`,
   *read* 2026-10-29): `--models-autoload` is on by default (`llama-server --help`), and `router_validate_model` then
   loads any listed model a request names — past the kit's admission. With `--no-models-autoload` an unloaded model is

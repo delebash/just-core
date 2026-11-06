@@ -585,6 +585,17 @@ test("emit_models_ini_chat_and_embed_sections", () => {
   expect(chatBlock).not.toContain("load-on-startup");
 });
 
+test("emit_models_ini_loads_a_vision_projector_beside_its_model", () => {
+  // a row with a cached mmproj gets `mmproj =` (llama-server's --mmproj), so a chat request can carry an image; a row
+  // without one renders as before
+  const ini = emitModelsIni([
+    new ModelIniEntry({ modelId: "vl", ggufPath: "/m/vl.gguf", mmprojPath: "/m/mmproj-vl.gguf", nGpuLayers: null, nCpuMoe: null, ctxLen: 8192 }),
+    new ModelIniEntry({ modelId: "chat", ggufPath: "/m/chat.gguf", nGpuLayers: null, nCpuMoe: null, ctxLen: 4096 }),
+  ]);
+  expect(ini.split("[chat]")[0]).toContain("mmproj = /m/mmproj-vl.gguf");
+  expect(ini.split("[chat]")[1]).not.toContain("mmproj");
+});
+
 test("emit_models_ini_omits_pooling_when_unset", () => {
   // pooling="" (the default) → NO `pooling =` line, so llama.cpp reads the GGUF's
   // pooling_type (#119). The runner sets it per-model from the catalog; unset = omit.

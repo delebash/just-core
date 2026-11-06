@@ -253,6 +253,22 @@ test("run_action_is_directly_callable_in_server", async () => {
   await expect(runAction(new MemPromptStore(), LLMConfig(), { action: "nope", variables: {} })).rejects.toBeInstanceOf(UnknownActionError);
 });
 
+test("run_carries_images_in_the_user_turn", async () => {
+  // RunRequest `images` (data URLs — JustDirect's first-frame check): the rendered user turn becomes OpenAI's content
+  // parts, the images first, then the text; without images it stays a plain string.
+  getLlmRegistry()._adapters = new Map();
+  const adapter = new CaptureAdapter();
+  getLlmRegistry().register(adapter);
+  const url = "data:image/png;base64,iVBORw0KGgo=";
+  await runAction(new MemPromptStore(), LLMConfig(), { action: "farewell", variables: { name: "Sam", role: "bot" }, images: [url] });
+  expect(adapter.last.user).toEqual([
+    { type: "image_url", image_url: { url } },
+    { type: "text", text: "Bye Sam" },
+  ]);
+  await runAction(new MemPromptStore(), LLMConfig(), { action: "farewell", variables: { name: "Sam", role: "bot" } });
+  expect(adapter.last.user).toBe("Bye Sam");
+});
+
 test("run_applies_adhoc_samplers", async () => {
   // #21 Lab column: ad-hoc samplers in the request reach the dispatch `extra` (this call
   // only), text values coerced to JSON types.

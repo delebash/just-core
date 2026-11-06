@@ -605,7 +605,25 @@ export function cachedGgufPath(repo, quant, { cacheRoot, mmproj = null } = {}) {
   }
   if (!isDir) return null;
   const cands = pySorted(
-    rglobNames(snapshots, ".gguf").filter((p) => _quantMatches(quant, p.split(sep).at(-1))),
+    rglobNames(snapshots, ".gguf").filter((p) => {
+      const name = p.split(sep).at(-1);
+      // a vision projector carrying the model's quant token (`mmproj-…-Q8_0.gguf`) is never the model
+      return _quantMatches(quant, name) && !name.toLowerCase().includes("mmproj");
+    }),
+    pathKey,
+  );
+  return cands.length ? cands[0] : null;
+}
+
+/** The on-disk path of a row's cached vision projector — the .gguf whose path holds its `mmproj` token, selectFiles'
+ *  rule — or null (no token, not cached). llama-server loads it beside the model (`mmproj =` in the router's .ini) so
+ *  a chat request can carry an image. */
+export function cachedMmprojPath(repo, mmproj, { cacheRoot } = {}) {
+  if (!mmproj) return null;
+  const snapshots = join(String(cacheRoot), `models--${repo.replaceAll("/", "--")}`, "snapshots");
+  const token = String(mmproj).toLowerCase();
+  const cands = pySorted(
+    rglobNames(snapshots, ".gguf").filter((p) => relative(snapshots, p).toLowerCase().includes(token)),
     pathKey,
   );
   return cands.length ? cands[0] : null;

@@ -30,7 +30,7 @@
 import * as http from "../platform/http.js";
 import { getLogger } from "../platform/log.js";
 import { errText, isJsonObject, pyInt, RuntimeError, rstrip, ValueError } from "../platform/py.js";
-import { abortError, adapterHttpError, buildChatMessages, LLMResponse, popReasoning, StreamDelta, selectAllowed, splitSystem } from "./base.js";
+import { abortError, adapterHttpError, buildChatMessages, contentParts, LLMResponse, popReasoning, StreamDelta, selectAllowed, splitSystem } from "./base.js";
 
 const log = getLogger("llm_runner.llm.openai_sdk");
 
@@ -168,10 +168,15 @@ export class OpenAISDKAdapter {
   /** A single user turn with no history → a plain string; else the typed input array
    * (assistant turns use output_text, everything else input_text). */
   static _responsesInput(turns) {
-    if (turns.length === 1 && turns[0].role === "user") return turns[0].content;
+    if (turns.length === 1 && turns[0].role === "user" && typeof turns[0].content === "string") return turns[0].content;
+    // a turn with an image (content parts): an input_image with its data URL
     return turns.map((m) => ({
       role: m.role,
-      content: [{ type: m.role === "assistant" ? "output_text" : "input_text", text: m.content }],
+      content: contentParts(m.content).map((p) =>
+        p.type === "image"
+          ? { type: "input_image", image_url: `data:${p.mimeType};base64,${p.data}` }
+          : { type: m.role === "assistant" ? "output_text" : "input_text", text: p.text },
+      ),
     }));
   }
 

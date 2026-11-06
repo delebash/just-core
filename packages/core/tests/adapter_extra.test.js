@@ -23,7 +23,7 @@ import { ApiError, EmbedContentResponse, GenerateContentResponse } from "@google
 import { APIError as OpenAIAPIError } from "openai";
 import { beforeEach, expect, test, vi } from "vitest";
 import { AnthropicAdapter, alwaysThinks } from "../src/llm/anthropic.js";
-import { LLMMessage, popReasoning } from "../src/llm/base.js";
+import { buildChatMessages, contentParts, LLMMessage, popReasoning } from "../src/llm/base.js";
 import { GeminiAdapter } from "../src/llm/gemini.js";
 import { OllamaAdapter } from "../src/llm/ollama.js";
 import { OpenAICompatAdapter } from "../src/llm/openai_compat.js";
@@ -1250,4 +1250,46 @@ test("anthropic_caches_the_prompt_and_counts_its_cache_tokens", async () => {
   const done = (await collect(s.streamChat([user("hi")]))).at(-1);
   expect(s._client.last.cache_control).toEqual({ type: "ephemeral" });
   expect([done.prompt_tokens, done.cache_write_tokens, done.cache_read_tokens]).toEqual([100, 20, 70]);
+});
+
+test("an_image_in_a_turn_reaches_every_adapter_in_its_own_shape", () => {
+  // A chat turn may carry OpenAI's content parts — text and an image as a data URL (RunRequest `images`, JustDirect's
+  // first-frame check). The local engine and OpenAI's Chat Completions take them as they are; every other adapter maps
+  // them to its own shape.
+  const png = "iVBORw0KGgo=";
+  const turn = user([
+    { type: "image_url", image_url: { url: `data:image/png;base64,${png}` } },
+    { type: "text", text: "how many cars?" },
+  ]);
+  expect(contentParts(turn.content)).toEqual([
+    { type: "image", mimeType: "image/png", data: png },
+    { type: "text", text: "how many cars?" },
+  ]);
+  expect(contentParts("plain")).toEqual([{ type: "text", text: "plain" }]);
+  expect(() => contentParts([{ type: "image_url", image_url: { url: "https://x/y.png" } }])).toThrow(/data URL/);
+
+  const [, anth] = new AnthropicAdapter("a")._splitSystem([turn], null);
+  expect(anth[0].content).toEqual([
+    { type: "image", source: { type: "base64", media_type: "image/png", data: png } },
+    { type: "text", text: "how many cars?" },
+  ]);
+  expect(GeminiAdapter._contents([turn])[0].parts).toEqual([{ inlineData: { mimeType: "image/png", data: png } }, { text: "how many cars?" }]);
+  const kw = sdk("openai")._responsesKwargs([turn], { model: "gpt-5", temperature: null, maxTokens: null, system: null, think: false, extra: null });
+  expect(kw.input).toEqual([
+    {
+      role: "user",
+      content: [
+        { type: "input_image", image_url: `data:image/png;base64,${png}` },
+        { type: "input_text", text: "how many cars?" },
+      ],
+    },
+  ]);
+  const ollama = new OllamaAdapter("o", { baseUrl: "http://127.0.0.1:1" })._body([turn], { model: "m", temperature: null, maxTokens: null, system: null, think: false, extra: null }, false);
+  expect(ollama.messages[0]).toEqual({ role: "user", content: "how many cars?", images: [png] });
+  const compat = new OpenAICompatAdapter("l", "local-llamacpp", { baseUrl: "http://127.0.0.1:1" });
+  expect(buildChatMessages([turn], null)[0].content).toBe(turn.content);
+  expect(compat).toBeTruthy();
+  // a plain string turn is untouched everywhere
+  expect(new AnthropicAdapter("a")._splitSystem([user("hi")], null)[1][0].content).toBe("hi");
+  expect(GeminiAdapter._contents([user("hi")])[0].parts).toEqual([{ text: "hi" }]);
 });

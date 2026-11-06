@@ -28,7 +28,7 @@ import { EnvHttpProxyAgent } from "undici";
 import * as http from "../platform/http.js";
 import { iterLines as platformIterLines } from "../platform/lines.js";
 import { noProxyWithLoopback } from "../platform/no_proxy.js";
-import { cpSlice, errText, pyStr, RuntimeError, truthy } from "../platform/py.js";
+import { cpSlice, errText, pyStr, RuntimeError, truthy, ValueError } from "../platform/py.js";
 import { pyJson } from "../platform/pyjson.js";
 
 /** One conversation turn. `role` follows OpenAI's words (system / user / assistant / tool),
@@ -103,6 +103,30 @@ export function popReasoning(extra) {
 /** The OpenAI-shape message list: an optional leading system turn, then each turn as
  * `{role, content}`. The ONE builder shared by the openai-compat + ollama + openai-SDK
  * chat-completions paths. */
+/**
+ * A turn's content as parts: a string is one text part; an array is OpenAI's chat content parts (`{type: "text", text}`,
+ * `{type: "image_url", image_url: {url: "data:<mime>;base64,<data>"}}` — what llama-server takes with a vision
+ * projector) → `[{type: "text", text} | {type: "image", mimeType, data}]`, for the adapters whose wire has its own
+ * image shape. An image is a data URL only: those wires take the bytes, not an address.
+ */
+export function contentParts(content) {
+  if (typeof content === "string") return [{ type: "text", text: content }];
+  return (content ?? []).map((p) => {
+    if (p?.type === "text") return { type: "text", text: String(p.text ?? "") };
+    const url = p?.type === "image_url" ? String(p.image_url?.url ?? "") : "";
+    const m = /^data:([^;,]+);base64,(.*)$/s.exec(url);
+    if (!m) throw new ValueError(`a chat image must be a data URL (data:<type>;base64,…), got ${p?.type === "image_url" ? url.slice(0, 40) : p?.type}`);
+    return { type: "image", mimeType: m[1], data: m[2] };
+  });
+}
+
+/** The text of a turn's content — its text parts joined (an image has none). */
+export const contentText = (content) =>
+  contentParts(content)
+    .filter((p) => p.type === "text")
+    .map((p) => p.text)
+    .join("\n");
+
 export function buildChatMessages(messages, system) {
   const out = [];
   if (system) out.push({ role: "system", content: system });
