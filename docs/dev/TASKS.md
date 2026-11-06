@@ -148,3 +148,25 @@ BLAST RADIUS (greps, 2026-11-06):
   5. `ffmpeg`: JustVoice `server/src/mastering.js`, `export_audiobook.js`, `book_run.js`, `models.js`, `system_info.js`,
      `audio/wav.js`, `api/export_jobs_api.js`, `api/render_chapter_api.js`, `api/book_runs_api.js`,
      `api/projects_api.js`; just-core `llm/speech_dispatch.js` (the lipsync note).
+STATE 2026-11-06:
+  1. Merged upstream into `jd` locally (`2d036b0`; one conflict, video.cpp's stage-2 upscale: our guide clearing kept,
+     upstream's new H3 and generic upscalers taken); CPU and CUDA builds clean (the local CUDA build without CUTLASS,
+     upstream's new optional submodule). `9d4fbd5`: the fork's release run pushes no container images (upstream's
+     build.yml would push Docker images under the fork's account). BLOCKED: creating github.com/delebash/
+     stable-diffusion.cpp was refused by Claude Code's permission check ("the auto mode classifier judged this action
+     dangerous") — pushing `jd`, the release run and the kit's rows wait for the fork. NOT opened: the upstream pull
+     requests — upstream's CONTRIBUTING.md ("AI-Assisted Contributions") requires the human contributor's "thorough human
+     review" of every line and "Do not list AI tools as co-authors", and its AGENTS.md says agents must not create PRs.
+  2. Not done, by the user's word.
+  3. The spec: `docs/plans/2026-11-06-motion-tracks-spec.md` (written from sparse_tracks.py at ComfyUI-LTXVideo
+     `220e1d4`, no code in it); the code written from it alone by a separate agent; the comparison fixtures from
+     Lightricks' renderer by `E:\Dev\Web\test-just-direct\tracks-golden.py` (its clone, `E:\Dev\Web\test-just-direct\ext\
+     ComfyUI-LTXVideo`, 110 MB on disk with its examples — the API's 13.6 MB was the repository's packed size).
+  4. BUILT `1a97d977` (unit tests green). The real test (two clips back to back on one kit-started server,
+     `E:\Dev\Web\test-just-direct\kit-video2.js`) was cancelled at step 2 of the first clip by its RAM guard: JustVoice's
+     router loaded Gemma 4 26B (13.75 GB of RAM, 31 layers on the card) at 13:49 while the clip ran. The card booking
+     read right (`video:sdcpp` at 128, then 7,300 for the job). Rerun when JustVoice's session frees the card.
+  5. BUILT `edd35715`, measured: the kit installed the pinned Windows build (SHA-256 checked, `-version` probe), and it
+     turned sd-server's WebM into H.264/AAC MP4 in 1.2 s. The first try failed at the swap (EPERM — Windows Defender
+     reading the new exe); the engine swap and the extras swap now retry (`renameHeld`). JustVoice's session told.
+  6. Dropped.
