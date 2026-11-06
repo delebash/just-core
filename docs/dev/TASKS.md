@@ -99,7 +99,9 @@ PLAN (each its own test, the suites once at the end):
      v0.9.2-jv.6 has no LatentSync) — the pin moves with the family release (JustVoice TASKS, "Our audio.cpp fork is
      released with the family"). LatentSync runs `ffmpeg` from PATH.
      BUILT 2026-11-06, e547bded (kinds, providers, placement rules, speed bands, runAudioFeature, the screens' words in
-     en and es; unit tests). Real run on the merged fork's server: waits for the card.
+     en and es; unit tests). DONE 2026-11-06, real run (`E:\Dev\Web\test-just-direct\kit-audio.js`, the merged fork's
+     server at 281de44a): sfx 10 s of three sword clashes in 2.1 s, music 30 s with a storm swell in 5.0 s, each in its
+     own process. LatentSync through the kit is not run yet (its frames are about 270 MB of Base64 for 3 s).
 FOUND, not on the approved list (for the user's next list): no `runVideoFeature` (a video feature's preset and
         dispatch — `videoGen` has no feature routing) and no video kind with its speed band; no kit FFmpeg (JustVoice
         asks the user to install it); LatentSync's frames come back as one Base64 string, so a 720p line past about 6 s

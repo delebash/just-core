@@ -2818,6 +2818,12 @@ What the kit's `audiocpp` runtime is built on — JustVoice's code (`server/src/
   - The kit's pinned `v0.9.2-jv.6` (2026-10-16) has `ace_step`, `stable_audio` and `controlfoley` but not LatentSync
     (on `jv` since 2026-10-21); the merged fork (281de44a, JustVoice's TASKS) has all, and the pin moves with the family
     release. — *source + code + test*.
+  - Real run through the kit (*measured, 2026-11-06*; `E:\Dev\Web\test-just-direct\kit-audio.js`, the kit's
+    AudioCppServer of kind sfx and of kind music on JustVoice's dev build of 281de44a, CUDA, `stable_audio.mem_saver`):
+    Stable Audio 3 Small SFX loaded in 1.1 s and made 10.0 s in 2.1 s (three sharp onsets with ringing decay, peak
+    −1.4 dB); Stable Audio 3 Medium loaded in 1.0 s and made 30.0 s in 5.0 s (held notes, a swell at the end, peak
+    0 dB). The result's fields: `audio`, `sample_rate`, `channels`, `named_audio_outputs`, `timing`. Each ran in its
+    own process (`audiocpp-server-sfx`, `audiocpp-server-music`).
 
 ## 13 · FFmpeg for the apps (JustDirect's joins, remux and LatentSync, 2026-11-06)
 
