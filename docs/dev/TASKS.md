@@ -109,4 +109,53 @@ CHECKED 2026-11-06, once after the three (6c43d7ca): kit core 1641 and lint, kit
 FOUND, not on the approved list (for the user's next list): no `runVideoFeature` (a video feature's preset and
         dispatch — `videoGen` has no feature routing) and no video kind with its speed band; no kit FFmpeg (JustVoice
         asks the user to install it); LatentSync's frames come back as one Base64 string, so a 720p line past about 6 s
-        can't be read whole (RESEARCH §12).
+        can't be read whole (RESEARCH §12). — All three decided 2026-11-06: the next section.
+
+## JustDirect's six decisions after the kit gaps [2026-11-06]
+DECIDED: the user, verbatim, 2026-11-06: "1 your rec dont do 2 , 3 your rec , 4 your rec 5 your rec, 6 your rec  go" —
+        on the session's re-checked list (its reply "Decisions, re-checked"), item 1 as restated after the user asked
+        "did we make our own additions to the sd.cpp, if so why and if we need it shouldnt we follow what we are already
+        doing with others and make a repo like audo.cpp, what did we change and verify via adverserially thinking we
+        need those changes". The recs as approved:
+  1. NOT STANDARD, the user's word on it by name. Our four sd.cpp changes go into a fork repo like our audio.cpp's:
+     github.com/delebash/stable-diffusion.cpp. `jd` is pushed there and the kit's 8 sd.cpp downloads point at our
+     releases, built by hand on GitHub with upstream's own release workflow. Before each change: upstream merged in,
+     built and tested (the family fork rule; 23 commits behind on 2026-11-06). All four changes are offered upstream as
+     pull requests; once upstream has them all, the kit goes back to upstream's releases and the fork is retired.
+     house-paint's and JustStage's image features move onto the build too and are retested (the reserve change reaches
+     every model on Windows cards under 12 GB). The four, each checked against today's upstream:
+     `dffe732` picture-to-video memory (upstream: "need 9806.96 MB device" at 1280×704); `b9e4949` LTX guide frames
+     (upstream: "LTXAV control_frames are not implemented", video.cpp:783); `cf4af3a` audio-to-video (PR #1676 idle
+     since 2026-06-20, two faults found in it); `27fbab0` half-size guides and the small-card peak (before it: refused
+     18 MB and 227 MB short, nothing past 121 frames).
+  2. Don't do: the Blender shot builder, neither inside JustStage nor inside JustDirect; Blender as a kit engine waits
+     with it. The builder stays test-only (`E:\Dev\Web\test-just-direct\shot-scene.py`).
+  3. NOT STANDARD, the user's word on it by name. The motion-path drawer is rewritten clean-room in the kit (MIT): one
+     pass writes the drawing format Lightricks' Motion Track LoRA was trained on as a spec, a second writes the code from
+     that spec only, and a test compares our frames with Lightricks' own renderer (their licence claims no rights in
+     output). Why: `drawtracks.js` ports `sparse_tracks.py` from ComfyUI-LTXVideo, which is under the LTX-2 Community
+     License, not an open licence. The test clones github.com/Lightricks/ComfyUI-LTXVideo (about 13.6 MB).
+  4. A video feature in the kit: a video kind on sd.cpp's runtime with its preset, speed band, booking kind and
+     `runVideoFeature`, built as the image features are. A fresh sd-server per clip unless two clips back to back prove
+     safe on the `jd` build (2026-10-28 a second clip on one server crashed or ran out of memory; `videoGen` keeps its
+     server, sdcpp.js:261) — about 25 minutes of the card, after JustStage's "card free".
+  5. FFmpeg from the kit: gyan.dev's 9.0.2 essentials for Windows, Martin Riedl's 9.0.2 for macOS and Linux, pinned by
+     SHA-256; the addresses are data rows; a path the user sets falls back to their own FFmpeg; JustVoice moves onto it
+     in its own session. The test downloads `ffmpeg-9.0.2-essentials_build.zip`, 114,768,076 bytes, from
+     github.com/GyanD/codexffmpeg/releases/download/9.0.2/.
+  6. Dropped: LatentSync's long lines. Its package (huggingface.co/audio-cpp/LatentSync-1.6-GGUF) carries InsightFace
+     face weights "restricted to non-commercial research", so lip repair stays off the commercial-use route (it was
+     already optional, off by default). The kit's lipsync kind stays, labelled with its licence.
+  Also, from the same check: Stable Audio 3 (music and effects) is free for commercial use only under US$1M a year in
+  revenue (LTX: US$10M) — added to the route's licence list as a label.
+BLAST RADIUS (greps, 2026-11-06):
+  1. `DEFAULT_SDCPP_BUILD` / `SD_REL`: just-core `runner/config.js:294-295`, its tests (runtime_service, runtime_server,
+     runtime_models, runtimes, sdcpp_real); house-paint `server/tests/aiphoto/real.test.js`, `migrate.test.js`;
+     JustStage `server/src/app.js:124` (`runtimes: ["sdcpp"]`); `E:\Dev\Web\test-just-direct\rows.js`.
+  3. New file; no callers.
+  4. `runImageFeature` / `videoGen`: just-core `llm/image_dispatch.js`, `llm/image_jobs_api.js`, `runner/sdcpp.js`;
+     house-paint `server/src/aiphoto/edit.js`, `aiphoto_service.js`; the kind lists in `llm/runtimes_api.js`,
+     `ui/composables/useMemoryCells.js`, `ui/views/AiModelsArea.vue`, the en/es catalogs.
+  5. `ffmpeg`: JustVoice `server/src/mastering.js`, `export_audiobook.js`, `book_run.js`, `models.js`, `system_info.js`,
+     `audio/wav.js`, `api/export_jobs_api.js`, `api/render_chapter_api.js`, `api/book_runs_api.js`,
+     `api/projects_api.js`; just-core `llm/speech_dispatch.js` (the lipsync note).
