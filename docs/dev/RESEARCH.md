@@ -2839,6 +2839,31 @@ design.
     all 960 LoRA tensors applied. Against the sd-cli clip: PSNR 46.7 dB on average, 46.1 at the lowest frame — the
     same clip. `E:\Dev\Web\test-just-direct\out\kit-blast.mp4`.
     - sd-server's .webm carries pcm_s16le audio; the tests remux it to AAC MP4.
+  - **Two clips back to back on one kit-started server now finish** (*measured, 2026-11-06*;
+    `E:\Dev\Web\test-just-direct\kit-video2.js`): the kit's RuntimeService started sd-server from the `jd` build merged
+    with upstream (`2d036b0`, built here without CUTLASS) on a row of kind video, and the kit's videoGen made the
+    explosion with seed 11, then seed 12, on the same server: 661 s and 589 s (the second loads nothing), the whole
+    card's peak 6,945 and 6,954 MiB, lowest free RAM 6.13 and 13.04 GB. The 2026-10-28 finding — a second clip on one
+    server crashed or ran out of memory — no longer holds on this build, so an LTX row needs no `spec.serverPerJob`. The
+    booking read `video:sdcpp` throughout (128 idle, 7,300 for each job); the ledger got 0.0062× and 0.0069× (the video
+    band's fine). A first try was cancelled by the RAM guard when another app's router loaded Gemma 4 26B (13.75 GB)
+    mid-clip — sharing the PC by message, not the arbiter, kept them apart.
+  - **Motion-track guide frames in the kit, clean-room** (*code + test, 2026-11-06*; the user's "3 your rec"):
+    `runner/motion_tracks.js` was written by a separate agent from `docs/plans/2026-11-06-motion-tracks-spec.md` alone
+    (the spec from Lightricks' `sparse_tracks.py` at ComfyUI-LTXVideo `220e1d4`; neither that file nor the earlier port
+    `drawtracks.js` was opened by the writer). Lightricks' own renderer, run on the CPU by
+    `E:\Dev\Web\test-just-direct\tracks-golden.py` (ComfyUI stood in for), drew three cases — 1152×640 and 1280×704 over 97
+    frames, 384×640 over 30, with spline, straight, fractional, crossing and early-ending tracks — and
+    `tests/motion_tracks_golden.test.js` holds our frames to theirs: the editor's sampling identical, every byte of 15
+    kept frames within one step (theirs are 16-bit floats, ours 8-bit). The first version followed a spec line of mine
+    that wrongly called the reference size and scale 32-bit (Python does them in 64-bit; only the product is stored
+    32-bit) and took a two-point line's arithmetic in another order; both corrected in the spec and the code, each with
+    a test that fails on the old way. Speed: 0.21 ms a frame at 1152×640 (scaled from 10 frames).
+  - **The merged build against the one before it:** seed 11 matches `kit-blast.mp4` frame for frame in content (the
+    run, the blast at the same moment, the dive and landing, the one-frame smear at the landing that the earlier clip
+    has too), but not to the bit: PSNR 34.5 dB on average, 31.7 at the lowest frame (pre-merge kit vs sd-cli: 46.7).
+    Upstream's 23 commits since include a custom modulate operator for LTX (#2258) and ggml updates, and this local
+    build has no CUTLASS.
     - 720p picture-to-video on 8 GB needs a local sd.cpp patch (`src/model/diffusion/ltxv.hpp`, branch `jd`); the
       official build runs out of memory. Whether an app ships a patched build isn't decided.
 - **house-paint — code, 2026-10-28:** `server/src/jobs.js` `JobRegistry`:

@@ -34,6 +34,8 @@ for a track given by control points and a frame count `n` (n ≥ 2):
 - **One control point**: that point, `n` times.
 - **Two control points**: `n` points evenly spaced on the straight line from the first to the second. Point `i` lies at
   fraction `i / (n − 1)` along the line, so the first and last points are the control points.
+  - The reference computes each coordinate as `a + ((b − a) × i) ÷ (n − 1)`, in that order, in 64-bit arithmetic. This
+    was added 2026-11-06; the order decides an exact .5 before rounding.
 - **Three or more**: a uniform Catmull-Rom spline through all the control points, with the first and the last control
   point each repeated once at its end as a phantom neighbour. With `k` control points there are `k − 1` segments.
   - Point `i` sits at global parameter `g = (i / (n − 1)) × (k − 1)`. Its segment is `floor(g)`, capped at `k − 2`, and
@@ -55,7 +57,9 @@ The frame is drawn at a larger **reference size**, then scaled down to the outpu
    - Otherwise: reference width = 1080 and reference height = floor(height × 1080 ÷ width).
    - The scale factors are `sx = reference width ÷ width` and `sy = reference height ÷ height`.
    - A point's reference position is `(x × sx, y × sy)`.
-   - The reference renderer does this arithmetic in 32-bit floating point.
+   - **Corrected 2026-11-06, after the first implementation:** the reference size, the scale factors and the products
+     `x × sx`, `y × sy` are ordinary 64-bit arithmetic. Only the product is then stored as a 32-bit float, and the
+     centre is rounded from that 32-bit value (step 6). The first version of this page said the whole step was 32-bit.
 2. **Constants.** Smallest radius **2**, largest radius **8** (reference pixels), trail length **50** frames.
 3. **Trail.** For output frame `t`, every track contributes its points from frames `max(0, t − 50)` through `t`, at most
    51 points, wherever the track has a point at that frame.
