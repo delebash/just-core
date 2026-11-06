@@ -412,6 +412,31 @@ plan §5 and its TASKS entry):
   docgen's whole server, Python vs Node, on copies of its real database: 83 reads (70 identical,
   13 volatile — times, ids, the backup file), 37/37 writes, 1,910 database cells, 0 different.
 
+**The licence files in the installer** (*code + measured 2026-11-06*, JustVoice's Windows build; app-structure
+§Q.2):
+- **Vite 8.3.4's `build.license`** (vite.dev/config/build-options; `vite:license`, `dist/node/chunks/node.js`)
+  walks each JavaScript chunk's `moduleIds`, takes those under `node_modules`, and writes each package's name,
+  version, `license` field and the text of its first `license*` / `licence*` / `copying*` file, as Markdown (or
+  JSON when `fileName` ends in `.json`) relative to `outDir`. It reads no `NOTICE` file, and it has no
+  allow-list or failure on a licence. Packages that only CSS `@import`s pull in are not modules, so they are
+  missing — the Fontsource fonts (JustVoice: 74 font files bundled, no font package listed). The kit's UI,
+  aliased from source, isn't under `node_modules` and isn't listed. JustVoice's file: 30 packages — 26 MIT,
+  Apache-2.0 (`@internationalized/number`), BSD-2-Clause (esprima), ISC (github-slugger), DOMPurify's
+  `(MPL-2.0 OR Apache-2.0)`.
+- **The template's ranking had it first** (`docs/plans/2026-10-17-complete-template-research.md` §10, "Vite 8's
+  `build.license`"); the 2026-11-05 finding's lean, `rollup-plugin-license`, was a plugin for what the build tool
+  already does.
+- **electron-builder 26.15.3 merges** the top-level `extraResources` with the platform's (`fileMatcher.js`
+  `getFileMatchers`: `config[name]`, then `customBuildOptions[name]`). A `from` that is a file goes INTO `to`
+  when `to` is an existing folder, named as the source (`copyFiles`, issue #1245) — so `{from: <file>, to: '..'}`
+  puts it beside the Windows exe. A folder `from` copies its contents into `to` (`LICENSES/` needs
+  `to: '../LICENSES'`). Measured: `win-unpacked/` holds `LICENSE`, `NOTICE.md`, `LICENSES/`,
+  `THIRD_PARTY_NOTICES.md` beside `LICENSE.electron.txt` and `LICENSES.chromium.html`.
+- **OFL-1.1 condition 2:** fonts "may be bundled, redistributed and/or sold with any software, provided that each
+  copy contains the above copyright notice and this license" — stand-alone text files qualify. Every Fontsource
+  package's `LICENSE` is one copyright line plus the same OFL-1.1 text (16 of 16 compared); `@fontsource/source-serif-4`
+  5.3.1's line is only "Google Inc.".
+
 **JustWrite on Electron** (*measured 2026-10-08*, this machine, step 4; JustWrite's register
 has its app-side facts):
 - electron-builder packages every `dependencies` entry into the app; a renderer library listed

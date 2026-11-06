@@ -538,6 +538,11 @@ function checkQuasar(app) {
     [/--install-links/, "electron.unPackagedInstallParams with --install-links (§Q.2)"],
     [/\*\*\/data\/\*\*/, "the dev watcher ignoring **/data/** (§Q.8)"],
     [/delete\s+process\.env\.npm_config_allow_scripts/, "the npm_config_allow_scripts delete (§Q.6)"],
+    // the licence files the installer carries (2026-11-06: no family app shipped any)
+    [/license:\s*\{\s*fileName:\s*['"]THIRD_PARTY_NOTICES\.md['"]/, "Vite's build.license writing THIRD_PARTY_NOTICES.md — the bundled packages' licences (§Q.2)"],
+    [/from:\s*path\.join\(root,\s*['"]LICENSE['"]\)/, "the app's LICENSE in the installer (extraResources, §Q.2)"],
+    [/from:\s*path\.join\(root,\s*['"]NOTICE\.md['"]\)/, "the app's NOTICE.md in the installer (extraResources, §Q.2)"],
+    [/from:\s*path\.join\([^)]*['"]THIRD_PARTY_NOTICES\.md['"]\)/, "THIRD_PARTY_NOTICES.md in the installer (extraResources, §Q.2)"],
   ];
   for (const [re, what] of needs) if (!re.test(cfg)) fail(name, `quasar.config.js has no ${what}`);
   // the AppImage's file name (electron-builder 26 refuses an "&" there — docgen's Linux release build, 2026-10-29)

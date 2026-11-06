@@ -19,6 +19,19 @@ const root = import.meta.dirname
 const kitUi = path.resolve(root, '../packages/ui')
 const kitCore = path.resolve(root, '../packages/core')
 
+// The licence files the installer carries beside the app — MIT, Apache-2.0 §4(a) and BSD-3-Clause
+// cl. 2 ask for the licence texts and notices to travel with every copy (app-structure §Q.2): the
+// app's own LICENSE and NOTICE.md, and THIRD_PARTY_NOTICES.md, the licences of the packages bundled
+// into the renderer, which Vite writes into the renderer's build (`build.license`, extendViteConf
+// below; Quasar builds the desktop renderer into dist/electron/UnPackaged). Electron's own
+// (LICENSE.electron.txt, LICENSES.chromium.html) electron-builder adds itself, and the server's
+// packages keep their LICENSE files inside the app. `to` is the launcher's folder, per platform.
+const notices = (to) => [
+  { from: path.join(root, 'LICENSE'), to },
+  { from: path.join(root, 'NOTICE.md'), to },
+  { from: path.join(root, 'dist', 'electron', 'UnPackaged', 'THIRD_PARTY_NOTICES.md'), to }
+]
+
 export default defineConfig(() => {
   return {
     // vue-i18n first (as Quasar's i18n preset wires it), then the renderer's start-up: the kit's UI,
@@ -75,6 +88,10 @@ export default defineConfig(() => {
         // The dev server reads the repo (docs/ for Help), the kit's UI, and the kit's core
         // (platform/schema.js, through the server's schemas).
         viteConf.server.fs = { ...(viteConf.server.fs || {}), allow: [ root, kitUi, kitCore ] }
+        // The bundled packages' licences, one file beside index.html in every build — the installer
+        // carries it (`notices` above), the headless server and the phone app serve it with the page
+        // (vite.dev/config/build-options#build-license)
+        viteConf.build = { ...(viteConf.build || {}), license: { fileName: 'THIRD_PARTY_NOTICES.md' } }
       },
     },
 
@@ -152,7 +169,7 @@ export default defineConfig(() => {
         win: {
           target: 'nsis',
           executableName: 'familytemplate',
-          extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '..', filter: [ '*.cmd' ] } ]
+          extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '..', filter: [ '*.cmd' ] }, ...notices('..') ]
         },
         nsis: {
           oneClick: false,
@@ -183,7 +200,7 @@ export default defineConfig(() => {
         // '**/node_modules/{@koromix/koffi-darwin-*,better-sqlite3/prebuilds}/**' (JustWrite, 2026-10-20)
         mac: {
           category: 'public.app-category.productivity',
-          extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '.', filter: [ '!*.cmd' ] } ]
+          extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '.', filter: [ '!*.cmd' ] }, ...notices('.') ]
         },
         // the AppImage; a .deb also needs `linux.maintainer` ("name <email>", published in the package)
         // and `homepage` in package.json (electron-builder stops on "Please specify project homepage" —
@@ -193,7 +210,7 @@ export default defineConfig(() => {
         linux: {
           target: [ 'AppImage' ],
           category: 'Office',
-          extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '..', filter: [ '!*.cmd' ] } ]
+          extraResources: [ { from: path.join(root, 'build', 'launcher'), to: '..', filter: [ '!*.cmd' ] }, ...notices('..') ]
         },
         // the AppImage on the AppImage project's static runtime (type2-runtime 20251108): it needs no FUSE 2
         // library, which Ubuntu 24.04 doesn't install — the legacy toolset's AppImage stopped there with
