@@ -953,7 +953,7 @@ export class RuntimeService {
   modelFor(id) {
     const m = this._model(id);
     if (!this._here(m)) throw Object.assign(new Error(`${m.name} isn't downloaded`), { notDownloaded: true });
-    return { key: m.id, files: Object.fromEntries(m.files.map((f) => [f.slot, this._fileAt(f)])), peakVramMb: m.peakVramMb };
+    return { key: m.id, files: Object.fromEntries(m.files.map((f) => [f.slot, this._fileAt(f)])), peakVramMb: m.peakVramMb, spec: m.spec ?? {} };
   }
 
   /** Whether model row `m`'s files are all here, as a server would start on them (modelFor's own check). */
@@ -994,12 +994,12 @@ export class RuntimeService {
 
   /** The server running `modelKey` from `files` (`{slot: path}`) — started (or restarted on another model) when needed;
    *  `peakVramMb` the model's own peak on the card during a job (0: the runtime's default). */
-  async ensureServer({ modelKey, files, peakVramMb = 0 }) {
+  async ensureServer({ modelKey, files, peakVramMb = 0, spec = {} }) {
     if (this._removing) throw refusal(`${this.rt.label} is being removed — try again when it's done`, { busy: "engine-busy" });
     if (this._server?.handle.isAlive() && this._server.modelKey === modelKey) return this._server.handle;
     if (this._starting) await this._starting.catch(() => {});
     if (this._server?.handle.isAlive() && this._server.modelKey === modelKey) return this._server.handle;
-    this._starting = this._start(modelKey, files, peakVramMb);
+    this._starting = this._start(modelKey, files, peakVramMb, spec);
     try {
       return await this._starting;
     } finally {
@@ -1007,7 +1007,7 @@ export class RuntimeService {
     }
   }
 
-  async _start(modelKey, files, peakVramMb = 0) {
+  async _start(modelKey, files, peakVramMb = 0, spec = {}) {
     if (!this._spec) throw new TypeError(`${this.rt.id} has no server`);
     await this.stopServer();
     const exe = this.installedExe();
@@ -1020,7 +1020,7 @@ export class RuntimeService {
     const url = `http://127.0.0.1:${port}`;
     let handle;
     try {
-      handle = await this._startServer(exe, this._spec.argv({ port, files, blankPage }), {
+      handle = await this._startServer(exe, this._spec.argv({ port, files, blankPage, spec }), {
         url,
         health: (u) => this._spec.ready(u),
         label: `${this.rt.label} server`,

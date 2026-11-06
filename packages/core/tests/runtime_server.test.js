@@ -10,7 +10,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { runtimeVariantDir } from "../src/runner/binary.js";
 import { binaryAsset, DEFAULT_SDCPP_BINARIES, DEFAULT_SDCPP_BUILD } from "../src/runner/config.js";
 import { EngineBusyError, RuntimeService } from "../src/runner/runtime_service.js";
-import { imageJobBody, runImageJob, runVideoJob, sdServerArgv, videoJobBody } from "../src/runner/sdcpp.js";
+import { imageJobBody, runImageJob, runVideoJob, sdServerArgv, videoJobBody, videoRequestFor } from "../src/runner/sdcpp.js";
 
 const NVIDIA_BOX = { platform: "windows", runtimes: { cuda: true }, gpus: [{ computeCap: "7.5" }] };
 const CPU_BOX = { platform: "windows", runtimes: {}, gpus: [] };
@@ -95,6 +95,13 @@ test("one model at a time: started once, reused, restarted on another model — 
   expect(start.started).toHaveLength(2);
   expect(start.started[0].h.alive).toBe(false); // the first stopped before the second started
   expect(arb.bookings.get("image:sdcpp")).toMatchObject({ mb: 128, kind: "image" });
+});
+
+test("a row's spec reaches sd-server's start: where its weights live and which backend runs each part", async () => {
+  // LTX-2.3 on 8 GB (JustDirect's recipe): Gemma 3 on the CPU, its weights streamed from the drive
+  const start = fakeStart();
+  await service(fakeArbiter(), start).ensureServer({ modelKey: "ltx", files: FILES, spec: { backend: "te=cpu", paramsBackend: "diffusion=disk,te=disk" } });
+  expect(start.started[0].argv).toEqual(expect.arrayContaining(["--backend", "te=cpu", "--params-backend", "diffusion=disk,te=disk"]));
 });
 
 test("a job: the kind busy, room made for the peak, the peak booked — then the idle booking and clock back", async () => {
@@ -226,6 +233,36 @@ test("sd-server's video body: frames, fps, the flow shift and the VAE's tiling, 
   // LTX-2.x's extra parts reach sd-server as their own flags
   const argv = sdServerArgv({ port: 1, files: { diffusion_model: "ltx.gguf", llm: "gemma.gguf", vae: "v.safetensors", audio_vae: "a.safetensors", embeddings_connectors: "c.safetensors" } });
   expect(argv).toEqual(expect.arrayContaining(["--audio-vae", "a.safetensors", "--embeddings-connectors", "c.safetensors"]));
+});
+
+// JustDirect's guided clips (just-core TASKS "JustDirect's kit gaps", item 2): sd-server's own vid_gen fields
+// (examples/server/api.md) and the folders it finds a LoRA or an upscaler in (it takes names, never paths).
+test("the video job's guide frames, driving audio, LoRAs and upscale pass: sd-server's own fields and folders", () => {
+  const png = Buffer.from([1, 2, 3]);
+  const wav = Buffer.from([4, 5, 6]);
+  const hires = { upscaler: "ltx-x2", width: 1280, height: 704, steps: 3, sigmas: [0.909375, 0.725, 0.421875, 0], denoisingStrength: 1 };
+  const body = videoJobBody({ prompt: "p", width: 640, height: 352, frames: 97, guide: [png, png], audio: wav, loras: [{ path: "a/union.safetensors", multiplier: 1 }], params: { strength: 0.7, hires } });
+  expect(body.control_frames).toEqual(["AQID", "AQID"]);
+  expect(body.ref_audios).toEqual(["BAUG"]);
+  expect(body.lora).toEqual([{ path: "a/union.safetensors", multiplier: 1 }]);
+  expect(body.strength).toBe(0.7);
+  expect(body.hires).toEqual({ enabled: true, upscaler: "ltx-x2", target_width: 1280, target_height: 704, steps: 3, custom_sigmas: hires.sigmas, denoising_strength: 1 });
+  const plain = videoJobBody({ prompt: "p", width: 8, height: 8, frames: 5 });
+  for (const k of ["control_frames", "ref_audios", "lora", "strength", "hires"]) expect(plain).not.toHaveProperty(k);
+
+  // a row's LoRA and upscaler files: sd-server started on their folders, and its disk streaming from the row's spec
+  const at = (...p) => path.join("/hf", ...p);
+  const files = { diffusion_model: at("m", "ltx.gguf"), lora_union: at("a", "union.safetensors"), lora_track: at("b", "track.safetensors"), upscaler: at("c", "ltx-x2.safetensors") };
+  const argv = sdServerArgv({ port: 1, files, spec: { paramsBackend: "diffusion=disk,te=disk" } });
+  expect(argv).toEqual(expect.arrayContaining(["--lora-model-dir", path.join("/hf"), "--hires-upscalers-dir", at("c"), "--params-backend", "diffusion=disk,te=disk"]));
+  expect(argv).not.toContain(files.lora_union);
+  expect(sdServerArgv({ port: 1, files: { diffusion_model: "x.gguf" } }).join(" ")).not.toMatch(/lora|upscalers|params-backend/);
+
+  // a request names its LoRAs by the row's slots; the upscale pass names the row's upscaler unless it says one
+  const req = videoRequestFor({ files }, { prompt: "p", width: 640, height: 352, frames: 97, loras: [{ slot: "lora_track", multiplier: 0.8 }], params: { hires: { width: 1280, height: 704 } } });
+  expect(req.loras).toEqual([{ path: "b/track.safetensors", multiplier: 0.8 }]);
+  expect(req.params.hires.upscaler).toBe("ltx-x2");
+  expect(() => videoRequestFor({ files }, { loras: [{ slot: "lora_none" }] })).toThrow(/lora_none/);
 });
 
 test("the video job: posted to vid_gen, step progress, then the whole encoded file and what it is", async () => {

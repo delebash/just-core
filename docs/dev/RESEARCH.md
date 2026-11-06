@@ -2672,10 +2672,27 @@ design.
     `EngineBusyError` covers one app only.
   - Gaps it found in `runner/sdcpp.js` at c1b95b8:
     - `SLOT_FLAGS` has no `llm_vision` slot (Qwen-Image-Edit), no LoRA directory and no hires upscalers directory.
+      (LoRA and upscaler folders closed 2026-11-06: a row's `lora_<name>` slots start sd-server with
+      `--lora-model-dir` — their shared folder — and its `upscaler` slot with `--hires-upscalers-dir`; sd-server takes a
+      LoRA as its path under that folder and an upscaler as its bare name, never a path — examples/server/api.md "LoRA
+      Rules", common.cpp `resolve_model_file_from_dir` — and ignores `<lora:…>` in a server prompt.)
     - `sdServerArgv` can't pass `--backend` / `--params-backend`; LTX needs `--backend te=cpu` (Gemma 3 12B on the
-      CPU).
+      CPU). (Closed 2026-11-06: the row's `spec.backend` and `spec.paramsBackend`; the pinned master-1024-77b72a2
+      accepts both and the two folder flags — its `--help` probe exits 0, an unknown flag 1.)
     - `videoJobBody` has no two-stage (hires) fields, no `ref_images` and no `strength` (Lightricks' I2V: 0.7).
-    - `videoGen` doesn't call `recordSpeed`; `imageEdit` does.
+      (Closed 2026-11-06 but `ref_images`, which only MiniMax-H3 reads: `hires`, `strength`, and the guide frames as
+      `control_frames` and a driving track as `ref_audios` — sd-server's own fields; only our `jd` build makes LTX
+      read the last two.)
+    - `videoGen` doesn't call `recordSpeed`; `imageEdit` does. (Open: a clip has no speed unit or band yet — sd.cpp's
+      runtime has the one kind, image.)
+  - **The kit's video job makes the guided clip sd-cli made** (*measured, 2026-11-06*;
+    `E:\Dev\Web\test-just-direct\kit-video.js`): the passing explosion (`blast-kf-blast-depth2`: its first frame, 97
+    depth frames, Union Control at 1, seed 11, 1280×704 × 97, LTX-2.3 Q4_K_M with Lightricks' 8 sigmas) through the
+    kit's `sdServerArgv` (the LoRA folder, `--backend te=cpu`, `--params-backend diffusion=disk,te=disk`),
+    `videoRequestFor` and `videoJobBody` (a 44.9 MB body) to sd-server from the `jd` build: 699 s, the whole card's
+    peak 7,531 MiB, lowest free RAM 3.80 GB (sd-cli: 634 s, 6.37 GB); the log says "IMG2VID with IC-LoRA guide" and
+    all 960 LoRA tensors applied. Against the sd-cli clip: PSNR 46.7 dB on average, 46.1 at the lowest frame — the
+    same clip. `E:\Dev\Web\test-just-direct\out\kit-blast.mp4`.
     - sd-server's .webm carries pcm_s16le audio; the tests remux it to AAC MP4.
     - 720p picture-to-video on 8 GB needs a local sd.cpp patch (`src/model/diffusion/ltxv.hpp`, branch `jd`); the
       official build runs out of memory. Whether an app ships a patched build isn't decided.
@@ -2785,6 +2802,22 @@ What the kit's `audiocpp` runtime is built on — JustVoice's code (`server/src/
 - **A model's request** names its `family` and `task`, its file and `sessionOptions`; a companion file registers as
   `<id>::<role>`. The kit keeps these on the model's row as `spec`; how a family's request is shaped stays the app's.
   — *code (slot.js `_entriesFor`)*.
+- **Music, sound effects and lip-sync are one audio.cpp task, `gen`, on one generic route** (JustDirect, 2026-11-06; the
+  fork's `docs/models/stable_audio.md`, `ace_step.md`, `latentsync.md`, `app/server/api.md` "POST /v1/tasks/run", read
+  at 281de44a): Stable Audio 3 (music, and its SFX package for effects), ACE-Step (songs and edits by route) and
+  LatentSync all run `--task gen` on the CLI and `POST /v1/tasks/run {model, request}` on the server, the request in
+  the CLI's request-sequence fields (`text`, `duration_seconds`, `num_inference_steps`, `guidance_scale`, `seed`,
+  `lyrics`, `task_route`, `audio` a server path or `audio_base64`, `options`). The kit runs each as its own kind and
+  process — `music`, `sfx`, `lipsync` — through `runAudioFeature`.
+  - LatentSync takes the video as `options.reference_video_file` (a path on the server's machine) and decodes it by
+    running `ffmpeg` from PATH (`src/community_models/latentsync/video.cpp`). It answers the frames as one artifact of
+    raw rgb24 (`latentsync_video_rgb24`, with width, height, frames and fps; a second, small artifact describes them),
+    Base64 in the JSON: 1280×704 at 25 fps is 2.7 MB a frame, so a 3 s line is about 270 MB of Base64 and past about
+    6 s the answer runs over V8's longest string (2^29 − 24 characters) and can't be parsed whole. The server has no
+    option to write an artifact to a file instead (grep of `app/server` for an output path, 2026-11-06).
+  - The kit's pinned `v0.9.2-jv.6` (2026-10-16) has `ace_step`, `stable_audio` and `controlfoley` but not LatentSync
+    (on `jv` since 2026-10-21); the merged fork (281de44a, JustVoice's TASKS) has all, and the pin moves with the family
+    release. — *source + code + test*.
 
 ## Records not yet distilled
 

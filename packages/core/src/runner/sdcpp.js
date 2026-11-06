@@ -7,6 +7,8 @@
 // /sdcpp/v1/vid_gen) → GET /sdcpp/v1/jobs/{id} (with `preview: "proj"` its step/total at no measured cost) → POST
 // …/cancel.
 
+import path from "node:path";
+
 /** The flags the kit starts sd-server with — a staged build must accept them (acquireRuntime's probe), or the
  *  install fails and the engine on disk stays. `--help` after them: known flags exit 0, an unknown one 1. */
 export const SDCPP_PROBE_ARGVS = Object.freeze([
@@ -16,6 +18,10 @@ export const SDCPP_PROBE_ARGVS = Object.freeze([
     "--diffusion-model", "probe.gguf",
     "--llm", "probe.gguf",
     "--vae", "probe.safetensors",
+    "--lora-model-dir", "probe",
+    "--hires-upscalers-dir", "probe",
+    "--backend", "te=cpu",
+    "--params-backend", "diffusion=disk",
     "--offload-to-cpu",
     "--serve-html-path", "probe.html",
     "--help",
@@ -35,14 +41,43 @@ const SLOT_FLAGS = Object.freeze({
   embeddings_connectors: "--embeddings-connectors",
 });
 
-/** sd-server's argv for one model: `files` `{slot: path}`, `blankPage` the empty page served at / instead of its WebUI. */
-export function sdServerArgv({ port, files, blankPage, offloadToCpu = true }) {
+// A row's LoRA slots (`lora`, `lora_<name>`) and its upscaler (`upscaler`): files sd-server finds by NAME in the folders
+// it starts with — a LoRA as its path under `--lora-model-dir`, the upscale pass's model as its file name without the
+// ending in `--hires-upscalers-dir` (examples/server/api.md, "LoRA Rules"; common.cpp resolve_model_file_from_dir).
+const isLoraSlot = (slot) => slot === "lora" || slot.startsWith("lora_");
+
+/** The folder holding every one of a row's LoRA files (the deepest one they share), or null when it has none. */
+export function loraDirOf(files) {
+  const dirs = Object.entries(files || {})
+    .filter(([slot]) => isLoraSlot(slot))
+    .map(([, f]) => path.dirname(String(f)));
+  if (!dirs.length) return null;
+  return dirs.reduce((a, b) => {
+    while (path.relative(a, b).startsWith("..") || path.isAbsolute(path.relative(a, b))) a = path.dirname(a);
+    return a;
+  });
+}
+
+/** sd-server's argv for one model: `files` `{slot: path}`, `blankPage` the empty page served at / instead of its WebUI,
+ *  `spec` the row's own way of running: `backend` which device runs each part (`--backend`; LTX-2.3's Gemma 3 on the CPU,
+ *  "te=cpu"), `paramsBackend` where its weights live (`--params-backend`; on 8 GB streamed from the drive,
+ *  "diffusion=disk,te=disk"). */
+export function sdServerArgv({ port, files, blankPage, offloadToCpu = true, spec = {} }) {
   const argv = ["--listen-ip", "127.0.0.1", "--listen-port", String(port)];
   for (const [slot, file] of Object.entries(files || {})) {
+    if (isLoraSlot(slot)) continue;
+    if (slot === "upscaler") {
+      argv.push("--hires-upscalers-dir", path.dirname(String(file)));
+      continue;
+    }
     const flag = SLOT_FLAGS[slot];
     if (!flag) throw new TypeError(`sd-server has no flag for the model slot "${slot}"`);
     argv.push(flag, String(file));
   }
+  const loraDir = loraDirOf(files);
+  if (loraDir) argv.push("--lora-model-dir", loraDir);
+  if (spec?.backend) argv.push("--backend", String(spec.backend));
+  if (spec?.paramsBackend) argv.push("--params-backend", String(spec.paramsBackend));
   if (offloadToCpu) argv.push("--offload-to-cpu");
   if (blankPage) argv.push("--serve-html-path", String(blankPage));
   return argv;
@@ -83,9 +118,14 @@ export function imageJobBody({ prompt, width, height, init = null, refs = [], ma
  * The native job body for one video (api.md, `POST /sdcpp/v1/vid_gen`): `frames` rounded down to 4n+1 by sd-server,
  * `init`/`end` the first and last frame as PNG Buffers (image-to-video, first-last-frame), `params` the preset's
  * recipe — `flowShift`, `sigmas` (sd-server's `custom_sigmas`), `vaeTiling` (its `vae_tiling_params`: the Wan VAE's
- * decode is the big one on a small card) beside the image's sampler, scheduler, steps, cfg and seed.
+ * decode is the big one on a small card) beside the image's sampler, scheduler, steps, cfg and seed; `strength` how far
+ * the first frame may change; `hires` a second pass after an upscale (`{upscaler, width, height, steps, sigmas,
+ * denoisingStrength}` — LTX's two-stage clip: its x2 latent upscaler, then a short refine).
+ * `guide` the frames a guide LoRA follows (PNG Buffers: depth, pose or drawn paths — sd-server's `control_frames`),
+ * `audio` a WAV the clip is driven by (`ref_audios`: LTX's audio-to-video, the mouth follows the track), `loras`
+ * `[{path, multiplier}]` by their path under the server's LoRA folder (videoRequestFor names them by the row's slots).
  */
-export function videoJobBody({ prompt, negativePrompt = "", width, height, frames, fps = 16, init = null, end = null, params = {}, seed = null }) {
+export function videoJobBody({ prompt, negativePrompt = "", width, height, frames, fps = 16, init = null, end = null, guide = [], audio = null, loras = [], params = {}, seed = null }) {
   const b64 = (buf) => Buffer.from(buf).toString("base64");
   const sample = { sample_method: params.sampler ?? "euler", sample_steps: params.steps ?? 4, guidance: { txt_cfg: params.cfg ?? 1 } };
   if (params.scheduler) sample.scheduler = params.scheduler;
@@ -105,9 +145,38 @@ export function videoJobBody({ prompt, negativePrompt = "", width, height, frame
     sample_params: sample,
   };
   if (params.vaeTiling) body.vae_tiling_params = params.vaeTiling;
+  if (params.strength != null) body.strength = params.strength;
+  const h = params.hires;
+  if (h) {
+    body.hires = { enabled: true, upscaler: String(h.upscaler ?? ""), target_width: h.width, target_height: h.height, steps: h.steps };
+    if (h.sigmas?.length) body.hires.custom_sigmas = h.sigmas;
+    if (h.denoisingStrength != null) body.hires.denoising_strength = h.denoisingStrength;
+  }
   if (init) body.init_image = b64(init);
   if (end) body.end_image = b64(end);
+  if (guide?.length) body.control_frames = guide.map(b64);
+  if (audio) body.ref_audios = [b64(audio)];
+  if (loras?.length) body.lora = loras.map((l) => ({ path: String(l.path), multiplier: l.multiplier ?? 1 }));
   return body;
+}
+
+/**
+ * A video request as `model` (`{files: {slot: path}}` — RuntimeService.modelFor) runs it: its `loras` named by the row's
+ * slots (`[{slot, multiplier}]`) become their paths under the server's LoRA folder (loraDirOf), and an upscale pass that
+ * names no upscaler takes the row's `upscaler` file by its name. → videoJobBody's argument.
+ */
+export function videoRequestFor(model, request) {
+  const files = model?.files ?? {};
+  const loraDir = loraDirOf(files);
+  const loras = (request.loras ?? []).map(({ slot, multiplier = 1 }) => {
+    if (!isLoraSlot(String(slot)) || !files[slot]) throw new TypeError(`the video model has no LoRA "${slot}"`);
+    return { path: path.relative(loraDir, String(files[slot])).split(path.sep).join("/"), multiplier };
+  });
+  const params = { ...(request.params ?? {}) };
+  if (params.hires && !params.hires.upscaler && files.upscaler) {
+    params.hires = { ...params.hires, upscaler: path.basename(String(files.upscaler), path.extname(String(files.upscaler))) };
+  }
+  return { ...request, loras, params };
 }
 
 /**
@@ -179,15 +248,16 @@ export const SDCPP_SERVER = Object.freeze({ argv: sdServerArgv, ready: sdReady }
  * into the kit's measurement ledger (RuntimeService.recordSpeed): the model's speed band on this box from then on.
  */
 export async function imageEdit(service, { model, request, onProgress = null, signal = null }) {
-  await service.ensureServer({ modelKey: model.key, files: model.files, peakVramMb: model.peakVramMb ?? 0 });
+  await service.ensureServer({ modelKey: model.key, files: model.files, peakVramMb: model.peakVramMb ?? 0, spec: model.spec ?? {} });
   const t0 = Date.now();
   const png = await service.runJob((url) => runImageJob(url, imageJobBody(request), { onProgress, signal }));
   service.recordSpeed?.(model.key, { secPerImage: (Date.now() - t0) / 1000 });
   return png;
 }
 
-/** One video through the kit's sd.cpp runtime, as imageEdit — `request` as videoJobBody takes it. → runVideoJob's result. */
+/** One video through the kit's sd.cpp runtime, as imageEdit — `request` as videoJobBody takes it, its LoRAs by the row's
+ *  slots (videoRequestFor). → runVideoJob's result. */
 export async function videoGen(service, { model, request, onProgress = null, signal = null }) {
-  await service.ensureServer({ modelKey: model.key, files: model.files, peakVramMb: model.peakVramMb ?? 0 });
-  return service.runJob((url) => runVideoJob(url, videoJobBody(request), { onProgress, signal }));
+  await service.ensureServer({ modelKey: model.key, files: model.files, peakVramMb: model.peakVramMb ?? 0, spec: model.spec ?? {} });
+  return service.runJob((url) => runVideoJob(url, videoJobBody(videoRequestFor(model, request)), { onProgress, signal }));
 }
