@@ -10,6 +10,7 @@ import { post } from "./serverApi.js";
 import { reportError } from "./reportError.js";
 
 const PER_MINUTE = 20;
+const RESIZE_OBSERVER_NOTICE = /^ResizeObserver loop (completed with undelivered notifications|limit exceeded)/;
 // The log is read in English (a log line, not screen text — §Q.11).
 const UNKNOWN_ERROR = "unknown error";
 
@@ -58,7 +59,13 @@ export function installErrorReporting(app, { send = (entry) => post("/v1/logs/cl
     else console.error(err);
   };
   if (typeof window === "undefined") return () => {};
-  const onError = (ev) => report(ev.error || ev.message, "window");
+  // The browser's notice that some resize observations wait for the next loop (W3C Resize Observer
+  // §3.4.6, §3.6.1) comes as a window error with no Error behind it; Sentry's default filters drop
+  // it too ("Usually this is not an actual issue though. It indicates slowness.")
+  const onError = (ev) => {
+    if (!ev.error && RESIZE_OBSERVER_NOTICE.test(String(ev.message || ""))) return;
+    report(ev.error || ev.message, "window");
+  };
   const onRejection = (ev) => report(ev.reason, "promise");
   window.addEventListener("error", onError);
   window.addEventListener("unhandledrejection", onRejection);

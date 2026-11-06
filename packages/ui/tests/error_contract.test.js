@@ -201,6 +201,28 @@ describe("installErrorReporting", () => {
     expect(() => app.config.errorHandler(new Error("x"), null, "y")).not.toThrow();
     await new Promise((r) => setTimeout(r, 10));
   });
+  test("the browser's ResizeObserver loop notice is neither sent nor shown", async () => {
+    // Chromium reports a skipped resize observation as a window error with no Error behind it; it
+    // toasted "Something went wrong — ResizeObserver loop completed with undelivered notifications"
+    // on JustVoice's Projects page (2026-11-06); Sentry's default filters drop it too.
+    const sent = [];
+    pushToast.mockClear();
+    const target = new EventTarget(); // the tests run in Node: a window that only takes events
+    vi.stubGlobal("window", target);
+    const fire = (message) => target.dispatchEvent(Object.assign(new Event("error"), { message }));
+    try {
+      const off = installErrorReporting(fakeApp(), { send: async (e) => sent.push(e) });
+      fire("ResizeObserver loop completed with undelivered notifications.");
+      fire("ResizeObserver loop limit exceeded");
+      fire("a real one");
+      await new Promise((r) => setTimeout(r, 10));
+      expect(sent.map((e) => e.message)).toEqual(["a real one"]);
+      expect(pushToast).toHaveBeenCalledTimes(1);
+      off();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 // The twentieth review (2026-10-20): a 422 whose words moved into `errors[]` toasted only the generic sentence
