@@ -4,6 +4,19 @@ The question (the user, 2026-11-06): can the family's apps run on an AI the pers
 Claude Code, Codex and the like — instead of an API key, auto-detecting what is installed, the way Craft Anything
 does? Research only; nothing built. Distilled into `docs/dev/RESEARCH.md` §7, "Subscriptions as providers".
 
+## Standards for the recommended pieces (nothing built; waiting for the user's go)
+
+| Piece | Standard it follows | Kit code |
+|---|---|---|
+| ChatGPT plan requests (Sign in with ChatGPT) | developers.openai.com/siwc/token-sharing-open-source/models-and-inference; the official `openai` SDK the kit already uses | `packages/core/src/llm/openai_sdk.js` |
+| ChatGPT sign-in and its own token table | OpenID Connect discovery at auth.openai.com with `openid-client` (MIT, github.com/panva/openid-client) — a new dependency, not an ML package | `packages/core/src/llm/provider_api.js`, `packages/core/src/llm/db_schema.js` |
+| The Claude Code provider type | code.claude.com/docs/en/headless (`claude -p`, stream-json, `--safe-mode`) | `packages/core/src/llm/registry.js` (`construct`), `packages/core/src/llm/base.js` |
+| Starting Claude Code with no console | the kit's own door for every program it starts | `packages/core/src/platform/procs.js` |
+| One Claude Code process kept ready | NOT STANDARD — the standard option is a fresh `claude -p` per call as Anthropic documents it; the trade-off: the first word 0.69 s after the prompt instead of 6.7–7.2 s, for 221 MB held while the route is in use | NOT STANDARD — the standard option is a fresh `claude -p` per call; the trade-off: 0.69 s instead of 6.7–7.2 s to the first word, for 221 MB held while the route is in use |
+| Detecting installed programs | the kit's "detected → Connect" probe, extended; `which` (ISC, github.com/npm/node-which) plus seeded known-folder rows (Craft Anything's list, Apache-2.0, credited) | `packages/core/src/llm/provider_api.js`, `packages/ui/src/composables/useProviderConnect.js` |
+| npm `.cmd` launchers on Windows | `cross-spawn` (MIT, github.com/moxystudio/node-cross-spawn); prompt on stdin, system prompt by file | `packages/core/src/platform/procs.js` |
+| JustVoice's price question on a plan route | — | app — JustVoice's book-run price ask shows plan use instead of dollars |
+
 Evidence marks: **read** — the vendor's own page, a repo file or a CLI's help · **measured** — run on this machine
 (Windows 11 26300, Node 26.5, Claude Code 2.1.319 signed in on Max 20x, codex-cli 0.147.0 signed in with ChatGPT) ·
 **snippet** — a search summary or third-party page only, unread.
