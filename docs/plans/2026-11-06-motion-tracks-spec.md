@@ -15,6 +15,16 @@ licence is not a dead end — its published method can be written in our own cod
 Written 2026-11-06 by the web-4c session from reading `sparse_tracks.py` at ComfyUI-LTXVideo commit `220e1d4`. This
 page contains no code from it.
 
+## Standards: the kit code each piece uses
+
+| Piece | Kit code |
+|---|---|
+| Drawing the guide frames in this format | NOT STANDARD — the standard option is Lightricks' own LTXVDrawTracks node in ComfyUI (Python, LTX-2 Community License); the trade-off: our own code to keep in step with their format, checked by the comparison test. The user's word on it by name: "3 your rec", 2026-11-06 |
+| The code written from this page | `packages/core/src/runner/motion_tracks.js` (`drawMotionTracks`, `sampleTrack`) |
+| The check against Lightricks' renderer | `packages/core/tests/motion_tracks_golden.test.js` |
+| The frames reaching sd.cpp's video job | `videoJobBody` (its guide frames, sent as sd-server's control frames) through `runVideoFeature` |
+| Encoding the frames as PNG | app — the app's own image library (house-paint's sharp); the kit adds no image dependency |
+
 ## Inputs
 
 - **Tracks**: a list of tracks. A track is a list of points, one per frame; the point at index `i` is where the tracked
