@@ -1138,8 +1138,9 @@ export function seedRuntimeBinaries(h, ids) {
     }
     if (rt.defaults.pinnedBuild && !h.get("runner_setting", pinKey(id))) h.insert("runner_setting", { key: pinKey(id), value: rt.defaults.pinnedBuild, built_in: true });
     // its built-in provider per kind (`local-<id>` for its primary kind, `local-<id>-<kind>` for another — audio.cpp's
-    // transcription): what a preset of that kind routes to, like local-llamacpp for chat; every one of the runtime's type
-    for (const kind of kindsOf(rt)) {
+    // transcription): what a preset of that kind routes to, like local-llamacpp for chat; every one of the runtime's type.
+    // A tool (FFmpeg) runs no feature: none
+    for (const kind of rt.tool ? [] : kindsOf(rt)) {
       const providerId = providerIdOf(rt, kind);
       if (h.get("llm_providers", providerId)) continue;
       h.insert("llm_providers", {

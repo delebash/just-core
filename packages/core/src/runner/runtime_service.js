@@ -300,6 +300,11 @@ export class RuntimeService {
     return { cfg, hw, asset: binary.selectRuntimeAsset(cfg.binaries, hw, this._preferredBackend(cfg)) };
   }
 
+  /** One of the runtime's declared settings (`defaults.settings`) as set here, else its default; undefined: none. */
+  setting(name) {
+    return { ...(this.rt.defaults?.settings ?? {}), ...(this._configFn().settings ?? {}) }[name];
+  }
+
   /** The `backend` setting's family when it names one ("cuda", "vulkan", "cpu", "metal"), else "" — Auto. */
   _preferredBackend(cfg = this._configFn()) {
     const b = String(cfg.settings?.backend ?? "").trim().toLowerCase();

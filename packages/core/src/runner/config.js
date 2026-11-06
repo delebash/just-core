@@ -465,3 +465,34 @@ export const AUDIOCPP_SETTINGS_UI = Object.freeze({
   cpu_threads: Object.freeze({ control: "number", of: "physical-cores" }),
   spill_mb: Object.freeze({ control: "number", shownWhen: "shared-memory-read" }),
 });
+
+// FFmpeg, the family's video and audio tool (JustDirect's joins and WebM-to-MP4, LatentSync's frames, JustVoice's mastering
+// — the kit's TASKS, "JustDirect's six decisions", item 5, the user's "5 your rec", 2026-11-06): a pinned 9.0.2 build per
+// platform, downloaded on demand and checked by SHA-256 like an engine build, never bundled (RESEARCH §13). Windows:
+// gyan.dev's essentials zip (ffmpeg.org links it; its GitHub copy GyanD/codexffmpeg) — ffmpeg, ffprobe and ffplay.
+// macOS and Linux: Martin Riedl's release zips (ffmpeg.martin-riedl.de; signed on macOS), ffmpeg alone. All GPL-3.0
+// builds (H.264 needs libx264). Sizes and SHA-256s: GitHub's API and the site's .sha256 files; unpacked sizes summed
+// from each zip's central directory (2026-11-06). `settings.path`: the user's own FFmpeg, used instead when set.
+export const DEFAULT_FFMPEG_BUILD = "9.0.2";
+const RIEDL = "https://ffmpeg.martin-riedl.de/download";
+const ffRow = (platform, url, bytes, unpacked, sha256, extra = {}) => ({
+  platform,
+  gpu: "cpu",
+  source: url.startsWith("https://github.com/") ? "github" : "web",
+  asset_url: url,
+  asset_bytes: bytes,
+  asset_unpacked_bytes: unpacked,
+  sha256,
+  server_exe: platform === "windows" ? "ffmpeg.exe" : "ffmpeg",
+  ...extra,
+});
+export const DEFAULT_FFMPEG_BINARIES = [
+  ffRow("windows", "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip", 114768076, 329221735, "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba"),
+  ffRow("macos", `${RIEDL}/macos/arm64/1789931890_9.0.2/ffmpeg.zip`, 28395699, 66332880, "c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924", { requires: { arch: "arm64" } }),
+  ffRow("macos-x64", `${RIEDL}/macos/amd64/1789931006_9.0.2/ffmpeg.zip`, 33816391, 94769296, "7c6b4125b191cbf773832dc51f424cf2b6bb7da43007d1e066f95909e47cacd4", { requires: { arch: "x64" } }),
+  ffRow("linux", `${RIEDL}/linux/amd64/1789931100_9.0.2/ffmpeg.zip`, 33326445, 91342624, "fa8ecf4abbd290d98f7d188b8649cc6b391ae209a98452be955a15aab1909d7f", { requires: { arch: "x64" } }),
+  ffRow("linux-arm64", `${RIEDL}/linux/arm64/1789931697_9.0.2/ffmpeg.zip`, 28753826, 59994536, "93a76ae90db5474eecdf951a729857c64f3de23567228d6a7d5e6e8e3cd1021b", { requires: { arch: "arm64" } }),
+];
+export const DEFAULT_FFMPEG_SETTINGS = Object.freeze({ path: "" });
+// a staged build must answer `-version` (exit 0) before it replaces the one on disk
+export const FFMPEG_PROBE_ARGVS = Object.freeze([Object.freeze(["-version"])]);

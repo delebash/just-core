@@ -10,10 +10,11 @@
 // that must be there after (the dictionary's dicrc).
 
 import { createHash } from "node:crypto";
-import { cpSync, createReadStream, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
+import { cpSync, createReadStream, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import path from "node:path";
 import { RuntimeError } from "../platform/py.js";
+import { renameHeld } from "../platform/rename_held.js";
 import { extractZip } from "../platform/zip.js";
 import { extractTarGz } from "./binary.js";
 import * as download from "./download.js";
@@ -96,6 +97,6 @@ export async function installArchive(parent, extra, { onProgress = null, cancelC
     throw new RuntimeError(`${extra.name} unpacked without its ${extra.check}`);
   }
   await rm(target, { recursive: true, force: true });
-  renameSync(staging, target);
+  await renameHeld(staging, target); // retried while an antivirus reads what was just unpacked
   return target;
 }

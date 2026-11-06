@@ -50,6 +50,7 @@ import { makeRuntimesRouter } from "./runtimes_api.js";
 import { placementKey, runtimeOf } from "../runner/runtimes.js";
 import { configureRuntimeServices, getRuntimeService, RuntimeService } from "../runner/runtime_service.js";
 import { AUDIOCPP_PROBE_ARGVS } from "../runner/audiocpp.js";
+import { FFMPEG_PROBE_ARGVS } from "../runner/config.js";
 import { SDCPP_PROBE_ARGVS, SDCPP_SERVER } from "../runner/sdcpp.js";
 import * as seed from "./seed.js";
 import * as stores from "./stores.js";
@@ -60,7 +61,7 @@ import { makeTestSamplesRouter } from "./test_samples_api.js";
 const log = getLogger("llm_runner.llm.install");
 
 // Each kit runtime's launch flags (a staged build must accept them before it replaces a working one) and its server.
-const RUNTIME_PROBES = { sdcpp: SDCPP_PROBE_ARGVS, audiocpp: AUDIOCPP_PROBE_ARGVS };
+const RUNTIME_PROBES = { sdcpp: SDCPP_PROBE_ARGVS, audiocpp: AUDIOCPP_PROBE_ARGVS, ffmpeg: FFMPEG_PROBE_ARGVS };
 const RUNTIME_SERVERS = { sdcpp: SDCPP_SERVER };
 
 /** The memoized whole-machine tuning key (gpu|vram|cores|ramGB) the model_tunes layer uses. */

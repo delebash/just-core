@@ -2148,7 +2148,8 @@
         "card_margin_mb": "Headroom on the card (MB)",
         "gpu_threads": "The card process's CPU threads",
         "start_timeout_s": "Start timeout (seconds)",
-        "request_timeout_s": "Request timeout (seconds)"
+        "request_timeout_s": "Request timeout (seconds)",
+        "path": "Your own copy (its full path; empty uses the one installed here)"
       },
       "settingOf": "of {n}",
       "modelsTitle": "Models",

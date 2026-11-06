@@ -61,5 +61,7 @@ test("sd.cpp's image and video kinds, and every runtime feature's routing pane, 
       }
     }
     expect(has(j, "kit.runtimes.preset.seedHintVideo"), `${lang}: seedHintVideo`).toBe(true);
+    // FFmpeg's one setting, the user's own copy (the kit's tool runtime, 2026-11-06)
+    expect(has(j, "kit.runtimes.settings.path"), `${lang}: settings.path`).toBe(true);
   }
 });

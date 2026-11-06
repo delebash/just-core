@@ -4,7 +4,7 @@
 // `runner_binary`, its lifecycle); the others' builds are rows in `runtime_binary` under their id, their pin
 // `pinned_build:<id>`, and the kit owns their defaults as it owns llama.cpp's. `kind` is the one vocabulary the
 // catalog, the providers, the features, the presets and the arbiter share: llm · tts · stt · music · sfx · lipsync ·
-// image · video · vision.
+// image · video · vision (and "tool", a runtime with no models: FFmpeg).
 import {
   AUDIOCPP_ADDONS,
   AUDIOCPP_BUILDS_IN_ORDER,
@@ -14,6 +14,9 @@ import {
   DEFAULT_AUDIOCPP_BINARIES,
   DEFAULT_AUDIOCPP_BUILD,
   DEFAULT_AUDIOCPP_SETTINGS,
+  DEFAULT_FFMPEG_BINARIES,
+  DEFAULT_FFMPEG_BUILD,
+  DEFAULT_FFMPEG_SETTINGS,
   DEFAULT_SDCPP_BINARIES,
   DEFAULT_SDCPP_BUILD,
 } from "./config.js";
@@ -83,6 +86,24 @@ export const RUNTIMES = Object.freeze({
       addons: AUDIOCPP_ADDONS,
       // the file endings an install leaves out of the archive (its Python scripts)
       dropFiles: AUDIOCPP_DROP_FILES,
+    }),
+  }),
+  // FFmpeg (JustDirect, 2026-11-06 — the user's "5 your rec"): a tool, not a model engine — its pinned builds installed,
+  // updated and removed as an engine's are (rows, pin, SHA-256, the launch probe), no server, no models, no provider; the
+  // app reads its path through runner/ffmpeg.js ffmpegExe (the user's own FFmpeg when its `path` setting names one).
+  ffmpeg: Object.freeze({
+    id: "ffmpeg",
+    kind: "tool",
+    tool: true,
+    label: "FFmpeg",
+    folder: "ffmpeg",
+    license: "GPL-3.0",
+    defaults: Object.freeze({
+      pinnedBuild: DEFAULT_FFMPEG_BUILD,
+      binaries: DEFAULT_FFMPEG_BINARIES,
+      idleSeconds: 0,
+      memory: Object.freeze({ idleMb: 0, peakMb: 0 }),
+      settings: DEFAULT_FFMPEG_SETTINGS,
     }),
   }),
 });

@@ -5,10 +5,12 @@
 // right — a folder's symbolic link elsewhere) to a folder OUTSIDE it is handed to each of the kit's removers; the
 // outside folder must keep its files.
 import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { rename as fsRename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, test, vi } from "vitest";
 import { finishInterruptedRestore, sweepWorkFolders } from "../src/platform/data_api.js";
+import { renameHeld } from "../src/platform/rename_held.js";
 import setupTmp from "../src/platform/vitest_tmp.js";
 import { _swapIntoPlace } from "../src/runner/binary.js";
 import { _rmtreeWithRetry, RunnerService } from "../src/runner/lifecycle.js";
@@ -128,6 +130,27 @@ test("an engine's swap (binary.js rmtree on the retired build and the staging)",
   expect(readFileSync(path.join(dest, "llama-server"), "utf8")).toBe("new");
   expect(existsSync(path.join(base, ".old-b0001"))).toBe(false);
   expect(kept(outside)).toBe(true);
+});
+
+test("an engine's swap waits out a file another program holds — the new build goes in, nothing is left behind", async () => {
+  // Windows Defender reading a just-unpacked exe answered EPERM to the plain rename (JustDirect's FFmpeg install,
+  // 2026-11-06): the swap retries as the kit's other renames do (platform/rename_held.js)
+  const base = tmp();
+  const dest = path.join(base, "cpu");
+  mkdirSync(dest);
+  writeFileSync(path.join(dest, "ffmpeg.exe"), "old");
+  const staging = path.join(base, ".staging-cpu");
+  mkdirSync(staging);
+  writeFileSync(path.join(staging, "ffmpeg.exe"), "new");
+  let held = 2;
+  const flaky = async (from, to) => {
+    if (from === staging && held-- > 0) throw Object.assign(new Error("EPERM: operation not permitted, rename"), { code: "EPERM" });
+    return fsRename(from, to);
+  };
+  await _swapIntoPlace(staging, dest, { move: (a, b) => renameHeld(a, b, { rename: flaky }) });
+  expect(readFileSync(path.join(dest, "ffmpeg.exe"), "utf8")).toBe("new");
+  expect(existsSync(staging)).toBe(false);
+  expect(existsSync(path.join(base, ".old-cpu"))).toBe(false);
 });
 
 test("a stopped backup's or restore's work folder (data_api.js sweepWorkFolders)", async () => {

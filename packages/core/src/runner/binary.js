@@ -35,7 +35,6 @@ import {
   promises as fsp,
   readdirSync,
   realpathSync,
-  renameSync,
   rmdirSync,
   statSync,
   symlinkSync,
@@ -46,6 +45,7 @@ import path from "node:path";
 import { createGunzip } from "node:zlib";
 import { getLogger } from "../platform/log.js";
 import * as procs from "../platform/procs.js";
+import { renameHeld } from "../platform/rename_held.js";
 import {
   FileNotFoundError,
   NotImplementedError,
@@ -817,14 +817,16 @@ function unlinkMissingOk(p) {
  * it. Windows can't rename onto an existing dir, so the old one is moved aside first. Both
  * dirs are siblings under `<build>/`, so the renames stay on one volume.
  */
-export async function _swapIntoPlace(staging, dest) {
+export async function _swapIntoPlace(staging, dest, { move = renameHeld } = {}) {
   const backup = path.join(path.dirname(dest), `.old-${path.basename(dest)}`);
   await rmtree(backup);
-  if (existsSync(dest)) renameSync(dest, backup);
+  // each rename retried while another program holds a file in it — Windows Defender reading the exe just unpacked and
+  // probed answered EPERM to the plain rename (JustDirect's FFmpeg install, 2026-11-06)
+  if (existsSync(dest)) await move(dest, backup);
   try {
-    renameSync(staging, dest);
+    await move(staging, dest);
   } catch (e) {
-    if (existsSync(backup) && !existsSync(dest)) renameSync(backup, dest); // roll back — the working engine is restored
+    if (existsSync(backup) && !existsSync(dest)) await move(backup, dest); // roll back — the working engine is restored
     throw e;
   }
   await rmtree(backup);

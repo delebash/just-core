@@ -2148,7 +2148,8 @@
         "card_margin_mb": "Margen en la tarjeta (MB)",
         "gpu_threads": "Hilos de CPU del proceso de la tarjeta",
         "start_timeout_s": "Tiempo de inicio máximo (segundos)",
-        "request_timeout_s": "Tiempo máximo por solicitud (segundos)"
+        "request_timeout_s": "Tiempo máximo por solicitud (segundos)",
+        "path": "Tu propia copia (su ruta completa; vacío usa la instalada aquí)"
       },
       "settingOf": "de {n}",
       "modelsTitle": "Modelos",

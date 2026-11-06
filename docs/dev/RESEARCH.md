@@ -2945,6 +2945,22 @@ LatentSync runs it from PATH, so asking each user to install it is a gap for the
 - What fits the kit: its engines are pinned rows downloaded on demand and checked by SHA-256 (eSpeak NG, GPL, is
   fetched beside audio.cpp the same way); Node unpacks zip, not xz or 7z. So gyan.dev's essentials zip for Windows and
   Martin Riedl's zips for macOS and Linux, all 9.0.2 and GPL (H.264 MP4 needs libx264). — *pages read, API; not built*.
+- **Built 2026-11-06** (the user's "5 your rec"): the `ffmpeg` tool runtime (`runner/runtimes.js`, kind `tool`: rows, pin,
+  SHA-256, the `-version` probe, no provider or models) and `runner/ffmpeg.js` `ffmpegExe` / `ffmpegReadiness`. The rows
+  (`config.js` `DEFAULT_FFMPEG_BINARIES`): Windows `ffmpeg-9.0.2-essentials_build.zip`, 114,768,076 bytes, SHA-256
+  `60f46726…2047ba` (GitHub's API digest), 329,221,735 unpacked, 49 entries with ffmpeg, ffprobe and ffplay; Riedl's
+  `…/download/<os>/<arch>/<build>_9.0.2/ffmpeg.zip`, one `ffmpeg` binary each — macOS arm64 28,395,699 bytes (66,332,880
+  unpacked), macOS amd64 33,816,391 (94,769,296), Linux amd64 33,326,445 (91,342,624), Linux arm64 28,753,826
+  (59,994,536), each SHA-256 from the site's `.sha256` file. Unpacked sizes summed from each zip's central directory by
+  two range requests. Riedl's builds have no ffprobe in the ffmpeg zip (a separate `ffprobe.zip`), so `ffmpegExe`'s
+  `ffprobe` is null there. — *API, site files, range reads, 2026-11-06*.
+- **Measured on this PC** (`E:\Dev\Web\test-just-direct\kit-ffmpeg.js`, the kit's RuntimeService install): the first
+  install downloaded and checked the zip, then **failed at the swap** — `EPERM` renaming `.staging-cpu` to `cpu`: Windows
+  Defender was reading the 105 MB `ffmpeg.exe` just unpacked and probed. The kit's `binary.js` `_swapIntoPlace` (and
+  `runtime_extras.js`'s extras swap) renamed with no retry although `platform/rename_held.js` exists for exactly this;
+  both now use `renameHeld`. Then: installed in 4.8 s, `-version` "ffmpeg version 9.0.2-essentials_build-www.gyan.dev",
+  and sd-server's WebM of the passing explosion (VP9 + PCM) became an H.264/AAC MP4 in 1.2 s (1280×704, 97 frames, 191
+  AAC frames). — *measured, 2026-11-06*.
 
 ## Records not yet distilled
 

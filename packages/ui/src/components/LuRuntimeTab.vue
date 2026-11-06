@@ -532,7 +532,7 @@ defineExpose({ refresh, filters });
           {{ t(need().key, need().values) }}
           <a v-if="need().link" :href="need().link" target="_blank" rel="noopener">{{ t("kit.runtimes.needs.vcRuntimeLink") }}</a>
         </UiBanner>
-        <UiField v-if="engine.idleSeconds != null" :label="t('kit.runtimes.idle.label')" :hint="t('kit.runtimes.idle.hint')" :for="`lu-rt-${runtimeId}-idle`">
+        <UiField v-if="engine.idleSeconds != null && engine.kind !== 'tool'" :label="t('kit.runtimes.idle.label')" :hint="t('kit.runtimes.idle.hint')" :for="`lu-rt-${runtimeId}-idle`">
           <div class="lu-rt-idle">
             <UiInput :id="`lu-rt-${runtimeId}-idle`" v-model="idleMinutes" type="number" width="token" />
             <UiButton intent="secondary" size="small" :disabled="!idleChanged" :label="t('kit.common.save')" @click="saveIdle" />
@@ -617,7 +617,8 @@ defineExpose({ refresh, filters });
       </section>
 
       <slot name="before-models" :engine="engine" :models="models" :refresh="refresh" />
-      <section class="lu-rt-part" :aria-label="t('kit.runtimes.modelsTitle')">
+      <!-- a tool (FFmpeg) has no models: no Models part -->
+      <section v-if="engine.kind !== 'tool'" class="lu-rt-part" :aria-label="t('kit.runtimes.modelsTitle')">
         <h3 class="lu-rt-h">{{ t("kit.runtimes.modelsTitle") }}</h3>
         <div v-if="kinds.length > 1 || models.length > 12 || $slots.filters" class="lu-rt-find">
           <UiSegmented v-if="kinds.length > 1" v-model="kindFilter" :options="kindOptions" size="small" :aria-label="t('kit.runtimes.kinds.label')" />
