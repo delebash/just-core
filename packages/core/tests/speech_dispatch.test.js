@@ -7,7 +7,7 @@ import { expect, test } from "vitest";
 import * as seed from "../src/llm/seed.js";
 import * as stores from "../src/llm/stores.js";
 import { makeRuntimesRouter, runtimeProblem } from "../src/llm/runtimes_api.js";
-import { transcribeFeature, withSpeechModel } from "../src/llm/speech_dispatch.js";
+import { audioFeatureReadiness, runAudioFeature, transcribeFeature, withSpeechModel } from "../src/llm/speech_dispatch.js";
 import { configureRuntimeServices } from "../src/runner/runtime_service.js";
 import { NotEnoughMemoryError } from "../src/runner/speech_placement.js";
 import { createServer } from "../src/platform/server.js";
@@ -180,4 +180,74 @@ test("runtimeProblem words a runtime's refusal as the routes do; anything else c
   expect(missing).toMatchObject({ statusCode: 409, slug: "engine-not-installed", extra: { runtime: "audiocpp" } });
   const other = new Error("boom");
   expect(runtimeProblem(other)).toBe(other);
+});
+
+// JustDirect (just-core TASKS "JustDirect's kit gaps", item 3): a music, sound-effect or lip-sync feature runs its
+// preset's model like transcription does — loaded where the preset says, audio.cpp's generation route, the result's
+// length for the after-line pass (a WAV's seconds; lip-sync's frames over its fps).
+test("a music, effects or lip-sync feature runs its preset's model through audio.cpp's generation route", async () => {
+  freshDb();
+  seed.configureAppSeed({
+    featureCatalog: [
+      { key: "score", label: "Score", kind: "music" },
+      { key: "lips", label: "Lip repair", kind: "lipsync" },
+      { key: "chat", label: "Chat", kind: "llm" },
+    ],
+    featurePrompts: {},
+    enginePresets: [
+      { id: "p-score", name: "Score", kind: "music", provider_id: "local-audiocpp-music", model: "music-sa3", params: { placement: "gpu" } },
+      { id: "p-lips", name: "Lips", kind: "lipsync", provider_id: "local-audiocpp-lipsync", model: "lips-ls16", params: {} },
+    ],
+    featurePresets: { score: "p-score", lips: "p-lips" },
+    defaultPresetId: "",
+    runtimes: ["audiocpp"],
+  });
+  seed.seedLlm();
+  const { svc } = fakeSpeechRuntime();
+  const ran = [];
+  const wav = Buffer.alloc(44 + 32000);
+  wav.write("RIFF", 0, "latin1");
+  wav.write("WAVEfmt ", 8, "latin1");
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt32LE(16000, 24);
+  wav.writeUInt32LE(32000, 28);
+  wav.write("data", 36, "latin1");
+  wav.writeUInt32LE(32000, 40);
+  svc.serverFor = (modelId) => ({
+    runTask: async (body, timeout) => {
+      ran.push([modelId, body, timeout]);
+      return modelId === "lips-ls16"
+        ? { artifacts: [{ id: "latentsync_video_rgb24", meta: { frames: "125", fps: "25" } }] }
+        : { audio: wav.toString("base64"), sample_rate: 16000 };
+    },
+  });
+  configureRuntimeServices([["audiocpp", svc]]);
+  const request = { text: "a storm swells", options: { duration_seconds: "1" } };
+  expect(await runAudioFeature("score", request, { timeout: 60 })).toMatchObject({ sample_rate: 16000 });
+  expect(svc.loads).toEqual([["music-sa3", "gpu"]]);
+  expect(ran[0]).toEqual(["music-sa3", { model: "music-sa3", request }, 60]);
+  expect(svc.lines.at(-1)).toEqual({ audioS: 1 });
+  await runAudioFeature("lips", { audio_base64: "x", options: { reference_video_file: "E:/clip.mp4" } });
+  expect(svc.lines.at(-1)).toEqual({ audioS: 5 });
+  await expect(runAudioFeature("chat", request)).rejects.toMatchObject({ statusCode: 409 });
+  svc.status = () => ({ id: "audiocpp", installed: true });
+  svc.modelsStatus = () => [{ id: "music-sa3", onDisk: true }];
+  expect(audioFeatureReadiness("score")).toMatchObject({ kind: "music", runtime: "audiocpp", model: "music-sa3", ready: true });
+});
+
+test("the readiness route answers a music, effects or lip-sync feature from its engine and model", async () => {
+  freshDb();
+  seed.configureAppSeed({
+    featureCatalog: [{ key: "fx", label: "Sound effects", kind: "sfx" }],
+    featurePrompts: {},
+    enginePresets: [{ id: "p-fx", name: "Effects", kind: "sfx", provider_id: "local-audiocpp-sfx", model: "sfx-sa3", params: {} }],
+    featurePresets: { fx: "p-fx" },
+    defaultPresetId: "",
+    runtimes: ["audiocpp"],
+  });
+  seed.seedLlm();
+  configureRuntimeServices([["audiocpp", { status: () => ({ id: "audiocpp", installed: true }), modelsStatus: () => [{ id: "sfx-sa3", onDisk: false }] }]]);
+  const app = createServer({ typeBase: "t/" });
+  app.route("/", makeRuntimesRouter());
+  expect(await (await app.request("/v1/ai/features/fx/readiness")).json()).toMatchObject({ kind: "sfx", ready: false, need: "model-not-downloaded", model: "sfx-sa3" });
 });

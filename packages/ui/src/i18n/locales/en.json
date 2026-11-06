@@ -21,7 +21,10 @@
         "image": "Images",
         "vision": "Vision",
         "tts": "Speech",
-        "stt": "Transcription"
+        "stt": "Transcription",
+        "music": "Music",
+        "sfx": "Sound effects",
+        "lipsync": "Lip-sync"
       }
     },
     "lab": {
@@ -807,6 +810,9 @@
           "llm": "An AI model",
           "tts": "A speech model",
           "stt": "A transcription model",
+          "music": "A music model",
+          "sfx": "A sound-effects model",
+          "lipsync": "A lip-sync model",
           "image": "An image model",
           "vision": "A vision model",
           "other": "A model"
@@ -815,6 +821,9 @@
           "llm": "an AI model",
           "tts": "a speech model",
           "stt": "a transcription model",
+          "music": "a music model",
+          "sfx": "a sound-effects model",
+          "lipsync": "a lip-sync model",
           "image": "an image model",
           "vision": "a vision model",
           "other": "another model"
@@ -2092,7 +2101,10 @@
         "label": "Kind of model",
         "all": "All",
         "tts": "Speech",
-        "stt": "Transcription"
+        "stt": "Transcription",
+        "music": "Music",
+        "sfx": "Sound effects",
+        "lipsync": "Lip-sync"
       },
       "search": "Find a model",
       "placement": {

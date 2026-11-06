@@ -2,11 +2,12 @@
 // audio.cpp, the kit's speech runtime (round E, 2026-10-29 — JustVoice's engines/audiocpp/runtime.js moved into the kit,
 // docs/plans/2026-10-24-engines-the-llama-way.md J1; the user: "One runtime, two kinds", "Yes, the fork's API").
 //
-// One server process per PLACEMENT and KIND — up to four. Placement: "gpu" runs the installed build on its own backend
-// (CUDA, Vulkan, Metal); "cpu" runs the SAME build with `backend: cpu` for the models placed on the CPU (measured at 0 MB
-// of graphics memory); a CPU-only build runs only "cpu". Kind: speech ("tts") and speech recognition ("stt") each get
-// their own process, so a process's measured memory is its one model's and a crash or restart in one never takes the
-// other's model.
+// One server process per PLACEMENT and KIND. Placement: "gpu" runs the installed build on its own backend (CUDA, Vulkan,
+// Metal); "cpu" runs the SAME build with `backend: cpu` for the models placed on the CPU (measured at 0 MB of graphics
+// memory); a CPU-only build runs only "cpu". Kind: speech ("tts"), speech recognition ("stt"), and audio.cpp's
+// generation task (`gen`) as music ("music"), sound effects ("sfx") and lip-sync ("lipsync" — LatentSync redraws a
+// video's mouth to a track; JustDirect, 2026-11-06) each get their own process, so a process's measured memory is its one
+// model's and a crash or restart in one never takes another's model.
 //
 // A build with the fork's `model_management` starts with no models and `register()`s each one as it loads — so nothing
 // downloaded or deleted ever restarts it; an older build's config lists its kind's installed models (`lazy_load`), and a
@@ -31,7 +32,7 @@ import * as kitProcess from "./process.js";
 const log = getLogger("llm_runner.runner.audiocpp");
 
 export const PLACEMENTS = Object.freeze(["gpu", "cpu"]);
-export const KINDS = Object.freeze(["tts", "stt"]);
+export const KINDS = Object.freeze(["tts", "stt", "music", "sfx", "lipsync"]);
 export const LOG_ROTATE_BYTES = 10 * 1024 * 1024;
 
 // A staged build must start before it replaces a working one: headless, no models, and --version LAST (arguments parse in
@@ -161,7 +162,7 @@ export class ModelEntry {
   constructor(id, family, task, filePath, sessionOptions = []) {
     this.id = id;
     this.family = family; // audio.cpp's family ("qwen3_tts", "chatterbox", …)
-    this.task = task; // "tts" | "clon" | "vdes" | "asr" | "align"
+    this.task = task; // "tts" | "clon" | "vdes" | "asr" | "align" | "gen"
     this.path = filePath;
     this.sessionOptions = sessionOptions;
     Object.freeze(this);
@@ -241,7 +242,7 @@ export function rotateLog(logPath, limit = LOG_ROTATE_BYTES) {
 }
 
 /**
- * One server process — a placement ("gpu" | "cpu") for one kind of model ("tts" | "stt"). Every method may start it;
+ * One server process — a placement ("gpu" | "cpu") for one kind of model (KINDS). Every method may start it;
  * one start at a time. `dirs`: `{configDir, logDir}`; `settingsFn()` → the runtime's settings (`gpu_threads`,
  * `cpu_threads`, `start_timeout_s`, `request_timeout_s`); `envFn()` → the side programs' variables (RUNTIME_ENV).
  */
@@ -499,6 +500,14 @@ export class AudioCppServer {
   /** Transcription with its details (segments, words). */
   async transcribe(body, timeout = null) {
     return (await this.post("/v1/audio/transcriptions/details", { json: body, timeout })).json();
+  }
+
+  /** A generation (music, sound effects, lip-sync — audio.cpp's `gen` task) through its generic route, `POST
+   *  /v1/tasks/run` (app/server/api.md): `body` `{model, request}`, the request as audio.cpp's request format has it (its
+   *  `text`, `audio_base64`, `options` — the family's own). → its result: `audio` a Base64 WAV, `artifacts` (LatentSync's
+   *  frames as raw rgb24 with their width, height, frames and fps), `timing`. */
+  async runTask(body, timeout = null) {
+    return (await this.post("/v1/tasks/run", { json: body, timeout })).json();
   }
 
   /** Forced alignment of `text` against a WAV. */

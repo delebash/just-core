@@ -154,7 +154,7 @@ test("an app that turns audio.cpp on gets its fork's rows, a provider per kind, 
   });
   seed.seedLlm();
   const rt = runtimeOf("audiocpp");
-  expect(kindsOf(rt)).toEqual(["tts", "stt"]);
+  expect(kindsOf(rt)).toEqual(["tts", "stt", "music", "sfx", "lipsync"]);
   const rows = h.all("select * from runtime_binary where runtime = 'audiocpp'");
   expect(rows).toHaveLength(DEFAULT_AUDIOCPP_BINARIES.length);
   expect(h.get("runner_setting", pinKey("audiocpp")).value).toBe(DEFAULT_AUDIOCPP_BUILD);
@@ -170,6 +170,12 @@ test("an app that turns audio.cpp on gets its fork's rows, a provider per kind, 
   const cfg = stores.getRunnerConfigStore().getRuntimeConfig("audiocpp");
   expect(cfg.bandsByKind.tts).toMatchObject({ fast: 5, fine: 2, slow: 1, lowerIsFaster: false, unit: "x realtime" });
   expect(cfg.bandsByKind.stt).toMatchObject({ fine: 2 });
+  // JustDirect's generation kinds (2026-11-06): music and effects in seconds of audio per second, lip-sync in seconds of
+  // video — LatentSync made 5 s in 514 s on the 8 GB card (0.01x, slow)
+  expect(cfg.bandsByKind.music).toMatchObject({ fast: 5, fine: 2, slow: 1, unit: "x realtime" });
+  expect(cfg.bandsByKind.sfx).toMatchObject({ fast: 5, fine: 2, slow: 1 });
+  expect(cfg.bandsByKind.lipsync).toMatchObject({ fast: 0.1, fine: 0.02, slow: 0.005, lowerIsFaster: false });
+  expect(h.get("llm_providers", providerIdOf(rt, "lipsync"))).toMatchObject({ id: "local-audiocpp-lipsync", kind: "lipsync", provider_type: "local-audiocpp" });
   // its settings seeded and read back typed; an edit sticks across a reseed
   expect(cfg.settings).toEqual(DEFAULT_AUDIOCPP_SETTINGS);
   stores.getRunnerConfigStore().setSetting(settingKey("audiocpp", "cpu_min_realtime"), "3");

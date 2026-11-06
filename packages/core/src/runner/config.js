@@ -93,6 +93,14 @@ export const DEFAULT_RUNTIME_BANDS = Object.freeze({
   // longer to make than to hear); fast at 5×, the kit's start value (the user's word pending, 2026-10-29)
   tts: Object.freeze({ fast: 5, fine: 2, slow: 1, lowerIsFaster: false, unit: "x realtime" }),
   stt: Object.freeze({ fast: 5, fine: 2, slow: 1, lowerIsFaster: false, unit: "x realtime" }),
+  // music and sound effects (audio.cpp's generation task, JustDirect 2026-11-06): seconds of audio per second, as speech —
+  // measured on the 8 GB card: Stable Audio 3 Medium 30 s in 4–4.5 s, its SFX model 10 s in 1.7–2.4 s, ACE-Step Turbo
+  // 60 s in 12 s (all fast)
+  music: Object.freeze({ fast: 5, fine: 2, slow: 1, lowerIsFaster: false, unit: "x realtime" }),
+  sfx: Object.freeze({ fast: 5, fine: 2, slow: 1, lowerIsFaster: false, unit: "x realtime" }),
+  // lip-sync: seconds of video per second — LatentSync 1.6 Q8 redrew a 5 s 1280×704 clip in 514 s there (0.01×, slow);
+  // fine at a fiftieth of real time, fast at a tenth
+  lipsync: Object.freeze({ fast: 0.1, fine: 0.02, slow: 0.005, lowerIsFaster: false, unit: "x realtime" }),
 });
 
 // Speed-truth plan 2026-09-19 §5 — the band DEAD ZONE. A PREDICTED tok/s within this

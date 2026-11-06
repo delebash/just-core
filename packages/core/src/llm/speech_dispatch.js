@@ -9,9 +9,10 @@
 // transcription through its `runtimeSpeech.<id>.transcribe` hook (G1).
 
 import { ApiError } from "../platform/errors.js";
-import { inputSeconds } from "../runner/audiocpp.js";
+import { inputSeconds, wavSeconds } from "../runner/audiocpp.js";
 import { getRuntimeService } from "../runner/runtime_service.js";
 import { resolveRuntimeFeature, runtimeFeatureReadiness } from "./image_dispatch.js";
+import * as stores from "./stores.js";
 
 /** The runtime a provider of type `local-<id>` runs on, or "". */
 const runtimeOfProvider = (provider) => (String(provider?.providerType || "").startsWith("local-") ? provider.providerType.slice("local-".length) : "");
@@ -56,4 +57,47 @@ export async function transcribeFeature(featureKey, body, { timeout = null } = {
     audioS = inputSeconds(req) ?? inputSeconds(body);
     return server.transcribe({ model: preset.model, ...req }, timeout ?? shaped.timeout ?? null);
   });
+}
+
+/** The kinds audio.cpp's generation task runs as (runner/audiocpp.js KINDS): music, sound effects, lip-sync. */
+export const GENERATION_KINDS = Object.freeze(["music", "sfx", "lipsync"]);
+
+/** The kind of feature `featureKey`'s preset — "" when it has none. */
+const presetKindOf = (featureKey) => stores.getEnginePresetStore().get(stores.getFeaturePresetRefStore().list()[featureKey] || "")?.kind ?? "";
+
+/** What a music, effects or lip-sync feature needs before it can run (the readiness the screens word, its preset's kind). */
+export const audioFeatureReadiness = (featureKey) => runtimeFeatureReadiness(featureKey, presetKindOf(featureKey) || "music");
+
+/** A generation's length in seconds for the after-line pass: its WAV's (`audio`), or a video's frames over its fps
+ *  (LatentSync's `artifacts`) — null when it has neither. */
+export function generatedSeconds(result) {
+  if (result?.audio) return wavSeconds(Buffer.from(String(result.audio), "base64"));
+  for (const a of result?.artifacts ?? []) {
+    const frames = Number(a?.meta?.frames);
+    const fps = Number(a?.meta?.fps);
+    if (frames > 0 && fps > 0) return frames / fps;
+  }
+  return null;
+}
+
+/**
+ * Run a music, sound-effect or lip-sync feature (JustDirect, 2026-11-06): its preset's model (kind music, sfx or lipsync)
+ * loaded where the preset says, then audio.cpp's generation route (`POST /v1/tasks/run`) with `request` in audio.cpp's
+ * request format — the app's: `text`, `audio_base64`, `options` (Stable Audio's `duration_seconds`, ACE-Step's route and
+ * lyrics, LatentSync's `reference_video_file`, a path on this machine; LatentSync runs `ffmpeg` from PATH). `timeout`
+ * seconds, else the runtime's request limit. → audio.cpp's result (`audio` a Base64 WAV; LatentSync's frames as an
+ * artifact of raw rgb24 — about 270 MB of Base64 for 3 s at 1280×704, so past about 6 s a line runs over one JavaScript
+ * string and fails).
+ */
+export async function runAudioFeature(featureKey, request, { timeout = null } = {}) {
+  const kind = presetKindOf(featureKey);
+  if (!GENERATION_KINDS.includes(kind)) throw new ApiError(409, "no-audio-model", "No music, sound or lip-sync model is set for this feature", `${featureKey}'s preset isn't one`);
+  const { preset, provider } = resolveRuntimeFeature(featureKey, kind);
+  const runtime = runtimeOfProvider(provider);
+  if (!runtime) throw new ApiError(409, `no-${kind}-adapter`, "This provider can't run yet", `no runtime for ${provider.providerType}`);
+  const asked = preset.params?.placement;
+  const placement = asked && asked !== "auto" ? asked : undefined;
+  return withSpeechModel(runtime, preset.model, { placement, line: (result) => ({ audioS: generatedSeconds(result) }) }, (server) =>
+    server.runTask({ model: preset.model, request }, timeout),
+  );
 }

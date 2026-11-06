@@ -16,9 +16,9 @@ import { request } from "../client.js";
 import { usePoll } from "../common/composables/usePoll.js";
 import { pushToast } from "../common/services/toastBridge.js";
 
-const RUNTIME_KINDS = new Set(["image", "vision", "tts", "stt"]);
+const RUNTIME_KINDS = new Set(["image", "vision", "tts", "stt", "music", "sfx", "lipsync"]);
 // the kinds a booking or a load can be — each with its words in an eviction's sentence (any other: "other")
-const EVICTION_KINDS = new Set(["llm", "image", "vision", "tts", "stt"]);
+const EVICTION_KINDS = new Set(["llm", "image", "vision", "tts", "stt", "music", "sfx", "lipsync"]);
 
 /** The LLM cell's idle words from a reading's `llmClaim` (lifecycle.js `_llmClaim`): `{text, title}`, or null. */
 function kitClaim(c, { t, mem1 }) {

@@ -331,7 +331,7 @@ function modelState(m) {
 const kinds = computed(() => [...new Set(models.value.map((m) => m.kind).filter(Boolean))]);
 const kindFilter = ref("");
 const kindOptions = computed(() => [{ value: "", label: t("kit.runtimes.kinds.all") }, ...kinds.value.map((k) => ({ value: k, label: kindWords(k) }))]);
-const kindWords = (k) => (["tts", "stt"].includes(k) ? t(`kit.runtimes.kinds.${k}`) : k);
+const kindWords = (k) => (["tts", "stt", "music", "sfx", "lipsync"].includes(k) ? t(`kit.runtimes.kinds.${k}`) : k);
 const kindOk = (m) => !kindFilter.value || m.kind === kindFilter.value;
 const search = ref("");
 // what the app's `filters` slot edits — its own fields, read by its `filter` and its `sort`

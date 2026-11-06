@@ -21,7 +21,10 @@
         "image": "Imágenes",
         "vision": "Visión",
         "tts": "Voz",
-        "stt": "Transcripción"
+        "stt": "Transcripción",
+        "music": "Música",
+        "sfx": "Efectos de sonido",
+        "lipsync": "Sincronización labial"
       }
     },
     "lab": {
@@ -807,6 +810,9 @@
           "llm": "un modelo de IA",
           "tts": "un modelo de voz",
           "stt": "un modelo de transcripción",
+          "music": "un modelo de música",
+          "sfx": "un modelo de efectos de sonido",
+          "lipsync": "un modelo de sincronización labial",
           "image": "un modelo de imágenes",
           "vision": "un modelo de visión",
           "other": "un modelo"
@@ -815,6 +821,9 @@
           "llm": "un modelo de IA",
           "tts": "un modelo de voz",
           "stt": "un modelo de transcripción",
+          "music": "un modelo de música",
+          "sfx": "un modelo de efectos de sonido",
+          "lipsync": "un modelo de sincronización labial",
           "image": "un modelo de imágenes",
           "vision": "un modelo de visión",
           "other": "otro modelo"
@@ -2092,7 +2101,10 @@
         "label": "Tipo de modelo",
         "all": "Todos",
         "tts": "Voz",
-        "stt": "Transcripción"
+        "stt": "Transcripción",
+        "music": "Música",
+        "sfx": "Efectos de sonido",
+        "lipsync": "Sincronización labial"
       },
       "search": "Buscar un modelo",
       "placement": {

@@ -208,3 +208,29 @@ test("a staged audio.cpp build is probed headless with no models, --version last
   expect(AUDIOCPP_PROBE_ARGVS).toEqual([["--no-ui", "--max-loaded-models", "0", "--version"]]);
   expect(AUDIOCPP_PROBE_ARGVS.every((a) => a.at(-1) === "--version")).toBe(true);
 });
+
+// JustDirect (just-core TASKS "JustDirect's kit gaps", item 3): music, sound effects and lip-sync are audio.cpp's
+// generation task (`gen`), each kind in its own process like speech and transcription, run through its generic route.
+test("music, sound effects and lip-sync each get their own process, and a generation goes to /v1/tasks/run", async () => {
+  const pool = new AudioCppPool({ configDir: "/c", logDir: "/l" });
+  for (const kind of ["lipsync", "sfx", "music", "tts"]) pool.get("gpu", kind);
+  expect(pool.servers().map((s) => s.kind)).toEqual(["tts", "music", "sfx", "lipsync"]);
+  expect(pool.get("gpu", "music").fileStem()).toBe("audiocpp-server-music");
+
+  const dir = mkdtempSync(path.join(tmpdir(), "kit-ac-gen-"));
+  const record = [];
+  const srv = new AudioCppServer({
+    placement: "gpu",
+    kind: "music",
+    configDir: path.join(dir, "config"),
+    logDir: path.join(dir, "logs"),
+    settingsFn: () => ({ start_timeout_s: 10, request_timeout_s: 10 }),
+    spawn: fakeSpawn(record),
+  });
+  await srv.ensure(path.join(dir, "audiocpp", "v0.9.4-jv.7", "cuda12", "audiocpp_server.exe"), [], { device: 0, threads: 8, backend: "cuda", managed: true });
+  expect(await srv.runTask({ model: "stable-audio-3-medium", request: { text: "a storm swells", options: { duration_seconds: "30" } } })).toEqual({});
+  const [method, url, body] = record[0].calls.at(-1);
+  expect([method, url]).toEqual(["POST", "/v1/tasks/run"]);
+  expect(JSON.parse(body)).toEqual({ model: "stable-audio-3-medium", request: { text: "a storm swells", options: { duration_seconds: "30" } } });
+  await srv.stop();
+});

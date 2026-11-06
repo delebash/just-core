@@ -57,7 +57,9 @@ export const RUNTIMES = Object.freeze({
   audiocpp: Object.freeze({
     id: "audiocpp",
     kind: "tts",
-    kinds: Object.freeze(["tts", "stt"]),
+    // + audio.cpp's generation task as music, sound effects and lip-sync (JustDirect, 2026-11-06 — the user's "your rec go"
+    // on "audio.cpp needs music, sound-effect and lip-sync kinds"), each its own process like the two above
+    kinds: Object.freeze(["tts", "stt", "music", "sfx", "lipsync"]),
     label: "audio.cpp",
     folder: "audiocpp",
     license: "MIT",

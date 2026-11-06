@@ -31,3 +31,16 @@ test("every key the needs are worded with is in both catalogs", () => {
     for (const n of reasons) expect(has(j, engineNeedWords(n).key), `${lang}: ${engineNeedWords(n).key}`).toBe(true);
   }
 });
+
+// JustDirect's generation kinds (2026-11-06): music, sound effects and lip-sync are worded wherever a kind is — the AI
+// page's tab and memory cell, the runtime tab's kind picker, an eviction's toast — in both catalogs.
+test("every audio.cpp kind has its words in both catalogs", () => {
+  for (const lang of ["en", "es"]) {
+    const j = catalog(lang);
+    for (const kind of ["tts", "stt", "music", "sfx", "lipsync"]) {
+      for (const key of [`kit.aiTabs.kinds.${kind}`, `kit.runtimes.kinds.${kind}`, `kit.aiArea.evicted.model.${kind}`, `kit.aiArea.evicted.incoming.${kind}`]) {
+        expect(has(j, key), `${lang}: ${key}`).toBe(true);
+      }
+    }
+  }
+});

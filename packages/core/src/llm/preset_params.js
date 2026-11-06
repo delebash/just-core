@@ -28,6 +28,11 @@ export const PARAM_RULES = Object.freeze({
   stt: Object.freeze({
     placement: { values: Object.freeze(["auto", "gpu", "cpu"]), default: "auto" },
   }),
+  // music, sound effects and lip-sync (audio.cpp's generation task — JustDirect, 2026-11-06): where the model runs, as
+  // transcription's
+  music: Object.freeze({ placement: { values: Object.freeze(["auto", "gpu", "cpu"]), default: "auto" } }),
+  sfx: Object.freeze({ placement: { values: Object.freeze(["auto", "gpu", "cpu"]), default: "auto" } }),
+  lipsync: Object.freeze({ placement: { values: Object.freeze(["auto", "gpu", "cpu"]), default: "auto" } }),
 });
 
 /** `params` for a preset of `kind`, checked against its rules and filled with the defaults; a chat preset's are `{}`. */
