@@ -483,3 +483,16 @@ Live Link Face's column layout was taken from a real recording and one importer 
 | Far, walks 4648 and 13858 | strong | 5.8-11.3 | 6.4-18.3 | 0.28-0.68 | 69-100% | 0.15-0.18 |
 
 Default cuts shake to about a quarter with no loss on any score. Strong cuts it to about a twelfth and helps a little far away, but costs up to 0.7 mm of shape close up and up to 8 points of movement shown (walk 13858 left hand, 90% to 82%). `mocap.js` uses default and takes strong as an argument. GEM-X's own fingers shook 0.24-0.27 on clip 2338 while showing 63-66% of the movement.
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| Body, hands and face from one camera (GEM-X, SAM 3D Body, MediaPipe) | NOT STANDARD — Python on the just-mocap bench; the kit has no runtime for them; the standard option is a runtime row in `RUNTIMES` (the ONNX row is the nearest); trade-off: a kit runtime before the app |
+| The graphics card, long jobs | `getArbiter`, `JobRegistry` |
+| BVH, FBX and face-curve export | app — JustDirect's own export of the joined skeleton; FBX goes through Blender run headless |

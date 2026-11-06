@@ -207,3 +207,17 @@ Final round of queries:
 - Web "Wan2.2 S2V speech to video GGUF low VRAM ..." -> no head-to-head; Reddit snapshot: S2V lip sync "genuinely finicky".
 - arXiv abs 2601.22127 EditYourself: base model and code status not stated on the page.
 - gh issues MuseTalk #392, #331, #362; LatentSync VRAM search (#284 asks 8 GB, 0 replies).
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| A voice line with a chosen voice | `withSpeechModel` on the audio.cpp runtime (`packages/core/src/runner/audiocpp.js`) |
+| Video clips (LTX-2.3) | `runVideoJob`, `videoJobBody` — kit gap: no guide frames (depth, pose, paths), audio input or upscaler stage yet |
+| Lip repair (LatentSync through audio.cpp) | `AudioCppPool` — kit gap: no lip-sync kind in the kit's audio.cpp runtime |
+| The IC-LoRA guide and audio-to-video in sd.cpp | NOT STANDARD — written on our `jd` branch of stable-diffusion.cpp; the standard option is upstream sd.cpp, which has neither; trade-off: a fork to bring up to date before each change (family rules) until upstream takes them |

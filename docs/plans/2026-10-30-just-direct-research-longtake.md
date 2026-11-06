@@ -228,3 +228,16 @@ Sources:
 - [FlowLong](https://arxiv.org/abs/2605.20910)
 - [fal LTX extend](https://fal.ai/models/fal-ai/ltx-2.3/extend-video)
 - [Civitai VACE joiner](https://civitai.com/models/2024299/wan-vace-clip-joiner-smooth-ai-video-transitions-for-wan-ltx-2-hunyuan-and-any-other-video-source)
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| Video clips (LTX-2.3) | `runVideoJob`, `videoJobBody` — kit gap: no guide frames (depth, pose, paths), audio input or upscaler stage yet |
+| Latent carry windows past 13 s | NOT STANDARD — an sd.cpp addition on our `jd` branch, not written yet; the standard option is Lightricks' own long-video pipeline (Python); trade-off: kept in our fork |
+| The graphics card, long jobs | `getArbiter`, `JobRegistry` |

@@ -2808,7 +2808,22 @@ target tree are in [`../plans/archive/`](../plans/archive/).
 **Installing the stack** — [`install-runbook.md`](install-runbook.md).
 
 **just-direct — ArtCraft, and video/3D/voice/music models on an 8 GB card** (no repo yet; moves to the app's
-register when it exists) — [`2026-10-24-just-direct-feasibility.md`](../plans/2026-10-24-just-direct-feasibility.md).
+register when it exists) — [`2026-10-24-just-direct-feasibility.md`](../plans/2026-10-24-just-direct-feasibility.md),
+§J the proof list. Start a new session from the handoff,
+[`2026-10-31-just-direct-handoff.md`](../plans/2026-10-31-just-direct-handoff.md). Beside it:
+- the reference apps' tools, read in the running app and in code:
+  [`2026-10-30-artcraft-tool-inventory.md`](../plans/2026-10-30-artcraft-tool-inventory.md),
+  [`2026-10-30-nomi-tool-inventory.md`](../plans/2026-10-30-nomi-tool-inventory.md);
+- the verified research round, one file per feature, each with a ranked table, the best option per card and its query log:
+  [consistency](../plans/2026-10-30-just-direct-research-consistency.md) (2026-10-30-just-direct-research-consistency.md),
+  [images](../plans/2026-10-30-just-direct-research-images.md) (2026-10-30-just-direct-research-images.md),
+  [long takes](../plans/2026-10-30-just-direct-research-longtake.md) (2026-10-30-just-direct-research-longtake.md),
+  [planner and audio](../plans/2026-10-30-just-direct-research-planner-audio.md) (2026-10-30-just-direct-research-planner-audio.md),
+  [3D scene](../plans/2026-10-30-just-direct-research-scene.md) (2026-10-30-just-direct-research-scene.md),
+  [talking](../plans/2026-10-30-just-direct-research-talking.md) (2026-10-30-just-direct-research-talking.md);
+- action and anything in a movie, measured on this PC (the movie shot set, swords, cars and dragons through 3D scenes,
+  the AI planner writing the scene, the licences of the route):
+  [`2026-10-31-just-direct-research-action.md`](../plans/2026-10-31-just-direct-research-action.md).
 
 **just-direct — one-camera mocap, body and hands** (web, code and API reads, plus SAM 3D Body, GEM-X, EgoHand, MediaPipe and
 RTMW measured on this PC against CMU Panoptic) — [`2026-10-31-just-direct-research-mocap.md`](../plans/2026-10-31-just-direct-research-mocap.md),

@@ -380,3 +380,21 @@ Other notes:
 ### Not verified, by design
 
 Nothing was launched. The items marked unverified above need a running app: Video Editor tab-switch loss, Exit project blanking, OS drop into the editor, snapshot save in Tauri, camera keyframing, and whether Seed Audio can produce speech. Live model lists were not checked; only the frontend overlay was read. Whether the server accepts anonymous uploads does not matter given the login wall.
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| Story, script and shot planning | `runAction` — the planner as a chat feature, its answer forced by llama-server's response_format |
+| First frames and keyframes, from saved pictures (references, a set locked by a mask) | `runImageFeature`, `imageFeatureReadiness`, `imageJobBody` (`packages/core/src/runner/sdcpp.js`) |
+| Video clips (LTX-2.3) | `runVideoJob`, `videoJobBody` — kit gap: no guide frames (depth, pose, paths), audio input or upscaler stage yet |
+| A voice line with a chosen voice | `withSpeechModel` on the audio.cpp runtime (`packages/core/src/runner/audiocpp.js`) |
+| Music and sound effects through audio.cpp | `AudioCppPool` — kit gap: the kit's audio.cpp runtime has only the tts and stt kinds |
+| The graphics card, long jobs | `getArbiter`, `JobRegistry` |
+| The 3D scene | NOT STANDARD — the planned standard is JustStage's scene through its API (just-stage TASKS R20); until it exists the tests build scenes with Blender scripts; trade-off: test code, never the app path |
+| Timeline, finishing, export, project library | app — JustDirect's own film editing and project data, kept by its server (family rules) |

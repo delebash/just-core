@@ -634,3 +634,20 @@ Added 2026-11-02, for swords through a 3D scene (§3.14):
 - "LTX 2.3 pose control fight scene workflow sword" -> no sword workflow. stork.ai review (depth beat pose on complex action), MindStudio pose and depth guide, `ekokeko/LTX-2.3-Workflows` (RealisDance and Union Control, a copy of RuneXX's), the OmniCine fine-tune card.
 - "InterHuman dataset fighting boxing sword two person interactions InterGen weights" -> the InterGen paper: about 107M frames, boxing named, no weapons found; official repo `tr3e/intergen`, weights not confirmed.
 - Read: the `motius-intergen-interhuman` model card; `E:\Dev\3D\just-stage\extension\juststage\data\fetched\makehuman\LICENSE.md`.
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| Story, script and shot planning | `runAction` — the planner as a chat feature, its answer forced by llama-server's response_format |
+| First frames and keyframes, from saved pictures (references, a set locked by a mask) | `runImageFeature`, `imageFeatureReadiness`, `imageJobBody` (`packages/core/src/runner/sdcpp.js`) |
+| Video clips (LTX-2.3) | `runVideoJob`, `videoJobBody` — kit gap: no guide frames (depth, pose, paths), audio input or upscaler stage yet |
+| The graphics card, long jobs | `getArbiter`, `JobRegistry` |
+| The shot builder (Blender: `shot-scene.py`, `scenekit.py`, `mhbody.py`) | NOT STANDARD — test code; the planned standard is JustStage's scene through its API; trade-off: test code, never the app path |
+| Drawing motion paths (`drawtracks.js`) | NOT STANDARD — a JavaScript port of Lightricks' LTXVDrawTracks (a ComfyUI node in Python); the standard option is their node, which needs ComfyUI; trade-off: the port is kept matched to their renderer |
+| The IC-LoRA guide and audio-to-video in sd.cpp | NOT STANDARD — written on our `jd` branch of stable-diffusion.cpp; the standard option is upstream sd.cpp, which has neither; trade-off: a fork to bring up to date before each change (family rules) until upstream takes them |

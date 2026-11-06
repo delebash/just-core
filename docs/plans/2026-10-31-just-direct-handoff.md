@@ -85,3 +85,22 @@ All at `E:\Dev\Web\test-just-direct\out\`, written in full for copying:
 - `E:\Dev\Web\test-just-direct\out\track-car.mp4`
 - `E:\Dev\Web\test-just-direct\out\movie-twoshot.mp4`, `-crowd`, `-horse`, `-hands`, `-dance`, `-ocean`, `-fire`, `-alley`, `-vista`, `-dragon`, `-anime`, `-scifi`
 - Sound: `E:\Dev\Web\test-just-direct\out\audio\`
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| Story, script and shot planning | `runAction` — the planner as a chat feature, its answer forced by llama-server's response_format |
+| First frames and keyframes, from saved pictures (references, a set locked by a mask) | `runImageFeature`, `imageFeatureReadiness`, `imageJobBody` (`packages/core/src/runner/sdcpp.js`) |
+| Video clips (LTX-2.3) | `runVideoJob`, `videoJobBody` — kit gap: no guide frames (depth, pose, paths), audio input or upscaler stage yet |
+| A voice line with a chosen voice | `withSpeechModel` on the audio.cpp runtime (`packages/core/src/runner/audiocpp.js`) |
+| Lip repair (LatentSync through audio.cpp) | `AudioCppPool` — kit gap: no lip-sync kind in the kit's audio.cpp runtime |
+| Music and sound effects through audio.cpp | `AudioCppPool` — kit gap: the kit's audio.cpp runtime has only the tts and stt kinds |
+| The graphics card, long jobs | `getArbiter`, `JobRegistry` |
+| The IC-LoRA guide and audio-to-video in sd.cpp | NOT STANDARD — written on our `jd` branch of stable-diffusion.cpp; the standard option is upstream sd.cpp, which has neither; trade-off: a fork to bring up to date before each change (family rules) until upstream takes them |
+| The test scripts (`cli.js`, `queue*.ps1`, the Blender scripts) | NOT STANDARD — test bench only; the app runs these jobs through the rows above |

@@ -565,3 +565,16 @@ Hugging Face API: `/api/models` search by name with `filter=gguf` for qwen3.5, 3
 GitHub (`gh`): llama.cpp issues "tool call grammar json schema", "response_format thinking grammar", "gemma 4 tool calls", "Nemotron 3.5 Bolt tool"; PRs "tool_choice required grammar thinking", "gemma4 tool schema grammar", "response_format grammar"; read #20178, #20345, #22537, #25746, #25923, #25986, #27217, #27279, #27733, #27767, #28522, #29089, #29655, #30256, #31328, PR #23247. audio.cpp issues "ace-step vram", "stable audio", "foley", "soundeffect", OOM; read #103, #255, #263, #723, PRs #321, #1077. stable-diffusion.cpp "foley", "V2A", "init-audio". Repos read: SonyResearch/Woosh, Tencent-Hunyuan/HunyuanVideo-Foley, ace-step/ACE-Step-1.5 `GPU_COMPATIBILITY.md`, HuanzhiMao/BFCL-Result listing, pwilkin/openmoss.
 
 Local, read only: feasibility sections B, H, J; kit `RESEARCH.md`, `model-research.md`; JustWrite `seed_presets.js`, `measured-performance.md`; Nomi `directorPlanSchema.ts`, `canvasModelShapes.ts`; audio.cpp README, `docs/`, `model_specs/`, `src/models/ace_step/`, `external/ggml`; shallow llama.cpp clone at `research-clones\planner\llama.cpp`, nothing run from it.
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| Story, script and shot planning | `runAction` — the planner as a chat feature, its answer forced by llama-server's response_format |
+| Music and sound effects through audio.cpp | `AudioCppPool` — kit gap: the kit's audio.cpp runtime has only the tts and stt kinds |
+| The graphics card, long jobs | `getArbiter`, `JobRegistry` |

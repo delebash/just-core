@@ -253,3 +253,16 @@ sd.cpp issues: "ltx lora", "ltx-2 lora not applied", "ltx ic-lora" returned noth
 **Civitai API, newest:** "LTX camera", "LTX blockout", "3d to real LTX", "camera control LTX 2.5", "IC-LoRA", "wan camera control". Models 2928691, 2762508, 2803304 read. New: Cameraman page, H3 camera-prompt editor.
 
 **Code read in clones:** Lightricks/LTX-2 (`ic_lora.py`, `iclora_utils.py`, conditioning types, `docs/`), ComfyUI-LTXVideo (`iclora.py`, `latents.py`, workflows), ComfyUI core (`model.py`, `av_model.py`, `nodes_lt.py`), LTX-Desktop (runtime_config, catalog, recipes, pipelines), ComfyUI-CameraReference3D, ComfyUI-LTX-BBox-Animator, CameraNoise, TriMotion, and READMEs of the others in the table.
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| Video clips (LTX-2.3) | `runVideoJob`, `videoJobBody` — kit gap: no guide frames (depth, pose, paths), audio input or upscaler stage yet |
+| The IC-LoRA guide and audio-to-video in sd.cpp | NOT STANDARD — written on our `jd` branch of stable-diffusion.cpp; the standard option is upstream sd.cpp, which has neither; trade-off: a fork to bring up to date before each change (family rules) until upstream takes them |
+| The 3D scene | NOT STANDARD — the planned standard is JustStage's scene through its API (just-stage TASKS R20); until it exists the tests build scenes with Blender scripts; trade-off: test code, never the app path |

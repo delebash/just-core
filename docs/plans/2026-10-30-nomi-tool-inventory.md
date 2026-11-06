@@ -422,3 +422,21 @@ All of this needs a connected text model. The tool list is one registry: `AC/ver
 - Shot AI verification: I did not trace every entry point.
 - Canvas `ClipNode` drag behaviour: I read its action toolbar and export code, not the full 709-line component.
 - Whether uploaded rigged models can play actions in the Director. The inspector offers none, but I did not trace the render path.
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| Story, script and shot planning | `runAction` — the planner as a chat feature, its answer forced by llama-server's response_format |
+| First frames and keyframes, from saved pictures (references, a set locked by a mask) | `runImageFeature`, `imageFeatureReadiness`, `imageJobBody` (`packages/core/src/runner/sdcpp.js`) |
+| Video clips (LTX-2.3) | `runVideoJob`, `videoJobBody` — kit gap: no guide frames (depth, pose, paths), audio input or upscaler stage yet |
+| A voice line with a chosen voice | `withSpeechModel` on the audio.cpp runtime (`packages/core/src/runner/audiocpp.js`) |
+| Music and sound effects through audio.cpp | `AudioCppPool` — kit gap: the kit's audio.cpp runtime has only the tts and stt kinds |
+| The graphics card, long jobs | `getArbiter`, `JobRegistry` |
+| The 3D scene | NOT STANDARD — the planned standard is JustStage's scene through its API (just-stage TASKS R20); until it exists the tests build scenes with Blender scripts; trade-off: test code, never the app path |
+| Timeline, finishing, export, project library | app — JustDirect's own film editing and project data, kept by its server (family rules) |

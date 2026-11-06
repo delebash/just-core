@@ -290,3 +290,17 @@ A gap in these searches is a gap in the searches, not proof that nothing exists.
 **Other:** Reddit JSON by curl → 403. Civitai API, 4 queries ("ltx ingredients", "ltx 2.3 consistent character", "minimax h3 character", "h3 multishot") → titles only, including LTX 12 GB workflows, H3 character sheet workflows, Seamless Chain.
 
 **Local read:** `E:\Dev\Web\stable-diffusion.cpp` branch `jd` (`video.cpp`, `lora.hpp`, `diffusion_engine.cpp`, `name_conversion.cpp`, `docs/`), `E:\Dev\Web\test-just-direct` (`cli.js`, `rows.js`, `queue4.ps1`, `queue5.ps1`, `logs/h3-480p.log`, `logs/h3-small.log`).
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| First frames and keyframes, from saved pictures (references, a set locked by a mask) | `runImageFeature`, `imageFeatureReadiness`, `imageJobBody` (`packages/core/src/runner/sdcpp.js`) |
+| Video clips (LTX-2.3) | `runVideoJob`, `videoJobBody` — kit gap: no guide frames (depth, pose, paths), audio input or upscaler stage yet |
+| The saved cast, sets and props | app — JustDirect's cards and their pictures, in its server's database |
+| The IC-LoRA guide and audio-to-video in sd.cpp | NOT STANDARD — written on our `jd` branch of stable-diffusion.cpp; the standard option is upstream sd.cpp, which has neither; trade-off: a fork to bring up to date before each change (family rules) until upstream takes them |

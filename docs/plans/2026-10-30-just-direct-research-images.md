@@ -331,3 +331,17 @@ github.com/black-forest-labs/flux-3-image-klein; docs.bfl.ai/flux_2; docs.bfl.ai
 - kohya sd-scripts `docs/train_SDXL-en.md`; OneTrainer README.
 
 **Local files read:** sd.cpp `docs/` (edit, flux2, flux3, qwen_image_edit, qwen_image_2.1, lora, esrgan, image_preprocessing, adetailer, pulid, ip_adapter, z_image, fibo2, boogu_image, mage_flow, llada_image, hidream_o1_image, int8_convrot, performance) and `src/`; `test-just-direct/idtest.js`, `cli.js`, `rows.js`, `queue3-5.ps1`, run logs, `out/id-sheet-2.png`.
+
+
+## Standards: the kit code each job would use
+
+JustDirect has no app code yet (feasibility §J: none until the proof list is green). This names the kit row
+(`docs/app-structure.md` §19) each job in this file would run through when the app is built, and marks what the kit
+lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits for the user's word.
+
+| Job | Kit code |
+|---|---|
+| First frames and keyframes, from saved pictures (references, a set locked by a mask) | `runImageFeature`, `imageFeatureReadiness`, `imageJobBody` (`packages/core/src/runner/sdcpp.js`) |
+| Model files | `acquireFileSet`; whether one fits this card `coarseFit` |
+| Image jobs from another app (JustStage) | `makeImageJobsRouter` |
+| The saved cast, sets and props | app — JustDirect's cards and their pictures, in its server's database |
