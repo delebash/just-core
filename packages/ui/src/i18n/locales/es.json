@@ -19,6 +19,7 @@
       "console": "Consola del motor de IA",
       "kinds": {
         "image": "Imágenes",
+        "video": "Vídeo",
         "vision": "Visión",
         "tts": "Voz",
         "stt": "Transcripción",
@@ -814,6 +815,7 @@
           "sfx": "un modelo de efectos de sonido",
           "lipsync": "un modelo de sincronización labial",
           "image": "un modelo de imágenes",
+          "video": "un modelo de vídeo",
           "vision": "un modelo de visión",
           "other": "un modelo"
         },
@@ -825,6 +827,7 @@
           "sfx": "un modelo de efectos de sonido",
           "lipsync": "un modelo de sincronización labial",
           "image": "un modelo de imágenes",
+          "video": "un modelo de vídeo",
           "vision": "un modelo de visión",
           "other": "otro modelo"
         }
@@ -2104,7 +2107,9 @@
         "stt": "Transcripción",
         "music": "Música",
         "sfx": "Efectos de sonido",
-        "lipsync": "Sincronización labial"
+        "lipsync": "Sincronización labial",
+        "image": "Imágenes",
+        "video": "Vídeo"
       },
       "search": "Buscar un modelo",
       "placement": {
@@ -2196,19 +2201,32 @@
         "none": {
           "image": "Esta aplicación no tiene ajustes de imagen.",
           "vision": "Esta aplicación no tiene ajustes de visión.",
-          "stt": "Esta aplicación no tiene ajustes de transcripción."
+          "stt": "Esta aplicación no tiene ajustes de transcripción.",
+          "video": "Esta aplicación no tiene ajustes de vídeo.",
+          "music": "Esta aplicación no tiene ajustes de música.",
+          "sfx": "Esta aplicación no tiene ajustes de efectos de sonido.",
+          "lipsync": "Esta aplicación no tiene ajustes de sincronización labial."
         },
         "model": {
           "image": "Modelo de imagen",
           "vision": "Modelo de visión",
-          "stt": "Modelo de transcripción"
+          "stt": "Modelo de transcripción",
+          "video": "Modelo de vídeo",
+          "music": "Modelo de música",
+          "sfx": "Modelo de efectos de sonido",
+          "lipsync": "Modelo de sincronización labial"
         },
         "choose": {
           "image": "Elige un modelo de imagen",
           "vision": "Elige un modelo de visión",
-          "stt": "Elige un modelo de transcripción"
+          "stt": "Elige un modelo de transcripción",
+          "video": "Elige un modelo de vídeo",
+          "music": "Elige un modelo de música",
+          "sfx": "Elige un modelo de efectos de sonido",
+          "lipsync": "Elige un modelo de sincronización labial"
         },
         "seedHint": "Una semilla de −1 elige una nueva cada vez; cualquier otro número vuelve a dibujar la misma imagen.",
+        "seedHintVideo": "Una semilla de −1 elige una nueva cada vez; cualquier otro número vuelve a hacer el mismo clip.",
         "reset": "Restablecer los ajustes de la aplicación",
         "fields": {
           "steps": "Pasos",

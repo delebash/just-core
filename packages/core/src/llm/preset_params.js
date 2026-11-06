@@ -33,6 +33,15 @@ export const PARAM_RULES = Object.freeze({
   music: Object.freeze({ placement: { values: Object.freeze(["auto", "gpu", "cpu"]), default: "auto" } }),
   sfx: Object.freeze({ placement: { values: Object.freeze(["auto", "gpu", "cpu"]), default: "auto" } }),
   lipsync: Object.freeze({ placement: { values: Object.freeze(["auto", "gpu", "cpu"]), default: "auto" } }),
+  // a video clip on sd-server (JustDirect, 2026-11-06): the image's sampler settings; a model's own recipe beyond them
+  // (its sigmas, an upscale pass, VAE tiling) is its row's `spec.params` (runner/sdcpp.js videoRequestFor)
+  video: Object.freeze({
+    steps: { type: "int", min: 1, max: 150, default: 8 },
+    cfg: { type: "number", min: 0, max: 30, default: 1 },
+    strength: { type: "number", min: 0, max: 1, default: 1 },
+    sampler: { values: IMAGE_SAMPLERS, default: "euler" },
+    seed: { type: "int", min: -1, max: 2 ** 31 - 1, default: 42 },
+  }),
 });
 
 /** `params` for a preset of `kind`, checked against its rules and filled with the defaults; a chat preset's are `{}`. */

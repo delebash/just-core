@@ -161,9 +161,11 @@ export function videoJobBody({ prompt, negativePrompt = "", width, height, frame
 }
 
 /**
- * A video request as `model` (`{files: {slot: path}}` — RuntimeService.modelFor) runs it: its `loras` named by the row's
- * slots (`[{slot, multiplier}]`) become their paths under the server's LoRA folder (loraDirOf), and an upscale pass that
- * names no upscaler takes the row's `upscaler` file by its name. → videoJobBody's argument.
+ * A video request as `model` (`{files: {slot: path}, spec}` — RuntimeService.modelFor) runs it: the row's own recipe
+ * (`spec.params`: its sigmas, an upscale pass, VAE tiling — what a preset's settings can't hold) under the request's
+ * params; its `loras` named by the row's slots (`[{slot, multiplier}]`) become their paths under the server's LoRA folder
+ * (loraDirOf), and an upscale pass that names no upscaler takes the row's `upscaler` file by its name. → videoJobBody's
+ * argument.
  */
 export function videoRequestFor(model, request) {
   const files = model?.files ?? {};
@@ -172,7 +174,7 @@ export function videoRequestFor(model, request) {
     if (!isLoraSlot(String(slot)) || !files[slot]) throw new TypeError(`the video model has no LoRA "${slot}"`);
     return { path: path.relative(loraDir, String(files[slot])).split(path.sep).join("/"), multiplier };
   });
-  const params = { ...(request.params ?? {}) };
+  const params = { ...(model?.spec?.params ?? {}), ...(request.params ?? {}) };
   if (params.hires && !params.hires.upscaler && files.upscaler) {
     params.hires = { ...params.hires, upscaler: path.basename(String(files.upscaler), path.extname(String(files.upscaler))) };
   }
@@ -256,8 +258,19 @@ export async function imageEdit(service, { model, request, onProgress = null, si
 }
 
 /** One video through the kit's sd.cpp runtime, as imageEdit — `request` as videoJobBody takes it, its LoRAs by the row's
- *  slots (videoRequestFor). → runVideoJob's result. */
+ *  slots (videoRequestFor). Its speed goes into the ledger as seconds of clip per second of work (the video kind's unit).
+ *  A row whose `spec.serverPerJob` is set has its server stopped after each clip, so the next starts fresh (a second LTX
+ *  clip on one server ran out of memory in JustDirect's tests, 2026-10-28). → runVideoJob's result. */
 export async function videoGen(service, { model, request, onProgress = null, signal = null }) {
   await service.ensureServer({ modelKey: model.key, files: model.files, peakVramMb: model.peakVramMb ?? 0, spec: model.spec ?? {} });
-  return service.runJob((url) => runVideoJob(url, videoJobBody(videoRequestFor(model, request)), { onProgress, signal }));
+  const t0 = Date.now();
+  try {
+    const out = await service.runJob((url) => runVideoJob(url, videoJobBody(videoRequestFor(model, request)), { onProgress, signal }));
+    const clipS = out.frames && out.fps ? out.frames / out.fps : Number(request.frames || 0) / Number(request.fps || 16);
+    const workS = (Date.now() - t0) / 1000;
+    if (clipS > 0 && workS > 0) service.recordSpeed?.(model.key, { realtimeX: clipS / workS });
+    return out;
+  } finally {
+    if (model.spec?.serverPerJob) await service.stopServerIfIdle();
+  }
 }

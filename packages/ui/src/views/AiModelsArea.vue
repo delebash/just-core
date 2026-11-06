@@ -137,7 +137,7 @@ const tab = ref("providers");
 // The kit runtimes this app turned on besides llama.cpp (GET /v1/ai/runtimes — the engines plan, K10): each gets its
 // tab beside the chat models, its engine and models (LuRuntimeTab). None in most apps: no tab.
 const runtimes = ref([]);
-const RUNTIME_KINDS = new Set(["image", "vision", "tts", "stt", "music", "sfx", "lipsync"]);
+const RUNTIME_KINDS = new Set(["image", "video", "vision", "tts", "stt", "music", "sfx", "lipsync"]);
 const runtimeTabLabel = (r) => (RUNTIME_KINDS.has(r.kind) ? t(`kit.aiTabs.kinds.${r.kind}`) : r.label || r.id);
 // the runtimes whose tab shows (an app hides one with runtimeTabs[id].hidden)
 const shownRuntimes = computed(() => runtimes.value.filter((r) => !props.runtimeTabs?.[r.id]?.hidden));

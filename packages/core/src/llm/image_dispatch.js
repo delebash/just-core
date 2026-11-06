@@ -3,7 +3,8 @@
 // the feature's own preset — an image feature never falls to the chat default preset — the preset's provider (of kind
 // "image") and its model. The built-in `local-sdcpp` provider runs it on the kit's runtime (runner/sdcpp.js imageEdit:
 // the server started on the model's files, room made on the card, the job with step progress and Cancel); a cloud
-// image provider later is a provider row plus an adapter in IMAGE_ADAPTERS. A vision feature (the plan's K6, round C)
+// image provider later is a provider row plus an adapter in IMAGE_ADAPTERS. A video feature runs the same way on the same
+// runtime (sdcpp.js videoGen; preset kind "video", provider local-sdcpp-video). A vision feature (the plan's K6, round C)
 // runs the same way on the in-process ONNX Runtime (`local-onnx`): the app's adapter for its preset's model
 // (registerVisionAdapter — its own pre/post-processing) held in memory by the kit (RuntimeService.withModel).
 import { ApiError } from "../platform/errors.js";
@@ -29,7 +30,7 @@ export const IMAGE_ADAPTERS = {
   },
 };
 
-/** The preset and provider a runtime feature of `kind` (image · vision) runs with — its own assignment only. */
+/** The preset and provider a runtime feature of `kind` (image · video · vision) runs with — its own assignment only. */
 export function resolveRuntimeFeature(featureKey, kind) {
   const presetId = stores.getFeaturePresetRefStore().list()[featureKey] || "";
   if (!presetId) throw new ApiError(409, `no-${kind}-model`, `No ${kind} model is set for this feature`, `choose one for ${featureKey} in AI routing`);
@@ -84,6 +85,47 @@ export async function runImageFeature(featureKey, request, { onProgress = null, 
   const { preset, provider } = resolveImageFeature(featureKey);
   const adapter = IMAGE_ADAPTERS[provider.providerType];
   if (!adapter) throw new ApiError(409, "no-image-adapter", "This image provider can't run yet", `no adapter for ${provider.providerType}`);
+  try {
+    return await adapter({ preset, provider, request, onProgress, signal });
+  } catch (e) {
+    if (e instanceof EngineBusyError) throw new ApiError(409, "gpu-busy", "The graphics card is busy", e.message);
+    throw e;
+  }
+}
+
+// ── video: a clip on the same sd.cpp runtime ────────────────────────────────────────────────────────────────────
+
+/** A video provider's type → its run: `({preset, provider, request, onProgress, signal})` → runVideoJob's result. */
+export const VIDEO_ADAPTERS = {
+  "local-sdcpp": async ({ preset, request, onProgress, signal }) => {
+    const svc = getRuntimeService("sdcpp");
+    if (!svc) throw new ApiError(409, "engine-not-on", "The video engine isn't part of this app", "this app doesn't turn the sd.cpp runtime on");
+    if (!svc.installedExe()) throw new ApiError(409, "engine-not-installed", "The video engine isn't installed", `install ${svc.rt.label} first`);
+    let model;
+    try {
+      model = svc.modelFor(preset.model);
+    } catch (e) {
+      if (e?.notDownloaded) throw new ApiError(409, "model-not-downloaded", "The video model isn't downloaded", e.message);
+      if (e?.notFound) throw new ApiError(409, "model-unknown", "The video model isn't in this app", e.message);
+      throw e;
+    }
+    return sdcpp.videoGen(svc, { model, request: { ...request, params: { ...preset.params, ...(request.params || {}) } }, onProgress, signal });
+  },
+};
+
+/** What video feature `featureKey` needs before it can run — imageFeatureReadiness's answer for a video preset. */
+export const videoFeatureReadiness = (featureKey) => runtimeFeatureReadiness(featureKey, "video");
+
+/**
+ * Run video feature `featureKey` (JustDirect, 2026-11-06 — the user's "4 your rec") on `request`: as videoJobBody takes it
+ * (`{prompt, width, height, frames, fps, init, end, guide, audio, loras: [{slot, multiplier}]}` — PNG and WAV Buffers),
+ * the preset's params and the model row's recipe filling the rest. `onProgress({step, steps, fraction})`; `signal`
+ * cancels. → `{bytes, mimeType, format, fps, frames}`, the encoded clip.
+ */
+export async function runVideoFeature(featureKey, request, { onProgress = null, signal = null } = {}) {
+  const { preset, provider } = resolveRuntimeFeature(featureKey, "video");
+  const adapter = VIDEO_ADAPTERS[provider.providerType];
+  if (!adapter) throw new ApiError(409, "no-video-adapter", "This video provider can't run yet", `no adapter for ${provider.providerType}`);
   try {
     return await adapter({ preset, provider, request, onProgress, signal });
   } catch (e) {

@@ -101,6 +101,11 @@ export const DEFAULT_RUNTIME_BANDS = Object.freeze({
   // lip-sync: seconds of video per second — LatentSync 1.6 Q8 redrew a 5 s 1280×704 clip in 514 s there (0.01×, slow);
   // fine at a fiftieth of real time, fast at a tenth
   lipsync: Object.freeze({ fast: 0.1, fine: 0.02, slow: 0.005, lowerIsFaster: false, unit: "x realtime" }),
+  // a video clip (sd.cpp, JustDirect 2026-11-06): seconds of clip per second of work, as lip-sync — measured on the 8 GB
+  // card with LTX-2.3 Q4_K_M: one pass 1280×704 × 97 in about 395 s (0.0098×), guided by depth or paths 545–699 s
+  // (0.0056–0.0071×), a 13 s two-stage take in 840 s (0.0155×). The user accepted about 7 minutes a clip, so all of them
+  // are fine; fine at 0.005× (a 4 s clip in about 13 minutes), fast at 0.05×, slow at 0.002×
+  video: Object.freeze({ fast: 0.05, fine: 0.005, slow: 0.002, lowerIsFaster: false, unit: "x realtime" }),
 });
 
 // Speed-truth plan 2026-09-19 §5 — the band DEAD ZONE. A PREDICTED tok/s within this

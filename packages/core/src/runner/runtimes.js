@@ -3,7 +3,8 @@
 // rules; docs/plans/2026-10-24-engines-the-llama-way.md, K1). llama.cpp keeps its own router path (its rows in
 // `runner_binary`, its lifecycle); the others' builds are rows in `runtime_binary` under their id, their pin
 // `pinned_build:<id>`, and the kit owns their defaults as it owns llama.cpp's. `kind` is the one vocabulary the
-// catalog, the providers, the features, the presets and the arbiter share: llm · tts · stt · image · vision.
+// catalog, the providers, the features, the presets and the arbiter share: llm · tts · stt · music · sfx · lipsync ·
+// image · video · vision.
 import {
   AUDIOCPP_ADDONS,
   AUDIOCPP_BUILDS_IN_ORDER,
@@ -22,6 +23,8 @@ export const RUNTIMES = Object.freeze({
   sdcpp: Object.freeze({
     id: "sdcpp",
     kind: "image",
+    // + video clips (LTX-2.3 — JustDirect, 2026-11-06, the user's "4 your rec"): one server, its model's kind booked
+    kinds: Object.freeze(["image", "video"]),
     label: "stable-diffusion.cpp",
     folder: "sdcpp",
     license: "MIT",

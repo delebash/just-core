@@ -1,6 +1,7 @@
 <script setup>
 // SPDX-License-Identifier: MIT
-// A runtime feature on the AI page's Routing tab — an image one, a vision one (the engines plan, K8b + K10, round C):
+// A runtime feature on the AI page's Routing tab — an image, video, vision, transcription, music, sound-effect or
+// lip-sync one (the engines plan, K8b + K10, round C):
 // which preset of its kind it runs — that kind's presets only (GET /v1/ai/engine-presets?kind=<kind>), never the chat
 // default — and that preset's own settings, built from the server's rules for its kind (`paramRules`: an image
 // preset's steps, guidance, strength, sampler, seed; a vision one's executionProvider — each bounded there, a 422 said
@@ -119,7 +120,7 @@ async function reset() {
             />
           </UiField>
         </div>
-        <p v-if="rules.seed" class="lu-imgpane-line">{{ t("kit.runtimes.preset.seedHint") }}</p>
+        <p v-if="rules.seed" class="lu-imgpane-line">{{ t(kind === "video" ? "kit.runtimes.preset.seedHintVideo" : "kit.runtimes.preset.seedHint") }}</p>
         <div class="lu-imgpane-actions">
           <UiButton type="submit" intent="primary" size="small" focusable-when-disabled :disabled="saving || !changed" :label="saving ? t('kit.common.saving') : t('kit.common.save')" />
           <UiButton v-if="preset.builtIn" intent="ghost" size="small" :label="t('kit.runtimes.preset.reset')" @click="reset" />

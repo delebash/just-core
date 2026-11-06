@@ -44,3 +44,22 @@ test("every audio.cpp kind has its words in both catalogs", () => {
     }
   }
 });
+
+// sd.cpp's two kinds (its video kind — JustDirect, 2026-11-06) the same, and every runtime feature's routing pane (the
+// preset picker's empty line, label and placeholder) in its own kind's words, never the image's
+test("sd.cpp's image and video kinds, and every runtime feature's routing pane, have their words in both catalogs", () => {
+  for (const lang of ["en", "es"]) {
+    const j = catalog(lang);
+    for (const kind of ["image", "video"]) {
+      for (const key of [`kit.aiTabs.kinds.${kind}`, `kit.runtimes.kinds.${kind}`, `kit.aiArea.evicted.model.${kind}`, `kit.aiArea.evicted.incoming.${kind}`]) {
+        expect(has(j, key), `${lang}: ${key}`).toBe(true);
+      }
+    }
+    for (const kind of ["image", "video", "vision", "stt", "music", "sfx", "lipsync"]) {
+      for (const key of [`kit.runtimes.preset.none.${kind}`, `kit.runtimes.preset.model.${kind}`, `kit.runtimes.preset.choose.${kind}`]) {
+        expect(has(j, key), `${lang}: ${key}`).toBe(true);
+      }
+    }
+    expect(has(j, "kit.runtimes.preset.seedHintVideo"), `${lang}: seedHintVideo`).toBe(true);
+  }
+});

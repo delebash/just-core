@@ -19,6 +19,7 @@
       "console": "AI engine console",
       "kinds": {
         "image": "Images",
+        "video": "Video",
         "vision": "Vision",
         "tts": "Speech",
         "stt": "Transcription",
@@ -814,6 +815,7 @@
           "sfx": "A sound-effects model",
           "lipsync": "A lip-sync model",
           "image": "An image model",
+          "video": "A video model",
           "vision": "A vision model",
           "other": "A model"
         },
@@ -825,6 +827,7 @@
           "sfx": "a sound-effects model",
           "lipsync": "a lip-sync model",
           "image": "an image model",
+          "video": "a video model",
           "vision": "a vision model",
           "other": "another model"
         }
@@ -2104,7 +2107,9 @@
         "stt": "Transcription",
         "music": "Music",
         "sfx": "Sound effects",
-        "lipsync": "Lip-sync"
+        "lipsync": "Lip-sync",
+        "image": "Images",
+        "video": "Video"
       },
       "search": "Find a model",
       "placement": {
@@ -2196,19 +2201,32 @@
         "none": {
           "image": "This app has no image presets.",
           "vision": "This app has no vision presets.",
-          "stt": "This app has no transcription presets."
+          "stt": "This app has no transcription presets.",
+          "video": "This app has no video presets.",
+          "music": "This app has no music presets.",
+          "sfx": "This app has no sound-effects presets.",
+          "lipsync": "This app has no lip-sync presets."
         },
         "model": {
           "image": "Image model",
           "vision": "Vision model",
-          "stt": "Transcription model"
+          "stt": "Transcription model",
+          "video": "Video model",
+          "music": "Music model",
+          "sfx": "Sound-effects model",
+          "lipsync": "Lip-sync model"
         },
         "choose": {
           "image": "Choose an image model",
           "vision": "Choose a vision model",
-          "stt": "Choose a transcription model"
+          "stt": "Choose a transcription model",
+          "video": "Choose a video model",
+          "music": "Choose a music model",
+          "sfx": "Choose a sound-effects model",
+          "lipsync": "Choose a lip-sync model"
         },
         "seedHint": "A seed of −1 picks a new one each time; any other number draws the same picture again.",
+        "seedHintVideo": "A seed of −1 picks a new one each time; any other number makes the same clip again.",
         "reset": "Reset to the app's settings",
         "fields": {
           "steps": "Steps",

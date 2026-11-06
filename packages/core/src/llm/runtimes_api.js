@@ -216,7 +216,7 @@ export function makeRuntimesRouter() {
     const entry = seed.appFeatureCatalog().find((e) => e.key === key);
     if (!entry) throw notFound(`no AI feature ${key} in this app`);
     const kind = entry.kind || "llm";
-    if (["image", "vision", "stt", "music", "sfx", "lipsync"].includes(kind)) {
+    if (["image", "video", "vision", "stt", "music", "sfx", "lipsync"].includes(kind)) {
       // an in-process runtime's answer says whether it loads here: checked first
       for (const svc of runtimeServices()) {
         try {

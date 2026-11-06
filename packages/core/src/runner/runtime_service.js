@@ -969,18 +969,20 @@ export class RuntimeService {
 
   // ── the server ─────────────────────────────────────────────────────────────────────────────────
 
-  /** The arbiter key and what this box's build holds on the card: idle, and a job's peak (a CPU build: nothing). */
+  /** The arbiter key and what this box's build holds on the card: idle, and a job's peak (a CPU build: nothing). The
+   *  kind is the running model's (sd.cpp's image or video — JustDirect, 2026-11-06), so the memory strip names it. */
   _booking() {
     const { cfg, asset } = this._pick();
     const onCard = asset && asset.gpu !== "cpu";
     const mem = cfg.memory ?? this.rt.defaults.memory ?? { idleMb: 0, peakMb: 0 };
     const peak = this._server?.peakMb || mem.peakMb; // the running model's own peak (runtime_model.peak_vram_mb) first
-    return { key: `${this.rt.kind}:${this.rt.id}`, idleMb: onCard ? mem.idleMb : 0, peakMb: onCard ? peak : 0 };
+    const kind = this._server?.kind ?? this.rt.kind;
+    return { key: `${kind}:${this.rt.id}`, kind, idleMb: onCard ? mem.idleMb : 0, peakMb: onCard ? peak : 0 };
   }
 
   _book(mb) {
-    const { key } = this._booking();
-    this._arbiter().reserve(key, mb, { kind: this.rt.kind, evictFn: () => this.stopServer(), source: "declared", holderFn: () => this.holderOf(key) });
+    const { key, kind } = this._booking();
+    this._arbiter().reserve(key, mb, { kind, evictFn: () => this.stopServer(), source: "declared", holderFn: () => this.holderOf(key) });
   }
 
   _armIdle() {
@@ -1031,7 +1033,7 @@ export class RuntimeService {
     } catch (e) {
       throw this._cantStart(e, exe) ?? e;
     }
-    this._server = { handle, modelKey, peakMb: Number(peakVramMb) || 0 };
+    this._server = { handle, modelKey, peakMb: Number(peakVramMb) || 0, kind: this._kindOf(modelKey) };
     this._book(this._booking().idleMb);
     this._armIdle();
     return handle;
@@ -1065,6 +1067,11 @@ export class RuntimeService {
     return new ApiError(503, "engine-cant-start", `${label} couldn't start`, detail, { reason });
   }
 
+  /** Stop the single server unless a job still runs on it (a row that wants a fresh server per job — sdcpp.js videoGen). */
+  async stopServerIfIdle() {
+    if (!this._jobs && !this._starting) await this.stopServer();
+  }
+
   /** Stop the server (idle, evicted, removed, the app quitting); its booking goes with it. */
   async stopServer() {
     clearTimeout(this._idleTimer);
@@ -1076,9 +1083,10 @@ export class RuntimeService {
       for (const kind of kindsOf(this.rt)) for (const p of this.rt.placements ?? ["gpu", "cpu"]) this._arbiter().release(this._instanceKey(kind, p));
       return this._pool.stop();
     }
+    const { key } = this._booking(); // the running model's kind's key, read before the server goes
     const s = this._server;
     this._server = null;
-    this._arbiter().release(this._booking().key);
+    this._arbiter().release(key);
     if (s) s.handle.stop();
   }
 
@@ -1905,8 +1913,8 @@ export class RuntimeService {
       for (const h of this._held.values()) if (this._instanceKey(h.kind, h.placement) === key) return h.modelId;
       return "";
     }
-    if (key !== `${this.rt.kind}:${this.rt.id}`) return "";
-    if (this.rt.inProcess) return this._loaded?.modelId ?? "";
+    if (this.rt.inProcess) return key === `${this.rt.kind}:${this.rt.id}` ? (this._loaded?.modelId ?? "") : "";
+    if (key !== `${this._server?.kind ?? this.rt.kind}:${this.rt.id}`) return "";
     return this._server?.handle.isAlive() ? this._server.modelKey : "";
   }
 
@@ -2153,18 +2161,18 @@ export class RuntimeService {
   async runJob(fn) {
     if (!this._server?.handle.isAlive()) throw new Error(`${this.rt.label}'s server isn't running`);
     const arb = this._arbiter();
-    const { key, idleMb, peakMb } = this._booking();
-    arb.busyBegin(this.rt.kind);
+    const { key, kind, idleMb, peakMb } = this._booking();
+    arb.busyBegin(kind);
     this._jobs += 1;
     try {
-      if (peakMb > idleMb && !(await arb.makeRoom(peakMb - idleMb, { exclude: key, hardware: this._hardwareFn(), reason: `${this.rt.label} job`, forKind: this.rt.kind }))) {
+      if (peakMb > idleMb && !(await arb.makeRoom(peakMb - idleMb, { exclude: key, hardware: this._hardwareFn(), reason: `${this.rt.label} job`, forKind: kind }))) {
         throw new EngineBusyError(this.rt.label);
       }
       this._book(peakMb);
       return await fn(this._server.handle.url);
     } finally {
       this._jobs -= 1;
-      arb.busyEnd(this.rt.kind);
+      arb.busyEnd(kind);
       // an install waiting for the jobs to end (_quiesced) goes on
       if (!this._jobs) for (const done of this._jobsDrained?.splice(0) ?? []) done();
       if (this._server?.handle.isAlive()) {
