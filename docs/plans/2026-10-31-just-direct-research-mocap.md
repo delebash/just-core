@@ -493,6 +493,6 @@ lacks: a kit gap is filled in the kit before the app; a NOT STANDARD row waits f
 
 | Job | Kit code |
 |---|---|
-| Body, hands and face from one camera (GEM-X, SAM 3D Body, MediaPipe) | NOT STANDARD — Python on the just-mocap bench; the kit has no runtime for them; the standard option is a runtime row in `RUNTIMES` (the ONNX row is the nearest); trade-off: a kit runtime before the app |
+| Body, hands and face from one camera (GEM-X, SAM 3D Body, MediaPipe) | NOT STANDARD — the just-mocap bench: Python, and ComfyUI for SAM 3D Body (its comfy_extras nodes plus two of the bench's own); §19 has no row for either. Already decided (`E:\Dev\Web\just-mocap\CLAUDE.md`): the winning pipeline goes into the kit, so JustDirect and JustStage share one way to do the job; trade-off: a kit runtime before either app uses it |
 | The graphics card, long jobs | `getArbiter`, `JobRegistry` |
-| BVH, FBX and face-curve export | app — JustDirect's own export of the joined skeleton; FBX goes through Blender run headless |
+| BVH, FBX and face-curve export | NOT STANDARD — the bench's scripts, FBX through Blender run headless; part of the pipeline that goes into the kit once one wins (the same decision); trade-off: kit work before either app uses it |
