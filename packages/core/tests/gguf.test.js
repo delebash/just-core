@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { beforeEach, expect, test, vi } from "vitest";
 import * as http from "../src/platform/http.js";
 import { ValueError } from "../src/platform/py.js";
-import { GgufMeta, readGgufMetadata, readGgufMetadataFromStream } from "../src/runner/gguf.js";
+import { ByteStream, GgufMeta, readGgufMetadata, readGgufMetadataFromStream, readGgufValue } from "../src/runner/gguf.js";
 import * as ggufRemote from "../src/runner/gguf_remote.js";
 import * as models from "../src/runner/models.js";
 
@@ -367,4 +367,21 @@ test("reads_size_label", () => {
   ]);
   const m = readGgufMetadataFromStream(blob);
   expect(m.sizeLabel === "27B" && m.blockCount === 32).toBe(true);
+});
+
+test("read_one_key_from_a_prefix", () => {
+  // audio.cpp's GGUFs name their family in the first KVs, then embed up to ~40 MB of files in
+  // the header: one key is read from a range-read prefix without parsing the rest.
+  const blob = buildGguf([
+    kvStr("general.architecture", "audiocpp"),
+    kvStr("audiocpp.model_spec.family", "phonon2_asr"),
+    kvStrArray("audiocpp.embedded_files.names", Array.from({ length: 2000 }, (_, i) => `voice-${i}.bin`)),
+    kvU32("audiocpp.model_spec.version", 1),
+  ]);
+  const prefix = blob.subarray(0, 200);
+  expect(readGgufValue(new ByteStream(prefix), "audiocpp.model_spec.family")).toBe("phonon2_asr");
+  // Absent from a whole header: undefined. Past the end of a prefix: the truncated error.
+  expect(readGgufValue(new ByteStream(blob), "audiocpp.no_such_key")).toBeUndefined();
+  expect(() => readGgufValue(new ByteStream(prefix), "audiocpp.model_spec.version")).toThrow(ValueError);
+  expect(() => readGgufValue(new ByteStream(prefix), "audiocpp.model_spec.version")).toThrow(/truncated/);
 });

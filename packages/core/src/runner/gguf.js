@@ -607,6 +607,29 @@ export function readGgufMetadataKvOnly(f) {
   return metaFromKv(kv);
 }
 
+/** One metadata value by key, read in order and stopped there — for a header too big to parse
+ * whole from a range-read prefix (audio.cpp's GGUFs name their family first, then embed up to
+ * ~40 MB of files). Undefined when the header has no such key; a prefix that runs out first
+ * throws the truncated ValueError. Arrays read as null, as everywhere here. */
+export function readGgufValue(f, key) {
+  f = asStream(f);
+  try {
+    if (!f.read(4).equals(MAGIC)) throw new ValueError("not a GGUF stream (bad magic)");
+    readScalar(f, "I"); // version
+    readCount(f); // tensor count
+    const kvCount = readCount(f);
+    for (let i = 0; i < kvCount; i++) {
+      const name = readString(f);
+      const value = readValue(f, readScalar(f, "I"));
+      if (name === key) return value;
+    }
+    return undefined;
+  } catch (e) {
+    if (!(e instanceof StructError)) throw e;
+    throw new ValueError(`truncated GGUF header (${e.message}) — range-read a larger prefix`);
+  }
+}
+
 /** For a split model's shard (`…-00001-of-00003.gguf`) the full ordered shard list, or null
  * when `path` is not a split name. Missing shards → null too (a partial table would be
  * worse than the fallback). */
