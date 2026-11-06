@@ -102,6 +102,10 @@ PLAN (each its own test, the suites once at the end):
      en and es; unit tests). DONE 2026-11-06, real run (`E:\Dev\Web\test-just-direct\kit-audio.js`, the merged fork's
      server at 281de44a): sfx 10 s of three sword clashes in 2.1 s, music 30 s with a storm swell in 5.0 s, each in its
      own process. LatentSync through the kit is not run yet (its frames are about 270 MB of Base64 for 3 s).
+CHECKED 2026-11-06, once after the three (6c43d7ca): kit core 1641 and lint, kit ui 93 and lint, the family guard at
+        zero; server suites — template 63, JustWrite 197, docgen 223, house-paint 397, JustVoice 1295, JustStage 48;
+        renderer suites — template 141, JustVoice 306, house-paint 196, JustWrite 885, docgen 52; the template's unpacked
+        build and e2e 15/15. Not run: the four apps' own builds and e2e.
 FOUND, not on the approved list (for the user's next list): no `runVideoFeature` (a video feature's preset and
         dispatch — `videoGen` has no feature routing) and no video kind with its speed band; no kit FFmpeg (JustVoice
         asks the user to install it); LatentSync's frames come back as one Base64 string, so a 720p line past about 6 s
