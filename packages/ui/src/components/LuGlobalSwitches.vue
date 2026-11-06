@@ -153,7 +153,9 @@ const ordered = computed(() =>
 /* Popup mount (#6): the AppModal title is the header — no drawer chrome. */
 .lu-gsw--expanded { border-top: none; padding-top: 0; }
 .lu-gsw--expanded .lu-gsw-body { margin-top: 0; }
-.lu-gsw-summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; user-select: none; }
+/* a list item, so the fold's ▸ shows beside the title (Quasar's normalize hid it — theme.css) */
+.lu-gsw-summary { cursor: pointer; user-select: none; }
+.lu-gsw-summary > .lu-muted { display: block; margin-top: 2px; }
 .lu-gsw-title { font-weight: 700; font-size: 12.5px; color: var(--ink); }
 .lu-gsw-body { margin-top: 10px; display: flex; flex-direction: column; gap: 14px; }
 .lu-gsw-help { font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.5; margin: 0; }

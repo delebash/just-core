@@ -612,7 +612,9 @@ async function runImport() {
 .lu-ct { border-top: 1px solid var(--border); padding-top: 10px; }
 .lu-ct--expanded { border-top: none; padding-top: 0; }
 .lu-ct--expanded .lu-ct-body { margin-top: 0; }
-.lu-ct-summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; user-select: none; }
+/* a list item, so the fold's ▸ shows beside the title (Quasar's normalize hid it — theme.css) */
+.lu-ct-summary { cursor: pointer; user-select: none; }
+.lu-ct-summary > .lu-muted { display: block; margin-top: 2px; }
 .lu-ct-title { font-weight: 700; font-size: 12.5px; color: var(--ink); }
 .lu-ct-body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
 .lu-ct-help { font-size: max(var(--text-floor, 0px), 11.5px); line-height: 1.5; margin: 0; }

@@ -233,7 +233,9 @@ async function reset() {
 
 <style scoped>
 .lu-engbin { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 12px; }
-.lu-engbin-summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; user-select: none; }
+/* a list item, so the fold's ▸ shows beside the title (Quasar's normalize hid it — theme.css) */
+.lu-engbin-summary { cursor: pointer; user-select: none; }
+.lu-engbin-summary > .lu-muted { display: block; margin-top: 2px; }
 .lu-engbin-title { font-weight: 700; color: var(--ink); }
 .lu-engbin-body { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
 .lu-engbin-help { font-size: max(var(--text-floor, 0px), 12px); line-height: 1.5; max-width: 720px; }

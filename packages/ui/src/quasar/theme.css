@@ -22,6 +22,13 @@
 :where(.q-btn) { text-transform: var(--btn-text-transform, none); letter-spacing: var(--btn-letter-spacing, normal); }
 /* The hover/focus overlay Quasar paints over buttons, chips and items. */
 :where(.q-focus-helper) { display: none; }
+/* A fold (<details>) shows its arrow: Quasar's normalize makes a summary `display: block`, which drops the
+   browser's ▸/▾ marker, so every fold read as plain text. normalize.css itself and the HTML standard's own
+   rendering rules make it a list item, which draws the marker (decided 2026-11-06, JustVoice's finish run:
+   the arrow back on every fold, app and kit;
+   https://html.spec.whatwg.org/multipage/rendering.html#the-details-and-summary-elements). Two type selectors
+   outrank normalize's one whatever the load order; a class that lays a summary out still wins. */
+details > summary { display: list-item; }
 /* Keyboard focus, then, is the family's ring (the host's --focus-ring: a box-shadow, as every
    other use in this sheet reads it), on everything of Quasar's that takes focus — a button, a
    clickable item, a focusable, anything an app gives a tab stop. A box-shadow, not an outline:
