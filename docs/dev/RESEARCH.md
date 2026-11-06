@@ -2344,6 +2344,78 @@ claude-code-on-the-web, cloud-environments, remote-control, worktrees, workflows
   prompt-caching.md "Rejected combinations"; `@anthropic-ai/sdk` 0.132.1
   `MODELS_TO_WARN_WITH_THINKING_ENABLED`*.
 
+### Subscriptions as providers: Claude Code, Codex, Sign in with ChatGPT (2026-11-06)
+
+The user asked whether an app can run on their own Claude or ChatGPT subscription instead of an API key, the way
+Craft Anything does. Nothing is built; these are the facts.
+
+- **The kit has no such provider today.** `construct` (`llm/registry.js:62-76`) knows anthropic, openai-compat /
+  local-llamacpp, openai / deepseek / openrouter / xai / mistral, ollama and gemini, all keyed or local. — *code,
+  2026-11-06*.
+- **Anthropic allows it only through the user's own, unmodified `claude` program, signed in by the user.** From
+  code.claude.com/docs/en/legal-and-compliance (*web, read 2026-11-06*): "Anthropic does not permit third-party
+  developers to offer Claude.ai login into their own applications, or to route requests through Free, Pro, Max, or
+  Ultra plan credentials on behalf of their users. Moreover, developers may not collect, store, or intermediate
+  Claude.ai credentials or session tokens — sign-in to a Claude account must complete through Anthropic's own
+  flow." The same section: it does not "prevent an end user from signing in to the unmodified Claude Code binary
+  with their own Claude subscription". Also: "Advertised usage limits for Pro, Max, and Ultra plans assume
+  ordinary, individual usage of Claude Code and the Agent SDK", and "Anthropic reserves the right to take measures
+  to enforce these restrictions and may do so without prior notice." Developers using the Agent SDK "should use
+  API key authentication".
+- **Plan usage from `claude -p` counts against the subscription's limits.** support.claude.com article 15036540
+  (*web, read 2026-11-06*): signed in with the plan, the Agent SDK and `claude -p` "draw from your subscription
+  limits"; a June 15, 2026 note says the announced separate Agent SDK credit was paused; an October 7, 2026 note
+  says Max, Ultra and Team plans now include monthly API credits for API-key use.
+- **How Craft Anything does it** (github.com/storytold/craft-anything, Apache-2.0; *code, read 2026-11-06*:
+  `docs/claude-code.md`, `docs/codex.md`, `crates/ai/src/cli_agents/{mod,adapters,acp}.rs`; the strings in the
+  installed `F:\Program Files\Craft Anything\craft-anything.exe` agree): it finds `claude` on PATH or
+  `~/.local/bin` and runs `claude -p --output-format stream-json --verbose --append-system-prompt <preamble>
+  --model <id> [--resume <session>] --tools ""` (built-in tools off for a chat, `adapters.rs:388-396`). It checks
+  sign-in with `claude auth status --json` → `loggedIn` (`adapters.rs:538`) and, signed out, says "open a terminal
+  and run `claude auth login`"; it never reads Claude Code's credentials. Codex runs as `codex exec --json
+  --skip-git-repo-check [-m <model>] -` with the message on stdin (`adapters.rs:741-770`). Eleven agent programs
+  are known (`mod.rs` `KNOWN`: Claude Code, Codex, Copilot, Gemini CLI, Antigravity, OpenCode, Hermes, Qwen Code,
+  Goose, Maki, DeepSeek Harness); seven run over the Agent Client Protocol (JSON-RPC on stdio, `acp.rs`
+  `ACP_AGENTS`). Cost shows as "The coding agent's estimate at API prices, not your bill. A subscription isn't
+  charged this." Its own doc ships the free open-source release on the end-user reading of the clause above and
+  lists confirming large-scale orchestration with Anthropic as open before any paid tier.
+- **The installed Claude Code (2.1.319) has every flag a plain-text provider needs** — `-p`, `--output-format
+  stream-json`, `--include-partial-messages` (text as it arrives), `--tools`, `--system-prompt`, `--model`,
+  `--effort`, `--no-session-persistence`, `--input-format`; `claude auth` has `login`, `logout`, `status`.
+  — *measured (`claude --help`), 2026-11-06*.
+- **OpenAI has an official API path to the user's ChatGPT plan for open-source apps — no Codex program in
+  between** (*web, read 2026-11-06*). developers.openai.com/siwc/quickstart: "ChatGPT plan usage is available to
+  all open-source partners and selected private clients". The cookbook article sign-in-with-chatgpt: a callback
+  listener on `127.0.0.1` plus PKCE; a new profile sends `client_id=dynamic_agent_client` and "OpenAI registers the
+  client during this flow, so you don't need a client secret or an API key"; the issued `client_id` comes back in
+  the callback and is saved before the code exchange; scopes `offline_access` and `resource.invoke` with
+  `chatgpt.tokens.use.direct`, `resource=https://api.openai.com/v1`; paid or remotely hosted apps go through an
+  interest form. The models-and-inference page: `GET https://api.openai.com/v1/models` and `POST
+  https://api.openai.com/v1/responses` with `Authorization: Bearer <access token>`; "Set `store` to `false` and
+  `stream` to `true` on each HTTP inference request"; "do not point it at ChatGPT's `backend-api` endpoints"; its
+  Python example is the plain OpenAI SDK with `api_key` set to the token. The kit's `openai` adapter already sends
+  Responses with `store: false` (`llm/openai_sdk.js:208`). **Unread:** the authorization and token endpoint URLs,
+  the identity scope names, and OpenAI's reference `oauth.ts` (its package and licence); the registration is
+  OpenAI's own (no RFC 7591 named), so whether `openid-client` (6.8.9, MIT) can drive it is unchecked.
+- **Codex's own sign-in** (learn.chatgpt.com/docs/auth, *read 2026-11-06*): `codex login` (ChatGPT, the default)
+  or `--with-api-key`; credentials in `~/.codex/auth.json` or the OS store; "Use API key authentication for
+  programmatic Codex CLI workflows, such as CI/CD jobs" — a recommendation; no clause forbids ChatGPT sign-in with
+  `codex exec`. The Codex SDK is `@openai/codex-sdk` (TypeScript) and `openai-codex` (Python, drives `codex
+  app-server` over JSON-RPC with a pinned CLI); licence not on the page — unread.
+
+Searches run (2026-11-06), each with what it returned: "CraftAnything app connect Claude Code subscription" →
+storytold's Craft suite MCP guides (Claude Code drives the apps), not the app's own provider; "use Claude Code
+subscription in third-party app Agent SDK login policy 2026" → the legal page, plus news (unread) of January and
+April 2026 enforcement against tools reusing subscription sign-ins; "Codex SDK use ChatGPT subscription in my own
+app codex exec" → third-party pages only; "storytold craft apps open source Claude Code subscription github" →
+noise; `"Craft Agents" open source Claude Max subscription login` → lukilabs/craft-agents-oss (snippet, unread: an
+in-app "Authenticate with Claude" on the Agent SDK); `"Use the Claude Agent SDK with your Claude plan"` → the
+support article; "OpenAI allows ChatGPT subscription in third-party tools OpenCode Codex login 2026" → OpenCode's
+January 2026 ChatGPT login (snippets); `"Craft Anything" github storytold cli_agents` → noise, the repo then found
+with `gh api search/repositories`; `"Sign in with ChatGPT" apps powered by your user's ChatGPT plan developers` →
+the SIWC docs; `"dynamic_agent_client" chatgpt oauth github sdk` → nothing on OpenAI's reference code (a gap in
+the search, not proof it is closed).
+
 ---
 
 ## 8 · Words and translation
