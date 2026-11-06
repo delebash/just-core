@@ -88,6 +88,9 @@ export { shellMenuLabels, shellTrayLabels } from "./services/shellMenu.js";
 // host wired one, browser download otherwise. Every export in every app.
 export { configureFileSave, saveBlob, saveUrlAs, downloadBlob, canSaveNatively } from "./services/fileSave.js";
 
+// Recording from the microphone, and any recording as WAV (§19, 2026-11-06).
+export { recordMicrophone, toWav } from "./services/microphone.js";
+
 // the Lab test-data registry (§7.3 + QC-35) — the host registers its listable
 // material (JW: chapters/characters) AND a per-action affordance declaration
 // map (pickers / "From this book" compose / applicable sample labels)
