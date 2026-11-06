@@ -15,54 +15,43 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
-## The family releases together, once every app and all kit work are done [2026-10-29]
+## The family release: JustWrite, house-paint and docgen, together [2026-10-29; the three, 2026-11-06]
 DECIDED: the user, verbatim (2026-10-29, in JustWrite's session, relayed): "you dont understand we have several apps i
         want all kit work done for all apps before we release any app, i want to relase all apps that we are working on
         now but not until all kit work is done by each app that means each app is complete bugs fixed featrues done all
-        tasks ideas done or removed from list". Before it, there: "why whould we release house paint if we are still
-        doing kit work, wouldnt that mean houspaint gets old kit?"
-STATE:  No app releases — JustWrite, JustVoice, docgen, house-paint — until each is complete (bugs fixed, features done,
-        every TASKS line and IDEAS entry done or removed) and every kit item for every app here is done; then all
-        release together, each on the same kit commit. Dry runs only meanwhile (house-paint's 40823762045 green on
-        6879a42, the kit at ddb1431 — publish skipped). Told: JustWrite's session (it relayed it), docgen's; JustVoice's
-        when one runs.
-KIT 2026-10-29: every kit item done — the finish list and round E's kit half (with JustVoice's §3) closed, the last
-        pass green at 4d331e6 (core 1619, template e2e 15, the realrouter smoke 7 on JustWrite's data; house-paint e2e
-        18, docgen e2e 19, JustWrite e2e 9 on e45086d). JustVoice's move onto it runs in its session
-        (docs/plans/2026-10-29-round-e-onto-the-kit.md §4 there).
-OPEN:   - the workflows' actions at their latest majors (JustWrite's asks, 4) — JustWrite's all on @v7 (2026-10-29, its
-          session); JustVoice's 18 lines on v4 are the last; each app's roadmap and ideas listed with
-          recommendations for the user (5).
-CHECKED 2026-10-29, once after the day's kit changes (5a429ad, 1dcce91, be584a9, 2c76636, ca087d0): 21 steps green — kit
-        core 1528 and lint, kit ui 77 and lint, the template's lint, i18n, server 62, unit 114, unpacked build and e2e 12/12;
-        house-paint's lint, i18n, server 391, unit 195, unpacked build and e2e 16/16; JustVoice server 1384, unit 261;
-        JustWrite server 195; docgen server 194; the guard at zero. JustWrite's and docgen's renderer suites run in their
-        sessions once they install dompurify.
-FOR JUSTVOICE'S SESSION, when one runs (none since these landed): this release rule; its release.yml on the actions'
-        latest majors (JustWrite's asks 4, the template's lines); its roadmap and ideas listed with recommendations (5);
-        its e2e onto the template's e2e/lib/driver.js shape (scripts/e2e.js today — docgen's session found the apps
-        differ, 2026-10-29); its 8 bare `element.click()` tests (the guard's CLICK_KNOWN). DOMPurify is installed there
-        already (7c383a1d). From "Finish the kit" (2026-10-29): mount the kit's `resourceIsolation` beside csrfOrigin and
-        play its server's audio with `crossorigin="anonymous"` (its ~25 `<audio>` / `new Audio` uses — app-structure §19;
-        the guard's ISOLATION_KNOWN until then); no commit hooks (the family's ruling); AGENTS.md (its CLAUDE.md is 207
-        lines) and installErrorReporting in its boot; its UiServerImage override of the token (`jt:token`, src/boot/jv.js); its import-format picker (ImportModal.vue) onto UiSelect's groups (`{label, options}`); the kit's 2026-10-20 changes (serveUi, `aiRunHttpError` on its AI routes,
-        `replacingData` in its restore screens, the focus back in a field after a 422 — `git show 96ad8e5:docs/dev/TASKS.md`,
-        "What the kit's 2026-10-20 changes need in the apps"); the language as the kit's
-        LanguagePicker (AppearancePanel's own Language row is gone — SettingsPage.vue still passes `locales` and
-        `locale-desc`); round E (J1, the engines plan) on the kit's audio.cpp part once it lands; the template's
-        e2e/tests/a11y.test.js (axe, WCAG 2.2 AA) and the "Installing it" section of docs/getting-started.md.
-
-## Each app's roadmap and ideas, listed with recommendations, for the user [2026-10-29]
-DECIDED: the user, verbatim (relayed from JustWrite's session): "i want all apps to have the roadmap ideas ect listed and
-        recommed do d0ont remove pas this to other session after they complete there bug and current feature fixes".
-STATE:  OPEN — each app (house-paint, JustVoice, docgen; JustWrite its own) lists everything open beyond TASKS — its
-        roadmap, IDEAS and any candidate pools — each with a recommendation, do it or remove it, its reasons and the
-        attack, for the user to decide. House-paint's DONE 2026-10-29 (its TASKS has the user's words); docgen's DONE 2026-10-29 (the user on its whole
-        list: "your rec on all go"; no roadmap file, IDEAS.md empty). The kit's:
-        DONE 2026-10-29 (the finish list, closed — `git log -S "Finish the kit" -- docs/dev/TASKS.md`). JustVoice's session
-        gets it when one runs.
-        (The rest of that day's asks from JustWrite's session — multi-window, token budgets, q-inner-loading in dark,
-        renderAiMarkdown, the website's lede, the workflows' latest majors — are built or cancelled: git history.)
+        tasks ideas done or removed from list".
+DECIDED 2026-11-06 — the user, verbatim, in JustVoice's session: "mark jw as clear,  the kit if stuff is done mark it and
+        close it out, i ipened a new session i want it to do a a releaswe for the family apps jw, housepaint, docs gen with
+        the items you listed website ect make sure all deps are updated all docs are updated all websites are updated and do
+        a family releaeas have the new session do this it is called family release"; then "have it do all your recs for
+        the apps that you listed".
+STATE:  OPEN — the "family release" session releases JustWrite, house-paint and docgen together, each on the same kit
+        commit (each release.yml's `core_ref`). JustVoice is not in it: its TASKS still holds work for the user's ears
+        and eyes, and it releases later with our audio.cpp fork's tag (JustVoice TASKS, "Our audio.cpp fork is released
+        with the family"). JustDirect's kit gaps (below) are not in it.
+        Closed 2026-11-06 (JustVoice's session, each checked in its code): every JustVoice line this item carried — its
+        workflows on actions v7/v8 (CodeQL's action on v4, its own latest), its e2e on the template's driver with the
+        a11y test, no click or isolation exceptions left (the guard's CLICK_KNOWN and ISOLATION_KNOWN are empty), no
+        commit hooks, AGENTS.md, installErrorReporting, the kit's token (no `jt:token`), ImportModal on UiSelect, the
+        LanguagePicker, the kit's DataManagement (`replacingData`), `aiRunHttpError`, round E, "Installing it"; and its
+        roadmap and ideas listed and decided (its TASKS, "The finish run's nine decisions") — which closed "Each app's
+        roadmap and ideas, listed with recommendations, for the user" for every app (house-paint's and docgen's
+        2026-10-29, JustWrite's its own, the kit's "Finish the kit").
+OPEN:   the release work, as JustVoice's session listed it on 2026-11-06 (its recs, which the user said to do):
+        1. Dependencies at their latest in the three apps, the template and the kit — minor and patch first; each major
+           after reading its breaking changes: Electron 45 (from 44.10.0), jsdom 31, the kit core's @anthropic-ai/sdk 1.x
+           (from 0.132) and @google/genai 3, JustWrite's simple-statistics 8 and webdriverio 10. Biome is one exact pin
+           family-wide (the guard), so JustVoice moves with it; a kit change reaches JustVoice too (its server and unit
+           suites stay green).
+        2. Each app's full suites, unpacked build and e2e after them — none of the three has built or run its e2e since
+           the kit's JustDirect changes (6c43d7ca).
+        3. house-paint's accessibility test, first run (e2e/tests/a11y.test.js — written, never run); what it finds is
+           fixed before the release.
+        4. Each app's docs and in-app Help checked against its screens (only the guard's format and link checks have run).
+        5. JustWrite's Spanish re-translated by docgen if `en.json` changes (JustWrite's TASKS: clear otherwise).
+        6. Each website brought up to date (text, screenshots of what changed) and deployed by its own `npm run deploy`
+           after the release (house-paint's close-ups, fef4d64, wait for it).
+        7. The releases: each app's release.yml by hand (`workflow_dispatch`), one `core_ref` for all three.
 
 ## JustDirect's kit gaps, filled before the app [2026-11-06]
 DECIDED: the user, verbatim, 2026-11-06: "your rec go", on item 4 of the session's list: "Four gaps to fill in the kit
