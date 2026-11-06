@@ -157,16 +157,29 @@ STATE 2026-11-06:
      dangerous") — pushing `jd`, the release run and the kit's rows wait for the fork. NOT opened: the upstream pull
      requests — upstream's CONTRIBUTING.md ("AI-Assisted Contributions") requires the human contributor's "thorough human
      review" of every line and "Do not list AI tools as co-authors", and its AGENTS.md says agents must not create PRs.
+     The merged build makes the passing explosion with the same content frame for frame (PSNR 34.5 dB against the
+     pre-merge clip — RESEARCH §11). Waiting with the fork: house-paint's and JustStage's image features on our build
+     (they move only when the kit's rows point at our release).
   2. Not done, by the user's word.
-  3. The spec: `docs/plans/2026-11-06-motion-tracks-spec.md` (written from sparse_tracks.py at ComfyUI-LTXVideo
-     `220e1d4`, no code in it); the code written from it alone by a separate agent; the comparison fixtures from
-     Lightricks' renderer by `E:\Dev\Web\test-just-direct\tracks-golden.py` (its clone, `E:\Dev\Web\test-just-direct\ext\
-     ComfyUI-LTXVideo`, 110 MB on disk with its examples — the API's 13.6 MB was the repository's packed size).
-  4. BUILT `1a97d977` (unit tests green). The real test (two clips back to back on one kit-started server,
-     `E:\Dev\Web\test-just-direct\kit-video2.js`) was cancelled at step 2 of the first clip by its RAM guard: JustVoice's
-     router loaded Gemma 4 26B (13.75 GB of RAM, 31 layers on the card) at 13:49 while the clip ran. The card booking
-     read right (`video:sdcpp` at 128, then 7,300 for the job). Rerun when JustVoice's session frees the card.
+  3. DONE `336d6556`: the spec `docs/plans/2026-11-06-motion-tracks-spec.md` (written from sparse_tracks.py at
+     ComfyUI-LTXVideo `220e1d4`, no code in it); `runner/motion_tracks.js` written from it alone by a separate agent;
+     Lightricks' renderer's frames (`E:\Dev\Web\test-just-direct\tracks-golden.py`) match ours — sampling identical, 15
+     frames at 1152×640, 1280×704 and 384×640 within one step. Two spec lines of mine were wrong (32-bit vs 64-bit, a
+     line's arithmetic order); corrected in spec and code, each with a test. The clone
+     `E:\Dev\Web\test-just-direct\ext\ComfyUI-LTXVideo` is 110 MB on disk with its examples (the API's 13.6 MB was the
+     repository's packed size).
+  4. DONE `1a97d977`, real test: two clips back to back on one kit-started server (`E:\Dev\Web\test-just-direct\
+     kit-video2.js`, the merged `jd` build): 661 s and 589 s, card peak 6.95 GB, booking `video:sdcpp`, speeds 0.0062× and
+     0.0069× (fine) — so an LTX row needs no `spec.serverPerJob`. A first try was cancelled by its RAM guard when
+     JustVoice's router loaded Gemma 4 26B (13.75 GB) mid-clip.
   5. BUILT `edd35715`, measured: the kit installed the pinned Windows build (SHA-256 checked, `-version` probe), and it
      turned sd-server's WebM into H.264/AAC MP4 in 1.2 s. The first try failed at the swap (EPERM — Windows Defender
      reading the new exe); the engine swap and the extras swap now retry (`renameHeld`). JustVoice's session told.
   6. Dropped.
+CHECKED 2026-11-06, once after 3–5 (`7fb8ebe0`): kit core 1675 (13 skipped) and lint, kit ui 94 and lint; server suites —
+        template 63, house-paint 397, JustWrite 197, docgen 223, JustStage 48; unit suites — template 141, house-paint
+        196, JustWrite 885 (5 timeouts at 5 s under the PC's load, the two files 8/8 on a rerun), docgen 52. The family
+        guard: zero but one page another session wrote (`docs/plans/2026-11-06-subscription-providers-research.md` has
+        no standards table — that session told). Not run: JustVoice's suites (its session asked: uncommitted close-out
+        work in its tree; it runs them on these commits), the apps' builds and e2e (the family release session's final
+        pass).
