@@ -11,7 +11,7 @@ vi.mock("../src/common/services/serverApi.js", () => ({ post: vi.fn(() => Promis
 const { pushToast } = await import("../src/common/services/toastBridge.js");
 const { parseProblem, attachProblem } = await import("../src/common/services/apiError.js");
 const { schemaRules, fieldErrors } = await import("../src/common/services/forms.js");
-const { reportError, errorMessage } = await import("../src/common/services/reportError.js");
+const { reportError, errorMessage, errorText } = await import("../src/common/services/reportError.js");
 const { installErrorReporting } = await import("../src/common/services/errorReporting.js");
 
 // A stand-in translator: the key and its values, so the tests read the wording choice.
@@ -144,6 +144,29 @@ describe("reportError", () => {
     const abort = Object.assign(new Error("aborted"), { name: "AbortError" });
     expect(reportError(abort, { t })).toBe(false);
     expect(pushToast).not.toHaveBeenCalled();
+  });
+  test("a caller's title says what failed; the server's sentence or the kit's words follow", () => {
+    // JustVoice's screens built their own toasts from err.message — "Preview failed: HTTP 409 — …"
+    // (2026-11-05); the screen's words are the title and the reason is said the kit's way.
+    const refused = attachProblem(new Error("HTTP 409 — that name is taken"), 409, parseProblem(JSON.stringify({ title: "Conflict", detail: "that name is taken" })));
+    reportError(refused, { t, title: "Save failed" });
+    expect(pushToast).toHaveBeenLastCalledWith(expect.objectContaining({ title: "Save failed", description: "that name is taken", kind: "error" }));
+    const fault = attachProblem(new Error("500"), 500, parseProblem(JSON.stringify({ title: "Internal Server Error", detail: "disk on fire", requestId: "r-5" })));
+    reportError(fault, { t, title: "Save failed" });
+    expect(pushToast).toHaveBeenLastCalledWith(expect.objectContaining({ title: "Save failed", description: 'disk on fire · kit.errors.reference {"id":"r-5"}' }));
+    // no sentence of its own: the kit's words say why (the server unreachable)
+    reportError(new TypeError("Failed to fetch"), { t, title: "Save failed" });
+    expect(pushToast).toHaveBeenLastCalledWith(expect.objectContaining({ title: "Save failed", description: "kit.errors.offline" }));
+    // a browser error says its own message
+    reportError(Object.assign(new Error("Permission denied"), { name: "NotAllowedError" }), { t, title: "Microphone unavailable" });
+    expect(pushToast).toHaveBeenLastCalledWith(expect.objectContaining({ title: "Microphone unavailable", description: "Permission denied" }));
+  });
+  test("a failure said in place is one sentence: the server's, else the kit's", () => {
+    const refused = attachProblem(new Error("HTTP 404 — scene 9 not found"), 404, parseProblem(JSON.stringify({ title: "Not Found", detail: "scene 9 not found" })));
+    expect(errorText(refused, { t })).toBe("scene 9 not found");
+    expect(errorText(new TypeError("Failed to fetch"), { t })).toBe("kit.errors.offline");
+    expect(errorText(new Error("Permission denied"), { t })).toBe("Permission denied");
+    expect(errorText("plain words", { t })).toBe("plain words");
   });
 });
 

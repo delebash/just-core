@@ -1100,7 +1100,11 @@ exception answers the family's problem+json 500 (`unhandledEnvelope`) — an app
 **One way to show a failure.** The kit's `reportError(err)` — a Quasar Notify toast through
 `pushToast`: the server's own title and detail for a refusal (4xx), "The server couldn't finish
 this" plus `Reference <requestId>` for a server fault (5xx), "Can't reach the server" when the
-request never arrived; a cancel shows nothing. A screen's empty / loading / failed states are §17's.
+request never arrived; a cancel shows nothing. `reportError(err, { title })` puts the screen's own
+words first ("Save failed") with that reason under them; `errorText(err)` is the same reason as one
+sentence for a failure said in place (a panel's or a form's line). A screen never shows an Error's
+`message` itself — the transports build it as "HTTP 409 — …" for logs and code that keys on the
+status. A screen's empty / loading / failed states are §17's.
 The kit's transports put the parts on every Error they throw — `status`, `problem`, `errors`,
 `requestId` — beside the message they always built.
 
@@ -1265,7 +1269,7 @@ fit — folded back into the rows below). Paths are under `packages/core/src/` u
 | Another server's stream, read by the server (an AI provider's answer, llama-server's `/models/sse`) | `platform/lines.js` `iterLines` — lines end at CR, LF or CRLF only (WHATWG SSE; NDJSON); llm/base.js re-exports it with the adapters' TransportError | a splitter of the caller's own, `str.splitlines()`'s rules |
 | A live event stream, server → screen | server-sent events: `platform/server.js` `stream` with `text/event-stream`, each frame `data: <json>` (`llm/prompts.js` a run, `platform/jobs_api.js` a job's events) · `ui/common/services/sseFrames.js` `readSseFrames` over the server transport (`client.js` `requestStream`, `runServerJob`) | EventSource (it can't send the access token), a reader of the screen's own |
 | An AI provider's failure, worded (an adapter's) | `llm/base.js` `adapterHttpError` (`{stream}`, `{kind: "embeddings"}`, the transport failure as `cause` — `unreachable`, a run's 502) | a message built in the adapter |
-| A failure, a field's refusal | `ui/common/services/reportError.js` `reportError` · `ui/common/services/forms.js` `fieldErrors` | `alert`, hand-made words |
+| A failure, a field's refusal | `ui/common/services/reportError.js` `reportError` (a toast; `title` the screen's words) · `errorText` (said in place) · `ui/common/services/forms.js` `fieldErrors` | `alert`, hand-made words, an Error's `message` shown as it is |
 | The server's audio or video played in the window | `<audio crossorigin="anonymous" :src="…">` (or `<video>`) at the server's address — the request carries the app's Origin, so the server's `resourceIsolation` passes it, and it still streams with a Range (measured, Electron 44.10, 2026-10-29); a file the window holds whole (an image) is `ui/…/useServerImage` | a plain `<audio src>` (no Origin: refused, or the server left unguarded); a `mediaPaths` hole in the guard |
 | Another window of the app (a page beside the one in use) | `window.open(router.resolve(to).href, "_blank", "noopener")` — the kit's shell opens the app's own page as a window of the app (its preload, sandbox, menu and unsaved-work box; `shell/main.js` `guardPage`), a browser opens a tab; `noopener` so the new page starts fresh (no copy of this one's sessionStorage). Closing the main window closes the others, each asking about its unsaved work; on the phone there are no windows — hide the item there | an IPC command, a `BrowserWindow` in the app |
 | A toast · a confirm | `ui/common/services/toastBridge.js` `pushToast` · `ui/common/services/dialog.js` `confirmDialog` | — |

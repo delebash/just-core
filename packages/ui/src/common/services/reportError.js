@@ -48,10 +48,23 @@ export function errorMessage(err, { t = kitT } = {}) {
   return { title: t("kit.errors.title"), detail: String(err?.message || err || ""), reference: "" };
 }
 
-/** Show `err` to the user as a toast. Returns false when nothing was shown (a cancel). */
-export function reportError(err, { t = kitT } = {}) {
+/** A failure said in place — a panel's or a form's line — as one sentence: the server's own,
+ * else the kit's words (offline, refused). Never the wire's "HTTP 404 — …". */
+export function errorText(err, { t = kitT } = {}) {
+  if (typeof err === "string") return err;
+  const { title, detail } = errorMessage(err, { t });
+  return detail || title;
+}
+
+/** Show `err` to the user as a toast. Returns false when nothing was shown (a cancel). `title`, when
+ * given, is the screen's own words for what failed ("Save failed"); the reason follows as the
+ * description — the server's sentence, or the kit's words where it has none (offline). */
+export function reportError(err, { t = kitT, title: said = "" } = {}) {
   if (!err || isCancel(err)) return false;
-  const { title, detail, reference } = errorMessage(err, { t });
+  const message = errorMessage(err, { t });
+  const title = said || message.title;
+  const detail = said ? message.detail || message.title : message.detail;
+  const { reference } = message;
   try {
     err.reported = true; // installErrorReporting skips it if it surfaces again unhandled
   } catch {

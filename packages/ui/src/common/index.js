@@ -75,7 +75,7 @@ export { announce, clearAnnouncer, installAnnouncer } from "./services/announce.
 // from the route's own schema, field errors under their fields, renderer errors into the log
 export { attachProblem, parseProblem } from "./services/apiError.js";
 export { fieldErrors, fieldMessage, schemaRules, takesNull } from "./services/forms.js";
-export { errorMessage, reportError } from "./services/reportError.js";
+export { errorMessage, errorText, reportError } from "./services/reportError.js";
 export { installErrorReporting } from "./services/errorReporting.js";
 
 // shared external-link opener — kit anchors route clicks through openExternal;
