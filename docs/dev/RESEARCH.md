@@ -2347,7 +2347,8 @@ claude-code-on-the-web, cloud-environments, remote-control, worktrees, workflows
 ### Subscriptions as providers: Claude Code, Codex, Sign in with ChatGPT (2026-11-06)
 
 The user asked whether an app can run on their own Claude or ChatGPT subscription instead of an API key, the way
-Craft Anything does. Nothing is built; these are the facts.
+Craft Anything does. Nothing is built; these are the facts. Record, with every route surveyed, the measurements and
+both agents' query logs: [`2026-11-06-subscription-providers-research.md`](../plans/2026-11-06-subscription-providers-research.md).
 
 - **The kit has no such provider today.** `construct` (`llm/registry.js:62-76`) knows anthropic, openai-compat /
   local-llamacpp, openai / deepseek / openrouter / xai / mistral, ollama and gemini, all keyed or local. — *code,
@@ -2394,9 +2395,56 @@ Craft Anything does. Nothing is built; these are the facts.
   https://api.openai.com/v1/responses` with `Authorization: Bearer <access token>`; "Set `store` to `false` and
   `stream` to `true` on each HTTP inference request"; "do not point it at ChatGPT's `backend-api` endpoints"; its
   Python example is the plain OpenAI SDK with `api_key` set to the token. The kit's `openai` adapter already sends
-  Responses with `store: false` (`llm/openai_sdk.js:208`). **Unread:** the authorization and token endpoint URLs,
-  the identity scope names, and OpenAI's reference `oauth.ts` (its package and licence); the registration is
-  OpenAI's own (no RFC 7591 named), so whether `openid-client` (6.8.9, MIT) can drive it is unchecked.
+  Responses with `store: false` (`llm/openai_sdk.js:208`). The rest, read the same day (siwc sign-in,
+  token-reference, preview-limitations pages; `auth.openai.com/.well-known/openid-configuration` fetched): authorize
+  `https://auth.openai.com/api/accounts/authorize`, token `…/oauth/token`, PKCE S256 only, no client secret; redirect
+  `http://127.0.0.1:<port>/auth/callback` ("Do not substitute with `localhost`"); identity scopes `openid profile
+  email`; access tokens last one hour, refresh tokens 30 days (each refresh returns a new one); plans named "Plus and
+  Pro"; the user caps an app at 10–100 % of the weekly plan in ChatGPT settings. Requests must omit `temperature`,
+  `top_p`, `max_output_tokens`, `user`, `metadata` (and more), send the system prompt as `instructions`, and resend
+  history in `input`. OpenAI's reference code (github.com/openai/sign-in-with-chatgpt-devkit, `@siwc/local`
+  `oauth.ts`) is under the "Sign-in with ChatGPT DevKit Noncommercial License" — not to be copied; code written from
+  the public docs is ours. Whether `openid-client` (6.8.9, MIT) carries the callback-issued `client_id` is untested.
+  (was: "Unread: the endpoint URLs, the identity scope names, and OpenAI's reference `oauth.ts`" — until 2026-11-06,
+  later the same day.)
+- **Anthropic ties running Claude Code in a product to its Commercial Terms, and its SDK note reaches `claude -p`**
+  (*web, read 2026-11-06*): legal-and-compliance, "Can customers offer Claude Code in their products?": "preinstalling
+  or running Claude Code in your products or services … requires agreeing to our Commercial Terms of Service",
+  unmodified binary, "Each end user must authenticate with their own … Claude subscription plan credentials". The
+  agent-sdk overview: "Unless previously approved, Anthropic does not allow third party developers to offer claude.ai
+  login or rate limits for their products, including agents built on the Claude Agent SDK", and the headless page
+  presents `claude -p` as "using the Agent SDK via the CLI". The legal page's end-user sentence (own subscription,
+  unmodified binary) still stands beside it, so the reading is ambiguous; JetBrains Air allows the subscription only
+  in its terminal, Raycast and Craft Anything run the user's installed `claude`.
+- **`--bare` will become the default for `-p`, and bare mode never uses the subscription** (headless page, *read
+  2026-11-06*): "`--bare` is the recommended mode for scripted and SDK calls, and will become the default for `-p` in
+  a future release"; "In bare mode, Claude Code never reads OAuth credentials or the system keychain". No opt-out is
+  documented yet. `--safe-mode` is the switch that keeps the sign-in while dropping the user's CLAUDE.md, hooks, MCP
+  servers and plugins (cli help: "Auth, model selection, built-in tools and plugins, and permissions work normally").
+- **What `claude -p` costs on this machine** (*measured 2026-11-06*, Max 20x): a one-word answer with `--tools ""`
+  alone took 16.9 s and 14,822 prompt tokens — the user's hook, CLAUDE.md, skills and 16 MCP tools came along
+  (`--tools ""` removes built-in tools only); with `--safe-mode` 6.7–7.2 s and 767 tokens (API time 1.4–1.5 s). A
+  process started ahead (`--input-format stream-json`) was ready in 1.0 s and answered 0.69 s after the prompt,
+  holding 221 MB while idle. The stream carries a `rate_limit_event` with the weekly plan used (0.3 here) and a cost
+  the docs call a "client-side estimate".
+- **Codex is a poor text provider** (*measured 2026-11-06*): `codex exec --json` took 13.0 s and 12,794 prompt tokens
+  for "ok", delivered the answer whole (no text deltas) and has no switch to turn its tools off; `codex app-server`
+  answers `initialize` in 0.3–0.5 s but is documented "Experimental". SIWC reaches the same plan without the agent.
+- **Other subscription routes** (*web, read 2026-11-06*, details in the record): Gemini CLI stopped serving Google AI
+  Pro, Ultra and free sign-ins on 2026-06-18, and its terms and Antigravity's (§6) call third-party use a violation
+  that "may be grounds for suspension"; GitHub's Copilot SDK (MIT) bills the user's Copilot plan and the Copilot CLI's
+  licence allows shipping it inside an open-source app; Cursor's SDK bills the user's plan; a Mistral key on a plan
+  account draws the plan's shared usage; Google AI Pro/Ultra include monthly Cloud credits usable on the Gemini API;
+  the coding-plan keys (Z.ai, Alibaba, Kimi, OpenCode Go) are limited to coding tools; the unofficial bridges
+  (CLIProxyAPI and others) reuse sign-in tokens, which Anthropic and Google forbid by name.
+- **Detection and spawning** (*code + measured 2026-11-06*): a program is "installed" by a file lookup (PATH with
+  PATHEXT, then known folders — Craft Anything's `which.rs` list), not by its config folder (`~/.copilot` exists here
+  with no `copilot`); a desktop app started before an install has a stale PATH (Obsidian's Agent Client re-reads it
+  from the Windows registry); only Claude (`claude auth status --json`), Codex (`codex login status`), Cursor (`agent
+  status`) and OpenCode have a signed-in check. Node refuses to spawn an npm `.cmd` shim without a shell (EINVAL,
+  CVE-2024-27980); `cross-spawn` (MIT) handles it through cmd.exe, whose arguments can't carry newlines or pass 8191
+  characters. The Agent Client Protocol (`@agentclientprotocol/sdk`, Apache-2.0) drives many agents one way, but its
+  Claude adapter runs on the Claude Agent SDK with its own bundled 345 MB `claude.exe`, and it has no "no tools" switch.
 - **Codex's own sign-in** (learn.chatgpt.com/docs/auth, *read 2026-11-06*): `codex login` (ChatGPT, the default)
   or `--with-api-key`; credentials in `~/.codex/auth.json` or the OS store; "Use API key authentication for
   programmatic Codex CLI workflows, such as CI/CD jobs" — a recommendation; no clause forbids ChatGPT sign-in with
