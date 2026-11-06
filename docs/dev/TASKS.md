@@ -84,13 +84,23 @@ PLAN (each its own test, the suites once at the end):
      RunRequest `images` → the user turn's parts (prompts.js resolveAction); the adapters map the parts to their own
      shapes (anthropic image blocks, gemini inlineData, openai_sdk input_image, ollama images; openai_compat as is).
      Real test: the kit's emitModelsIni + the pinned llama-server with Qwen3-VL-8B (on disk) answering about a frame.
+     DONE 2026-11-06, 567dae7e: three frames answered right, 4.4–5.7 s each (RESEARCH, "A chat request carries an
+     image").
   2. Video job — standard: sd-server's own vid_gen fields (examples/server/api.md): `control_frames`, `ref_audios`,
      `hires`, `lora`, `strength`; sdServerArgv `--lora-model-dir`, `--hires-upscalers-dir`, `--params-backend`;
      videoGen records its speed as imageEdit does. Only the `jd` build makes LTX read the guide and the audio (item 1),
      so the real test runs the kit's path on that build.
+     DONE 2026-11-06, 6cb10337 (with `--backend` from the row's spec too, which the CLI recipe uses): the passing
+     explosion remade through the kit's path matches the sd-cli clip, PSNR 46.7 dB. NOT done: the speed record — a clip
+     has no speed unit or band (sd.cpp's runtime has one kind, image), so it moved to FOUND.
   3. audio.cpp music, sfx and lipsync kinds, each its own process as tts and stt are — standard: audio.cpp's
      `POST /v1/tasks/run` (app/server/api.md), task `gen`, the one route its music (Stable Audio 3, ACE-Step), effects
-     (Stable Audio 3 SFX) and lip-sync (LatentSync) families run by. Needs the merged fork (281de44a; the pinned v0.9.2-jv.6 has no LatentSync) — the pin moves with the family
-     release (JustVoice TASKS, "Our audio.cpp fork is released with the family"). LatentSync runs `ffmpeg` from PATH.
+     (Stable Audio 3 SFX) and lip-sync (LatentSync) families run by. Needs the merged fork (281de44a; the pinned
+     v0.9.2-jv.6 has no LatentSync) — the pin moves with the family release (JustVoice TASKS, "Our audio.cpp fork is
+     released with the family"). LatentSync runs `ffmpeg` from PATH.
+     BUILT 2026-11-06, e547bded (kinds, providers, placement rules, speed bands, runAudioFeature, the screens' words in
+     en and es; unit tests). Real run on the merged fork's server: waits for the card.
 FOUND, not on the approved list (for the user's next list): no `runVideoFeature` (a video feature's preset and
-        dispatch — `videoGen` has no feature routing); no kit FFmpeg (JustVoice asks the user to install it).
+        dispatch — `videoGen` has no feature routing) and no video kind with its speed band; no kit FFmpeg (JustVoice
+        asks the user to install it); LatentSync's frames come back as one Base64 string, so a 720p line past about 6 s
+        can't be read whole (RESEARCH §12).

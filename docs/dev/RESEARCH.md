@@ -2819,6 +2819,30 @@ What the kit's `audiocpp` runtime is built on — JustVoice's code (`server/src/
     (on `jv` since 2026-10-21); the merged fork (281de44a, JustVoice's TASKS) has all, and the pin moves with the family
     release. — *source + code + test*.
 
+## 13 · FFmpeg for the apps (JustDirect's joins, remux and LatentSync, 2026-11-06)
+
+What we had first: JustVoice's RESEARCH, "Reuse instead of build" (2026-10-11): it ships no FFmpeg and finds one on
+PATH (`mastering.js`, `export_audiobook.js`), asking the user to install it; BtbN's builds cover Windows and Linux in
+`gpl` and `lgpl` variants, no macOS. JustDirect needs FFmpeg for every take (clip joins, sd-server's WebM to MP4) and
+LatentSync runs it from PATH, so asking each user to install it is a gap for the film app.
+
+- Searches (2026-11-06): "how do Electron apps ship ffmpeg binary 2026" → community packages only (ffmpeg-static,
+  ffmpeg-static-electron, its v5 fork; one maintainer gave up on downloading at run time because of xz archives);
+  "best ffmpeg static builds windows mac linux download LGPL GPL 2026" → BtbN, gyan.dev, ffmpeg-static, Martin Riedl,
+  evermeet.cx, osxexperts, John Van Sickle (portable-ffmpeg's source list).
+- Pages read: ffmpeg.org/download.html links gyan.dev and BtbN for Windows, BtbN for Linux, evermeet.cx for macOS.
+  **ffmpeg-static** (npm, eugeneware) still ships FFmpeg 6.1.1. **BtbN** (README, GitHub API): win64/linux64 static,
+  gpl and lgpl (lgpl lacks libx264 and libx265); 9.0 branch win64 gpl 195,291,533 bytes zip, linux64 gpl 153,271,512
+  tar.xz; the last build of each month kept two years. **gyan.dev** (GyanD/codexffmpeg releases): 9.0.2 essentials
+  114,768,076 bytes zip (35,430,500 as 7z), 2026-09-20, GPLv3 (this PC runs its 8.1.1 full build). **evermeet.cx**: Intel
+  macOS only ("I do not plan to provide native ffmpeg binaries for Apple Silicon ARM"), GPG-signed, not notarized.
+  **Martin Riedl** (ffmpeg.martin-riedl.de): macOS arm64 and amd64, Linux amd64 and arm64, release 9.0.2 (2026-09-20),
+  libx264, x265, vpx, SVT-AV1; "macOS binaries are signed (zip and installer) and notarized (installer)"; Intel macOS
+  releases end January 2027. Not linked from ffmpeg.org.
+- What fits the kit: its engines are pinned rows downloaded on demand and checked by SHA-256 (eSpeak NG, GPL, is
+  fetched beside audio.cpp the same way); Node unpacks zip, not xz or 7z. So gyan.dev's essentials zip for Windows and
+  Martin Riedl's zips for macOS and Linux, all 9.0.2 and GPL (H.264 MP4 needs libx264). — *pages read, API; not built*.
+
 ## Records not yet distilled
 
 Indexed by subject so they can be found; their facts move into a section above when work next
