@@ -90,13 +90,22 @@ export function jsonSchemaOf(extra) {
   return null;
 }
 
+/**
+ * JSON text that passes through cmd.exe whole: an npm `.cmd` launcher re-reads its arguments (`%*`) after cross-spawn
+ * escaped them once, so `&`, `|`, `<`, `>`, `^`, `%` and `!` are written as JSON's own `\uXXXX` escapes — the same
+ * JSON, without those characters on the command line (measured 2026-11-07: a schema holding `&` arrived cut off).
+ */
+export function cmdSafeJson(value) {
+  return JSON.stringify(value).replace(/[&|<>^%!]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
 /** The arguments after the program's path. */
 export function claudeArgs({ systemFile, model = "", effort = "", schema = null }) {
   const args = ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--include-partial-messages"];
   args.push("--tools", "", "--safe-mode", "--no-session-persistence", "--system-prompt-file", systemFile);
   if (model) args.push("--model", model);
   if (effort) args.push("--effort", effort);
-  if (schema) args.push("--json-schema", JSON.stringify(schema));
+  if (schema) args.push("--json-schema", cmdSafeJson(schema));
   return args;
 }
 

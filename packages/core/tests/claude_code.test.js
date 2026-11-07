@@ -91,10 +91,15 @@ test("a call streams the text, counts the whole prompt, reports the plan and its
 
 test("chat() reads the stream whole; a JSON feature's answer comes from the structured-output tool", async () => {
   process.env.FAKE_CLAUDE_MODE = "schema";
+  process.env.FAKE_CLAUDE_OUT = outFile;
+  const schema = { type: "object", properties: { colour: { type: "string", description: 'a "plain" name & no <tags>' } }, required: ["colour"] };
   const a = construct({ id: "cc2", providerType: "claude-code", timeoutSeconds: 60 });
-  const r = await a.chat([{ role: "user", content: "a colour" }], { extra: { response_format: { type: "json_object" } } });
+  const r = await a.chat([{ role: "user", content: "a colour" }], { extra: { response_format: { type: "json_schema", json_schema: { schema } } } });
   expect(JSON.parse(r.text)).toEqual({ colour: "Blue" });
   expect(r).toMatchObject({ model: "claude-haiku-5-5", plan: "claude", estimate_usd: 0.0012, finish_reason: "stop" });
+  // the schema's quotes, & and <> arrive whole through the launcher (cmd.exe on Windows)
+  const s = seen();
+  expect(JSON.parse(s.args[s.args.indexOf("--json-schema") + 1])).toEqual(schema);
 });
 
 test("signed out: the error says how to sign in; signed in yet refused: it names --bare", async () => {
