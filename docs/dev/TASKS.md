@@ -165,6 +165,16 @@ STATE 2026-11-06:
      on the merged build and on upstream's pinned master-1024-77b72a2 (`E:\Dev\Web\test-just-direct\kit-image.js`,
      1024×768, 4 steps, seed 42: PSNR infinite; 11.1 s and 10.3 s). Waiting with the fork: the same on our release's
      builds, and JustStage's image models (Z-Image, Qwen-Image, HiDream), when the kit's rows point at our release.
+     2026-11-07: the fork exists (github.com/delebash/stable-diffusion.cpp, made by this session after the user's go).
+     The local clone's remotes are now `origin` = the fork and `upstream` = leejet, as in our audio.cpp. Upstream's
+     three new commits (#2284 SDXL ControlNet Union, #2285 RelayVSR, #2286 MiniMax-H3 QKV chunks) are merged into `jd`
+     with no conflict (`e910eee`), and `jd` is pushed to the fork. BLOCKED: GitHub keeps a new fork's workflows off
+     until the owner clicks "I understand my workflows, go ahead and enable them" on its Actions tab (no API does it),
+     so the release run (`build.yml`, `create_release`) can't be dispatched yet. Once they're on, this session turns off
+     the fork's three non-build workflows: `stale-prs.yml` and `close-inactive-issues.yml` (daily schedules) and
+     `close-organization-fork-prs.yml`. That follows the user's no-automatic-runs rule. The fork's `master` is never
+     synced on GitHub, because a push to `master` or `ci` runs upstream's build by itself; upstream reaches us only by
+     a local merge into `jd`.
   2. Not done, by the user's word.
   3. DONE `336d6556`: the spec `docs/plans/2026-11-06-motion-tracks-spec.md` (written from sparse_tracks.py at
      ComfyUI-LTXVideo `220e1d4`, no code in it); `runner/motion_tracks.js` written from it alone by a separate agent;
