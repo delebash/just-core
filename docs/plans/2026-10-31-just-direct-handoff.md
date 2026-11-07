@@ -22,8 +22,9 @@ Read this first in a new session, then the register: `E:\Dev\Web\just-core\docs\
   the kit's TASKS, "JustDirect's six decisions after the kit gaps", with each rec's text and state):
   - Item 1 (our sd.cpp build as the kit's, a fork like audio.cpp's): `jd` merged with upstream locally (`2d036b0`) and
     the fork's workflow change (`9d4fbd5`). The GitHub fork's creation was refused by Claude Code's permission check, so
-    nothing is pushed yet. No upstream pull requests: upstream's rules need the human's own line-by-line review and no
-    AI co-authors.
+    nothing is pushed yet. No upstream pull requests, ever: the user's rule for every repo (2026-11-07, "no dont send
+    patches upstream this is rulle on all and you should know this"). The user's go on the fork itself came the same
+    day.
   - Item 2 (the Blender builder): not done, the user's word.
   - Item 3 (the motion-path drawer): in the kit, clean-room, matching Lightricks' renderer (`336d6556`).
   - Item 4 (the video feature): built (`1a97d977`). Two clips now run back to back on one server.
@@ -78,7 +79,6 @@ Nothing runs beside a clip: a JustStage image server stopped one with my RAM gua
 4. Longer than 13 s: latent carry windows, `2026-10-30-just-direct-research-longtake.md` §5.
 5. Add the planner's repair step, which adds any card whose name appears in a shot.
 6. Kit gaps for later: `videoJobBody` needs hires and control frames, `model-research.md`'s JSON law is out of date for `response_format`.
-7. Offer the sd.cpp patches upstream, when the user wants.
 
 ## Waiting on the user
 

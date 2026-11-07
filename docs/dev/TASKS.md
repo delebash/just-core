@@ -109,8 +109,12 @@ DECIDED: the user, verbatim, 2026-11-06: "1 your rec dont do 2 , 3 your rec , 4 
   1. NOT STANDARD, the user's word on it by name. Our four sd.cpp changes go into a fork repo like our audio.cpp's:
      github.com/delebash/stable-diffusion.cpp. `jd` is pushed there and the kit's 8 sd.cpp downloads point at our
      releases, built by hand on GitHub with upstream's own release workflow. Before each change: upstream merged in,
-     built and tested (the family fork rule; 23 commits behind on 2026-11-06). All four changes are offered upstream as
-     pull requests; once upstream has them all, the kit goes back to upstream's releases and the fork is retired.
+     built and tested (the family fork rule; 23 commits behind on 2026-11-06). ~~All four changes are offered upstream as
+     pull requests; once upstream has them all, the kit goes back to upstream's releases and the fork is retired.~~
+     STRUCK by the user, verbatim, 2026-11-07: "no dont send patches upstream this is rulle on all and you should know
+     this" — nothing is sent upstream, from any repo; the fork stays ours. The fork itself: "your rec go make sure
+     another session hasnt done it" (2026-11-07; checked — no session had: github.com/delebash/stable-diffusion.cpp
+     didn't exist and no repo under E:\Dev named it).
      house-paint's and JustStage's image features move onto the build too and are retested (the reserve change reaches
      every model on Windows cards under 12 GB). The four, each checked against today's upstream:
      `dffe732` picture-to-video memory (upstream: "need 9806.96 MB device" at 1280×704); `b9e4949` LTX guide frames
@@ -154,9 +158,8 @@ STATE 2026-11-06:
      upstream's new optional submodule). `9d4fbd5`: the fork's release run pushes no container images (upstream's
      build.yml would push Docker images under the fork's account). BLOCKED: creating github.com/delebash/
      stable-diffusion.cpp was refused by Claude Code's permission check ("the auto mode classifier judged this action
-     dangerous") — pushing `jd`, the release run and the kit's rows wait for the fork. NOT opened: the upstream pull
-     requests — upstream's CONTRIBUTING.md ("AI-Assisted Contributions") requires the human contributor's "thorough human
-     review" of every line and "Do not list AI tools as co-authors", and its AGENTS.md says agents must not create PRs.
+     dangerous") — pushing `jd`, the release run and the kit's rows wait for the fork. No upstream pull requests — the
+     user's rule (2026-11-07, above).
      The merged build makes the passing explosion with the same content frame for frame (PSNR 34.5 dB against the
      pre-merge clip — RESEARCH §11). house-paint's FLUX.2 klein 4B picture through the kit is identical pixel for pixel
      on the merged build and on upstream's pinned master-1024-77b72a2 (`E:\Dev\Web\test-just-direct\kit-image.js`,

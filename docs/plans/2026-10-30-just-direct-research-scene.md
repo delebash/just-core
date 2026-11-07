@@ -119,7 +119,7 @@ The GGUF header confirms `model_version 2.5.0`, `keyframes_abs_pos_embedding`, c
 
 ## 6. The sd.cpp change, written plan
 
-Before work, per the family fork rule: merge master into `jd` (25 commits behind, `git log jd..origin/master`), rebuild, re-fit the AdaLN patch (§J row 1). **NOT STANDARD:** this is a local engine patch until offered upstream. Standard option: upstream PR, like open A2V PR #1676.
+Before work, per the family fork rule: merge master into `jd` (25 commits behind, `git log jd..origin/master`), rebuild, re-fit the AdaLN patch (§J row 1). **NOT STANDARD:** this is a local engine patch until offered upstream. Standard option: upstream PR, like open A2V PR #1676. (Superseded 2026-11-07: nothing is sent upstream, the user's rule for every repo; the patches live in our fork, the kit's TASKS "JustDirect's six decisions" item 1.)
 
 **Phase 1, factor-1 guides. No `ltxv.hpp` change. Covers 3DREAL, Layout-To-Render, Cameraman, BBox boxes.**
 
