@@ -261,7 +261,7 @@ export class OpenAISDKAdapter {
    *  else null — the API key's client is used. Rebuilt when the access token changes (hourly). */
   async _planClient() {
     if (this.provider_type !== "openai" || !isSignedIn(getSignin(this.provider_id))) return null;
-    const { chatgptAccessToken } = await import("./chatgpt_signin.js");
+    const { chatgptAccessToken } = await import("#llm/chatgpt_signin");
     const token = await chatgptAccessToken(this.provider_id);
     if (this._plan?.token !== token) {
       const { OpenAI } = await loadOpenAI();

@@ -2473,6 +2473,12 @@ both agents' query logs: [`2026-11-06-subscription-providers-research.md`](../pl
   usage"). ID tokens are checked against OpenAI's keys (JWKS), issuer, audience (the issued client id), expiry and
   nonce. Not documented on these pages: the ID token's claims beyond the standard ones (email, plan type) — the kit
   keeps `email` and `sub` only.
+- **cross-spawn and an npm `.cmd` launcher** (*measured 2026-11-07*, cross-spawn 7.0.6): cross-spawn escapes cmd.exe's
+  characters twice only for a launcher under `node_modules\.bin\` (its `isCmdShimRegExp`); a global npm launcher
+  (`AppData\Roaming\npm\claude.cmd`) gets them escaped once, and the launcher's `%*` reads them again — a JSON argument
+  holding `&` arrived cut off ("The system cannot find the file specified"). Spaces, quotes and an empty argument
+  arrive whole. The kit writes `& | < > ^ % !` in a JSON argument as `\uXXXX` (`claude_code.js` `cmdSafeJson`) — the
+  same JSON, arriving whole.
 - **Pages fetched 2026-11-07** (no searches): the three SIWC pages above and the discovery document.
 
 Searches run (2026-11-06), each with what it returned: "CraftAnything app connect Claude Code subscription" →

@@ -267,7 +267,7 @@ export function makeProviderRouter(getStore, allowKeyReveal = false) {
     const store = getStore();
     if (store.get(providerId) == null) throw new HttpError(404, `LLM provider ${providerId}`);
     // a ChatGPT sign-in goes with its provider: revoked at OpenAI, then its row
-    if (signinSummary(providerId)?.signedIn) await (await import("./chatgpt_signin.js")).signOut(providerId);
+    if (signinSummary(providerId)?.signedIn) await (await import("#llm/chatgpt_signin")).signOut(providerId);
     deleteSignin(providerId);
     store.remove(providerId);
     getLlmRegistry().deregister(providerId);
@@ -276,7 +276,7 @@ export function makeProviderRouter(getStore, allowKeyReveal = false) {
 
   // ── Sign in with ChatGPT on an OpenAI provider (chatgpt_signin.js) ──
   // POST starts it → {authorizeUrl} for the person's browser on this machine; GET says where it stands; DELETE signs out.
-  const signinFlow = () => import("./chatgpt_signin.js");
+  const signinFlow = () => import("#llm/chatgpt_signin");
   const openaiProvider = (providerId) => {
     const cfg = getStore().get(providerId);
     if (cfg == null) throw new HttpError(404, `LLM provider ${providerId}`);

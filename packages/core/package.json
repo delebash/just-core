@@ -12,6 +12,10 @@
     "#runner/lifecycle": {
       "browser": "./src/runner/lifecycle.phone.js",
       "default": "./src/runner/lifecycle.js"
+    },
+    "#llm/chatgpt_signin": {
+      "browser": "./src/llm/chatgpt_signin.phone.js",
+      "default": "./src/llm/chatgpt_signin.js"
     }
   },
   "exports": {
