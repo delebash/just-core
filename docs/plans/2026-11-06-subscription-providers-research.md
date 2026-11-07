@@ -15,7 +15,7 @@ word by name. The recommendations as approved, verbatim, are at the end of this 
 | The Claude Code provider type | code.claude.com/docs/en/headless (`claude -p`, stream-json, `--safe-mode`) | `packages/core/src/llm/claude_code.js`, `packages/core/src/llm/registry.js` (`construct`) |
 | Starting Claude Code with no console | the kit's own door for every program it starts | `packages/core/src/platform/procs.js` (`popenProgram`) |
 | Which plan a provider draws on; plan calls at no cost in the ledger | the kit's usage ledger and run responses | `packages/core/src/llm/plans.js` (`providerPlan`), `packages/core/src/llm/usage_sink.js` |
-| One Claude Code process kept ready | NOT STANDARD — the standard option is a fresh `claude -p` per call as Anthropic documents it; the trade-off: the first word 0.69 s after the prompt instead of 6.7–7.2 s, for 221 MB held while the route is in use | NOT STANDARD — the standard option is a fresh `claude -p` per call; the trade-off: 0.69 s instead of 6.7–7.2 s to the first word, for 221 MB held while the route is in use |
+| One Claude Code process kept ready | NOT STANDARD — the standard option is a fresh `claude -p` per call as Anthropic documents it; the trade-off: the first word 0.69 s after the prompt instead of 6.7–7.2 s, for 221 MB held while the route is in use | Not built — the user, 2026-11-07: "1 no". Each call starts its own `claude -p` |
 | Detecting installed programs | the kit's "detected → Connect" probe, extended; `which` (ISC, github.com/npm/node-which) plus seeded known-folder rows (Craft Anything's list, Apache-2.0, credited) | `packages/core/src/llm/programs.js`, `packages/core/src/llm/provider_api.js`, `packages/ui/src/composables/useProviderConnect.js` |
 | npm `.cmd` launchers on Windows | `cross-spawn` (MIT, github.com/moxystudio/node-cross-spawn); prompt on stdin, system prompt by file | `packages/core/src/platform/procs.js` |
 | JustVoice's price question on a plan route | — | app — JustVoice's book-run price ask shows plan use instead of dollars (on the kit's `providerPlan`) |
@@ -322,3 +322,26 @@ whether `--json-schema` works with stream-json output; whether `openid-client` c
 > **9. Labels: your call.** Anthropic allows plain text like "runs Claude Code" but not "Claude Code" as a feature name. My proposals are "Your Claude plan (through Claude Code)" and "Sign in with ChatGPT". I need your wording.
 >
 > **10. JustVoice's price question before a book run:** on a plan route, show "uses your Claude plan — 30% of this week used" instead of a dollar price. The usage ledger keeps counting tokens.
+
+## Closed 2026-11-07
+
+Built (items 1, 2, 4, 5, 7, 9, 10; 6 and 8 by design nothing; 3 not built — the user: "1 no"): kit 673b8f83,
+3be3a654, 1aeb0d90, 5d8c5676; JustVoice bb95904d, 2590fa13; user docs — JustWrite ea3bb7b3, house-paint 6c3d11e, docgen
+93ec638, JustVoice de91fb23. The tracker's record of what was built and checked: `git log -S "The person's own plans as
+providers" -- docs/dev/TASKS.md`.
+
+Checked once at the end:
+- Suites: kit core 1691 (13 skipped), both lints, the pickers check, the family guard; JustVoice server 1299 and unit
+  308; JustWrite server 197, unit 881 + 5 timeouts under load (9/9 alone); house-paint server 397, unit 195 + its speed
+  test under load (18/18 alone); docgen 223 and 52; template 63 and 141.
+- Desktop builds (`npm run build`): JustWrite, JustVoice, docgen, house-paint, the template — all pass.
+- Phone builds (`npm run build:android`): JustWrite, house-paint, the template — all pass (BUILD SUCCESSFUL), once
+  `NoDefaultCurrentDirectoryInExePath` was unset for the build (RESEARCH.md §5).
+- e2e (`npm test`, the built desktop app on each app's real data folder): JustWrite 9/9, JustVoice 10/10, docgen 19/19,
+  house-paint 18/18, the template 15/15.
+- A real call through the adapter to the installed Claude Code (2.1.319, Max): signed in, answered in 3.6 s, 39 % of
+  the week used, a JSON schema answered.
+
+Not done, by the user's choice (2026-11-07: "1-2 not doing"): a real Sign in with ChatGPT at OpenAI's page — so the
+authorize request's parameters and whether `openid-client` carries the callback's issued client id are still unproven
+(RESEARCH.md §7) — and a look at the new settings parts rendered.

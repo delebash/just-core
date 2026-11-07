@@ -2232,6 +2232,14 @@ review):
   owning process, but its State read empty and `-State Listen` found nothing. Outside the sandbox the same. The shell's
   stale-server listing falls back to the cmdlet when netstat finds nothing (`shell/stale_server.js`). — *measured,
   2026-10-29* (the final pass).
+- **An AI session's shell can't run `npm run build:android` as is: its environment carries
+  `NoDefaultCurrentDirectoryInExePath=1`** (present in the Claude Code session's environment; not in the user's
+  User or Machine variables), so cmd.exe won't look in the current folder. Quasar starts Gradle as `./gradlew.bat` through
+  `cross-spawn` 7.0.6, whose `parse` normalises it to a bare `cmd.exe /d /s /c "gradlew.bat …"` in the android
+  folder — "'gradlew.bat' is not recognized", in Git Bash and PowerShell alike. Unset the variable for the build
+  (and set `ANDROID_HOME`/`ANDROID_SDK_ROOT=E:\Android\Sdk`, `JAVA_HOME=E:\Android\jdk-21`). The kit's own
+  `popenProgram` is not hit: it starts a program by the full path `findProgram` found. — *measured, 2026-11-07*
+  (the plan providers' end checks).
 
 ---
 
