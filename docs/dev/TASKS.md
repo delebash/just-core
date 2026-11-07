@@ -219,7 +219,17 @@ BUILT 2026-11-07 (1, 2, 4, 5, 7, 9, 10; 6 and 8 by design nothing): kit `llm/cla
         0, its estimate in `meta`), the routes (`detect-local?programs=1`, `/{id}/signin`, `/{id}/plan`), ProviderForm /
         AiModelsArea / the en+es catalogs; JustVoice `engines/llm/run.js`, `book_run.js`, `services/bookRun.js`,
         `BookRunCard.vue`. Tests written: kit `programs`, `claude_code`, `plan_providers`; JustVoice's book_run and
-        bookRun.
-OPEN:   3 waits for the user's word by name. The ChatGPT sign-in needs one real sign-in by the user at OpenAI's page
-        (whether `openid-client` carries the callback's issued client id is proven only then). JustWrite's and
-        JustVoice's user docs (`docs/ai-providers.md`) get the two providers — each app's session asked first.
+        bookRun. Commits: kit 673b8f83, 3be3a654 (a run answer carries `plan` only on a plan), 1aeb0d90 (a schema
+        through an npm `.cmd` launcher), 5d8c5676 (the sign-in's phone twin); JustVoice bb95904d, 2590fa13 (the
+        answer's schema); user docs — JustWrite ea3bb7b3, house-paint 6c3d11e, docgen 93ec638, JustVoice de91fb23.
+CHECKED 2026-11-07, once at the end: kit core 1691 (13 skipped), both lints, the pickers check, the family guard (no
+        violations); JustVoice server 1299 and unit 308; JustWrite server 197, unit 881 + 5 timeouts at 5 s under load
+        (eventPages and manuscript, the two files of 2026-11-06's note; 9/9 alone); house-paint server 397, unit 195 + its
+        speed test under load (18/18 alone); docgen 223 and 52; template 63 and 141. A real call through the adapter to
+        the installed Claude Code (2.1.319, Max): found at `.local\bin\claude.EXE`, signed in; "Red, blue, green" in
+        3.6 s (first text 2.9 s), 649 prompt tokens, 39 % of the week used, a JSON schema answered `{"colour": "Blue"}`.
+        Not run: the apps' builds and e2e; the phone app's build (JustWrite's phone-worker bundle test passes).
+OPEN:   3 waits for the user's word by name. The ChatGPT sign-in needs one real sign-in by the user at OpenAI's page:
+        OpenAI's page answers a script with Cloudflare's check, and the Chrome extension wasn't connected, so neither
+        the request's parameters nor whether `openid-client` carries the callback's issued client id are proven yet. The
+        new settings screen parts weren't looked at rendered (no browser tool connected).
