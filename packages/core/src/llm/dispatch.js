@@ -339,6 +339,8 @@ export async function chat({
       provider_id: adapter.provider_id,
       cache_write_tokens: resp.cache_write_tokens || 0,
       cache_read_tokens: resp.cache_read_tokens || 0,
+      plan: resp.plan || null,
+      estimate_usd: resp.estimate_usd ?? null,
     }),
   );
   return resp;
@@ -375,6 +377,8 @@ export async function* streamChat({
   let ct = 0;
   let cw = 0; // the prompt cache's writes and reads (Claude's), for the ledger
   let cr = 0;
+  let plan = null; // the done event says when the call ran on the person's own plan (usage.js)
+  let estimate = null;
   try {
     // The busy guard spans the WHOLE stream (held across yields; released when the stream
     // ends, fails or its consumer stops early) — a mid-stream eviction is exactly what
@@ -395,6 +399,8 @@ export async function* streamChat({
           ct = delta.completion_tokens;
           cw = delta.cache_write_tokens || 0;
           cr = delta.cache_read_tokens || 0;
+          plan = delta.plan || null;
+          estimate = delta.estimate_usd ?? null;
           // Stamp the RESOLVED model on the done event (adapters leave it empty) so the
           // SSE done frame can report model + cost — the stream carries everything /run's
           // response carries.
@@ -432,6 +438,8 @@ export async function* streamChat({
       provider_id: adapter.provider_id,
       cache_write_tokens: cw,
       cache_read_tokens: cr,
+      plan,
+      estimate_usd: estimate,
     }),
   );
 }

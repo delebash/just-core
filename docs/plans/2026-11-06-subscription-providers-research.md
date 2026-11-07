@@ -2,20 +2,23 @@
 
 The question (the user, 2026-11-06): can the family's apps run on an AI the person already pays for or has installed —
 Claude Code, Codex and the like — instead of an API key, auto-detecting what is installed, the way Craft Anything
-does? Research only; nothing built. Distilled into `docs/dev/RESEARCH.md` §7, "Subscriptions as providers".
+does? Distilled into `docs/dev/RESEARCH.md` §7, "Subscriptions as providers". The user said go on 2026-11-07; items
+1, 2, 4, 5, 7, 9 and 10 are built (kit TASKS, "The person's own plans as providers"); item 3 waits for the user's
+word by name. The recommendations as approved, verbatim, are at the end of this page.
 
-## Standards for the recommended pieces (nothing built; waiting for the user's go)
+## Standards for the pieces (built 2026-11-07, but the NOT STANDARD row)
 
 | Piece | Standard it follows | Kit code |
 |---|---|---|
-| ChatGPT plan requests (Sign in with ChatGPT) | developers.openai.com/siwc/token-sharing-open-source/models-and-inference; the official `openai` SDK the kit already uses | `packages/core/src/llm/openai_sdk.js` |
-| ChatGPT sign-in and its own token table | OpenID Connect discovery at auth.openai.com with `openid-client` (MIT, github.com/panva/openid-client) — a new dependency, not an ML package | `packages/core/src/llm/provider_api.js`, `packages/core/src/llm/db_schema.js` |
-| The Claude Code provider type | code.claude.com/docs/en/headless (`claude -p`, stream-json, `--safe-mode`) | `packages/core/src/llm/registry.js` (`construct`), `packages/core/src/llm/base.js` |
-| Starting Claude Code with no console | the kit's own door for every program it starts | `packages/core/src/platform/procs.js` |
+| ChatGPT plan requests (Sign in with ChatGPT) | developers.openai.com/siwc/token-sharing-open-source/models-and-inference; the official `openai` SDK the kit already uses | `packages/core/src/llm/openai_sdk.js` (`planKwargs`) |
+| ChatGPT sign-in and its own token table | OpenID Connect discovery at auth.openai.com with `openid-client` (MIT, github.com/panva/openid-client) — a new dependency, not an ML package | `packages/core/src/llm/chatgpt_signin.js`, `packages/core/src/llm/signins.js`, `packages/core/src/llm/provider_api.js`, `packages/core/src/llm/db_schema.js` |
+| The Claude Code provider type | code.claude.com/docs/en/headless (`claude -p`, stream-json, `--safe-mode`) | `packages/core/src/llm/claude_code.js`, `packages/core/src/llm/registry.js` (`construct`) |
+| Starting Claude Code with no console | the kit's own door for every program it starts | `packages/core/src/platform/procs.js` (`popenProgram`) |
+| Which plan a provider draws on; plan calls at no cost in the ledger | the kit's usage ledger and run responses | `packages/core/src/llm/plans.js` (`providerPlan`), `packages/core/src/llm/usage_sink.js` |
 | One Claude Code process kept ready | NOT STANDARD — the standard option is a fresh `claude -p` per call as Anthropic documents it; the trade-off: the first word 0.69 s after the prompt instead of 6.7–7.2 s, for 221 MB held while the route is in use | NOT STANDARD — the standard option is a fresh `claude -p` per call; the trade-off: 0.69 s instead of 6.7–7.2 s to the first word, for 221 MB held while the route is in use |
-| Detecting installed programs | the kit's "detected → Connect" probe, extended; `which` (ISC, github.com/npm/node-which) plus seeded known-folder rows (Craft Anything's list, Apache-2.0, credited) | `packages/core/src/llm/provider_api.js`, `packages/ui/src/composables/useProviderConnect.js` |
+| Detecting installed programs | the kit's "detected → Connect" probe, extended; `which` (ISC, github.com/npm/node-which) plus seeded known-folder rows (Craft Anything's list, Apache-2.0, credited) | `packages/core/src/llm/programs.js`, `packages/core/src/llm/provider_api.js`, `packages/ui/src/composables/useProviderConnect.js` |
 | npm `.cmd` launchers on Windows | `cross-spawn` (MIT, github.com/moxystudio/node-cross-spawn); prompt on stdin, system prompt by file | `packages/core/src/platform/procs.js` |
-| JustVoice's price question on a plan route | — | app — JustVoice's book-run price ask shows plan use instead of dollars |
+| JustVoice's price question on a plan route | — | app — JustVoice's book-run price ask shows plan use instead of dollars (on the kit's `providerPlan`) |
 
 Evidence marks: **read** — the vendor's own page, a repo file or a CLI's help · **measured** — run on this machine
 (Windows 11 26300, Node 26.5, Claude Code 2.1.319 signed in on Max 20x, codex-cli 0.147.0 signed in with ChatGPT) ·
@@ -262,3 +265,60 @@ Windows folder; how JetBrains detects installed agents; whether `codex exec` can
 Section J; free-plan access for Claude Code and Codex; Factory, Auggie and Crush terms; an xAI developer OAuth doc;
 whether `--json-schema` works with stream-json output; whether `openid-client` can carry SIWC's callback-issued
 `client_id` (untested).
+
+## The recommendations as approved (verbatim, this session's reply of 2026-11-06; the user's go 2026-11-07)
+
+> **1. ChatGPT plan: add "Sign in with ChatGPT" to the existing OpenAI provider.**
+> - **What it is:** OpenAI's own way for open-source, locally run apps to use your Plus or Pro plan. You sign in once in your browser, and the app then calls the normal OpenAI API with a token instead of a key. Usage counts against your plan, and you can cap the app at 10–100% of your weekly usage in ChatGPT's settings.
+> - **What it reuses:** our `openai` provider already uses the right API, with `store:false` as required. The token gets its own small table, not the API-key column.
+> - **Standard:** [OpenAI's sign-in docs](https://developers.openai.com/siwc/token-sharing-open-source) and `openid-client` (MIT, [panva/openid-client](https://github.com/panva/openid-client)) for the sign-in. That's a new dependency, though not an ML package.
+> - **Attack:**
+>   - OpenAI's sample sign-in code is noncommercial-only, so we write our own from the public docs.
+>   - These requests must leave out temperature, top_p and the reply-length limit, so presets lose those settings on this route.
+>   - Whether `openid-client` handles OpenAI's one non-standard step is untested. The first build step proves it with a real sign-in; the fallback is about 100 lines written from the docs.
+>   - Desktop only at first. Sign-in needs your browser on the same machine as the server.
+> - **What the attack changed:** I dropped going through Codex for ChatGPT. Measured here, it took 13 s and 12,794 prompt tokens to answer "ok", sent the answer all at once, and can't turn its tools off.
+>
+> **2. Claude plan: a new "Claude Code" provider type that runs your own installed Claude Code.**
+> - **How it runs:** `claude -p … --tools "" --safe-mode --no-session-persistence`, started through the kit's `procs.js` in an empty folder. Features that need JSON use `--output-format json --json-schema`.
+> - **What you'd see:** "30% of your weekly plan used" (from Claude Code's own stream) and an API-price estimate marked "not billed".
+> - **Standard:** [Anthropic's headless mode](https://code.claude.com/docs/en/headless).
+> - **Attack:**
+>   - **Your settings leak in without `--safe-mode`.** Measured: 14,822 prompt tokens with your CLAUDE.md, hooks and MCP tools, against 767 with it.
+>   - **The terms are ambiguous.** The legal page allows "an end user … signing in to the unmodified Claude Code binary with their own Claude subscription". But the SDK page says no "claude.ai login or rate limits" for third-party products "unless previously approved", and it calls `claude -p` "the Agent SDK via the CLI". JetBrains reads this strictly. Raycast and Craft Anything ship this route anyway. Anthropic may enforce "without prior notice", and the risk falls on your account.
+>   - **It could stop working.** Anthropic says `--bare` "will become the default for `-p`", and bare mode never uses the subscription. The provider will spot that and say so plainly rather than fail silently.
+>   - **It's slow per call:** 6.7–7.2 s for a fresh call (item 3 fixes this).
+>   - **Not for long batch jobs.** Plan limits "assume ordinary, individual usage", so it's never a default route; you pick it per feature.
+>   - Not on the phone.
+>
+> **3. Keep one Claude Code process ready while that route is in use. NOT STANDARD, so it needs your word on this item by name.**
+> - **Measured:** a pre-started process starts its reply 0.69 s after the prompt, against 6.7–7.2 s for a fresh `claude -p`. It holds 221 MB while waiting.
+> - **How it works:** each process answers one request, then exits, so one request's history never reaches another. The spare is closed after a seeded, editable idle time.
+> - **The standard option** is a fresh process per call, as Anthropic documents it. That's simpler but slower.
+> - **Attack:** 221 MB matters on a box where JustVoice's local models are tight on memory, so the spare only exists while you're using Claude Code. JSON features still start a fresh process, because whether JSON output works with a pre-started process is unverified.
+>
+> **4. Auto-detect by extending the existing "Ollama detected → Connect" check** (`provider_api.js:263`, `useProviderConnect.js`).
+> - **What it does:** looks for the program on PATH and in known install folders (Craft Anything's list, Apache-2.0, credited in NOTICE.md), skipping the Claude desktop app's `claude.exe`. Then `claude auth status --json` gives "signed in, Max plan".
+> - **Standard:** `which` (ISC, [npm/node-which](https://github.com/npm/node-which)). The program names and folders are seeded data, following the kit's rule that defaults live in the database.
+> - **Attack:** a settings folder isn't proof of an install (`~/.copilot` exists here with no `copilot` program), so only the file lookup counts. Each check costs 0.7–2 s, so it runs only on the AI settings screen and is cached.
+> - **What the attack changed:** I dropped re-reading PATH from the Windows registry, because the known folders already cover installs made after the app started. ChatGPT has nothing to detect; it's always a "Sign in with ChatGPT" button.
+>
+> **5. Start npm-installed programs with `cross-spawn`** (MIT, [moxystudio/node-cross-spawn](https://github.com/moxystudio/node-cross-spawn)).
+> - Node refuses npm's `.cmd` launchers without a shell (measured).
+> - **Attack:** cross-spawn runs through cmd.exe, so arguments can't contain newlines or exceed 8191 characters. The prompt therefore goes on stdin and the system prompt through `--system-prompt-file`.
+>
+> **6. Copilot: not now.** You don't have the `copilot` program installed. It's official: the SDK is MIT, the program's licence allows shipping it inside open-source apps, and usage is billed to your Copilot plan. If you start using Copilot, it fits item 2's shape.
+>
+> **7. Google: just a hint.** Gemini CLI stopped serving AI Pro, Ultra and free sign-ins on 2026-06-18. Antigravity's terms call use from other tools grounds for "suspension or termination". What does work: AI Pro/Ultra include monthly Cloud credits for the Gemini API, so our existing Gemini provider plus a one-line hint in its form covers it.
+>
+> **8. Leave out:**
+> - **Codex as a provider:** item 1 covers the same plan better.
+> - **Cursor SDK:** only if you use Cursor.
+> - **Coding-plan keys (Z.ai, Alibaba, Kimi, OpenCode Go):** their terms limit them to coding tools.
+> - **xAI SuperGrok sign-in:** no xAI developer doc, and users report errors.
+> - **Unofficial bridges (CLIProxyAPI and others):** they reuse sign-in tokens, which Anthropic and Google forbid by name.
+> - **The agent protocol, ACP:** its Claude adapter runs a bundled 345 MB copy of Claude on the SDK route, and it has no "no tools" switch. It's worth it only if we later add many agents at once.
+>
+> **9. Labels: your call.** Anthropic allows plain text like "runs Claude Code" but not "Claude Code" as a feature name. My proposals are "Your Claude plan (through Claude Code)" and "Sign in with ChatGPT". I need your wording.
+>
+> **10. JustVoice's price question before a book run:** on a plan route, show "uses your Claude plan — 30% of this week used" instead of a dollar price. The usage ledger keeps counting tokens.

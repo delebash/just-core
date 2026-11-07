@@ -15,9 +15,12 @@ import { getLogger } from "../platform/log.js";
 import { model, nullable, opt, T } from "../platform/models.js";
 import { errText, isJsonObject, strip, strRepr, truthy } from "../platform/py.js";
 import { input } from "../platform/server.js";
+import { providerPlan } from "./plans.js";
+import { programFor, programStatus, programTypes } from "./programs.js";
 import { construct, getLlmRegistry } from "./registry.js";
 import { LLMProviderConfig } from "./schema.js";
 import { DEFAULT_PROVIDERS } from "./seed.js";
+import { deleteSignin, signinSummary } from "./signins.js";
 
 const log = getLogger("llm_runner.llm.provider_api");
 
@@ -31,6 +34,8 @@ export const PROVIDER_TYPES = [
   "openrouter",
   "xai",
   "mistral",
+  // The person's installed Claude Code on their own Claude plan (claude_code.js) — no key, no address.
+  "claude-code",
   // The bundled llama.cpp runner. Not offered as a user-pickable type in the UI (the
   // built-in provider is seeded), but allowed here so that seeded provider round-trips
   // through PATCH instead of 400-ing on save.
@@ -54,6 +59,10 @@ export const LLMProviderResponse = T.Object({
   // The kit's catalog key for a seeded provider still under its seeded name — a screen shows the
   // name in its own language; null once renamed, or for a brand name (seededNameKey).
   nameKey: opt(nullable(T.String()), null),
+  // The person's own plan the provider draws on ("claude" | "chatgpt"), else null — nothing billed per call (plans.js)
+  plan: opt(nullable(T.String()), null),
+  // Sign in with ChatGPT on an OpenAI provider: `{method, email, signedIn}`, or null (signins.js)
+  signin: opt(nullable(T.Object({ method: T.String(), email: T.String(), signedIn: T.Boolean() })), null),
 });
 
 export const LLMProviderList = T.Object({
@@ -78,11 +87,13 @@ export const UpsertLLMProviderRequest = T.Object({
 });
 
 export const DetectedLocalProvider = T.Object({
-  providerType: T.String(), // "ollama" | "openai-compat" — a canonical PROVIDER_TYPES value
+  providerType: T.String(), // "ollama" | "openai-compat" | "claude-code" — a canonical PROVIDER_TYPES value
   name: T.String(),
   baseUrl: T.String(),
   models: T.Array(T.String()),
   alreadyRegistered: T.Boolean(),
+  // an installed program (Claude Code): where it is and whether it's signed in (programs.js); null for a local server
+  program: opt(nullable(T.Object({ path: T.String(), signedIn: T.Boolean(), plan: nullable(T.String()), detail: nullable(T.String()) })), null),
 });
 
 export const DetectLocalResponse = T.Object({
@@ -119,6 +130,8 @@ function toResponse(cfg, registered) {
     registered,
     timeoutSeconds: cfg.timeoutSeconds,
     local: cfg.local,
+    plan: providerPlan(cfg)?.plan ?? null,
+    signin: signinSummary(cfg.id),
   });
 }
 
@@ -253,14 +266,64 @@ export function makeProviderRouter(getStore, allowKeyReveal = false) {
     const providerId = c.req.valid("param").provider_id;
     const store = getStore();
     if (store.get(providerId) == null) throw new HttpError(404, `LLM provider ${providerId}`);
+    // a ChatGPT sign-in goes with its provider: revoked at OpenAI, then its row
+    if (signinSummary(providerId)?.signedIn) await (await import("./chatgpt_signin.js")).signOut(providerId);
+    deleteSignin(providerId);
     store.remove(providerId);
     getLlmRegistry().deregister(providerId);
     return c.json({ deleted: true });
   });
 
+  // ── Sign in with ChatGPT on an OpenAI provider (chatgpt_signin.js) ──
+  // POST starts it → {authorizeUrl} for the person's browser on this machine; GET says where it stands; DELETE signs out.
+  const signinFlow = () => import("./chatgpt_signin.js");
+  const openaiProvider = (providerId) => {
+    const cfg = getStore().get(providerId);
+    if (cfg == null) throw new HttpError(404, `LLM provider ${providerId}`);
+    if (cfg.providerType !== "openai") throw new HttpError(400, "Sign in with ChatGPT is for an OpenAI provider");
+    return cfg;
+  };
+  app.post(
+    "/v1/llm-providers/:provider_id/signin",
+    input({ params: PARAMS, body: T.Object({ appName: opt(T.String({ maxLength: 120 }), "") }) }),
+    async (c) => {
+      const providerId = c.req.valid("param").provider_id;
+      openaiProvider(providerId);
+      try {
+        return c.json(await (await signinFlow()).startSignin(providerId, { appName: c.req.valid("json").appName }));
+      } catch (e) {
+        throw new HttpError(502, `Couldn't reach OpenAI's sign-in: ${errText(e)}`);
+      }
+    },
+  );
+  app.get("/v1/llm-providers/:provider_id/signin", input({ params: PARAMS }), async (c) => {
+    const providerId = c.req.valid("param").provider_id;
+    openaiProvider(providerId);
+    return c.json({ signin: signinSummary(providerId), progress: (await signinFlow()).signinProgress(providerId) });
+  });
+  app.delete("/v1/llm-providers/:provider_id/signin", input({ params: PARAMS }), async (c) => {
+    const providerId = c.req.valid("param").provider_id;
+    openaiProvider(providerId);
+    await (await signinFlow()).signOut(providerId); // its next call uses the API key again, if it has one
+    return c.json({ signin: signinSummary(providerId) });
+  });
+
+  // The plan a provider draws on and how much of it is used (plans.js) — the provider card's line. For Claude Code
+  // also whether the program is installed and signed in (programs.js).
+  app.get("/v1/llm-providers/:provider_id/plan", input({ params: PARAMS }), async (c) => {
+    const providerId = c.req.valid("param").provider_id;
+    const cfg = getStore().get(providerId);
+    if (cfg == null) throw new HttpError(404, `LLM provider ${providerId}`);
+    const plan = providerPlan(cfg);
+    const program = programTypes().includes(cfg.providerType) ? await programStatus(cfg.providerType) : null;
+    return c.json({ plan, program });
+  });
+
   // Probe the well-known local LLM servers (Ollama :11434, LM Studio :1234) — powers the
-  // first-run "Ollama detected → Connect" row.
-  app.get("/v1/llm-providers/detect-local", async (c) => {
+  // first-run "Ollama detected → Connect" row. `?programs=1` also looks for the AI programs
+  // installed on this computer (Claude Code — programs.js): a file lookup, then the program's
+  // own sign-in status (0.7–2 s, cached briefly).
+  app.get("/v1/llm-providers/detect-local", input({ querystring: T.Object({ programs: opt(T.Integer(), 0) }) }), async (c) => {
     const registeredUrls = new Set(
       getStore()
         .list()
@@ -299,6 +362,27 @@ export function makeProviderRouter(getStore, allowKeyReveal = false) {
         );
       } catch {
         // a down probe is just "not detected"
+      }
+    }
+    if (c.req.valid("query").programs) {
+      const types = new Set(getStore().list().map((p) => p.providerType));
+      for (const ptype of programTypes()) {
+        try {
+          const st = await programStatus(ptype);
+          if (!st.installed) continue;
+          out.push(
+            model(DetectedLocalProvider, {
+              providerType: ptype,
+              name: st.name,
+              baseUrl: "",
+              models: [...(programFor(ptype)?.models ?? [])],
+              alreadyRegistered: types.has(ptype),
+              program: { path: st.path, signedIn: st.signedIn, plan: st.plan, detail: st.detail },
+            }),
+          );
+        } catch (e) {
+          log.warning(`looking for the ${ptype} program failed: ${errText(e)}`);
+        }
       }
     }
     return c.json(model(DetectLocalResponse, { detected: out }));

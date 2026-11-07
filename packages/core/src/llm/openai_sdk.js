@@ -31,6 +31,21 @@ import * as http from "../platform/http.js";
 import { getLogger } from "../platform/log.js";
 import { errText, isJsonObject, pyInt, RuntimeError, rstrip, ValueError } from "../platform/py.js";
 import { abortError, adapterHttpError, buildChatMessages, contentParts, LLMResponse, popReasoning, StreamDelta, selectAllowed, splitSystem } from "./base.js";
+import { getSignin, isSignedIn } from "./signins.js";
+
+// "Sign in with ChatGPT" (chatgpt_signin.js): an `openai` provider signed in to the person's ChatGPT plan sends its
+// requests with the plan's access token, always to OpenAI's own API (the token never goes to another address), and
+// by OpenAI's rules for plan requests (developers.openai.com/siwc/token-sharing-open-source/models-and-inference):
+// `store: false`, `stream: true`, the system prompt as `instructions`, history resent in `input`, and none of these.
+export const PLAN_API_URL = "https://api.openai.com/v1";
+export const PLAN_OMITTED = ["temperature", "top_p", "max_output_tokens", "user", "metadata", "previous_response_id", "truncation", "background"];
+
+/** A Responses request made fit for a ChatGPT-plan token (see PLAN_OMITTED). */
+export function planKwargs(kwargs) {
+  const out = { ...kwargs, store: false };
+  for (const k of PLAN_OMITTED) delete out[k];
+  return out;
+}
 
 const log = getLogger("llm_runner.llm.openai_sdk");
 
@@ -242,10 +257,24 @@ export class OpenAISDKAdapter {
     return kwargs;
   }
 
+  /** The client for the person's ChatGPT plan when this provider is signed in to it (an `openai` provider only),
+   *  else null — the API key's client is used. Rebuilt when the access token changes (hourly). */
+  async _planClient() {
+    if (this.provider_type !== "openai" || !isSignedIn(getSignin(this.provider_id))) return null;
+    const { chatgptAccessToken } = await import("./chatgpt_signin.js");
+    const token = await chatgptAccessToken(this.provider_id);
+    if (this._plan?.token !== token) {
+      const { OpenAI } = await loadOpenAI();
+      const client = new OpenAI({ apiKey: token, baseURL: PLAN_API_URL, timeout: this._timeoutSeconds * 1000, maxRetries: 2, fetch: sdkFetch });
+      this._plan = { token, client };
+    }
+    return this._plan.client;
+  }
+
   /** Create a Responses call; when a reasoning model 400s on `temperature`, drop it and
-   * retry ONCE with a single WARNING. */
-  async _responsesCreate(kwargs, { stream, signal = null }) {
-    const client = await this._ensureClient();
+   * retry ONCE with a single WARNING. `client`: the plan's (signed in to ChatGPT), else the key's. */
+  async _responsesCreate(kwargs, { stream, signal = null, client: planClient = null }) {
+    const client = planClient ?? (await this._ensureClient());
     const options = signal ? { signal } : undefined;
     try {
       return await client.responses.create({ ...kwargs, stream }, options);
@@ -267,9 +296,13 @@ export class OpenAISDKAdapter {
   /** The D10 mapping of an SDK failure: a status error keeps its status, anything else is
    * "request failed" (Python's `except APIStatusError` / `except Exception` pair). */
   async _d10(e, { stream = false } = {}) {
+    let words = errText(e);
+    // a ChatGPT plan's own limits (models-and-inference: the usage error codes) — say where the cap is set
+    if (/subscription_sharing_usage_limit_exceeded/.test(words)) words += " — this app's share of your ChatGPT plan is used up for now (ChatGPT → Settings → Usage → App limits sets it)";
+    else if (/subscription_sharing_usage_unavailable/.test(words)) words += " — your ChatGPT plan can't be used by apps right now";
     const err = (await isStatusError(e))
-      ? adapterHttpError(this.provider_type, e.status, errText(e), { stream })
-      : adapterHttpError(this.provider_type, null, errText(e));
+      ? adapterHttpError(this.provider_type, e.status, words, { stream })
+      : adapterHttpError(this.provider_type, null, words);
     err.cause = e;
     return err;
   }
@@ -278,6 +311,18 @@ export class OpenAISDKAdapter {
 
   async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {}) {
     const opts = { model, temperature, maxTokens, system, think, extra };
+    if (this.provider_type === "openai" && isSignedIn(getSignin(this.provider_id))) {
+      // a plan request must stream (OpenAI's rule): read the stream whole
+      let text = "";
+      let done = null;
+      for await (const d of this._streamResponses(messages, { ...opts, signal })) {
+        if (d.done) done = d;
+        else text += d.text;
+      }
+      const r = LLMResponse({ text, model: model || this.default_model, finish_reason: done?.finish_reason || "stop", prompt_tokens: done?.prompt_tokens ?? 0, completion_tokens: done?.completion_tokens ?? 0 });
+      r.plan = "chatgpt";
+      return r;
+    }
     if (this.provider_type === "openai") {
       const kwargs = this._responsesKwargs(messages, opts);
       let r;
@@ -334,12 +379,15 @@ export class OpenAISDKAdapter {
   }
 
   async *_streamResponses(messages, opts) {
-    const kwargs = this._responsesKwargs(messages, opts);
+    let kwargs = this._responsesKwargs(messages, opts);
     let pt = 0;
     let ct = 0;
     let finish = "";
+    let plan = null;
     try {
-      const stream = await this._responsesCreate(kwargs, { stream: true, signal: opts.signal });
+      plan = await this._planClient();
+      if (plan) kwargs = planKwargs(kwargs);
+      const stream = await this._responsesCreate(kwargs, { stream: true, signal: opts.signal, client: plan });
       for await (const event of stream) {
         const etype = event?.type ?? null;
         if (etype === "response.output_text.delta") {
@@ -365,7 +413,9 @@ export class OpenAISDKAdapter {
       if (opts.signal?.aborted) throw abortError(opts.signal);
       throw await this._d10(e, { stream: true });
     }
-    yield StreamDelta({ done: true, prompt_tokens: pt, completion_tokens: ct, finish_reason: finish });
+    const done = StreamDelta({ done: true, prompt_tokens: pt, completion_tokens: ct, finish_reason: finish });
+    if (plan) done.plan = "chatgpt"; // drawn from the ChatGPT plan, not billed to a key (usage.js)
+    yield done;
   }
 
   async *_streamCc(messages, opts) {
@@ -409,8 +459,10 @@ export class OpenAISDKAdapter {
 
   async models() {
     try {
+      const plan = await this._planClient();
       const out = [];
-      for await (const m of (await this._ensureClient()).models.list()) out.push(m.id);
+      // on a ChatGPT plan, only the models OpenAI lists for it (`visibility: "list"` — models-and-inference)
+      for await (const m of (plan ?? (await this._ensureClient())).models.list()) if (!plan || !m.visibility || m.visibility === "list") out.push(m.id);
       return out;
     } catch {
       return [];
@@ -419,7 +471,7 @@ export class OpenAISDKAdapter {
 
   async ping() {
     try {
-      await (await this._ensureClient()).models.list();
+      await ((await this._planClient()) ?? (await this._ensureClient())).models.list();
       return true;
     } catch (e) {
       if (await isStatusError(e)) return (e.status || 500) < 500;

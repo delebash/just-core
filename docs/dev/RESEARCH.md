@@ -2450,6 +2450,30 @@ both agents' query logs: [`2026-11-06-subscription-providers-research.md`](../pl
   programmatic Codex CLI workflows, such as CI/CD jobs" — a recommendation; no clause forbids ChatGPT sign-in with
   `codex exec`. The Codex SDK is `@openai/codex-sdk` (TypeScript) and `openai-codex` (Python, drives `codex
   app-server` over JSON-RPC with a pinned CLI); licence not on the page — unread.
+- **Built 2026-11-07 on the user's go** (kit TASKS, "The person's own plans as providers"): `llm/claude_code.js`,
+  `llm/programs.js`, `llm/chatgpt_signin.js`, `llm/signins.js`, `llm/plans.js`. Facts found while building:
+- **Claude Code's JSON answers stream too** (*measured 2026-11-07*, 2.1.319, haiku): `--json-schema` works with
+  `--output-format stream-json` — the answer arrives as `input_json_delta` pieces of a `StructuredOutput` tool call,
+  and the `result` event carries both `result` (the JSON text) and `structured_output` (parsed); `stop_reason:
+  "tool_use"`. An empty `--system-prompt-file` keeps Claude Code's own coding prompt out: 758 prompt tokens for "Reply
+  with exactly: ok" (767 with a one-line prompt). The `rate_limit_event` carries the share used as
+  `rate_limit_info.unifiedWindows.<rateLimitType>.utilization` (`rateLimitType: "seven_day"`, 0.37 that day).
+- **Sign in with ChatGPT's exact requests** (*web, read 2026-11-07*: developers.openai.com/siwc/token-sharing-open-source
+  sign-in, token-reference, profiles-and-sessions; `auth.openai.com/.well-known/openid-configuration` fetched). The
+  authorize request also carries `ext_agent_host_id` ("required", "distinct for each host"), `nonce`, and on a first
+  sign-in `agent_name_hint` (the app's name); a later one reuses the issued `client_id` with `id_token_hint` (the
+  saved ID token, "It may be expired"). The callback brings `code`, `scope`, `state`, `client_id`; "If it supplies a
+  different one … reject the result". Token exchange: form-encoded `authorization_code` with `client_id`, `code`,
+  `code_verifier`, the same `redirect_uri` and `resource`. Refresh: form-encoded `grant_type=refresh_token`, the issued
+  `client_id` ("not `dynamic_agent_client`"), the `refresh_token`, `resource`; "omit `scope` to retain the grant";
+  "serialize refreshes for the same session". Sign-out: the discovery document's `revocation_endpoint`
+  (`https://auth.openai.com/api/accounts/oauth/revoke`) with `token=<refresh token>`, `token_type_hint=refresh_token`,
+  the issued `client_id`; "An empty HTTP `200`" is success. The token response adds `earliest_refresh_at`. Plan use
+  needs `chatgpt.tokens.use.direct` among the granted scopes ("A valid ID token alone does not authorize ChatGPT plan
+  usage"). ID tokens are checked against OpenAI's keys (JWKS), issuer, audience (the issued client id), expiry and
+  nonce. Not documented on these pages: the ID token's claims beyond the standard ones (email, plan type) — the kit
+  keeps `email` and `sub` only.
+- **Pages fetched 2026-11-07** (no searches): the three SIWC pages above and the discovery document.
 
 Searches run (2026-11-06), each with what it returned: "CraftAnything app connect Claude Code subscription" →
 storytold's Craft suite MCP guides (Claude Code drives the apps), not the app's own provider; "use Claude Code

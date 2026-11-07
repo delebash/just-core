@@ -188,10 +188,12 @@ test("the provider router answers as FastAPI did", async () => {
     timeoutSeconds: 60,
     local: true,
     nameKey: null, // the seeded-name key (2026-10-18) — a renamed or non-seeded row has none
+    plan: null, // the person's own plan it draws on (2026-11-07) — none for a keyed or local provider
+    signin: null, // Sign in with ChatGPT — none
   });
   r = await c.post("/v1/llm-providers", { name: "x", providerType: "nope" });
   expect((await r.json()).detail).toBe(
-    "unknown providerType 'nope'. Allowed: anthropic, openai, openai-compat, gemini, ollama, deepseek, openrouter, xai, mistral, local-llamacpp",
+    "unknown providerType 'nope'. Allowed: anthropic, openai, openai-compat, gemini, ollama, deepseek, openrouter, xai, mistral, claude-code, local-llamacpp",
   );
   r = await c.post("/v1/llm-providers", { name: "", providerType: "openai" });
   expect(r.status).toBe(422);

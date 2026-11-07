@@ -30,6 +30,7 @@ import { presetParams } from "./preset_params.js";
 import * as db from "./db.js";
 import * as modelListRules from "./model_list_rules.js";
 import { DEFAULT_PRICING } from "./pricing.js";
+import * as aiPrograms from "./programs.js";
 import { seedRowsForType } from "./reasoning_map_api.js";
 import * as stores from "./stores.js";
 import { pyEq } from "./stores.js";
@@ -1305,6 +1306,31 @@ export function seedModelListRules(h) {
 }
 
 /**
+ * Seed the installed-AI-programs document (llm/programs.js — Claude Code today: its command, its status command, the
+ * folders to look in) as ONE JSON document in runner_setting, the same convention as the model-list rules above: a
+ * missing row is seeded, an unedited one (built_in) follows the seed, a user-edited one is never touched. 1 when added.
+ */
+export function seedAiPrograms(h) {
+  const want = aiPrograms.seedDoc();
+  const key = aiPrograms.PROGRAMS_SETTING;
+  const row = h.get("runner_setting", key);
+  if (!row) {
+    h.insert("runner_setting", { key, value: pyJson(want, { sortKeys: true }), built_in: true });
+    return 1;
+  }
+  if (row.built_in) {
+    let cur;
+    try {
+      cur = JSON.parse(row.value);
+    } catch {
+      cur = null;
+    }
+    if (!pyEq(cur, want)) h.update("runner_setting", { value: pyJson(want, { sortKeys: true }) }, { key });
+  }
+  return 0;
+}
+
+/**
  * Seed knob_catalog + its enum options (knob_option), each parent before its FK children.
  *
  * The catalog is APP-OWNED, read-only data (GET /v1/ai/knob-catalog is its only endpoint),
@@ -1475,6 +1501,7 @@ export function seedLlm(h = null) {
     if (truthy(app.runtimes)) seedRuntimeBinaries(h, app.runtimes);
     if (app.runtime_models != null || truthy(app.runtimes)) seedRuntimeModels(h, app.runtime_models ?? [], app.runtimes ?? []);
     seedModelListRules(h);
+    seedAiPrograms(h);
     seedDefaultKnobs(h);
     seedDefaultHardwareClasses(h); // before class-tunes: the config's class must exist
     seedDefaultClassTunes(h);

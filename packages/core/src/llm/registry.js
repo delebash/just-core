@@ -12,6 +12,7 @@
 import { getLogger } from "../platform/log.js";
 import { strRepr, ValueError } from "../platform/py.js";
 import { AnthropicAdapter } from "./anthropic.js";
+import { ClaudeCodeAdapter } from "./claude_code.js";
 import { GeminiAdapter } from "./gemini.js";
 import { OllamaAdapter } from "./ollama.js";
 import { OpenAICompatAdapter } from "./openai_compat.js";
@@ -75,6 +76,8 @@ export function construct(cfg) {
   if (["openai", "deepseek", "openrouter", "xai", "mistral"].includes(pt)) return new OpenAISDKAdapter(cfg.id, pt, opts);
   if (pt === "ollama") return new OllamaAdapter(cfg.id, opts);
   if (pt === "gemini") return new GeminiAdapter(cfg.id, opts);
+  // the person's installed Claude Code on their own Claude plan (claude_code.js) — no key, no address
+  if (pt === "claude-code") return new ClaudeCodeAdapter(cfg.id, opts);
   throw new ValueError(`unknown LLM providerType: ${strRepr(pt)}`);
 }
 

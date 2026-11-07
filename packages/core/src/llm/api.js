@@ -16,6 +16,7 @@ import { cpSlice, errText, isJsonObject, truthy, ValueError } from "../platform/
 import { input } from "../platform/server.js";
 import { ensureLocalModelFor } from "./dispatch.js";
 import { applyRules } from "./model_list_rules.js";
+import { programStatus, programTypes } from "./programs.js";
 import { aiRunHttpError } from "./prompts.js";
 import { construct, getLlmRegistry } from "./registry.js";
 import { LLMProviderConfig } from "./schema.js";
@@ -241,6 +242,13 @@ export function router() {
       if (e instanceof ValueError) throw new HttpError(400, errText(e));
       throw e;
     }
+    // An installed program (Claude Code): its models are the seeded names; Test says whether it is installed and signed
+    // in — the program's own status command, never its credentials (programs.js).
+    if (programTypes().includes(body.providerType)) {
+      const st = await programStatus(body.providerType, { fresh: true });
+      const detail = programDetail(st);
+      return c.json({ models: await adapter.models(), embeddings: [], hiddenCount: 0, detail, ...(st.installed && st.signedIn ? {} : { error: detail }) });
+    }
     let raw;
     try {
       raw = await adapter.models();
@@ -296,4 +304,13 @@ export function router() {
     return c.json({ cleared: true });
   });
   return app;
+}
+
+/** An installed program's status in words — the form's Test line. */
+export function programDetail(st) {
+  if (!st.installed) return `${st.name} isn't installed on this computer (no \`${st.command}\` program found).`;
+  if (!st.signedIn) {
+    return `${st.name} found at ${st.path}, but it isn't signed in — open a terminal and run \`${st.command} auth login\`.${st.detail ? ` (${st.detail})` : ""}`;
+  }
+  return `${st.name} found at ${st.path}, signed in${st.plan ? ` (${st.plan} plan)` : ""}.`;
 }

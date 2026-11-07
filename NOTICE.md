@@ -10,6 +10,13 @@ licence notice of each is kept in the file named; the family rule is `docs/famil
   build), made generic (the site's `package.json` `justSite`) and run by hand only. MIT License, Copyright (c) 2026
   JustWrite contributors.
 
+## The shared server (`packages/core/`)
+
+- **`packages/core/src/llm/programs.js`** — the folders installers put command-line programs in (`DEFAULT_AI_PROGRAMS`
+  `folders`), and skipping the Claude desktop app's own `claude.exe`, after Craft Anything's
+  `crates/platform/src/which.rs` and `crates/ai/src/detect.rs` (github.com/storytold/craft-anything, read 2026-11-06).
+  MIT License or Apache License 2.0, Copyright (c) 2026 ArtCraft Team and the Craft Anything contributors.
+
 ## The UI kit (`ui/`)
 
 - **`packages/ui/src/common/components/tableRows.js`** — UiTable's global filter, sort functions, automatic

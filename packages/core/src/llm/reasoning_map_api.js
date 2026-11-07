@@ -79,6 +79,15 @@ export const REASONING_MAP_TYPE_SEEDS = {
     xhigh: ["", 32768],
     max: ["", -1],
   },
+  // Claude Code's own `--effort <level>` words (claude --help: low, medium, high, xhigh, max), sent only when thinking
+  // is on (llm/claude_code.js)
+  "claude-code": {
+    low: ["low", null],
+    medium: ["medium", null],
+    high: ["high", null],
+    xhigh: ["xhigh", null],
+    max: ["max", null],
+  },
   // xai/mistral emit NO effort param (not in openai_sdk's EMIT_EFFORT_TYPES) — they run
   // thinking at the model's own default. Honest empty rows (nothing to speak); the
   // ProviderForm hides both columns for these types (MODEL_DEFAULT_TYPES).

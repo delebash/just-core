@@ -23,8 +23,12 @@ export function UsageEntry({
   at = Date.now() / 1000,
   cache_write_tokens = 0,
   cache_read_tokens = 0,
+  plan = null,
+  estimate_usd = null,
 }) {
-  return { feature, model, prompt_tokens, completion_tokens, duration_ms, ok, error, provider_id, at, cache_write_tokens, cache_read_tokens };
+  // `plan`: the call ran on the person's own plan ("claude" — their Claude Code; "chatgpt" — Sign in with ChatGPT), so
+  // nothing is billed per call; `estimate_usd`: what it would have cost at API prices, when the provider says
+  return { feature, model, prompt_tokens, completion_tokens, duration_ms, ok, error, provider_id, at, cache_write_tokens, cache_read_tokens, plan, estimate_usd };
 }
 
 /**

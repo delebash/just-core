@@ -23,6 +23,14 @@ export class DbUsageSink {
     if (entry.cache_write_tokens) meta.cacheWriteTokens = entry.cache_write_tokens;
     if (entry.cache_read_tokens) meta.cacheReadTokens = entry.cache_read_tokens;
     if (entry.error) meta.error = entry.error;
+    const atApiPrices = costFor(entry.model, entry.prompt_tokens, entry.completion_tokens, { cacheWrite: entry.cache_write_tokens || 0, cacheRead: entry.cache_read_tokens || 0 });
+    // A call on the person's own plan (Claude Code, Sign in with ChatGPT) is billed nothing per call: its cost is 0, and
+    // what it would have cost at API prices is kept beside it, marked with the plan (the provider's own estimate when
+    // it gives one — Claude Code's — else the pricing table's).
+    if (entry.plan) {
+      meta.plan = entry.plan;
+      meta.estimateUsd = entry.estimate_usd ?? atApiPrices;
+    }
     try {
       db.session().insert("llm_usage", {
         id: `u_${randomUUID().replaceAll("-", "").slice(0, 12)}`,
@@ -32,7 +40,7 @@ export class DbUsageSink {
         model: entry.model ?? null,
         prompt_tokens: Math.max(0, entry.prompt_tokens),
         completion_tokens: Math.max(0, entry.completion_tokens),
-        cost: costFor(entry.model, entry.prompt_tokens, entry.completion_tokens, { cacheWrite: entry.cache_write_tokens || 0, cacheRead: entry.cache_read_tokens || 0 }),
+        cost: entry.plan ? 0 : atApiPrices,
         meta: pyJson(meta),
       });
     } catch {

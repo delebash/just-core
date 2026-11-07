@@ -794,7 +794,10 @@
         "noLocal": "Aún no hay proveedores locales. Haz clic en “{add}” y apunta a {url}",
         "noCloud": "No hay proveedores en la nube. Haz clic en “{add}” y pega una clave de OpenAI / Anthropic / OpenRouter.",
         "isDefault": "Predeterminado ✓",
-        "setDefault": "Establecer como predeterminado"
+        "setDefault": "Establecer como predeterminado",
+        "claudePlan": "tu plan de Claude",
+        "claudePlanUsed": "tu plan de Claude · {pct} % usado esta semana",
+        "chatgptPlan": "tu plan de ChatGPT"
       },
       "scope": {
         "local": "Local · gratuito",
@@ -831,6 +834,15 @@
           "vision": "un modelo de visión",
           "other": "otro modelo"
         }
+      },
+      "programs": {
+        "found": "{name} está instalado en este equipo",
+        "signedIn": "Sesión iniciada.",
+        "signedInPlan": "Sesión iniciada (plan {plan}).",
+        "notSignedIn": "Sin sesión: abre una terminal y ejecuta {cmd}, y vuelve a buscar.",
+        "what": "Conéctalo para hacer las tareas de IA con tu propio plan de Claude en lugar de una clave de API.",
+        "connect": "Conectar",
+        "lookAgain": "Volver a buscar"
       }
     },
     "common": {
@@ -1307,7 +1319,8 @@
         "deepseek": "DeepSeek",
         "openrouter": "OpenRouter",
         "xai": "xAI (Grok)",
-        "mistral": "Mistral"
+        "mistral": "Mistral",
+        "claude-code": "Tu plan de Claude (a través de Claude Code)"
       },
       "seeded": {
         "builtIn": "Proveedor integrado — llama.cpp",
@@ -1382,7 +1395,33 @@
         "classTunesTitle": "Configuraciones de clase de PC — la biblioteca"
       },
       "save": "Guardar proveedor",
-      "presetLocalEngine": "Motor local"
+      "presetLocalEngine": "Motor local",
+      "claudeCode": {
+        "name": "Tu plan de Claude (a través de Claude Code)",
+        "where": "Usa el Claude Code instalado en este equipo, con la sesión de tu propio plan de Claude: el texto va a Anthropic y no se cobra nada por llamada.",
+        "program": "Programa",
+        "notInstalled": "Claude Code no está instalado en este equipo.",
+        "notSignedIn": "Claude Code está instalado pero sin sesión: abre una terminal y ejecuta {cmd}, y vuelve a probar.",
+        "signedIn": "Claude Code está instalado y con la sesión iniciada.",
+        "signedInPlan": "Claude Code está instalado y con la sesión iniciada (plan {plan}).",
+        "planUsed": "{pct} % del plan de esta semana usado, según su última respuesta.",
+        "planUnknown": "Cuánto de tu plan se ha usado aparece tras su primera respuesta.",
+        "hint": "Usa los límites de tu plan, pensados para un uso personal normal, no para trabajos largos por lotes. La temperatura y el límite de longitud de respuesta no se aplican aquí."
+      },
+      "chatgpt": {
+        "label": "Plan de ChatGPT",
+        "signIn": "Iniciar sesión con ChatGPT",
+        "signOut": "Cerrar sesión",
+        "signedIn": "Sesión iniciada con ChatGPT como {email}: las solicitudes usan tu plan de ChatGPT, no la clave de API.",
+        "signedInNoEmail": "Sesión iniciada con ChatGPT: las solicitudes usan tu plan de ChatGPT, no la clave de API.",
+        "waiting": "Termina de iniciar sesión en tu navegador…",
+        "failed": "No se completó el inicio de sesión: {error}",
+        "signedOut": "Sesión de ChatGPT cerrada.",
+        "saveFirst": "Guarda primero el proveedor; luego inicia sesión con ChatGPT para usar tu plan Plus o Pro en lugar de una clave de API.",
+        "hint": "Usa tu plan ChatGPT Plus o Pro en lugar de una clave de API. El inicio de sesión se abre en el navegador de este equipo. Las solicitudes con el plan no pueden fijar la temperatura ni un límite de longitud de respuesta; puedes limitar la parte de esta app en ChatGPT → Configuración → Uso.",
+        "keyUnused": "No se usa mientras tengas la sesión iniciada con ChatGPT."
+      },
+      "geminiPlanHint": "Los planes Google AI Pro y Ultra incluyen créditos mensuales de Google Cloud que pueden pagar el uso de la API de Gemini con una clave."
     },
     "engine": {
       "family": {

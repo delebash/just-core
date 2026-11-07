@@ -12,6 +12,7 @@
 // subprocess's names: {args, returncode, stdout, stderr}.
 
 import { spawn } from "node:child_process";
+import crossSpawn from "cross-spawn";
 import { FileNotFoundError } from "./py.js";
 
 /** CREATE_NO_WINDOW on Windows (what windowsHide gives with piped stdio), else 0. */
@@ -60,16 +61,29 @@ export function popen(argv, opts = {}) {
 }
 
 /**
+ * `popen` for a program the person installed themselves (llm/programs.js finds it — Claude Code today), started by
+ * the path it was found at. npm installs such programs on Windows as `.cmd` launchers, which Node refuses to start
+ * without a shell (EINVAL since CVE-2024-27980), so this goes through `cross-spawn` (MIT,
+ * github.com/moxystudio/node-cross-spawn), which starts a launcher through cmd.exe with its arguments escaped. There an
+ * argument can't carry a line break or pass 8191 characters: a caller sends long text on stdin or in a file.
+ */
+export function popenProgram(argv, opts = {}) {
+  const { stdio = ["pipe", "pipe", "pipe"], ...rest } = opts;
+  return crossSpawn(argv[0], argv.slice(1), { windowsHide: true, stdio, ...rest });
+}
+
+/**
  * `subprocess.run(argv, capture_output=True, …)`, async. Options: `input` (string or
  * Buffer), `timeout` (seconds, as Python's), `cwd`, `env`, `text` (default true: decode
- * as UTF-8; false: Buffers). A program that can't be found throws FileNotFoundError, as
+ * as UTF-8; false: Buffers), `program` (an installed program found by path — started as
+ * `popenProgram` starts it). A program that can't be found throws FileNotFoundError, as
  * Python's does; a timeout kills the child and throws TimeoutExpired.
  */
-export function run(argv, { input, timeout, cwd, env, text = true } = {}) {
+export function run(argv, { input, timeout, cwd, env, text = true, program = false } = {}) {
   return new Promise((resolve, reject) => {
     let child;
     try {
-      child = spawn(argv[0], argv.slice(1), {
+      child = (program ? crossSpawn : spawn)(argv[0], argv.slice(1), {
         windowsHide: true,
         stdio: [input != null ? "pipe" : "ignore", "pipe", "pipe"],
         cwd,

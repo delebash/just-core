@@ -23,6 +23,9 @@ export const PROVIDER_PRESETS = [
   // (8888), which is the one it prints — see the seed row's comment for why it is
   // NOT in detect-local (it requires a Bearer key on every request).
   preset("Unsloth Studio", "http://localhost:8888/v1", "openai-compat", true),
+  // The person's installed Claude Code on their own Claude plan — a word label (the proposed label the user's go
+  // covered, 2026-11-07), no URL.
+  { labelKey: "kit.provider.claudeCode.name", baseUrl: "", providerType: "claude-code", local: false },
   preset("OpenAI", "https://api.openai.com/v1", "openai", false),
   preset("Anthropic", "https://api.anthropic.com", "anthropic", false),
   preset("Gemini", "https://generativelanguage.googleapis.com", "gemini", false),
@@ -36,7 +39,37 @@ export const PROVIDER_PRESETS = [
 // choice for them. `openai-compat` and `ollama` are deliberately absent: both
 // genuinely run local (LM Studio, a self-hosted box) or remote (OpenRouter-style
 // gateways) — see the presets above carrying both flavors of openai-compat.
-export const ONLINE_ONLY_TYPES = new Set(["anthropic", "gemini", "openai", "deepseek", "openrouter", "xai", "mistral"]);
+// claude-code is the person's own Claude Code: it runs on this computer, but the text goes to Anthropic on their plan.
+export const ONLINE_ONLY_TYPES = new Set(["anthropic", "gemini", "openai", "deepseek", "openrouter", "xai", "mistral", "claude-code"]);
+
+// Provider types that run a program the person installed (the server's llm/programs.js): no address, no key.
+export const PROGRAM_TYPES = new Set(["claude-code"]);
+
+// The AI programs installed on this computer (Claude Code), each `{providerType, name, models, alreadyRegistered,
+// program: {path, signedIn, plan, detail}}` — the server's detect probe with `programs=1` (a file lookup, then the
+// program's own sign-in status). Asked by the AI settings screen only: each look costs a second or two.
+export async function detectPrograms() {
+  const r = await request("/v1/llm-providers/detect-local?programs=1");
+  return (r?.detected || []).filter((d) => d.program);
+}
+
+// A saved provider's plan and how much of it is used → `{plan: {plan, used, window, resetsAt} | null, program: {…} | null}`.
+export async function providerPlan(providerId) {
+  return request(`/v1/llm-providers/${encodeURIComponent(providerId)}/plan`);
+}
+
+// Sign in with ChatGPT on a saved OpenAI provider: start → `{authorizeUrl}` (open it in the browser on this computer);
+// status → `{signin: {method, email, signedIn} | null, progress: {status: "none"|"waiting"|"done"|"error", error}}`;
+// sign out → `{signin}`.
+export async function startChatgptSignin(providerId, appName = "") {
+  return request(`/v1/llm-providers/${encodeURIComponent(providerId)}/signin`, { method: "POST", body: { appName } });
+}
+export async function chatgptSigninStatus(providerId) {
+  return request(`/v1/llm-providers/${encodeURIComponent(providerId)}/signin`);
+}
+export async function signOutChatgpt(providerId) {
+  return request(`/v1/llm-providers/${encodeURIComponent(providerId)}/signin`, { method: "DELETE" });
+}
 
 // List a (draft) provider's models BEFORE it's saved — the shared draft-probe. Returns
 // the cleaned split { models: chat ids, embeddings: string[], hiddenCount: N, error? }
@@ -86,5 +119,5 @@ export async function revealKey(providerId) {
 
 /** The shared provider-connect surface. Every consumer gets the SAME presets + endpoints. */
 export function useProviderConnect() {
-  return { PROVIDER_PRESETS, probeModels, createProvider, listModels, revealKey };
+  return { PROVIDER_PRESETS, probeModels, createProvider, listModels, revealKey, detectPrograms, providerPlan, startChatgptSignin, chatgptSigninStatus, signOutChatgpt };
 }

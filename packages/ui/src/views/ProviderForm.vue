@@ -7,7 +7,7 @@
 // Self-contained: calls the shared /v1/llm-providers* endpoints via the shared
 // client; emits "saved"/"deleted" so the parent reloads its list. The built-in
 // provider also mounts the Local engine panel (which hosts the binaries editor) + model catalog.
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import AppModal from "../common/components/AppModal.vue";
@@ -23,10 +23,14 @@ import LuRunnerEngine from "../components/LuRunnerEngine.vue";
 import LuModelCatalog from "../components/LuModelCatalog.vue";
 import UiSegmented from "../common/components/UiSegmented.vue";
 import { request } from "../client.js";
-import { PROVIDER_PRESETS, ONLINE_ONLY_TYPES, probeModels, createProvider, revealKey } from "../composables/useProviderConnect.js";
+import {
+  PROVIDER_PRESETS, ONLINE_ONLY_TYPES, PROGRAM_TYPES, probeModels, createProvider, revealKey,
+  providerPlan, startChatgptSignin, chatgptSigninStatus, signOutChatgpt,
+} from "../composables/useProviderConnect.js";
 import { useModelApply } from "../services/modelApply.js";
 import { useProviderModels } from "../composables/useProviderModels.js";
 import { pushToast } from "../common/services/toastBridge.js";
+import { openExternal } from "../common/services/external.js";
 
 const props = defineProps({
   provider: { type: Object, default: null }, // null = adding new
@@ -34,7 +38,8 @@ const props = defineProps({
   // providerScope). Ignored when editing an existing provider.
   initialLocal: { type: Boolean, default: true },
 });
-const emit = defineEmits(["saved", "deleted", "cancel"]);
+// "signed-in": a ChatGPT sign-in or sign-out finished — the parent reloads its list (the row's plan line)
+const emit = defineEmits(["saved", "deleted", "cancel", "signed-in"]);
 
 const isNew = computed(() => !props.provider);
 // The bundled llama.cpp runner — its where-it-runs + type are fixed (it's THE
@@ -87,8 +92,68 @@ const { t } = useI18n();
 // An example address, not a word — never translated.
 const BASE_URL_EXAMPLE = "http://localhost:11434/v1";
 const PROVIDER_TYPES = computed(() =>
-  ["openai-compat", "anthropic", "gemini", "ollama", "openai", "deepseek", "openrouter", "xai", "mistral"]
+  ["openai-compat", "anthropic", "gemini", "ollama", "openai", "deepseek", "openrouter", "xai", "mistral", "claude-code"]
     .map((value) => ({ value, label: t(`kit.provider.type.${value}`) })));
+
+// ── the person's own plans (the user's go, 2026-11-07) ──────────────────────
+// Claude Code: a program on this computer, no address or key — the form shows whether it's installed and signed in,
+// and how much of the week's plan its last call reported.
+const isProgram = computed(() => PROGRAM_TYPES.has(draft.providerType));
+const planInfo = ref(null); // {plan, program} from the server, for a saved provider
+async function loadPlan() {
+  if (isNew.value || !props.provider?.id || !(props.provider.plan || PROGRAM_TYPES.has(props.provider.providerType))) return;
+  try { planInfo.value = await providerPlan(props.provider.id); } catch { planInfo.value = null; }
+}
+loadPlan();
+const planUsedPct = computed(() => {
+  const used = planInfo.value?.plan?.used;
+  return typeof used === "number" ? Math.round(used * 100) : null;
+});
+// Sign in with ChatGPT on an OpenAI provider: the browser on this computer signs in at OpenAI; the form waits for it.
+const signin = ref(props.provider?.signin || null);
+const signinBusy = ref(false);
+const signinMsg = ref("");
+let signinPoll = null;
+async function signInChatgpt() {
+  if (!props.provider?.id) return;
+  signinBusy.value = true;
+  signinMsg.value = t("kit.provider.chatgpt.waiting");
+  try {
+    const { authorizeUrl } = await startChatgptSignin(props.provider.id, document.title || "");
+    openExternal(authorizeUrl);
+    clearInterval(signinPoll);
+    signinPoll = setInterval(async () => {
+      try {
+        const r = await chatgptSigninStatus(props.provider.id);
+        if (r.progress?.status === "waiting") return;
+        clearInterval(signinPoll);
+        signinBusy.value = false;
+        signin.value = r.signin;
+        signinMsg.value = r.progress?.status === "done" ? "" : t("kit.provider.chatgpt.failed", { error: r.progress?.error || "" });
+        if (r.progress?.status === "done") emit("signed-in");
+      } catch (e) {
+        clearInterval(signinPoll);
+        signinBusy.value = false;
+        signinMsg.value = t("kit.provider.chatgpt.failed", { error: e.message || "" });
+      }
+    }, 1500);
+  } catch (e) {
+    signinBusy.value = false;
+    signinMsg.value = t("kit.provider.chatgpt.failed", { error: e.message || "" });
+  }
+}
+async function signOutOfChatgpt() {
+  if (!props.provider?.id) return;
+  clearInterval(signinPoll);
+  try {
+    signin.value = (await signOutChatgpt(props.provider.id)).signin;
+    signinMsg.value = t("kit.provider.chatgpt.signedOut");
+    emit("signed-in");
+  } catch (e) {
+    signinMsg.value = t("kit.provider.chatgpt.failed", { error: e.message || "" });
+  }
+}
+onBeforeUnmount(() => clearInterval(signinPoll));
 const WHERE = computed(() => [
   { value: true, label: t("kit.aiArea.scope.local") },
   { value: false, label: t("kit.aiArea.scope.online") },
@@ -169,7 +234,7 @@ async function showAllModels() {
 // !isBuiltin) — so it needs no fetch here.
 async function autoLoadSavedModels() {
   const p = props.provider;
-  if (isNew.value || isBuiltin.value || !p?.id || !(p.hasApiKey || p.local)) return;
+  if (isNew.value || isBuiltin.value || !p?.id || !(p.hasApiKey || p.local || p.plan || PROGRAM_TYPES.has(p.providerType))) return;
   fetching.value = true;
   try { await refreshModels(p.id); } finally { fetching.value = false; }
 }
@@ -283,7 +348,7 @@ watch(showReasoning, (open) => { if (open) loadReasoningMap(); });
 // types have no token form; anthropic + unknown types speak BOTH (safe default —
 // never lock a user out of a live column).
 const NUMBER_ONLY_TYPES = new Set(["local-llamacpp", "gemini"]);
-const WORD_ONLY_TYPES = new Set(["openai", "openai-compat", "openrouter", "ollama"]);
+const WORD_ONLY_TYPES = new Set(["openai", "openai-compat", "openrouter", "ollama", "claude-code"]);
 // D5 (#15 C4): these types run thinking at the MODEL's own default — the adapter emits no
 // effort param (openai_sdk.EMIT_EFFORT_TYPES excludes them), so neither column is editable;
 // show the line instead (a user must never edit a value nothing sends). deepseek moved here
@@ -331,15 +396,34 @@ async function putReasoningRow(row) {
       <span class="lu-fl">{{ t('kit.provider.where') }}</span>
       <div v-if="isBuiltin"><span class="lu-locked">{{ t('kit.provider.whereBuiltin') }}</span></div>
       <div v-else-if="lockedOnline"><span class="lu-locked">{{ t('kit.aiArea.scope.online') }}</span>
-        <div class="lu-fh">{{ t('kit.provider.lockedOnline') }}</div></div>
+        <div class="lu-fh">{{ isProgram ? t('kit.provider.claudeCode.where') : t('kit.provider.lockedOnline') }}</div></div>
       <div v-else><UiSegmented v-model="local" :options="WHERE" />
         <div class="lu-fh">{{ t('kit.provider.whereHint') }}</div></div>
 
       <span class="lu-fl">{{ t('kit.provider.name') }}</span>
       <UiInput v-model="draft.name" :placeholder="t('kit.provider.namePh')" />
 
-      <span class="lu-fl">{{ t('kit.provider.baseUrl') }}</span>
-      <UiInput v-model="draft.baseUrl" :placeholder="BASE_URL_EXAMPLE" />
+      <template v-if="!isProgram">
+        <span class="lu-fl">{{ t('kit.provider.baseUrl') }}</span>
+        <UiInput v-model="draft.baseUrl" :placeholder="BASE_URL_EXAMPLE" />
+      </template>
+      <!-- Claude Code: no address or key — whether it's installed and signed in (Test asks again), and the plan's use
+           its last call reported. -->
+      <template v-else>
+        <span class="lu-fl">{{ t('kit.provider.claudeCode.program') }}</span>
+        <div>
+          <div v-if="planInfo?.program" class="lu-fh">
+            <template v-if="!planInfo.program.installed">{{ t('kit.provider.claudeCode.notInstalled') }}</template>
+            <template v-else-if="!planInfo.program.signedIn">
+              <i18n-t keypath="kit.provider.claudeCode.notSignedIn" scope="global"><template #cmd><span class="lu-mono">claude auth login</span></template></i18n-t>
+            </template>
+            <template v-else>{{ planInfo.program.plan ? t('kit.provider.claudeCode.signedInPlan', { plan: planInfo.program.plan }) : t('kit.provider.claudeCode.signedIn') }}</template>
+          </div>
+          <div v-if="planInfo?.program?.path" class="lu-fh lu-mono">{{ planInfo.program.path }}</div>
+          <div v-if="!isNew" class="lu-fh">{{ planUsedPct != null ? t('kit.provider.claudeCode.planUsed', { pct: planUsedPct }) : t('kit.provider.claudeCode.planUnknown') }}</div>
+          <div class="lu-fh">{{ t('kit.provider.claudeCode.hint') }}</div>
+        </div>
+      </template>
 
       <!-- The provider's timeout was saved but never shown (family rule 1: a value a user might change is
            editable) — a local model thinking at High answered after the old 60 s (JustWrite, 2026-10-24). -->
@@ -349,7 +433,22 @@ async function putReasoningRow(row) {
         <div class="lu-fh">{{ t('kit.provider.timeoutHint') }}</div>
       </div>
 
-      <template v-if="!isLocal">
+      <!-- Sign in with ChatGPT (an OpenAI provider): the person's ChatGPT plan in place of the key while signed in. A
+           new provider is saved first — the sign-in belongs to a saved provider. -->
+      <template v-if="draft.providerType === 'openai'">
+        <span class="lu-fl">{{ t('kit.provider.chatgpt.label') }}</span>
+        <div>
+          <div v-if="signin?.signedIn" class="lu-pf-signin">
+            <span>{{ signin.email ? t('kit.provider.chatgpt.signedIn', { email: signin.email }) : t('kit.provider.chatgpt.signedInNoEmail') }}</span>
+            <UiButton intent="secondary" size="small" @click="signOutOfChatgpt">{{ t('kit.provider.chatgpt.signOut') }}</UiButton>
+          </div>
+          <UiButton v-else intent="secondary" size="small" :loading="signinBusy" :disabled="isNew" @click="signInChatgpt">{{ t('kit.provider.chatgpt.signIn') }}</UiButton>
+          <div v-if="signinMsg" class="lu-fh">{{ signinMsg }}</div>
+          <div class="lu-fh">{{ isNew ? t('kit.provider.chatgpt.saveFirst') : t('kit.provider.chatgpt.hint') }}</div>
+        </div>
+      </template>
+
+      <template v-if="!isLocal && !isProgram">
         <span class="lu-fl">{{ t('kit.provider.apiKey') }}</span>
         <div>
           <!-- #12 C6: a normal masked password field with an eye reveal. On a saved
@@ -366,6 +465,8 @@ async function putReasoningRow(row) {
           <div v-if="!isNew && provider?.hasApiKey && !revealLoaded && !draft.apiKey" class="lu-fh">
             {{ t('kit.provider.keySaved') }}
           </div>
+          <div v-if="draft.providerType === 'openai' && signin?.signedIn" class="lu-fh">{{ t('kit.provider.chatgpt.keyUnused') }}</div>
+          <div v-if="draft.providerType === 'gemini'" class="lu-fh">{{ t('kit.provider.geminiPlanHint') }}</div>
         </div>
       </template>
 
@@ -498,6 +599,10 @@ async function putReasoningRow(row) {
 .lu-showall-btn { font: inherit; background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; }
 .lu-showall-btn:disabled { opacity: .6; cursor: default; }
 .lu-pf-err { margin-top: 10px; }
+/* Claude Code's program path, the command to sign it in */
+.lu-mono { font-family: var(--font-mono, monospace); }
+/* "Signed in with ChatGPT as …" beside its Sign out button */
+.lu-pf-signin { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: max(var(--text-floor, 0px), 12px); }
 /* Space between the form grid (Provider type is its last built-in row) and the Local
    engine panel (user, 2026-07-07: "space between provider type and local engine"). */
 .lu-pf-eng { margin-top: 14px; }

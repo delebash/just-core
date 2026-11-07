@@ -794,7 +794,10 @@
         "noLocal": "No local providers yet. Click “{add}” and point at {url}",
         "noCloud": "No cloud providers. Click “{add}” and paste a key from OpenAI / Anthropic / OpenRouter.",
         "isDefault": "Default ✓",
-        "setDefault": "Set as default"
+        "setDefault": "Set as default",
+        "claudePlan": "your Claude plan",
+        "claudePlanUsed": "your Claude plan · {pct}% of this week used",
+        "chatgptPlan": "your ChatGPT plan"
       },
       "scope": {
         "local": "Local · free",
@@ -831,6 +834,15 @@
           "vision": "a vision model",
           "other": "another model"
         }
+      },
+      "programs": {
+        "found": "{name} is installed on this computer",
+        "signedIn": "Signed in.",
+        "signedInPlan": "Signed in ({plan} plan).",
+        "notSignedIn": "Not signed in — open a terminal and run {cmd}, then look again.",
+        "what": "Connect it to run AI tasks on your own Claude plan instead of an API key.",
+        "connect": "Connect",
+        "lookAgain": "Look again"
       }
     },
     "common": {
@@ -1307,7 +1319,8 @@
         "deepseek": "DeepSeek",
         "openrouter": "OpenRouter",
         "xai": "xAI (Grok)",
-        "mistral": "Mistral"
+        "mistral": "Mistral",
+        "claude-code": "Your Claude plan (through Claude Code)"
       },
       "seeded": {
         "builtIn": "Built-in provider — llama.cpp",
@@ -1382,7 +1395,33 @@
         "classTunesTitle": "PC class configs — the library"
       },
       "save": "Save provider",
-      "presetLocalEngine": "Local engine"
+      "presetLocalEngine": "Local engine",
+      "claudeCode": {
+        "name": "Your Claude plan (through Claude Code)",
+        "where": "Runs the Claude Code installed on this computer, signed in to your own Claude plan: the text goes to Anthropic, and nothing is billed per call.",
+        "program": "Program",
+        "notInstalled": "Claude Code isn't installed on this computer.",
+        "notSignedIn": "Claude Code is installed but not signed in — open a terminal and run {cmd}, then Test again.",
+        "signedIn": "Claude Code is installed and signed in.",
+        "signedInPlan": "Claude Code is installed and signed in ({plan} plan).",
+        "planUsed": "{pct}% of this week's plan used, as of its last answer.",
+        "planUnknown": "How much of your plan is used shows after its first answer.",
+        "hint": "Uses your plan's limits, which are meant for ordinary personal use — not for long batch jobs. Temperature and a reply-length limit don't apply here."
+      },
+      "chatgpt": {
+        "label": "ChatGPT plan",
+        "signIn": "Sign in with ChatGPT",
+        "signOut": "Sign out",
+        "signedIn": "Signed in with ChatGPT as {email} — requests use your ChatGPT plan, not the API key.",
+        "signedInNoEmail": "Signed in with ChatGPT — requests use your ChatGPT plan, not the API key.",
+        "waiting": "Finish signing in in your browser…",
+        "failed": "Sign-in didn't finish: {error}",
+        "signedOut": "Signed out of ChatGPT.",
+        "saveFirst": "Save the provider first, then sign in with ChatGPT to use your Plus or Pro plan instead of an API key.",
+        "hint": "Use your ChatGPT Plus or Pro plan instead of an API key. The sign-in opens in the browser on this computer. Plan requests can't set temperature or a reply-length limit; you can cap this app's share in ChatGPT → Settings → Usage.",
+        "keyUnused": "Not used while you're signed in with ChatGPT."
+      },
+      "geminiPlanHint": "Google AI Pro and Ultra plans include monthly Google Cloud credits that can pay for Gemini API use with a key."
     },
     "engine": {
       "family": {

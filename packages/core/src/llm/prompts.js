@@ -351,6 +351,8 @@ export const RunResponse = T.Object({
   // Server-priced from the RESOLVED model via pricing.costFor; local models have no price
   // entry → 0.
   cost: opt(T.Number(), 0.0),
+  // The person's own plan the call ran on ("claude" | "chatgpt"), else "": nothing billed per call, so `cost` is 0
+  plan: opt(T.String(), ""),
   // Why generation ended ("stop" | "length" | …; "" = the provider did not say). "length" =
   // the answer was CUT OFF — by maxTokens or a full context; llama.cpp sends no error for
   // the latter (2026-09-28). The kit client fails the task on it.
@@ -877,7 +879,8 @@ export function makeFeatureRouter(getStore, getConfig) {
         model: resp.model,
         promptTokens: resp.prompt_tokens,
         completionTokens: resp.completion_tokens,
-        cost: pricing.costFor(resp.model, resp.prompt_tokens, resp.completion_tokens, { cacheWrite: resp.cache_write_tokens || 0, cacheRead: resp.cache_read_tokens || 0 }),
+        cost: resp.plan ? 0 : pricing.costFor(resp.model, resp.prompt_tokens, resp.completion_tokens, { cacheWrite: resp.cache_write_tokens || 0, cacheRead: resp.cache_read_tokens || 0 }),
+        plan: resp.plan || "",
         finishReason: resp.finish_reason || "",
       }),
     );
@@ -940,7 +943,8 @@ export function makeFeatureRouter(getStore, getConfig) {
               promptTokens: delta.prompt_tokens,
               completionTokens: delta.completion_tokens,
               model: delta.model,
-              cost: pricing.costFor(delta.model, delta.prompt_tokens, delta.completion_tokens, { cacheWrite: delta.cache_write_tokens || 0, cacheRead: delta.cache_read_tokens || 0 }),
+              cost: delta.plan ? 0 : pricing.costFor(delta.model, delta.prompt_tokens, delta.completion_tokens, { cacheWrite: delta.cache_write_tokens || 0, cacheRead: delta.cache_read_tokens || 0 }),
+              plan: delta.plan || "",
               // "length" = cut off (see RunResponse.finishReason).
               finishReason: delta.finish_reason,
             };

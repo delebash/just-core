@@ -185,3 +185,41 @@ CHECKED 2026-11-06, once after 3–5 (`7fb8ebe0`): kit core 1675 (13 skipped) an
         no standards table — that session told). Not run: JustVoice's suites (its session asked: uncommitted close-out
         work in its tree; it runs them on these commits), the apps' builds and e2e (the family release session's final
         pass).
+
+## The person's own plans as providers: Claude Code and Sign in with ChatGPT [2026-11-07]
+DECIDED: the user, verbatim, 2026-11-07: "what are you waiting for you compacted make surey you read all thinngs you need
+        to do trust auctocompact", then "go" — on this session's recommendations of 2026-11-06 (record:
+        `docs/plans/2026-11-06-subscription-providers-research.md`; RESEARCH.md §7 "Subscriptions as providers"). The
+        recs as approved:
+  1. ChatGPT plan: add "Sign in with ChatGPT" to the existing OpenAI provider — OpenAI's own way for open-source,
+     locally run apps to use a Plus or Pro plan; the token gets its own small table, not the API-key column; standard:
+     OpenAI's sign-in docs and `openid-client` (MIT); our own code from the public docs (OpenAI's sample is
+     noncommercial); plan requests leave out temperature, top_p and the reply-length limit; desktop only at first.
+  2. Claude plan: a new "Claude Code" provider type that runs the person's own installed Claude Code — `claude -p …
+     --tools "" --safe-mode --no-session-persistence` through the kit's `procs.js` in an empty folder, JSON features
+     with `--json-schema`; shows "N% of your weekly plan used" and an API-price estimate marked not billed; spots
+     `--bare` becoming `-p`'s default and says so; not a default route, not on the phone. Standard: Anthropic's
+     headless mode.
+  3. Keep one Claude Code process ready while that route is in use — NOT STANDARD, needs the user's word on this item
+     by name (0.69 s to the first word against 6.7–7.2 s, for 221 MB held).
+  4. Auto-detect by extending the "detected → Connect" check: the program on PATH and in known install folders
+     (Craft Anything's list, credited), skipping the Claude desktop app's `claude.exe`, then `claude auth status
+     --json`; `which` (ISC); program names and folders are seeded data; only the file lookup counts; runs only on the
+     AI settings screen, cached. ChatGPT has nothing to detect: a "Sign in with ChatGPT" button.
+  5. Start npm-installed programs with `cross-spawn` (MIT): the prompt on stdin, the system prompt by file.
+  6. Copilot: not now.  7. Google: a one-line hint in the Gemini form (AI Pro/Ultra Cloud credits → a Gemini key).
+  8. Leave out: Codex as a provider, Cursor SDK, coding-plan keys, xAI SuperGrok sign-in, unofficial bridges, ACP.
+  9. Labels — proposed "Your Claude plan (through Claude Code)" and "Sign in with ChatGPT" (the go covered them).
+  10. JustVoice's price question before a book run: on a plan route, the plan and its use instead of a dollar price;
+     the usage ledger keeps counting tokens.
+BUILT 2026-11-07 (1, 2, 4, 5, 7, 9, 10; 6 and 8 by design nothing): kit `llm/claude_code.js` (the adapter),
+        `llm/programs.js` + runner_setting `ai_programs` (finding and status), `llm/chatgpt_signin.js` + `llm/signins.js` +
+        table `provider_signins` (the sign-in), `llm/plans.js` (`providerPlan`), `openai_sdk.js` (the plan token and its
+        request rules), `platform/procs.js` `popenProgram` (cross-spawn), the ledger and run responses (a plan call costs
+        0, its estimate in `meta`), the routes (`detect-local?programs=1`, `/{id}/signin`, `/{id}/plan`), ProviderForm /
+        AiModelsArea / the en+es catalogs; JustVoice `engines/llm/run.js`, `book_run.js`, `services/bookRun.js`,
+        `BookRunCard.vue`. Tests written: kit `programs`, `claude_code`, `plan_providers`; JustVoice's book_run and
+        bookRun.
+OPEN:   3 waits for the user's word by name. The ChatGPT sign-in needs one real sign-in by the user at OpenAI's page
+        (whether `openid-client` carries the callback's issued client id is proven only then). JustWrite's and
+        JustVoice's user docs (`docs/ai-providers.md`) get the two providers — each app's session asked first.

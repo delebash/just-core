@@ -36,6 +36,7 @@ import LuEngineUpdateButton from "../components/LuEngineUpdateButton.vue";
 import LuWarmStartupToggle from "../components/LuWarmStartupToggle.vue";
 import { pushToast } from "../common/services/toastBridge.js";
 import { request } from "../client.js";
+import { createProvider, detectPrograms, providerPlan } from "../composables/useProviderConnect.js";
 import { providerDisplayName } from "../services/seededWords.js";
 import { useHardware } from "../composables/useHardware.js";
 import { useModelApply } from "../services/modelApply.js";
@@ -247,6 +248,44 @@ const cloudProviders = computed(() => providers.value.filter((p) => !p.local));
 // ONE row template renders whichever scope the tab is on.
 const shownProviders = computed(() => (providerScope.value === "online" ? cloudProviders.value : localProviders.value));
 
+// ── the person's own plans (the user's go, 2026-11-07) ──────────────────────
+// AI programs installed on this computer (Claude Code) and not connected yet — offered on the Online tab with a
+// Connect; looked for once each time this screen opens (each look costs a second or two), and on "Look again".
+const programs = ref([]);
+const lookingForPrograms = ref(false);
+async function lookForPrograms() {
+  lookingForPrograms.value = true;
+  try { programs.value = await detectPrograms(); } catch { programs.value = []; } finally { lookingForPrograms.value = false; }
+}
+const offeredPrograms = computed(() => programs.value.filter((d) => !d.alreadyRegistered));
+async function connectProgram(d) {
+  try {
+    await createProvider({ name: t("kit.provider.claudeCode.name"), providerType: d.providerType, baseUrl: "", local: false, apiKey: null });
+    await loadProviders();
+    await lookForPrograms();
+  } catch (e) {
+    pushToast({ message: e.message || t("kit.provider.err.save"), kind: "error" });
+  }
+}
+// How much of the week's Claude plan each Claude Code provider's last call reported (0..100), by provider id.
+const planUse = ref({});
+async function loadPlanUse() {
+  const out = {};
+  await Promise.all(providers.value.filter((p) => p.plan === "claude").map(async (p) => {
+    try {
+      const used = (await providerPlan(p.id))?.plan?.used;
+      if (typeof used === "number") out[p.id] = Math.round(used * 100);
+    } catch { /* the line just shows no figure */ }
+  }));
+  planUse.value = out;
+}
+// The row's billing words: the plan it draws on, else whether a key is set.
+function billingWords(p) {
+  if (p.plan === "claude") return planUse.value[p.id] != null ? t("kit.aiArea.providers.claudePlanUsed", { pct: planUse.value[p.id] }) : t("kit.aiArea.providers.claudePlan");
+  if (p.plan === "chatgpt") return t("kit.aiArea.providers.chatgptPlan");
+  return p.hasApiKey ? t("kit.aiArea.providers.keySet") : t("kit.aiArea.providers.noKey");
+}
+
 const hwLabel = computed(() => {
   const h = hardware.value;
   if (!h) return null;
@@ -433,6 +472,7 @@ async function clearUsage() {
 async function loadProviders() {
   const r = await request("/v1/llm-providers");
   providers.value = r.providers || [];
+  loadPlanUse(); // not awaited: the rows show at once, the plan figure when it comes
 }
 async function loadHardware() {
   await refreshHardware(); // self-swallowing → null, which the strip already renders as blanks
@@ -444,6 +484,7 @@ async function loadAll() {
   loading.value = true; error.value = "";
   try {
     await loadProviders();
+    lookForPrograms(); // not awaited: the program's own status check takes a second or two
     await Promise.all([localOn ? loadHardware() : null, loadUsage()]);
   } catch (e) {
     error.value = t("kit.common.loadFailed", { error: e.message });
@@ -735,8 +776,22 @@ onMounted(() => {
             { value: 'local', label: t('kit.aiArea.scope.local'), sublabel: t('kit.aiArea.scope.localSub') },
             { value: 'online', label: t('kit.aiArea.scope.online'), sublabel: t('kit.aiArea.scope.onlineSub') },
           ]" />
+        <!-- An AI program installed on this computer (Claude Code) and not connected yet: Connect makes it a provider
+             on the person's own plan; signed out, the line says how to sign in, and Look again checks. -->
+        <template v-if="providerScope === 'online'">
+          <div v-for="d in offeredPrograms" :key="d.providerType" class="lu-prog-found">
+            <div class="lu-prog-text">
+              <b>{{ t('kit.aiArea.programs.found', { name: d.name }) }}</b>
+              <span v-if="d.program.signedIn">{{ d.program.plan ? t('kit.aiArea.programs.signedInPlan', { plan: d.program.plan }) : t('kit.aiArea.programs.signedIn') }}</span>
+              <i18n-t v-else keypath="kit.aiArea.programs.notSignedIn" tag="span" scope="global"><template #cmd><span class="lu-mono">claude auth login</span></template></i18n-t>
+              <span class="lu-muted">{{ t('kit.aiArea.programs.what') }}</span>
+            </div>
+            <UiButton v-if="d.program.signedIn" intent="primary" size="small" @click="connectProgram(d)">{{ t('kit.aiArea.programs.connect') }}</UiButton>
+            <UiButton v-else intent="secondary" size="small" :loading="lookingForPrograms" @click="lookForPrograms">{{ t('kit.aiArea.programs.lookAgain') }}</UiButton>
+          </div>
+        </template>
         <template v-for="p in shownProviders" :key="p.id">
-          <ProviderForm v-if="editingId === p.id" :provider="p" @saved="onSaved" @deleted="onSaved" @cancel="editingId = null" />
+          <ProviderForm v-if="editingId === p.id" :provider="p" @saved="onSaved" @deleted="onSaved" @cancel="editingId = null" @signed-in="loadProviders" />
           <div v-else class="lu-prow">
             <span class="lu-prow-ic">
               <!-- The ONLY difference the two old row templates had: the chip glyph on
@@ -788,7 +843,7 @@ onMounted(() => {
               <div class="lu-prow-meta">
                 <template v-if="p.defaultModel">{{ t('kit.aiArea.providers.chat') }} <b>{{ p.defaultModel }}</b></template>
                 <template v-if="p.embeddingModel"><template v-if="p.defaultModel"> · </template>{{ t('kit.aiArea.providers.embed') }} <b>{{ p.embeddingModel }}</b></template>
-                <template v-if="!isBuiltin(p)"><template v-if="p.defaultModel || p.embeddingModel"> · </template>{{ p.hasApiKey ? t('kit.aiArea.providers.keySet') : t('kit.aiArea.providers.noKey') }}</template>
+                <template v-if="!isBuiltin(p)"><template v-if="p.defaultModel || p.embeddingModel"> · </template>{{ billingWords(p) }}</template>
               </div>
             </div>
             <span class="lu-prow-status"><span class="lu-sdot" :style="{ background: statusColor(p.id) }" />{{ statusLabel(p.id) }}</span>
@@ -1070,6 +1125,13 @@ onMounted(() => {
    "new" keeps only the accent border-color as its affordance (chip-scale accent). */
 .lu-newform { border-color: var(--accent); }
 .lu-mono { font-family: var(--font-mono, monospace); }
+/* "Claude Code is installed on this computer" — an offer above the Online rows, not a provider yet */
+.lu-prog-found {
+  display: flex; gap: 12px; align-items: center; margin-top: 8px; padding: 10px 12px;
+  border: 1px dashed var(--border-strong, var(--border)); border-radius: 10px; font-size: max(var(--text-floor, 0px), 12.5px);
+}
+.lu-prog-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.lu-prog-text .lu-muted { font-size: max(var(--text-floor, 0px), 11.5px); }
 
 /* Usage — header + rollup metric cards + per-feature/provider tables. */
 .lu-usagehead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }

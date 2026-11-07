@@ -1330,5 +1330,72 @@ export const TABLES = [
         "notNull": true
       }
     }
+  },
+  {
+    "name": "provider_signins",
+    "ddl": "CREATE TABLE provider_signins (\n\tprovider_id VARCHAR NOT NULL, \n\tmethod VARCHAR NOT NULL, \n\tclient_id VARCHAR NOT NULL, \n\thost_id VARCHAR NOT NULL, \n\temail VARCHAR NOT NULL, \n\tsubject VARCHAR NOT NULL, \n\tid_token TEXT NOT NULL, \n\taccess_token TEXT NOT NULL, \n\trefresh_token TEXT NOT NULL, \n\texpires_at INTEGER NOT NULL, \n\tscopes VARCHAR NOT NULL, \n\tsaved_at INTEGER NOT NULL, \n\tPRIMARY KEY (provider_id), \n\tFOREIGN KEY(provider_id) REFERENCES llm_providers (id) ON DELETE CASCADE\n)",
+    "indexes": [],
+    "columns": {
+      "provider_id": {
+        "kind": "text",
+        "pk": true,
+        "notNull": true
+      },
+      "method": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "client_id": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "host_id": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "email": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "subject": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "id_token": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "access_token": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "refresh_token": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "expires_at": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      },
+      "scopes": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "saved_at": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      }
+    }
   }
 ];
