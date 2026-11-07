@@ -229,7 +229,9 @@ CHECKED 2026-11-07, once at the end: kit core 1691 (13 skipped), both lints, the
         the installed Claude Code (2.1.319, Max): found at `.local\bin\claude.EXE`, signed in; "Red, blue, green" in
         3.6 s (first text 2.9 s), 649 prompt tokens, 39 % of the week used, a JSON schema answered `{"colour": "Blue"}`.
         Not run: the apps' builds and e2e; the phone app's build (JustWrite's phone-worker bundle test passes).
-OPEN:   3 waits for the user's word by name. The ChatGPT sign-in needs one real sign-in by the user at OpenAI's page:
+DECIDED 2026-11-07, item 3 (keep one Claude Code process ready), the user: "1 no". Not built; each call starts its own
+        process.
+OPEN:   The ChatGPT sign-in needs one real sign-in by the user at OpenAI's page:
         OpenAI's page answers a script with Cloudflare's check, and the Chrome extension wasn't connected, so neither
         the request's parameters nor whether `openid-client` carries the callback's issued client id are proven yet. The
         new settings screen parts weren't looked at rendered (no browser tool connected).
