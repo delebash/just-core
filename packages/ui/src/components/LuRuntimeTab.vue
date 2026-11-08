@@ -607,7 +607,7 @@ defineExpose({ refresh, filters });
             <span v-if="settingUi(n).of != null" class="lu-rt-line">{{ t("kit.runtimes.settingOf", { n: settingUi(n).of }) }}</span>
           </div>
           <UiInput
-            v-else :id="`lu-rt-${runtimeId}-set-${n}`" :model-value="String(settingValue(n) ?? '')" width="token" :invalid="(n in settingDrafts) && !settingOk(n)"
+            v-else :id="`lu-rt-${runtimeId}-set-${n}`" :model-value="String(settingValue(n) ?? '')" :width="settingUi(n).width || 'token'" :invalid="(n in settingDrafts) && !settingOk(n)"
             @update:model-value="(v) => (settingDrafts[n] = v)"
           />
         </UiField>

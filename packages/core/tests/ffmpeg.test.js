@@ -13,7 +13,7 @@ import { runtimeVariantDir, selectRuntimeAsset } from "../src/runner/binary.js";
 import { DEFAULT_FFMPEG_BINARIES, DEFAULT_FFMPEG_BUILD } from "../src/runner/config.js";
 import { ffmpegExe, ffmpegReadiness } from "../src/runner/ffmpeg.js";
 import { configureRuntimeServices, RuntimeService } from "../src/runner/runtime_service.js";
-import { pinKey, runtimeOf, settingKey } from "../src/runner/runtimes.js";
+import { pinKey, runtimeOf, settingKey, settingsUiOf } from "../src/runner/runtimes.js";
 import { freshDb } from "./helpers.js";
 
 let h;
@@ -50,6 +50,10 @@ test("an app that turns FFmpeg on gets its pinned builds as rows, its pin and it
   expect(h.get("runner_setting", settingKey("ffmpeg", "path")).value).toBe("");
   expect(h.get("llm_providers", "local-ffmpeg")).toBeNull();
   expect(stores.getRunnerConfigStore().getRuntimeConfig("ffmpeg").settings).toEqual({ path: "" });
+});
+
+test("the tab shows the path setting as a text box sized for a full path", () => {
+  expect(settingsUiOf(runtimeOf("ffmpeg"))).toEqual({ path: { control: "text", width: "path" } });
 });
 
 test("each computer gets its own build: Windows, Apple silicon, an Intel Mac, Linux on x64 and on Arm", () => {

@@ -104,6 +104,8 @@ export const RUNTIMES = Object.freeze({
       idleSeconds: 0,
       memory: Object.freeze({ idleMb: 0, peakMb: 0 }),
       settings: DEFAULT_FFMPEG_SETTINGS,
+      // its `path` box sized for a full path (UiInput's `path` width), not a token
+      settingsUi: Object.freeze({ path: Object.freeze({ width: "path" }) }),
     }),
   }),
 });
@@ -124,7 +126,8 @@ const BACKEND_LABELS = Object.freeze({ auto: "Auto", cuda: "CUDA (NVIDIA)", vulk
 
 /**
  * How a runtime's tab shows each setting it declares (`defaults.settings`) on this machine (round E, G8):
- * `{<name>: {control: "select" | "number" | "text", choices?: [{value, label}], hidden?: true, of?: n}}` — its
+ * `{<name>: {control: "select" | "number" | "text", choices?: [{value, label}], hidden?: true, of?: n, width?: w}}`
+ * (`width`: a text box's UiInput width, `path` for a full path; the tab's default is `token`) — its
  * `defaults.settingsUi` rule where it has one, else a number or a text box by its default's type. `box`, this machine's
  * facts: `backends` the build families its rows offer that it can run, `gpus` its cards' names (by `device` index),
  * `cores` its physical cores (null: not known yet), `sharedMemoryRead` whether a process's shared graphics memory can be
@@ -140,6 +143,7 @@ export function settingsUiOf(rt, { backends = [], gpus = [], cores = null, share
     if (rule.choices === "backends") ui.choices = ["auto", ...backends].map((b) => ({ value: b, label: BACKEND_LABELS[b] ?? b }));
     else if (rule.choices === "gpus") ui.choices = gpus.map((g, i) => ({ value: i, label: `${i} · ${g}` }));
     if (rule.of === "physical-cores" && cores > 0) ui.of = cores;
+    if (rule.width) ui.width = rule.width;
     if (rule.shownWhen && !facts[rule.shownWhen]) ui.hidden = true;
     out[name] = ui;
   }
