@@ -281,11 +281,23 @@ Checklist (each line updated as it lands):
   first; "card free" to just-voice after) → just-voice's ~40 min alone (Fish Audio Drama 3 + Nemotron; this load
   started the morning's lockup — nothing heavy beside it) → its "CPU free" → this session's builds and e2e ("need clean
   kit tree" again first; just-voice's light card scoring beside it is fine) → "e2e done" / "CPU free".
+  **Mistake to avoid:** JustWrite's e2e is NOT CPU-only — its driver runs the app on the real data folder by design
+  (`e2e/lib/driver.js`), and the app loads its default model at start (Gemma 4 26B A4B, llama-server on the card, ~9.5 GB
+  RAM; seen 16:57 during just-stage's booked card slot). Book the card for it too.
   just-voice holds a kit change (speech_placement.js `filesOnCard(row)`) outside the kit tree until "dispatched" —
   send "dispatched" to just-voice too, not only to just-direct-mocap.
-- [ ] The end run on a clean kit tree (just-direct-mocap's "tree matches HEAD"): docgen lint, i18n lint, suites, guard,
-      `npm run build:unpacked`, e2e; JustWrite's the same if touched, and its e2e 9; house-paint unchanged since its green
-      pass (b6685e6) — checked by git. An installer build runs without CI (`env -u CI`).
+- [x] The end run on a clean kit tree (7b368726, just-direct-mocap's "tree matches HEAD"), 16:52–17:02, logs in
+      `E:\Dev\Web\_spikes\release-2026-11-08\endrun\`: docgen lint, i18n lint, i18n report (no missing keys), server 225/225,
+      unit 52+2 — the new Review test first FAILED (a bare q-page renders nothing outside a q-layout; fixed in the test:
+      mounted in q-layout + q-page-container with MainLayout.test's ResizeObserver/matchMedia stubs; it fails on the
+      page before the fix and passes after; unit 54/54, lint clean, docgen 37d9e7f) — build:unpacked, e2e 19/19, the
+      installer build, the packaged start on the real data ("answered in 1.6 s: Just AI i18n & DocGen 0.1.0"); JustWrite
+      lint (the same 2 warnings + 21 infos as the last green pass, none in changed files), i18n lint (the same 1 warning,
+      storyBible.js:110, an unused disable comment), i18n report, i18n docs, smoke ("HEADLESS SMOKE PASSED: all routes
+      rendered, zero JS errors"), server 198/198, unit 888/888, the installer build, e2e 9/9 (both WCAG 2.2 AA tests,
+      light 201 s, dark 86 s). The guard: one violation, not this release's — just-direct's v1 plan names kit code
+      (`runner/dev_build.js`) that is only in just-direct-mocap's held edits; it clears when they are committed after
+      "dispatched" (that session agreed). house-paint unchanged since its green pass (b6685e6, tree clean).
 - [ ] The three tags; house-paint's and docgen's `npm run release -- --yes`, JustWrite's `echo y | npm run release`
       (its release.js has no `--yes`; it reads "Proceed? [y/N]" and closes stdin for gh itself) — core_ref = the kit's
       HEAD; the runs watched to green; just-direct-mocap and just-voice told "dispatched".

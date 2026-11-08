@@ -6,8 +6,9 @@
 // bar while the gate runs, then the model's load bar TITLED WITH THE MODEL NAME
 // (shared behavior: every consumer shows which model is warming) — plus the one
 // universal escape. Auto-dismisses on resident (700 ms beat: taskFor emits only
-// running/error/empty, never "done", so the bar simply stops). Cancel/error leave
-// the bar showing its own Retry; Continue never traps anyone on a boot screen.
+// running/error/empty, never "done", so the bar simply stops). An error leaves
+// the bar showing its own Retry; a Cancel ends the bar (the task goes idle) and
+// leaves Continue — Continue never traps anyone on a boot screen.
 // The host owns the splash PAGE — plate, layout, z-index — and v-ifs it on
 // `warmModelId` (exported beside startWarmOnBoot); this control owns everything
 // inside the load group and renders nothing until a task actually exists.
@@ -17,7 +18,7 @@
 // { task, modelId }; `task.retry()` is the bar's own Retry. A host that fills nothing gets the
 // kit's default (the template audit, 2026-10-19): "What can I do?", which leaves the splash and
 // opens the app's Troubleshooting help page — shown only when the app has that page.
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import DownloadBar from "../common/components/DownloadBar.vue";
 import { helpConfig, openHelp } from "../common/services/help.js";
@@ -49,6 +50,12 @@ watch(warmRowStatus, (s) => {
 function dismiss() {
   warmModelId.value = ""; // the ONE signal the host splash renders on
 }
+// Once a task has shown, Continue stays: Cancel sends the model's task back to idle (useRunnerModels' IDLE), and the
+// group rendered only while a task ran — the splash stood with no button for good (docgen's real window, 2026-11-08).
+const sawTask = ref(false);
+watch(shownTask, (tk) => {
+  if (tk?.state) sawTask.value = true;
+}, { immediate: true });
 // the app's help page for a model that won't load (docs/troubleshooting.md in every family app)
 const HELP_PAGE = "troubleshooting";
 const hasHelp = computed(() => !!helpConfig.hasDoc(HELP_PAGE));
@@ -59,9 +66,9 @@ function openTroubleshooting() {
 </script>
 
 <template>
-  <div v-if="engineTask || (warmTask && warmTask.state)" class="lu-bootload">
+  <div v-if="engineTask || warmTask?.state || sawTask" class="lu-bootload">
     <DownloadBar v-if="engineTask" class="lu-bootload__bar" :task="engineTask" :title="engineTitle || t('kit.bootLoad.engineTitle')" />
-    <DownloadBar v-else class="lu-bootload__bar" :task="warmTask" :title="warmTitle" />
+    <DownloadBar v-else-if="warmTask?.state" class="lu-bootload__bar" :task="warmTask" :title="warmTitle" />
     <slot v-if="shownTask?.state === 'error'" name="failed" :task="shownTask" :model-id="warmModelId">
       <button v-if="hasHelp" type="button" class="lu-bootload__help" @click="openTroubleshooting">{{ t('kit.bootLoad.help') }}</button>
     </slot>
