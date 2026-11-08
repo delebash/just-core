@@ -460,6 +460,20 @@ test("effective_think_follows_the_preset_under_a_strict_schema", () => {
   expect(_plane2Extra(spec(""), req(), presetLevel).reasoning_effort).toBeUndefined();
 });
 
+test("a call's own schema replaces the stored one, and lets a strict-schema call think", () => {
+  // JustDirect's planner builds each run's schema from the film (its card ids as enums), 2026-11-07
+  const spec = FeaturePromptRow({ key: "plan", feature: "plan", system: "", user_template: "", built_in: true, json_mode: true, json_schema: "" });
+  const preset = model(EnginePresetRow, { name: "p", think: true, reasoningEffort: "medium" });
+  const own = JSON.stringify({ type: "object", properties: { cardIds: { type: "array", items: { enum: ["mara", "teo"] } } }, required: ["cardIds"] });
+  const body = model(RunRequest, { action: "plan", jsonSchema: own });
+  const extra = _plane2Extra(spec, body, preset);
+  expect(extra.response_format).toEqual({ type: "json_schema", json_schema: { name: "plan", schema: JSON.parse(own), strict: true } });
+  expect(_effectiveThink(spec, body, preset)).toBe(true);
+  // none: the stored contract (json_object here, so no thinking)
+  expect(_plane2Extra(spec, model(RunRequest, { action: "plan" }), preset).response_format).toEqual({ type: "json_object" });
+  expect(_effectiveThink(spec, model(RunRequest, { action: "plan" }), preset)).toBe(false);
+});
+
 test("run_uses_resolved_preset", async () => {
   // The one-source model: with a preset assigned to the action (its ref), /run dispatches the
   // PRESET's model + params (temperature/top_p/reasoning/think), not the prompt's.

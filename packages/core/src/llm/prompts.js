@@ -322,6 +322,10 @@ export const RunRequest = T.Object({
   // Optional per-action Plane-2 params (null → the stored value): structured output (JSON)
   // + nucleus sampling. (#18 / #22)
   jsonMode: opt(nullable(T.Boolean()), null),
+  // Optional per-call JSON schema (its text), in place of the action's stored one — a schema built for this run, whose
+  // enums are what the caller has now (JustDirect's planner: the film's own card ids, the shots a revision may change,
+  // 2026-11-07). null → the stored schema. With json mode on, it is sent as the strict json_schema response format.
+  jsonSchema: opt(nullable(T.String()), null),
   topP: opt(nullable(T.Number()), null),
   // Reasoning-effort override (a1/E2): "" | low | medium | high; null → the preset's level.
   // Applied only when reasoning is effectively on.
@@ -470,7 +474,7 @@ export function _plane2Extra(spec, body, preset = null) {
   // A value Python holds as a float is a PyFloat here, so the request body writes it as one.
   const extra = {};
   const jsonMode = body.jsonMode == null ? (spec ? spec.json_mode : false) : body.jsonMode;
-  if (jsonMode) extra.response_format = _responseFormat(spec, body.action);
+  if (jsonMode) extra.response_format = _responseFormat(_withCallSchema(spec, body), body.action);
   const topP = body.topP == null ? (preset ? preset.topP : null) : body.topP;
   if (topP != null) extra.top_p = pyFloatValue(topP);
   // Ad-hoc per-call samplers (a Lab column) win over the preset's — added first so the
@@ -536,7 +540,13 @@ export function _plane2Extra(spec, body, preset = null) {
 export function _effectiveThink(spec, body, preset = null) {
   const think = body.think != null ? body.think : preset ? preset.think : false;
   const jsonMode = body.jsonMode == null ? (spec ? spec.json_mode : false) : body.jsonMode;
-  return truthy(think) && (!jsonMode || _hasStrictSchema(spec));
+  return truthy(think) && (!jsonMode || _hasStrictSchema(_withCallSchema(spec, body)));
+}
+
+/** The action's contract with the call's own schema in place of the stored one (RunRequest `jsonSchema`). */
+function _withCallSchema(spec, body) {
+  if (body?.jsonSchema == null) return spec;
+  return { ...(spec || {}), json_schema: body.jsonSchema };
 }
 
 /** Whether the action's contract is a strict JSON schema (`_responseFormat` sends json_schema), not the weak json_object. */
