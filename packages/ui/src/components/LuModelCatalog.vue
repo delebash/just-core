@@ -1689,7 +1689,7 @@ refreshApplied();
    ("Llama-Community") needed +28px past its cell at the 1000px minimum window. Two lines
    inside the pill is better than a clipped column. */
 .lu-lic { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 8px; font-size: max(var(--text-floor, 0px), 10px); font-weight: 700; border: 1px solid var(--border-strong); color: var(--ink-2); background: var(--surface); text-align: center; }
-.lu-lic--warn { background: var(--gold-soft, #f5edda); border-color: var(--gold-line, #e2d2b0); color: var(--gold, #b08a3e); }
+.lu-lic--warn { background: var(--warn-bg, var(--gold-soft, #f5edda)); border-color: var(--warn-line, var(--gold-line, #e2d2b0)); color: var(--warn-ink, var(--gold, #b08a3e)); }
 
 /* .lu-pill* moved to shared common/styles.css (used by the grid too). */
 .lu-mstat { font-size: max(var(--text-floor, 0px), 11px); color: var(--muted); }

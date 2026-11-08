@@ -91,8 +91,18 @@ FOUND   2026-11-08 by JustDirect's session (web-4c), in a real run: its dev data
         kit's `fingerprint`, as settings_upgrade.test.js does for settings) plus a heal run through the app's own seed.
         Waits for the user's go: the shape into the template, then each app.
 
-## The "tight" fit chip's words fail contrast (WCAG 2.2 AA) [found 2026-11-08, not started]
+## The "tight" fit chip's words fail contrast (WCAG 2.2 AA) [found 2026-11-08; decided and built 2026-11-08; open until JustDirect's e2e passes on it]
 
+BUILT   2026-11-08 by web-9e: the four rules paint var(--warn-ink) on var(--warn-bg) with --warn-line's border (the
+        gold ones only as the fallbacks, .ui-tag--accent2's shape); test `packages/ui/tests/warm_chips.test.js` (the
+        rules, no gold-on-gold-soft rule left, the engine's pair at every gold hue both modes and the template's
+        tokens 4.5:1 or more), its contrast maths shared with ink_palettes in `tests/wcag.js`. Delete this section
+        when web-4c's rerun of JustDirect's e2e passes.
+
+DECIDED: the user, verbatim, 2026-11-08, in web-9e's session, on "1. … My rec: move its four style rules onto the
+        kit's existing warm text-and-background pair, which measures 7.3–8.8:1": "1 your rec". Also, relayed by web-4c
+        from JustDirect's session the same day: "6 your rec, finish this app so it is ready for release dont sto until
+        it is all done".
 FOUND   2026-11-08 by JustDirect's session (web-4c), its axe run. Checked in code: `.lu-fit--tight`
         (`packages/ui/src/common/styles.css:310`, a copy at `packages/ui/src/views/QuickSetup.vue:1309`) is `var(--gold)`
         text on `var(--gold-soft, #f5edda)`, 11 px bold (QuickSetup's 10.5 px), which needs 4.5:1. Measured (WCAG's
