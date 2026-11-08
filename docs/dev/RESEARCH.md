@@ -362,6 +362,13 @@ sheet `docs/plans/2026-10-07-kit-in-javascript.md`):
   schema (nested json_schema, think off) answers under draft-mtp; 10/10 shared-prefix requests; unload 1.1 s; the
   draft 1.09× on the 26B (36.3 vs 33.3 tok/s), ~1.0× on the fit-placed 12B. The b11960 Windows zip is genuine
   (`--version`: build 11960, commit 8642541b2).
+- **b11960's router never reports "failed": a model whose child died is "unloaded" with `failed: true`** (*code*,
+  2026-11-08, tools/server/server-models.h:107-108 `is_failed()` = UNLOADED and exit_code != 0; server-models.cpp:2162-2165
+  adds `failed` and `exit_code` to GET /models' status; :1019 clears the failed state when a load is accepted). So
+  `_confirmLoadPoll` (checking value "failed"/"error") polled a crashed load to its deadline unless the log scan saw
+  the exit line — JustDirect's splash read "Getting ready" minutes after its warm model's process was killed. Now
+  `_parseRouterModels` keeps `failed` and the poll fails on it (lifecycle tests: the parse and
+  load_errors_when_the_router_says_its_child_died).
 - **llama.cpp b12110 (v0.9.0) on the family's rows** (*read + measured*, 2026-11-07, the family release; the full
   record: `docs/plans/2026-11-07-family-release.md`): all 150 commit titles b11961–b12110 read; no flag, models.ini key,
   request field (`server-common.cpp` unchanged), router route or placement line changed; the Windows exes carry a
@@ -1434,6 +1441,15 @@ re-checked by the session that saved them; paths are from before the just-core r
   the zips until the swap), so the kit asks the drive for both plus 256 MB; a row without a measured size takes 5×
   its zip (the largest seen, 4.90). The rows carry them (`runner/config.js`, `runtime_binary.asset_unpacked_bytes`,
   `runtime_unpacked_bytes`).
+- **Our fork's jd-1078-3dba814, the pin from 2026-11-08** (*measured, 2026-11-08*, JustDirect's session; scratch
+  `release-rows.js` and `build-needs.js`): archive → unpacked: win cuda12 366,926,855 → 459,080,311; win rocm
+  266,083,105 → 1,230,471,116; win vulkan 29,954,251 → 89,397,841; win cpu 18,183,942 → 49,025,617; macOS 37,926,653 →
+  103,248,368; Linux rocm 298,521,841 → 1,466,360,278; Linux vulkan 37,942,677 → 104,428,096; Linux cpu 27,573,106 →
+  71,403,832; cudart 563,452,046 → 788,957,696 (upstream's file, the same digest). What each needs from the system, from
+  its bytes: every ELF in the Linux CPU, Vulkan and ROCm zips at most GLIBC_2.38 (the ROCm zip read entry by entry with
+  `unzip -p` — its .so symlinks don't unpack with Windows' tar, and Git Bash's GNU tar reads `E:` as a remote host); the
+  macOS sd-server, sd-cli and dylib LC_BUILD_VERSION minos 26.0.0; the Windows exe and dlls name MSVCP140,
+  VCRUNTIME140, VCRUNTIME140_1 and VCOMP140 (cpu, vulkan, cuda12) — the ROCm build has no VCOMP140 (no OpenMP).
 - **stable-diffusion.cpp video on this PC, `master-1004-a85db96`** (*measured unless marked, 2026-10-26/27*; RTX
   2070 SUPER 8 GB Turing, 32 GB RAM; details and files in `../plans/2026-10-24-just-direct-feasibility.md` §G–§H):
   - LTX-2.3 22B distilled 1.1 Q4_K_M two-stage (640×352 × 8 distilled sigmas → spatial upscaler ×2 → 1280×704 × 3,

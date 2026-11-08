@@ -1590,6 +1590,17 @@ function checkRelease(app) {
   // uploaded name's spaces as dots — a product name with a space in the file name breaks every update
   else if (!/artifactName:\s*['"`][^'"`\s]*['"`]/.test(q) || /artifactName:.*productName/.test(q))
     report("quasar.config.js's electron builder needs an `artifactName` without spaces (the template's `${name}-${version}-${os}-${arch}.${ext}`) — the update feed would name files GitHub doesn't have");
+  // a server that uses sharp needs sharp and its libvips (@img) outside app.asar — sharp's own Electron guidance
+  // (sharp.pixelplumbing.com/install, its Electron section: asarUnpack '**/node_modules/sharp/**/*' and '**/node_modules/@img/**/*').
+  // `**/*.node` alone leaves libvips-cpp.so inside the archive, and Linux can't load it from there: JustDirect's Linux
+  // release job failed "Could not load the sharp module … ERR_DLOPEN_FAILED" (2026-11-08; house-paint found it 2026-10)
+  const serverPkgPath = join(app.dir, "server", "package.json");
+  const serverPkg = existsSync(serverPkgPath) ? JSON.parse(readFileSync(serverPkgPath, "utf8")) : {};
+  if (serverPkg.dependencies?.sharp && q) {
+    const unpack = /asarUnpack:\s*\[([^\]]*)\]/.exec(q)?.[1] ?? "";
+    for (const glob of ["**/node_modules/sharp/**/*", "**/node_modules/@img/**/*"])
+      if (!unpack.includes(glob)) report(`its server uses sharp, but quasar.config.js's asarUnpack has no '${glob}' — sharp can't load from inside app.asar (sharp.pixelplumbing.com/install, its Electron section)`);
+  }
   const mainPath = join(app.dir, "src-electron", "electron-main.js");
   const main = existsSync(mainPath) ? readFileSync(mainPath, "utf8") : "";
   const rel = main.match(/releasesUrl:\s*["'`]https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/releases["'`]/);

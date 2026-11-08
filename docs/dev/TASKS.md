@@ -97,29 +97,6 @@ FOUND   2026-11-08 by JustDirect's session (web-4c), in a real run: its dev data
         kit's `fingerprint`, as settings_upgrade.test.js does for settings) plus a heal run through the app's own seed.
         Waits for the user's go: the shape into the template, then each app.
 
-## The "tight" fit chip's words fail contrast (WCAG 2.2 AA) [found 2026-11-08; decided and built 2026-11-08; open until JustDirect's e2e passes on it]
-
-BUILT   2026-11-08 by web-9e: the four rules paint var(--warn-ink) on var(--warn-bg) with --warn-line's border (the
-        gold ones only as the fallbacks, .ui-tag--accent2's shape); test `packages/ui/tests/warm_chips.test.js` (the
-        rules, no gold-on-gold-soft rule left, the engine's pair at every gold hue both modes and the template's
-        tokens 4.5:1 or more), its contrast maths shared with ink_palettes in `tests/wcag.js`. Delete this section
-        when web-4c's rerun of JustDirect's e2e passes.
-
-DECIDED: the user, verbatim, 2026-11-08, in web-9e's session, on "1. … My rec: move its four style rules onto the
-        kit's existing warm text-and-background pair, which measures 7.3–8.8:1": "1 your rec". Also, relayed by web-4c
-        from JustDirect's session the same day: "6 your rec, finish this app so it is ready for release dont sto until
-        it is all done".
-FOUND   2026-11-08 by JustDirect's session (web-4c), its axe run. Checked in code: `.lu-fit--tight`
-        (`packages/ui/src/common/styles.css:310`, a copy at `packages/ui/src/views/QuickSetup.vue:1309`) is `var(--gold)`
-        text on `var(--gold-soft, #f5edda)`, 11 px bold (QuickSetup's 10.5 px), which needs 4.5:1. Measured (WCAG's
-        formula on the tokens.css values): template, house-paint and JustDirect light 2.22:1 (no --gold-soft: the
-        #f5edda fallback); their dark theme 1.73:1 (the same light fallback under the dark --gold); JustWrite light 2.89:1,
-        dark 6.31:1 (it defines --gold-soft). Shown wherever a model fits tightly: LuEngineNeeded's banner, LuModelCatalog,
-        LuRuntimeTab, QuickSetup. The same gold-on-gold-soft pair also in `.lu-pill--load` (styles.css:318) and
-        LuModelCatalog's `.lu-lic--warn` (LuModelCatalog.vue:1692). Held by the kit's session (web-9e), put to the user
-        as a decision with its rec: the four rules onto the kit's existing --warn-ink on --warn-bg, defined in both
-        themes by every app (7.3–8.8:1, web-9e's measure). Waits for the user's go.
-
 ## JustDirect's kit gaps, filled before the app [2026-11-06]
 DECIDED: the user, verbatim, 2026-11-06: "your rec go", on item 4 of the session's list: "Four gaps to fill in the kit
         before the app. These aren't NOT STANDARD, but kit changes reach every app, so I want your go: the video job
@@ -245,6 +222,11 @@ STATE 2026-11-06:
      `master` copy of the files is never read for schedules. After the push GitHub lists one workflow, `build.yml`,
      and nothing ran by itself. Release run 42431109657 started by hand on `jd` (2026-11-08 00:44 UTC). The fork's
      `master` is never pushed or synced; upstream reaches us only by a local merge into `jd`.
+     PINNED 2026-11-08 (JustDirect's session, under the user's "finish this app … go"): upstream's 3d315c4 merged into
+     `jd` (3dba814), released as jd-1078-3dba814 (run 42493526732, every job green, Linux jobs on ubuntu-24.04), its rows
+     measured and written into `runner/config.js` (the comment there lists how). Open: JustStage's image features on it
+     (just-stage's session, held by the user on one job) and house-paint's (its aiphoto real test, run from JustDirect's
+     end run); then this item closes.
   2. Not done, by the user's word.
   3. DONE `336d6556`: the spec `docs/plans/2026-11-06-motion-tracks-spec.md` (written from sparse_tracks.py at
      ComfyUI-LTXVideo `220e1d4`, no code in it); `runner/motion_tracks.js` written from it alone by a separate agent;
