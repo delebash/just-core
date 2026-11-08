@@ -2168,6 +2168,8 @@ export class RuntimeService {
     const arb = this._arbiter();
     const { key, kind, idleMb, peakMb } = this._booking();
     arb.busyBegin(kind);
+    // no idle stop while a job runs: the clock starts again when it ends (a clip outlasts the idle time)
+    clearTimeout(this._idleTimer);
     this._jobs += 1;
     try {
       if (peakMb > idleMb && !(await arb.makeRoom(peakMb - idleMb, { exclude: key, hardware: this._hardwareFn(), reason: `${this.rt.label} job`, forKind: kind }))) {

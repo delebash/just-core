@@ -148,6 +148,25 @@ test("an arbiter eviction or the idle time stops the server and drops its bookin
   expect(start.started[1].h.alive).toBe(false);
 });
 
+test("a job longer than the idle time keeps its server: the idle clock starts again only when the job ends", async () => {
+  // a clip ran past sd.cpp's 300 s idle time and its server was stopped mid-job (JustDirect's clips run, 2026-11-08)
+  vi.useFakeTimers();
+  idleSeconds = 60;
+  const start = fakeStart();
+  const svc = service(fakeArbiter(), start);
+  await svc.ensureServer({ modelKey: "m", files: FILES });
+  let finish;
+  const job = svc.runJob(() => new Promise((resolve) => (finish = resolve)));
+  await vi.advanceTimersByTimeAsync(120_000);
+  expect(start.started[0].h.alive).toBe(true);
+  finish("clip");
+  await expect(job).resolves.toBe("clip");
+  await vi.advanceTimersByTimeAsync(59_000);
+  expect(start.started[0].h.alive).toBe(true);
+  await vi.advanceTimersByTimeAsync(2_000);
+  expect(start.started[0].h.alive).toBe(false);
+});
+
 test("a CPU build books nothing on the card", async () => {
   const arb = fakeArbiter();
   const svc = service(arb, fakeStart(), CPU_BOX);
