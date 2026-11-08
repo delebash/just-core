@@ -220,3 +220,9 @@ DECIDED: the user, verbatim, 2026-11-07: "finish the app, dont stop coding at tu
      the app's own TASKS from here on.
   2. Kit fix on the way: the generator renames the template's dev port (9000) in every file it copies, and a template
      test typed "9000" as its out-of-range number, so a new app failed its first test run. The test now types 8192.
+  3. Kit fixes on the way (Claude's, plain repairs): `runFfmpeg` (ff905613) for the app's joins; thinking allowed
+     beside a strict JSON schema (2e34fd67, c5b47f87); the template's `server/tests/boot.test.js` (307ec7d2) — the
+     server's entry loaded by Node itself, because Vitest let a wrong kit import pass while JustDirect's server
+     couldn't start. The other apps copy that test in their own sessions (told to the family release session).
+HERE:   JustDirect's milestones 1–7 are built (the app's TASKS and its plan's "Where it stands"); its first real run
+        waits for the card (JustStage), its clips for our sd.cpp release run 42431109657.
