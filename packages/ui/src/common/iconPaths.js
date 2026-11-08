@@ -110,4 +110,7 @@ export const ICON_PATHS = {
   //   THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   Info:       "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 16v-4M12 8h.01",
   ExternalLink:"M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14",
+  // a strip of film and a video camera (JustDirect, 2026-11-07)
+  Film:       "M4 4h16v16H4V4Zm4 0v16m8-16v16M4 8h4m-4 4h4m-4 4h4m12-8h-4m4 4h-4m4 4h-4",
+  Camera:     "M3 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7Zm12 3.5 6-3.5v10l-6-3.5",
 };
