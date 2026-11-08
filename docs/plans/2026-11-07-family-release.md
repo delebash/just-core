@@ -207,6 +207,34 @@ kept still from cde0089f (web-9e, web-4c told). This run's boxes:
       session's "e2e done"). Commit only this session's own paths (`git commit <path>`, never `-a`). core_ref = the kit's
       HEAD at dispatch; tell that session if a docs commit of ours moves it.
 
+## The machine: MediaTek's Bluetooth service leak (measured 2026-11-08, after the 14:15 reboot)
+
+- The board is MSI MAG B550 TOMAHAWK MAX WIFI (MS-7C91, BIOS 2.C1 2026-07-21); Windows 11 Pro 26H2 build 26300.9818
+  (no Insider enrollment). The adapter: "RZ616 Bluetooth(R) Adapter", `USB\VID_0E8D&PID_0616&MI_00`, driver
+  1.1044.0.556 (2025-09-16, oem24.inf, Mediatek Inc.); its service MTKBTSVC = `C:\Windows\System32\mtkbtsvc.exe`
+  (file 1.0.0.2, MediaTek Inc., LocalSystem).
+- **What leaks:** of the service's 16,944 handles at 15:2x, 16,856 are **Event** objects (counted by type through
+  NtQuerySystemInformation(SystemExtendedHandleInformation) + NtQueryObject(ObjectTypesInformation) — scratch script
+  `handletypes.ps1`; its total matched Get-Process's 16,945). Explorer, for scale: 5,538 handles, 1,478 events. A
+  process's handles are closed by its own code, so the leak is in MediaTek's service, not in Windows' Bluetooth
+  service. Rate: 0.8–4.6 a second in short samples; the run before the reboot reached 1.39 M in ~10 days (~1.6/s).
+- **It does not explain the 9 GB paged pool by itself:** event objects sit in nonpaged pool under tag `Even` —
+  42,146 live = 5.2 MB (~125 bytes each, `pooltags.ps1`, SystemPoolTagInformation) — so 1.39 M ≈ 170 MB. What filled
+  the paged pool before the reboot is unknown (the reboot reset it; paged pool's top tags now are 49 MB at most). A
+  pool-tag log over the next days would name it. Nonpaged pool is 2.6 GB now, 1 GB of it tag `NDbf` (1,025 live).
+- **A newer driver exists:** Microsoft Update Catalog, "Mediatek Inc. Bluetooth Driver Update (1.1147.0.618)",
+  Windows 11 Client 25H2 and later, last modified 2026-07-09, 2.0 MB; its Supported Hardware IDs list exactly
+  `usb\vid_0e8d&pid_0616&mi_00` (update id 21288fbb-b2f3-401b-95da-453d6b78b6ce). Its notes don't say what it fixes.
+  MSI's own driver page refused automated reads (403) and the Chrome extension wasn't connected — MSI's package
+  unread.
+- **Searched (2026-11-08), no report of this leak found:** "mtkbtsvc.exe handle leak"; "MediaTek bluetooth service
+  mtkbtsvc memory leak Windows 11 paged pool"; "mtkbtsvc high memory usage"; "Windows 11 26H2 bluetooth service handle
+  leak"; "MSI MAG B550 TOMAHAWK MAX WIFI bluetooth driver download RZ616"; "RZ616 MT7922 bluetooth driver latest version
+  Windows 11"; msi.com "MSI MAG B550 TOMAHAWK MAX WIFI driver Bluetooth MediaTek"; the catalog for "MediaTek Bluetooth
+  RZ616" and "VID_0E8D&PID_0616". Found nearby only: MediaTek adapters vanishing (Code 43/45) on HP forums, MSI's
+  forum thread "MAG B550 TOMAHAWK MAX WIFI's Bluetooth is a nightmare" (pairing drops; antennas), a Linux btusb MediaTek
+  memory-leak fix (a different driver).
+
 ## GO (2026-11-08, after the reboot) — read this FIRST after any compaction
 
 The user, verbatim: "you can go on the relae for jw housepaint docgen and its fixes and websitesk, get those apps done
@@ -224,9 +252,28 @@ user's word for the three releases and the three site deploys ("get those apps d
   done" right after, keeping its block short.
 
 Checklist (each line updated as it lands):
-- [ ] docgen's three faults checked at their code; each real one fixed with its test written.
-- [ ] JustWrite's en.json "Settings → AI" checked; if stale, fixed, and its Spanish by docgen's translator on the local
-      model (the card booked with the other sessions first).
+- [x] docgen's three faults checked at their code — all three real — and fixed with a test each (docgen b77dee3,
+      pushed, unverified until the end run): (1) the server only loaded a project from `--config` or a live Setup save
+      (its AGENTS.md said "nothing persists across restarts") — **MINE:** the loaded config's path is an `app_settings`
+      row `project.lastConfig`, written on every load, reopened at start when no `--config` is given; a config gone or
+      broken since is logged and the app starts on Setup (test: workspace.test.js's setup flow, a second and third
+      `createApp` on the same data folder); (2) extract's default `docsDir` "docs" resolved to
+      `<app>/just-ai-i18n-docgen/docs` while the docs promise "your docs/ folder" (JustWrite's config only works by its
+      hand-written "../docs") — **MINE:** the default is "../docs", the app's own docs/ (test: extract.test.js, a
+      Setup-made config with no docsDir); (3) the confirmation pass annotates only `untranslated`, a hard finding, and
+      Review's detail pane printed the verdict only under advisory ones — one loop now, hard first, the verdict under
+      any finding that has one (test: src/pages/ReviewPage.test.js, mounted). Docs: project-setup, cli, docs-authoring,
+      review, What's new v0.1.0, AGENTS.md.
+- [x] JustWrite's en.json: 15 "noProvider" messages said "Settings → AI"; the page is **AI Settings** in the sidebar
+      (`nav.ai`) — now "on the AI Settings page" (JustWrite 8e20771f, pushed; also whats-new's three old mentions,
+      StatPill's and planningDraft's comments, ARCHITECTURE.md). The archived plans keep their history.
+- [ ] JustWrite's Spanish for those 15 keys: docgen's CLI `translate` on JustWrite's config (it re-translates a key
+      whose English changed; the CLI writes the locale file), on the local model — with the kit tree clean.
+- **The machine's order (2026-11-08 15:2x, agreed by message):** just-stage has the whole PC until about 16:15 (the
+  user's word, 15:12) → its "PC free" → this session's card run, ~10 min ("need clean kit tree" to just-direct-mocap
+  first; "card free" to just-voice after) → just-voice's ~40 min alone (Fish Audio Drama 3 + Nemotron; this load
+  started the morning's lockup — nothing heavy beside it) → its "CPU free" → this session's builds and e2e ("need clean
+  kit tree" again first; just-voice's light card scoring beside it is fine) → "e2e done" / "CPU free".
 - [ ] The end run on a clean kit tree (just-direct-mocap's "tree matches HEAD"): docgen lint, i18n lint, suites, guard,
       `npm run build:unpacked`, e2e; JustWrite's the same if touched, and its e2e 9; house-paint unchanged since its green
       pass (b6685e6) — checked by git. An installer build runs without CI (`env -u CI`).
