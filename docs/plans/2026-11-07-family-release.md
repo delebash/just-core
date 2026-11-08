@@ -274,6 +274,8 @@ Checklist (each line updated as it lands):
   first; "card free" to just-voice after) → just-voice's ~40 min alone (Fish Audio Drama 3 + Nemotron; this load
   started the morning's lockup — nothing heavy beside it) → its "CPU free" → this session's builds and e2e ("need clean
   kit tree" again first; just-voice's light card scoring beside it is fine) → "e2e done" / "CPU free".
+  just-voice holds a kit change (speech_placement.js `filesOnCard(row)`) outside the kit tree until "dispatched" —
+  send "dispatched" to just-voice too, not only to just-direct-mocap.
 - [ ] The end run on a clean kit tree (just-direct-mocap's "tree matches HEAD"): docgen lint, i18n lint, suites, guard,
       `npm run build:unpacked`, e2e; JustWrite's the same if touched, and its e2e 9; house-paint unchanged since its green
       pass (b6685e6) — checked by git. An installer build runs without CI (`env -u CI`).
