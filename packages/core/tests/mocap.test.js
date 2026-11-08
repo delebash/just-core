@@ -114,6 +114,21 @@ const settle = async (svc) => {
   return svc.status();
 };
 
+test("the engine banner's size is everything Install downloads: the build, its extras and the setup's packages", () => {
+  const row = DEFAULT_MOCAP_BINARIES[0];
+  const svc = new RuntimeService({
+    id: "mocap",
+    cacheRoot: root,
+    configFn: () => ({ id: "mocap", pinnedBuild: DEFAULT_MOCAP_BUILD, binaries: [{ ...camel(row), extras: row.extras }], settings: {} }),
+    hardwareFn: WIN,
+    systemFn: SYS,
+    setup: MOCAP_SETUP,
+  });
+  const extras = row.extras.reduce((n, x) => n + x.bytes, 0);
+  expect(svc.status().downloadBytes).toBe(row.asset_bytes + extras + MOCAP_SETUP.downloadBytes);
+  expect(MOCAP_SETUP.downloadBytes).toBe(3_739_653_047);
+});
+
 test("the setup hook: the build counts as installed only once its setup says the engine is whole", async () => {
   let whole = false;
   const runs = [];
@@ -224,6 +239,8 @@ test("the progress bar moves by each step's measured share; SAM 3D Body's share 
   expect([a.fraction < b.fraction, b.fraction < c.fraction, c.fraction < d.fraction]).toEqual([true, true, true]);
   // a step skipped (already there) still moves the bar, and says so
   expect(track({ step: "head points", skipped: true }).message).toBe("head points: already done");
+  expect(track({ step: "arm fit", skipped: true, note: "off" }).message).toBe("arm fit: off");
+  expect(track({ step: "import check", skipped: true, note: "no Blender" })).toBeNull();
   const end = track({ step: "preview" });
   expect(end.fraction).toBeLessThan(1);
 });

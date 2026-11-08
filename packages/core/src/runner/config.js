@@ -515,12 +515,12 @@ export const FFMPEG_PROBE_ARGVS = Object.freeze([Object.freeze(["-version"])]);
 // Its longest file path is 155 characters inside the build's folder (torch's headers), so a data folder whose path is
 // over about 75 characters needs Windows' long paths turned on.
 // A new engine commit is a new build tag (r<n>-<commit>), so an install made before it is offered the update.
-export const DEFAULT_MOCAP_BUILD = "r4-4fc4560";
-const MOCAP_ENGINE_COMMIT = "4fc45609e6efbe95c6c8e8d3095a19d40fb4c1a7";
+export const DEFAULT_MOCAP_BUILD = "r5-3d7757d";
+const MOCAP_ENGINE_COMMIT = "3d7757d137f885417594b21eaeac0276fa3ed455";
 const GEMX_COMMIT = "20555befe2fbbe5b2015e1fff7ff214dc18ea9d6";
 const COMFYUI_COMMIT = "426f5eea52a7ece1dd599fff4cb6cd1f352ddd24";
 const MOCAP_EXTRAS = [
-  { name: "the motion capture engine", url: `https://github.com/delebash/just-mocap/archive/${MOCAP_ENGINE_COMMIT}.zip`, sha256: "2698ea86a4b45736da802e8247665462b7ea8c678fc4e74a9fadd290964a3bc3", bytes: 415372, archive: "zip", take: `just-mocap-${MOCAP_ENGINE_COMMIT}`, into: "engine", check: "bench/mocap.js" },
+  { name: "the motion capture engine", url: `https://github.com/delebash/just-mocap/archive/${MOCAP_ENGINE_COMMIT}.zip`, sha256: "cfdcb40e5a31c7a22cfbeb5560fe060736cbe2cf050dbaf6a75881f4d0794d13", bytes: 415568, archive: "zip", take: `just-mocap-${MOCAP_ENGINE_COMMIT}`, into: "engine", check: "bench/mocap.js" },
   { name: "GEM-X", url: `https://github.com/NVlabs/GEM-X/archive/${GEMX_COMMIT}.zip`, sha256: "ea5882b5814fa1ef34398e8b455854decd72d6728971d2c216439d4131f92db0", bytes: 71637425, archive: "zip", take: `GEM-X-${GEMX_COMMIT}`, into: "gemx", check: "pyproject.toml" },
   { name: "ComfyUI", url: `https://github.com/comfyanonymous/ComfyUI/archive/${COMFYUI_COMMIT}.zip`, sha256: "01f381c8330f5c5bec9bd3d4c651e8b53b45ffb70020b9e1e947fc63f93a1548", bytes: 13595371, archive: "zip", take: `ComfyUI-${COMFYUI_COMMIT}`, into: "comfyui", check: "main.py" },
   {
@@ -580,6 +580,12 @@ export const DEFAULT_MOCAP_BINARIES = [
     extras: MOCAP_EXTRAS,
   },
 ];
+// What the engine's setup downloads: the Python packages of both locked lists as `uv pip sync` takes them on Windows x64
+// (each package's one wheel for CPython 3.12 win_amd64 among its locked hashes, sized from PyPI's JSON API and PyTorch's
+// index: 3,718,477,506 bytes — PyTorch alone 2,602,768,778) and the managed CPython 3.12.9 (python-build-standalone's
+// install_only_stripped archive, 21,175,541 bytes), measured 2026-11-08 for just-mocap's main-windows.lock and
+// face-windows.lock. Measure again when the locks change.
+export const MOCAP_SETUP_DOWNLOAD_BYTES = 3_718_477_506 + 21_175_541;
 // a staged uv must answer `--version` before it replaces the one on disk
 export const MOCAP_PROBE_ARGVS = Object.freeze([Object.freeze(["--version"])]);
 

@@ -17,6 +17,7 @@ import { ApiError } from "../platform/errors.js";
 import { getLogger } from "../platform/log.js";
 import * as procs from "../platform/procs.js";
 import { getArbiter } from "./arbiter.js";
+import { MOCAP_SETUP_DOWNLOAD_BYTES } from "./config.js";
 import { ffmpegExe } from "./ffmpeg.js";
 import * as hardware from "./hardware.js";
 import { linkSnapshot } from "./models.js";
@@ -132,6 +133,8 @@ export async function runEngineScript(argv, { cwd, env, logPath, onLine = () => 
 
 /** The mocap build's setup (RuntimeService `setup`): its Python environments and GEM-X's two files in place. */
 export const MOCAP_SETUP = Object.freeze({
+  // the Python packages and the CPython it downloads (config.js, measured)
+  downloadBytes: MOCAP_SETUP_DOWNLOAD_BYTES,
   done(place) {
     const p = mocapPaths(place);
     return (
@@ -228,7 +231,8 @@ export function progressTracker() {
   const seen = new Set();
   return (r) => {
     if (r?.pieces) pieces = Math.max(1, Number(r.pieces));
-    if (!r?.step) return null;
+    // the bench's Blender import check never runs in an app (no Blender): not a step to show
+    if (!r?.step || r.step === "import check") return null;
     const key = stepKey(r.step);
     const share = STEP_SECONDS[key] ?? 0;
     // a piece of SAM 3D Body is split in two lines (cut, then run); each is half of its piece's share
@@ -237,7 +241,9 @@ export function progressTracker() {
       seen.add(key);
       done += share;
     }
-    return { fraction: Math.min(0.99, done / TOTAL_SECONDS), message: r.skipped ? `${r.step}: already done` : String(r.step) };
+    // a step skipped says why: its own note ("off" — the arm fit turned off), else it was there from an earlier run
+    const message = r.skipped ? `${r.step}: ${r.note || "already done"}` : String(r.step);
+    return { fraction: Math.min(0.99, done / TOTAL_SECONDS), message };
   };
 }
 

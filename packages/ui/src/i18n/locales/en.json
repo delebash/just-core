@@ -2327,7 +2327,7 @@
     },
     "mocap": {
       "title": "Motion capture",
-      "feature": "Motion capture",
+      "feature": "Turning a video into animation",
       "tabs": {
         "label": "Motion capture",
         "takes": "Takes",

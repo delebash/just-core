@@ -68,8 +68,9 @@ function feed() {
   tasks();
   if (s.engine?.status === "installing" && engineTask.value.state !== "running") engineTask.value.arm(kitT("kit.engine.phase.downloading"));
   if (engineTask.value.state === "running" && s.engine) engineTask.value.apply(readEngineStatus(s.engine));
-  if (s.modelState?.status === "downloading" && modelTask.value.state !== "running") modelTask.value.arm(kitT("kit.phase.downloading"));
-  if (modelTask.value.state === "running") modelTask.value.apply(readRuntimeModelStatus(s.modelState));
+  // a readiness that names no model (Motion capture's before its engine is in) has no model task yet
+  if (s.modelState?.status === "downloading" && modelTask.value && modelTask.value.state !== "running") modelTask.value.arm(kitT("kit.phase.downloading"));
+  if (modelTask.value?.state === "running") modelTask.value.apply(readRuntimeModelStatus(s.modelState));
 }
 function schedule() {
   if (!timer && !gone) timer = setTimeout(tick, 1200);

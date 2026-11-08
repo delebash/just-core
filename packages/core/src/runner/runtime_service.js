@@ -191,9 +191,10 @@ export class RuntimeService {
     speech = {},
     placementChoices = null,
     // a runtime whose build is a toolchain that makes the engine on this computer (the mocap engine's uv making its
-    // Python environments — runner/mocap.js MOCAP_SETUP, 2026-11-08): `{run({exe, dir, extrasDir, onStep, cancelCheck}),
-    // done({dir, extrasDir})}` — run after the build and its extras install; the build counts as installed only once
-    // done() says the engine it makes is whole
+    // Python environments — runner/mocap.js MOCAP_SETUP, 2026-11-08): `{run({exe, dir, extrasDir, cacheDir, onStep,
+    // cancelCheck}), done({dir, extrasDir}), downloadBytes}` — run after the build and its extras install; the build
+    // counts as installed only once done() says the engine it makes is whole; `downloadBytes` what it downloads (the
+    // engine banner's size)
     setup = null,
   }) {
     const rt = runtimeOf(id);
@@ -443,7 +444,13 @@ export class RuntimeService {
       idleSeconds: Number(cfg.idleSeconds ?? this.rt.defaults.idleSeconds ?? 0),
       // its kind's speed bands in the kind's unit (seeded band_*:<kind>, edited on its tab — 2026-10-29); null: none
       bands: cfg.bands ? { fast: cfg.bands.fast, fine: cfg.bands.fine, slow: cfg.bands.slow, unit: cfg.bands.unit, lowerIsFaster: !!cfg.bands.lowerIsFaster } : null,
-      downloadBytes: (asset?.assetBytes || 0) + (asset?.runtimeBytes || 0),
+      // what Install downloads: the build, its extras (eSpeak NG beside audio.cpp; the mocap engine's sources and
+      // models), and what a setup downloads (the mocap engine's Python packages — its `downloadBytes`, measured)
+      downloadBytes:
+        (asset?.assetBytes || 0) +
+        (asset?.runtimeBytes || 0) +
+        (asset?.extras ?? []).reduce((n, x) => n + Number(x.bytes || 0), 0) +
+        Number(this._setup?.downloadBytes || 0),
       need: unmetNeed(asset, this._systemFn(), this.rt.label),
       // a runtime with add-ons (audio.cpp's Japanese dictionary) says which are here
       ...(this.rt.defaults.addons?.length ? { addons: this.addons() } : {}),

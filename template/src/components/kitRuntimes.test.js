@@ -56,6 +56,11 @@ function fakeFetch(input, init = {}) {
     return Promise.resolve(json(server.models[0], 202));
   }
   if (p === "/v1/ai/features/photo.render/readiness") return Promise.resolve(json(server.readiness()));
+  // a readiness route for something that isn't a routed feature (Motion capture's): its engine first, no model named yet
+  if (p === "/v1/mocap/readiness") {
+    const r = server.readiness();
+    return Promise.resolve(json(r.need === "engine-not-installed" ? { ...r, feature: undefined, model: "", modelState: null } : r));
+  }
   if (p === "/v1/ai/engine-presets" && url.search === "?kind=image") return Promise.resolve(json({ presets: server.presets, paramRules: RULES }));
   if (p === "/v1/ai/preset-assignments") return Promise.resolve(json({ defaultPresetId: "talk", features: { "photo.render": "photo", "parts.find": "parts", "dictation.transcribe": "dictate" } }));
   // a vision feature (round C): its presets, the kind's rules, its readiness
@@ -178,6 +183,25 @@ test("the banner: the next step in place — the engine, then the model — and 
   await later(1300);
   expect(text()).not.toContain("The AI photo");
   expect(ready).toHaveBeenCalledTimes(1);
+});
+
+test("the banner over a readiness route that names no model yet (Motion capture's): no error, Install offered, then the model", async () => {
+  const errors = [];
+  wrapper = mount(LuEngineNeeded, {
+    props: { readinessUrl: "/v1/mocap/readiness", label: "Turning a video into animation" },
+    attachTo: document.body,
+    global: { plugins: plugins(), config: { errorHandler: (e) => errors.push(e) } },
+  });
+  await settle();
+  expect(errors).toEqual([]);
+  expect(text()).toContain("Turning a video into animation runs on stable-diffusion.cpp, which isn't installed on this computer yet.");
+  await click("Install the engine");
+  await settle();
+  server.engine = { ...server.engine, installed: true, status: "installed" };
+  await later(1300);
+  // the next thing it names: the model
+  expect(text()).toContain("Turning a video into animation needs its model, Tiny, which isn't on this computer yet.");
+  expect(errors).toEqual([]);
 });
 
 test("each model shows the catalog's chip — won't fit, its predicted speed; no room on the drive in the app's words, no bar left", async () => {
