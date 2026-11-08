@@ -7,7 +7,9 @@
 // whole. Their data: `{name, url, sha256, bytes, archive: "zip"|"tar.gz", take, skipExt?, also?, into, check?}` — `take`
 // the folder inside the archive whose files land at the target's root, `skipExt` file endings left behind (a wheel's
 // Python wrapper), `also` single files kept beside them (a licence), `into` the target folder's name, `check` a file
-// that must be there after (the dictionary's dicrc).
+// that must be there after (the dictionary's dicrc). `archive: "file"` is one file kept as it is, no unpacking (a model
+// published as a single file — MediaPipe's face landmarker beside the mocap engine, 2026-11-08): it lands in the target
+// folder under `file`, and `check` defaults to that name.
 
 import { createHash } from "node:crypto";
 import { cpSync, createReadStream, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
@@ -37,7 +39,30 @@ async function fileSha256(p) {
 export function installed(parent, extra) {
   const dir = path.join(String(parent), extra.into);
   if (!isDir(dir)) return false;
-  return !extra.check || existsSync(path.join(dir, extra.check));
+  const check = extra.check ?? (extra.archive === "file" ? extra.file : null);
+  return !check || existsSync(path.join(dir, check));
+}
+
+/** One file kept as it is (`archive: "file"`): downloaded, checked, then its folder swapped in whole. */
+async function installFile(parent, extra, target, { onProgress, cancelCheck }) {
+  if (!extra.file || path.basename(extra.file) !== extra.file) throw new RuntimeError(`${extra.name} names no plain file to keep`);
+  const staging = `${target}.staging`;
+  await rm(staging, { recursive: true, force: true });
+  mkdirSync(staging, { recursive: true });
+  const file = path.join(staging, extra.file);
+  try {
+    await download.streamDownload(extra.url, file, { onProgress, cancelCheck });
+    const digest = await fileSha256(file);
+    if (extra.sha256 && digest !== String(extra.sha256).toLowerCase()) {
+      throw new RuntimeError(`${extra.name} doesn't match its published checksum (${digest.slice(0, 12)}…) — refusing it`);
+    }
+  } catch (e) {
+    await rm(staging, { recursive: true, force: true });
+    throw e;
+  }
+  await rm(target, { recursive: true, force: true });
+  await renameHeld(staging, target);
+  return target;
 }
 
 /** Download, check and unpack `extra` into `<parent>/<into>` (nothing when it's there already). Returns that folder. */
@@ -45,6 +70,7 @@ export async function installArchive(parent, extra, { onProgress = null, cancelC
   const target = path.join(String(parent), extra.into);
   if (installed(parent, extra)) return target;
   mkdirSync(String(parent), { recursive: true });
+  if (extra.archive === "file") return installFile(parent, extra, target, { onProgress, cancelCheck });
   const file = `${target}.${extra.archive === "tar.gz" ? "tar.gz" : "zip"}`;
   const staging = `${target}.staging`;
   const unpack = `${target}.unpack`;

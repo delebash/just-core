@@ -55,6 +55,26 @@ test("a wheel leaves only its library and data; a tarball only its dictionary an
   expect(readdirSync(other)).toEqual([]);
 });
 
+test("a single file is kept as it is under its name, checked first; a wrong one leaves nothing", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "kit-extras-file-"));
+  const TASK = Buffer.from("a MediaPipe task file");
+  const FACE = { name: "MediaPipe face landmarker", url: "https://x/face_landmarker.task", archive: "file", file: "face_landmarker.task", into: "face-landmarker-1" };
+  expect(installed(dir, FACE)).toBe(false);
+  serve(TASK);
+  const at = await installArchive(dir, { ...FACE, sha256: sha(TASK) });
+  expect(readdirSync(at)).toEqual(["face_landmarker.task"]);
+  expect(readFileSync(path.join(at, "face_landmarker.task"))).toEqual(TASK);
+  expect(installed(dir, FACE)).toBe(true);
+  expect(readdirSync(dir)).toEqual(["face-landmarker-1"]);
+
+  const other = mkdtempSync(path.join(tmpdir(), "kit-extras-file-bad-"));
+  serve(TASK);
+  await expect(installArchive(other, { ...FACE, sha256: "0".repeat(64) })).rejects.toThrow(/published checksum/);
+  expect(readdirSync(other)).toEqual([]);
+  // a name with a folder in it is refused before anything downloads
+  await expect(installArchive(other, { ...FACE, file: "../x.task" })).rejects.toThrow(/no plain file/);
+});
+
 test("the service: a build's extras install with it; the servers' environment names eSpeak, then the dictionary once added; the sweep keeps add-ons", async () => {
   const { DEFAULT_AUDIOCPP_BUILD } = await import("../src/runner/config.js");
   const { RuntimeService } = await import("../src/runner/runtime_service.js");

@@ -189,6 +189,11 @@ export class RuntimeService {
     ortCheck = onnx.ortRuntimeCheck,
     speech = {},
     placementChoices = null,
+    // a runtime whose build is a toolchain that makes the engine on this computer (the mocap engine's uv making its
+    // Python environments — runner/mocap.js MOCAP_SETUP, 2026-11-08): `{run({exe, dir, extrasDir, onStep, cancelCheck}),
+    // done({dir, extrasDir})}` — run after the build and its extras install; the build counts as installed only once
+    // done() says the engine it makes is whole
+    setup = null,
   }) {
     const rt = runtimeOf(id);
     if (!rt?.defaults) throw new TypeError(`no kit runtime "${id}" with build rows`);
@@ -224,6 +229,7 @@ export class RuntimeService {
     this._arbiter = arbiter;
     this._freeBytesFn = freeBytesFn;
     this._exeOverride = exeOverride;
+    this._setup = setup;
     this._measurements = measurements;
     this._removing = false; // the engine's folder is going: nothing installs into it or starts from it
     this._state = idle();
@@ -317,7 +323,28 @@ export class RuntimeService {
     const dev = this._dev();
     if (dev) return dev.exe;
     const { cfg, asset } = this._pick();
-    return asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null;
+    return this._installedBuild(cfg, asset);
+  }
+
+  /** The pinned build's program for `asset` when it is here — and, for a runtime with a `setup`, only once the engine
+   *  it makes is whole (a setup stopped halfway is not an install) — else null. */
+  _installedBuild(cfg, asset) {
+    if (!asset) return null;
+    const exe = binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset);
+    if (!exe || !this._setup) return exe;
+    return this._setup.done(this._setupPlace(cfg.pinnedBuild, asset)) ? exe : null;
+  }
+
+  /** Where a setup works: the build's own folder and its extras' folder. */
+  _setupPlace(build, asset) {
+    return { dir: binary.runtimeVariantDir(this.cacheRoot, this.rt.folder, build, asset.gpu), extrasDir: this._extrasDir(build, asset) };
+  }
+
+  /** The pinned build's folders for this box, `{dir, extrasDir}` — where a toolchain runtime's engine is (the mocap
+   *  engine's sources and environments: runner/mocap.js) — or null when no build row fits this box. */
+  buildPlace() {
+    const { cfg, asset } = this._pick();
+    return asset ? this._setupPlace(cfg.pinnedBuild, asset) : null;
   }
 
   /** In-process: whether ONNX Runtime loads here — the app's onnxruntime-node (onnx.ortRuntimeCheck). The load is
@@ -387,7 +414,7 @@ export class RuntimeService {
     const { cfg, hw, asset } = this._pick();
     // an app's development build stands in for the installed one (exeOverride — JustVoice's `npm run dev`)
     const dev = this._dev();
-    const exe = dev?.exe ?? (asset ? binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset) : null);
+    const exe = dev?.exe ?? this._installedBuild(cfg, asset);
     const kinds = kindsOf(this.rt);
     return {
       id: this.rt.id,
@@ -515,6 +542,27 @@ export class RuntimeService {
             cancelCheck: () => this._cancel.isSet(),
           });
           extrasNew = true;
+        }
+      }
+      // a toolchain build makes its engine here (the mocap engine's environments): every time, since a setup that
+      // stopped halfway leaves a build whose done() says no — the setup's own steps skip what is already made
+      if (this._setup && asset) {
+        const place = this._setupPlace(cfg.pinnedBuild, asset);
+        if (force || !this._setup.done(place)) {
+          const exe = binary.installedRuntimeExe(this.cacheRoot, this.rt.folder, cfg.pinnedBuild, asset);
+          if (!exe) throw new Error(`${this.rt.label}'s build is missing its ${asset.serverExe}`);
+          this._state.downloaded = 0;
+          this._state.total = 0;
+          await this._setup.run({
+            exe: String(exe),
+            ...place,
+            onStep: (detail) => {
+              this._state.detail = detail;
+            },
+            cancelCheck: () => this._cancel.isSet(),
+          });
+          if (this._cancel.isSet()) throw new Error("cancelled");
+          if (!this._setup.done(place)) throw new Error(`${this.rt.label}'s setup ended without a whole engine`);
         }
       }
       // a server started between the swap and the extras ran without them: it starts again with them
