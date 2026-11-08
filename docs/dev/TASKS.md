@@ -91,6 +91,17 @@ FOUND   2026-11-08 by JustDirect's session (web-4c), in a real run: its dev data
         kit's `fingerprint`, as settings_upgrade.test.js does for settings) plus a heal run through the app's own seed.
         Waits for the user's go: the shape into the template, then each app.
 
+## The "tight" fit chip's words fail contrast (WCAG 2.2 AA) [found 2026-11-08, not started]
+
+FOUND   2026-11-08 by JustDirect's session (web-4c), its axe run. Checked in code: `.lu-fit--tight`
+        (`packages/ui/src/common/styles.css:310`, a copy at `packages/ui/src/views/QuickSetup.vue:1309`) is `var(--gold)`
+        text on `var(--gold-soft, #f5edda)`, 11 px bold (QuickSetup's 10.5 px), which needs 4.5:1. Measured (WCAG's
+        formula on the tokens.css values): template, house-paint and JustDirect light 2.22:1 (no --gold-soft: the
+        #f5edda fallback); their dark theme 1.73:1 (the same light fallback under the dark --gold); JustWrite light 2.89:1,
+        dark 6.31:1 (it defines --gold-soft). Shown wherever a model fits tightly: LuEngineNeeded's banner, LuModelCatalog,
+        LuRuntimeTab, QuickSetup. A colour choice for the kit (the chip's own ink and soft tokens in the template's
+        tokens.css), so it waits for the user's go.
+
 ## JustDirect's kit gaps, filled before the app [2026-11-06]
 DECIDED: the user, verbatim, 2026-11-06: "your rec go", on item 4 of the session's list: "Four gaps to fill in the kit
         before the app. These aren't NOT STANDARD, but kit changes reach every app, so I want your go: the video job
