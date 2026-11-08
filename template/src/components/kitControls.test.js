@@ -123,7 +123,8 @@ test("a value of 1,000 and more shows grouped and passes its rules", async () =>
 
 test("the rules still refuse what is wrong: out of range, not whole, not a number, empty", async () => {
   await mountNumber(2048);
-  await type("9000");
+  // not 9000: the template's dev port, which the new-app generator renames in every copied file
+  await type("8192");
   expect(await form.validate()).toBe(false);
   expect(messages()).toMatch(/4,?096/);
   await type("600.5");

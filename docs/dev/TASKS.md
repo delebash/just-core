@@ -168,13 +168,16 @@ STATE 2026-11-06:
      2026-11-07: the fork exists (github.com/delebash/stable-diffusion.cpp, made by this session after the user's go).
      The local clone's remotes are now `origin` = the fork and `upstream` = leejet, as in our audio.cpp. Upstream's
      three new commits (#2284 SDXL ControlNet Union, #2285 RelayVSR, #2286 MiniMax-H3 QKV chunks) are merged into `jd`
-     with no conflict (`e910eee`), and `jd` is pushed to the fork. BLOCKED: GitHub keeps a new fork's workflows off
-     until the owner clicks "I understand my workflows, go ahead and enable them" on its Actions tab (no API does it),
-     so the release run (`build.yml`, `create_release`) can't be dispatched yet. Once they're on, this session turns off
-     the fork's three non-build workflows: `stale-prs.yml` and `close-inactive-issues.yml` (daily schedules) and
-     `close-organization-fork-prs.yml`. That follows the user's no-automatic-runs rule. The fork's `master` is never
-     synced on GitHub, because a push to `master` or `ci` runs upstream's build by itself; upstream reaches us only by
-     a local merge into `jd`.
+     with no conflict (`e910eee`), and `jd` is pushed to the fork. The "I understand my workflows" button I named didn't
+     exist: GitHub had listed no workflows at all ("No workflows found"), because it lists them only from a push to the
+     default branch that touches them. The user, verbatim: "does audic cpp have workflows automatic, no it doest so why
+     would you do sd with worflows you idiot i dont wnat automatic stuff fireing off", then "any you can accept things
+     you can do all this yourslef you dont nee me". Done by this session instead: `4400f6d` makes `build.yml` start
+     only by hand (upstream's push and pull_request triggers removed) and deletes upstream's three issue and pull-
+     request housekeeping workflows (two daily schedules). `jd` is now the fork's default branch, so upstream's
+     `master` copy of the files is never read for schedules. After the push GitHub lists one workflow, `build.yml`,
+     and nothing ran by itself. Release run 42431109657 started by hand on `jd` (2026-11-08 00:44 UTC). The fork's
+     `master` is never pushed or synced; upstream reaches us only by a local merge into `jd`.
   2. Not done, by the user's word.
   3. DONE `336d6556`: the spec `docs/plans/2026-11-06-motion-tracks-spec.md` (written from sparse_tracks.py at
      ComfyUI-LTXVideo `220e1d4`, no code in it); `runner/motion_tracks.js` written from it alone by a separate agent;
@@ -198,3 +201,22 @@ CHECKED 2026-11-06, once after 3–5 (`7fb8ebe0`): kit core 1675 (13 skipped) an
         no standards table — that session told). Not run: JustVoice's suites (its session asked: uncommitted close-out
         work in its tree; it runs them on these commits), the apps' builds and e2e (the family release session's final
         pass).
+
+## JustDirect: finish the app [2026-11-07]
+DECIDED: the user, verbatim, 2026-11-07: "finish the app, dont stop coding at turns or decsions, for decisions you think
+        adverserily multiple times on each decision you need to make and take your own rec, do not stop to ask me to make
+        decsions, complete the app until all bugs features things you find our think of to do are donel, finish the app".
+        It builds on the standing go of 2026-11-05 ("keep working on aap until it is finished … complete the app or let
+        me know it is not possible to meet quality bar with the commercial use reseoruces and models"). Every decision
+        this takes is recorded below with its attack. Two earlier words stand, since this go names neither: "dont do 2"
+        (no Blender shot builder in JustStage or JustDirect) and "no dont send patches upstream".
+  1. DECIDED (Claude's rec, attacked): start the app now. It is `E:\Dev\Web\just-direct`, made by /new-just-app on
+     2026-11-07 (server 17500, dev 1470/1471, registered in the guard), and its PRD is written from the record. The
+     attack: decision J says no app code until the proof list is green. But the list's open items ride on the 3D shot
+     builder that "dont do 2" keeps out: the planner writing body scenes and crossing fire attacks, a following
+     camera, and crowd faces, hands and a horse through 3D. So the list can't go green without breaking that word, and
+     the newer go is to finish the app. Where the app can, those items become features: drawn motion paths, and a guide
+     video brought in from elsewhere. Where it can't, they are written down as the app's limits. Its open work lives in
+     the app's own TASKS from here on.
+  2. Kit fix on the way: the generator renames the template's dev port (9000) in every file it copies, and a template
+     test typed "9000" as its out-of-range number, so a new app failed its first test run. The test now types 8192.
