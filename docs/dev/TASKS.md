@@ -39,6 +39,13 @@ GO:     2026-11-07, the user, verbatim, in the "family release" session: "make s
         word once every dry run is green; 6. sass-embedded held at 1.107.1 (npm `overrides`) until a fixed Sass ships;
         7. the template's boot test (template/server/tests/boot.test.js) in the four apps, docgen's serve.js given the
         template's entry check first. The working record: `docs/plans/2026-11-07-family-release.md`.
+STOPPED 2026-11-07 (late) — the user, verbatim, relayed by JustVoice's session (justvioce-e3): "stop the fucking release
+        since you fucked up and we have to start over testing and tweaking as now jv is not really ready" (JustVoice's
+        one-click defaults are BreezeTTS 2, which the user can't sell with; the commercial engines are tested and tuned
+        first). Nothing was published: no tag, no GitHub release; the fork's v0.9.4-jv.7 run (42444512703) cancelled before
+        it published. Done and pushed (no release): every dependency at its latest, the SDK majors, llama.cpp b12110, Biome
+        2.6, the boot test, the versions (JustWrite 2.1.0, house-paint 0.2.0), the stale docs fixed in the four apps and their
+        sites; the full pass green on it (the plan's record). The audio.cpp pin stays v0.9.2-jv.6. Restart: on the user's word.
 STATE:  OPEN — the "family release" session releases JustWrite, house-paint, docgen and JustVoice together, each on the
         same kit commit (each release.yml's `core_ref`), our audio.cpp fork's v0.9.4-jv.7 before them. JustDirect's kit
         gaps (below) are not in it.
