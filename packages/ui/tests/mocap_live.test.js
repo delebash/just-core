@@ -38,8 +38,11 @@ test("the live BVH: SOMA's 77 joints from Hips, centimetres, one line a frame, a
   const rows = lines.slice(motion + 3).map((l) => l.split(" ").map(Number));
   // the root's 3 positions, then 3 angles for each of the 77 joints
   expect(rows.every((r) => r.length === 3 + 77 * 3)).toBe(true);
-  // the root stays at the rest hips' height, in centimetres
-  expect(rows[0].slice(0, 3)).toEqual(skeleton.rest[0].map((v) => Number((v * 100).toFixed(6))));
+  // the root stays over the origin at the rest hips' height above the floor, in centimetres — a standing adult's, so the
+  // feet are on the floor (y = 0) as a captured take's are, not 95 cm under it
+  expect(skeleton.hipsHeight).toBeGreaterThan(0.8);
+  expect(skeleton.hipsHeight).toBeLessThan(1.1);
+  expect(rows[0].slice(0, 3)).toEqual([0, Number((skeleton.hipsHeight * 100).toFixed(6)), 0]);
   // the arm's Y turn (and its child's turn back) goes on past 180 degrees: no angle jumps by 360 between frames
   for (let c = 6; c < rows[0].length; c++) expect(Math.abs(rows[2][c] - rows[1][c])).toBeLessThan(90);
 });
@@ -73,6 +76,8 @@ test("VMC: Unity's humanoid names, each rotation against its humanoid parent in 
   // a bone's position is its rest offset from its humanoid parent, X mirrored
   const arm = skeleton.rest[at("LeftArm")].map((v, k) => v - skeleton.rest[at("LeftShoulder")][k]);
   expect(close(bones.LeftUpperArm.slice(0, 3), [-arm[0], arm[1], arm[2]], 1e-9)).toBe(true);
+  // the Hips stand over the root at the rest height above the floor (a receiver sets each bone's local position)
+  expect(close(bones.Hips.slice(0, 3), [0, skeleton.hipsHeight, 0], 1e-9)).toBe(true);
   expect(messages.at(-2)).toEqual(["/VMC/Ext/Blend/Val", "BrowDownLeft", 0.5]);
   expect(messages.at(-1)).toEqual(["/VMC/Ext/Blend/Apply"]);
 });

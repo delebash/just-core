@@ -198,16 +198,16 @@ async function remove() {
         </div>
       </UiField>
       <UiField :label="t('kit.mocap.take.ground.label')" :hint="t('kit.mocap.take.ground.hint')" for="take-ground">
-        <UiToggle id="take-ground" v-model="o.unevenGround" />
+        <UiToggle id="take-ground" v-model="o.unevenGround" :aria-label="t('kit.mocap.take.ground.label')" />
       </UiField>
       <UiField :label="t('kit.mocap.take.armFit.label')" :hint="t('kit.mocap.take.armFit.hint')" for="take-armfit">
-        <UiToggle id="take-armfit" v-model="o.armFit" />
+        <UiToggle id="take-armfit" v-model="o.armFit" :aria-label="t('kit.mocap.take.armFit.label')" />
       </UiField>
       <UiField :label="t('kit.mocap.take.smoothing.label')" for="take-smoothing">
         <UiSelect id="take-smoothing" v-model="o.smoothing" :options="SMOOTHING" width="fit" />
       </UiField>
       <UiField :label="t('kit.mocap.take.files.inPlace')" :hint="t('kit.mocap.take.files.inPlaceHint')" for="take-inplace">
-        <UiToggle id="take-inplace" v-model="o.inPlace" />
+        <UiToggle id="take-inplace" v-model="o.inPlace" :aria-label="t('kit.mocap.take.files.inPlace')" />
       </UiField>
       <UiField :label="t('kit.mocap.take.files.rest')" layout="block">
         <UiSegmented v-model="o.rest" :options="RESTS" :aria-label="t('kit.mocap.take.files.rest')" />

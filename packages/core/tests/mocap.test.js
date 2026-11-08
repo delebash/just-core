@@ -497,6 +497,31 @@ test("the OSC relay: one frame's messages arrive as one bundle, floats, ints and
   await new Promise((r) => server.close(r));
 });
 
+test("the OSC relay keeps a stream's frames in order: an older frame is dropped, a new stream starts its own count", async () => {
+  const { Server } = await import("node-osc");
+  const { LiveSender } = await import("../src/runner/mocap_live.js");
+  const port = 40000 + Math.floor(Math.random() * 1000);
+  const server = new Server(port, "127.0.0.1");
+  await new Promise((r) => server.once("listening", r));
+  const got = [];
+  server.on("bundle", (b) => got.push(b.elements[0][1]));
+  const sender = new LiveSender({ idleMs: 200 });
+  const app = serve(makeMocapRouter(new JobRegistry(), { takesDir: path.join(root, "takes"), sender }));
+  const post = (stream, seq, n) =>
+    app.request("/v1/mocap/live/send", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ host: "127.0.0.1", port, stream, seq, messages: [["/VMC/Ext/T", n]] }),
+    });
+  // frames 2 and 3 of stream a, then 1 late (dropped), 3 again (dropped); stream b starts at 1; no stream: always sent
+  for (const [stream, seq, n] of [["a", 2, 2], ["a", 3, 3], ["a", 1, 1], ["a", 3, 33], ["b", 1, 10]]) expect((await post(stream, seq, n)).status).toBe(204);
+  expect((await app.request("/v1/mocap/live/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ host: "127.0.0.1", port, messages: [["/VMC/Ext/T", 99]] }) })).status).toBe(204);
+  for (let i = 0; i < 50 && got.length < 4; i++) await new Promise((r) => setTimeout(r, 20));
+  expect(got).toEqual([2, 3, 10, 99]);
+  await sender.closeAll();
+  await new Promise((r) => server.close(r));
+});
+
 test("the Live tab's models come from the install, and only once it is there", async () => {
   const jobs = new JobRegistry();
   const app = serve(makeMocapRouter(jobs, { takesDir: path.join(root, "takes") }));

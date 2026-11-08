@@ -15,7 +15,8 @@
 //   GET    /v1/mocap/takes/:id/files/:name  one of the files it made (by its name in the take's `files`; byte ranges, so
 //                                           the preview video plays and seeks), or "source": the video it was made from
 //   GET    /v1/mocap/live/models/:name      one of the Live tab's MediaPipe models (pose, hand, face) from the install
-//   POST   /v1/mocap/live/send              {host, port, messages} → one frame's OSC messages sent over UDP as one bundle
+//   POST   /v1/mocap/live/send              {host, port, messages, stream?, seq?} → one frame's OSC messages sent over UDP
+//                                           as one bundle (a frame older than one already sent on its stream: dropped)
 //                                           (the window shapes them: packages/ui src/mocap/liveOut.js — VMC or OSC)
 // Takes run one at a time (makeLane): the card holds one.
 
@@ -67,6 +68,10 @@ const LiveSendIn = T.Object({
   host: T.String({ minLength: 1, maxLength: 253, pattern: "^[A-Za-z0-9.:-]+$" }),
   port: T.Integer({ minimum: 1, maximum: 65535 }),
   messages: T.Array(T.Array(T.Union([T.String({ minLength: 1, maxLength: 128 }), OscArg]), { minItems: 1, maxItems: 16 }), { minItems: 1, maxItems: 400 }),
+  // the Live tab keeps a few frames in flight: each start of the camera is a `stream`, its frames numbered `seq`, and
+  // a frame older than one already sent on that stream is dropped, so the receiver gets them in order
+  stream: T.Optional(T.String({ minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9-]+$" })),
+  seq: T.Optional(T.Integer({ minimum: 0 })),
 });
 
 export const DEFAULT_TAKE_OPTIONS = Object.freeze({
@@ -257,10 +262,10 @@ export function makeMocapRouter(jobs, { takesDir, run = runMocap, sender = new L
   });
 
   app.post("/v1/mocap/live/send", input({ body: LiveSendIn }), async (c) => {
-    const { host, port, messages } = c.req.valid("json");
+    const { host, port, messages, stream, seq } = c.req.valid("json");
     if (messages.some((m) => typeof m[0] !== "string" || !m[0].startsWith("/"))) throw new ApiError(422, "bad-osc", "Not an OSC message", "each message starts with its address, like /VMC/Ext/Bone/Pos");
     try {
-      await sender.send(host, port, messages);
+      await sender.send(host, port, messages, { stream, seq });
     } catch (e) {
       throw new ApiError(502, "osc-send-failed", "Sending failed", String(e?.message || e));
     }

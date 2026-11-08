@@ -1449,6 +1449,31 @@ function checkCrossOriginPlayers(app) {
   }
 }
 
+// ── a kit screen that runs WebAssembly in the window: the CSP lets it ─────────
+// The Motion capture screen's Live tab runs MediaPipe Tasks (WebAssembly) in the window, and `script-src 'self'` alone
+// refuses to compile it ("Aborted(CompileError: WebAssembly.instantiate(): … 'unsafe-eval' is not an allowed source of
+// script", JustDirect's real window, 2026-11-08). An app that mounts the kit's MocapArea allows 'wasm-unsafe-eval' in
+// index.html's CSP <meta> in every mode (the dev page has only the meta) and in the shell's app:// header (its
+// runDesktopApp `cspAdd`) — app-structure §Q.5.
+const WASM_SCREENS = ["MocapArea"];
+function checkWasmScreens(app) {
+  const src = join(app.dir, "src");
+  const files = walk(src).filter((p) => /\.(vue|js)$/.test(p) && !/\.test\.js$/.test(p));
+  const screen = WASM_SCREENS.find((s) => files.some((f) => new RegExp(`\\b${s}\\b`).test(codeOf(f))));
+  if (!screen) return;
+  const html = existsSync(join(app.dir, "index.html")) ? readFileSync(join(app.dir, "index.html"), "utf8") : "";
+  const meta = html.match(/http-equiv=["']Content-Security-Policy["'][\s\S]*?content=(?:"([^"]*)"|'([^']*)')/i);
+  // a source inside one mode's EJS branch (`<% if (ctx.mode.capacitor) { %> … <% } %>`) is not in every mode
+  const policy = (meta ? (meta[1] ?? meta[2]) : "").replace(/<%[^%]*\{\s*%>[\s\S]*?<%\s*\}\s*%>/g, "");
+  if (!/script-src[^;]*'wasm-unsafe-eval'/.test(policy)) {
+    fail(app.name, `mounts ${screen} (WebAssembly in the window) but index.html's CSP doesn't allow 'wasm-unsafe-eval' in script-src in every mode (§Q.5)`);
+  }
+  const main = join(app.dir, "src-electron", "electron-main.js");
+  if (existsSync(main) && !/cspAdd\s*:\s*\{[^}]*["']script-src["']\s*:\s*\[[^\]]*'wasm-unsafe-eval'/.test(codeOf(main))) {
+    fail(app.name, `mounts ${screen} (WebAssembly in the window) but src-electron/electron-main.js has no cspAdd { "script-src": ["'wasm-unsafe-eval'"] } for app:// (§Q.5)`);
+  }
+}
+
 // ── a restore keeps the server's access tokens ────────────────────────────────
 // The tokens are the server's, not the data's: a restore that brings a backup's `auth` row — or none —
 // opens an exposed headless server, or locks every client out (the template's data_admin.js `keepAuth`,
@@ -1905,6 +1930,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkConnectionReasons(app);
   checkCorsOrigins(app);
   checkResourceIsolation(app);
+  checkWasmScreens(app);
   checkClipboard(app.name, app.dir, files, RELEASE_REQUIRED.has(app.name));
   checkOneSaveDoor(app, files);
   checkOneShellDoor(app, files);

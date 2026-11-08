@@ -51,10 +51,18 @@ const hasRecording = ref(false);
 let stream = null;
 let tasks = null; // {pose, hand, face, draw, PoseLandmarker, HandLandmarker}
 let loop = 0;
+let loopVideo = null; // the video whose next picture runs frame() (requestVideoFrameCallback), or null: the next redraw
 let solver = null;
 let previous = 0;
 let counted = { n: 0, since: 0 };
-let inFlight = false;
+let lastVideoTime = -1;
+// Sending: up to IN_FLIGHT frames on their way at once — one at a time reached ~17 a second while the page tracked at
+// ~55 (JustDirect's window, 2026-11-08: each answer waits for the busy page); each start of the camera is a stream and
+// each frame numbered, so the server drops one that arrives after a newer one (runner/mocap_live.js)
+const IN_FLIGHT = 3;
+let inFlight = 0;
+let sendStream = "";
+let seq = 0;
 
 async function listCameras() {
   try {
@@ -94,16 +102,22 @@ async function start() {
   problem.value = "";
   state.value = "starting";
   try {
+    // a plain-http page (a headless server's tab on another computer) gets no camera from the browser at all
+    if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error("no camera on this page"), { name: "NotAllowedError" });
     stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: camera.value ? { exact: camera.value } : undefined, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
     await listCameras(); // the cameras' names, now that the camera is allowed
     video.value.srcObject = stream;
     await video.value.play();
     tasks ??= await loadTasks();
     solver = new LiveSolver(skeleton);
+    // a name for this start's frames (the schema's [A-Za-z0-9-])
+    sendStream = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    seq = 0;
+    lastVideoTime = -1;
     previous = 0;
     counted = { n: 0, since: performance.now() };
     state.value = "running";
-    loop = requestAnimationFrame(frame);
+    schedule();
   } catch (e) {
     stop();
     problem.value = e?.name === "NotAllowedError" || e?.name === "NotFoundError" || e?.name === "OverconstrainedError" ? t("kit.mocap.live.noCamera") : String(e?.message || e);
@@ -111,11 +125,14 @@ async function start() {
 }
 
 function stop() {
-  cancelAnimationFrame(loop);
+  unschedule();
   if (recording.value) stopRecording();
   for (const track of stream?.getTracks() ?? []) track.stop();
   stream = null;
   if (video.value) video.value.srcObject = null;
+  // the last frame's lines go with the picture (they stayed drawn on the empty stage — the real window, 2026-11-08)
+  const c = canvas.value;
+  c?.getContext("2d")?.clearRect(0, 0, c.width, c.height);
   state.value = "";
   seen.person = false;
   seen.hands = 0;
@@ -138,10 +155,32 @@ function sides(screen, hands) {
   return out;
 }
 
+/** The next run of frame(): on the video's next picture (requestVideoFrameCallback), else the next redraw. */
+function schedule() {
+  const v = video.value;
+  if (v?.requestVideoFrameCallback) {
+    loopVideo = v;
+    loop = v.requestVideoFrameCallback(frame);
+  } else {
+    loopVideo = null;
+    loop = requestAnimationFrame(frame);
+  }
+}
+function unschedule() {
+  if (loopVideo) loopVideo.cancelVideoFrameCallback(loop);
+  else cancelAnimationFrame(loop);
+  loopVideo = null;
+}
+
 function frame() {
-  loop = requestAnimationFrame(frame);
+  schedule();
   const v = video.value;
   if (!v || v.readyState < 2 || !tasks) return;
+  // each camera picture once: the page redraws faster than a camera's 30 a second and tracked the same picture again
+  // ("55 frames a second" from a 24 fps file, the real window 2026-11-08), so the loop runs on the video's own frames
+  // (requestVideoFrameCallback, below); where it isn't, MediaPipe's own web sample's check
+  if (v.currentTime === lastVideoTime) return;
+  lastVideoTime = v.currentTime;
   const now = performance.now();
   const pose = tasks.pose.detectForVideo(v, now);
   const hands = tasks.hand.detectForVideo(v, now);
@@ -179,13 +218,14 @@ function frame() {
     take.frames.push({ t: (now - take.started) / 1000, world: solved.world, face: curves });
     recordedSeconds.value = Math.round((now - take.started) / 100) / 10;
   }
-  if (send.on && !inFlight) {
+  if (send.on && inFlight < IN_FLIGHT) {
     const messages = send.protocol === "vmc" ? vmcMessages(skeleton, solved.world, curves ?? {}, now / 1000) : oscMessages(skeleton, solved.world, curves ?? {});
-    inFlight = true;
-    post("/v1/mocap/live/send", { host: send.host, port: Number(send.port), messages })
+    inFlight += 1;
+    seq += 1;
+    post("/v1/mocap/live/send", { host: send.host, port: Number(send.port), stream: sendStream, seq, messages })
       .then(() => (send.error = ""))
       .catch((e) => (send.error = String(e?.message || e)))
-      .finally(() => (inFlight = false));
+      .finally(() => (inFlight -= 1));
   }
 }
 function startRecording() {
@@ -228,7 +268,7 @@ async function save(kind) {
     <p class="muted live__intro">{{ t("kit.mocap.live.intro") }}</p>
     <UiBanner v-if="!installed" intent="info">{{ t("kit.mocap.live.needsInstall") }}</UiBanner>
     <div class="live__bar">
-      <UiField :label="t('kit.mocap.live.camera')" for="live-camera">
+      <UiField :label="t('kit.mocap.live.camera')" for="live-camera" layout="block">
         <UiSelect id="live-camera" v-model="camera" :options="cameras" width="name" :disabled="state !== ''" />
       </UiField>
       <UiButton
@@ -253,7 +293,7 @@ async function save(kind) {
 
     <div class="live__bar">
       <UiButton v-if="!recording" intent="primary" focusable-when-disabled :disabled="state !== 'running'" :label="t('kit.mocap.live.record')" @click="startRecording">
-        <template #icon><Icon name="Mic" :size="14" /></template>
+        <template #icon><Icon name="Target" :size="14" /></template>
       </UiButton>
       <UiButton v-else intent="danger" :label="`${t('kit.mocap.live.stopRecording')} · ${t('kit.mocap.live.recording', { s: recordedSeconds })}`" @click="stopRecording">
         <template #icon><Icon name="Stop" :size="14" /></template>
@@ -271,14 +311,14 @@ async function save(kind) {
       <p class="muted">{{ t("kit.mocap.live.send.hint") }}</p>
       <div class="live__bar">
         <UiSegmented v-model="send.protocol" :options="PROTOCOLS" :aria-label="t('kit.mocap.live.send.label')" />
-        <UiField :label="t('kit.mocap.live.send.host')" for="live-host">
+        <UiField :label="t('kit.mocap.live.send.host')" for="live-host" layout="block">
           <UiInput id="live-host" v-model="send.host" width="id" />
         </UiField>
-        <UiField :label="t('kit.mocap.live.send.port')" for="live-port">
+        <UiField :label="t('kit.mocap.live.send.port')" for="live-port" layout="block">
           <UiNumber id="live-port" v-model="send.port" :min="1" :max="65535" :use-grouping="false" width="token" />
         </UiField>
-        <UiField :label="send.on ? t('kit.mocap.live.send.on') : t('kit.mocap.live.send.off')" for="live-send">
-          <UiToggle id="live-send" v-model="send.on" />
+        <UiField :label="send.on ? t('kit.mocap.live.send.on') : t('kit.mocap.live.send.off')" for="live-send" layout="block">
+          <UiToggle id="live-send" v-model="send.on" :aria-label="t('kit.mocap.live.send.label')" />
         </UiField>
       </div>
       <UiBanner v-if="send.on && send.error" intent="warning">{{ t("kit.mocap.live.send.failed", { reason: send.error }) }}</UiBanner>

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+/* eslint-disable i18next/no-literal-string -- SOMA's joint names and MediaPipe's landmark names: ids, never shown words */
 // Moved here 2026-11-08 from just-mocap's bench/live/solver.js (where it was written and scored — just-mocap RESEARCH.md,
 // "the live solver on recorded MediaPipe landmarks"), so the Motion capture screen's Live tab and the bench run one
 // implementation; the bench's score_live.js imports it from here. Its rest skeleton is somaRest.json beside it.

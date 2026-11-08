@@ -23,18 +23,28 @@ export class LiveSender {
     this.clients = new Map(); // "host:port" → {client, timer}
   }
 
-  /** Send one frame's messages (`[[address, ...args]]`, oscArgs's arguments) as one bundle to `host:port`. */
-  async send(host, port, messages) {
+  /**
+   * Send one frame's messages (`[[address, ...args]]`, oscArgs's arguments) as one bundle to `host:port`. With
+   * `{stream, seq}` (the Live tab keeps a few frames in flight), a frame no newer than the last one sent on the same
+   * stream to that address is dropped, so the frames go out in order; a new stream starts its own count. → sent?
+   */
+  async send(host, port, messages, { stream = null, seq = null } = {}) {
     const key = `${host}:${port}`;
     let held = this.clients.get(key);
     if (!held) {
-      held = { client: this.makeClient(host, port), timer: null };
+      held = { client: this.makeClient(host, port), timer: null, stream: null, seq: -1 };
       this.clients.set(key, held);
     }
     clearTimeout(held.timer);
     held.timer = setTimeout(() => this.close(key), this.idleMs);
     held.timer.unref?.();
+    if (stream != null && seq != null) {
+      if (held.stream === stream && seq <= held.seq) return false;
+      held.stream = stream;
+      held.seq = seq;
+    }
     await held.client.send(new Bundle(...messages.map(([address, ...args]) => [address, ...oscArgs(args)])));
+    return true;
   }
 
   async close(key) {

@@ -10,7 +10,8 @@
 //    rotations go over as they are;
 //  - plain OSC: every SOMA joint's rotation against the rest pose, in SOMA's own axes (/mocap/joint/<name> x y z w), and
 //    each ARKit curve (/mocap/blend/<name> value), for a receiver of one's own.
-// Not checked against a receiving app (none is installed on the build machine); the packets are checked by decoding.
+// Checked 2026-11-08 from JustDirect's window by an independent decoder (python-osc) against the VMC spec's types and
+// Unity's HumanBodyBones names (just-mocap RESEARCH.md); not yet seen moving an avatar in a receiving app.
 
 // SOMA's joints → Unity's humanoid bones (HumanBodyBones). SOMA joints not named here (Neck2, the metacarpals, the end
 // joints, the eyes and jaw) are left out: a named bone's rotation is taken against its nearest named ancestor.
@@ -71,7 +72,9 @@ export function vmcMessages(skeleton, world, blend = {}, time = 0) {
     if (j === undefined || !world[j]) continue;
     const a = ancestor(j);
     const local = a < 0 ? world[j] : qMul(qConj(world[a]), world[j]);
-    const offset = a < 0 ? skeleton.rest[j] : skeleton.rest[j].map((v, k) => v - skeleton.rest[a][k]);
+    // the Hips stand over the avatar's root at the rest height above its floor (a receiver such as EVMC4U sets each
+    // bone's local position from these: hips at 0 would sink the avatar to its waist)
+    const offset = a < 0 ? skeleton.rest[j].map((v, k) => v + (k === 1 ? skeleton.hipsHeight : 0)) : skeleton.rest[j].map((v, k) => v - skeleton.rest[a][k]);
     const p = toUnityP(offset);
     const q = toUnityQ(local);
     out.push(["/VMC/Ext/Bone/Pos", unity, f(p[0]), f(p[1]), f(p[2]), f(q[0]), f(q[1]), f(q[2]), f(q[3])]);

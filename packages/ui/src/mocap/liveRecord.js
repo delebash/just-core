@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
+/* eslint-disable i18next/no-literal-string -- BVH's and Live Link Face's own keywords and SOMA's joint names: file contents, never shown words */
 // The Live tab's recordings, written in the window in the same layouts the offline takes use (just-mocap
 // bench/export_mocap.py), so a live recording and a captured take open the same way:
 //  - BVH: SOMA's 77 joints (somaRest.json), Hips the root, centimetres, Y up, ZXY rotation channels, each joint's
 //    rotation against its parent with the rest pose world-aligned (zero rotations: a T-pose); a joint with no children
-//    gets an End Site. The live solver keeps the hips at the origin, so the root stays at its rest height (live has no
-//    path across the floor — the offline take does);
+//    gets an End Site. The live solver keeps the hips in one place, so the root stays over the origin at its rest height
+//    above the floor (somaRest.json's hipsHeight: the rest mesh's sole at y = 0, as a captured take's floor is) — live
+//    has no path across the floor, the offline take does;
 //  - Live Link Face's CSV: "Timecode,BlendShapeCount," then ARKit's 52 curves and 9 angles (left at 0), the header a real
 //    recording has (just-mocap bench/arkit_csv.py checked it line for line).
 
@@ -69,7 +71,7 @@ export function bvhText(skeleton, frames, fps) {
   };
   emit(root, 0);
   lines.push("MOTION", `Frames: ${frames.length}`, `Frame Time: ${(1 / fps).toFixed(8)}`);
-  const hips = rest[root].map((v) => v * CM);
+  const hips = rest[root].map((v, k) => (v + (k === 1 ? skeleton.hipsHeight : 0)) * CM);
   const last = new Map();
   for (const world of frames) {
     const values = [...hips];
