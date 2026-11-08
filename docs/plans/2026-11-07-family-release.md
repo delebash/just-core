@@ -147,3 +147,32 @@ packaged app's default narrator won't load. On the restart, in order: the fork's
 word), the kit's audio.cpp pin and rows moved to it (`audiocpp-rows.js`, `AUDIOCPP_BUILDS_IN_ORDER`), JustVoice's
 `seed_audiocpp_catalog.json` regenerated at that tag, then the full pass again — the kit has moved since the pass
 (0076ba18, motion capture) — then the four releases on one `core_ref` and the three site deploys.
+
+## Restarted (2026-11-08)
+
+The user, verbatim: "do the release". The checklist, each line updated as it lands:
+
+- [x] The other sessions told: the kit kept still from web-9e's gold chip push on (the user's go in web-9e's and
+      web-4c's sessions, "1 your rec" / "6 your rec"); web-4c's template prompt heals, new-just-app's step 7 and the
+      kit's sd.cpp pin to its fork's next release all after the tags; JustVoice's code held still.
+- [x] **MINE — upstream's new commit merged into the fork before its release.** Upstream main moved one commit past
+      our merge: 408935bf "Refactor Drama3 and Nemotron Transcribe with shared MoE execution" (#1234;
+      `fish_drama3/backbone.cpp` 180 lines changed — the default narrator's engine). Merged as 73a2b82e (clean).
+      Attack: release 6d64f04e as JustVoice tested it — but the family rule ("a fork is brought up to date before we
+      work on it") and the go ("everything updated … the forks") say merge; the refactor is exactly what must be
+      heard before it ships, so the voice check below runs on the merged build. Survives.
+**STOPPED again (2026-11-08)** — the user, verbatim: "stop release". Stopped at once: the dev build halted at step
+174 of 179 (unfinished, never run), the outdated check halted; no build or engine process left. The merge 73a2b82e
+stays local in ../audio.cpp (origin/jv is still 6d64f04e), untested. Nothing tagged, dispatched, published or
+deployed; the kit freeze lifted; the card handed back. Restart: on the user's word, from the first open box below.
+
+- [ ] The merged dev build (`JustVioce/scripts/audiocpp-dev.js`), the fork's CPU ctest (`build/jv-test`).
+- [ ] The voice check through JustVoice's server on the user's data with that build (the card from just-stage):
+      VoxCPM2 clone, Fish Audio Drama 3 (Conditional), Ming 3.0 TTS, BreezeTTS 2, each read back by the ASR.
+- [ ] Push jv; the fork's release, `gh workflow run release.yml -R delebash/audio.cpp --ref jv -f version=v0.9.4-jv.7
+      -f publish=true`.
+- [ ] Every dependency at its latest again (`outdated.js`, a day on).
+- [ ] The kit's audio.cpp pin, rows and `AUDIOCPP_BUILDS_IN_ORDER` (`audiocpp-rows.js`); JustVoice's
+      `seed_audiocpp_catalog.json` at the tag (`scripts/audiocpp-catalog.js`), engines.md and What's new.
+- [ ] The full pass once, on the final kit commit (`pass.js`: lint, suites, e2e, sites), fixed until green.
+- [ ] The four tags and release.yml runs on one `core_ref`; the three site deploys.
