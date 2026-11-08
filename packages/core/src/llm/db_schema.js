@@ -1397,5 +1397,57 @@ export const TABLES = [
         "default": 0
       }
     }
+  },
+  {
+    "name": "mocap_take",
+    "ddl": "CREATE TABLE mocap_take (\n\tid VARCHAR NOT NULL, \n\tname VARCHAR NOT NULL, \n\tsource_name VARCHAR NOT NULL, \n\toptions TEXT NOT NULL, \n\tstate VARCHAR NOT NULL, \n\terror TEXT NOT NULL, \n\tfiles TEXT NOT NULL, \n\tcreated_at INTEGER NOT NULL, \n\tupdated_at INTEGER NOT NULL, \n\tPRIMARY KEY (id)\n)",
+    "indexes": [],
+    "columns": {
+      "id": {
+        "kind": "text",
+        "pk": true,
+        "notNull": true
+      },
+      "name": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "source_name": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "options": {
+        "kind": "text",
+        "notNull": true,
+        "default": "{}"
+      },
+      "state": {
+        "kind": "text",
+        "notNull": true,
+        "default": "new"
+      },
+      "error": {
+        "kind": "text",
+        "notNull": true,
+        "default": ""
+      },
+      "files": {
+        "kind": "text",
+        "notNull": true,
+        "default": "{}"
+      },
+      "created_at": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      },
+      "updated_at": {
+        "kind": "int",
+        "notNull": true,
+        "default": 0
+      }
+    }
   }
 ];

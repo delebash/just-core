@@ -566,7 +566,16 @@ function writeOrDrain(file, dest, maxBytes, cut) {
  * is written — the rest is read and dropped, then `tooBig()` is the answer (the drive never filled before the room
  * check, the nineteenth review; the client hears it, the twentieth); a drive full meanwhile the same, 507; a form that
  * breaks off is a 422 (BROKEN_UPLOAD). */
-async function receiveUpload(c, dest, { maxBytes = Number.POSITIVE_INFINITY, tooBig = () => new HttpError(413, "the upload is too big") } = {}) {
+export async function receiveUpload(
+  c,
+  dest,
+  {
+    maxBytes = Number.POSITIVE_INFINITY,
+    tooBig = () => new HttpError(413, "the upload is too big"),
+    // the drive filled while it streamed — said in the caller's words (a restore's by default; a take's video: just-mocap)
+    diskFull = () => new ApiError(507, "disk-full", "Not enough room to restore", "the upload doesn't fit the drive — nothing was changed"),
+  } = {},
+) {
   let kind = null; // "file" | "field"
   const type = c.req.header("content-type") || "";
   if (/^multipart\//i.test(type) && c.req.raw.body) {
@@ -614,7 +623,7 @@ async function receiveUpload(c, dest, { maxBytes = Number.POSITIVE_INFINITY, too
     }
     if (!wasCut) await writes;
     if (failed?.code === UPLOAD_TOO_BIG) throw tooBig();
-    if (failed?.code === "ENOSPC") throw new ApiError(507, "disk-full", "Not enough room to restore", "the upload doesn't fit the drive — nothing was changed");
+    if (failed?.code === "ENOSPC") throw diskFull();
     // the form broke off (its file part fails with it): said as broken
     if (broken) throw BROKEN_UPLOAD();
     if (failed) throw failed;

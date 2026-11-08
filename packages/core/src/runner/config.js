@@ -501,3 +501,118 @@ export const DEFAULT_FFMPEG_BINARIES = [
 export const DEFAULT_FFMPEG_SETTINGS = Object.freeze({ path: "" });
 // a staged build must answer `-version` (exit 0) before it replaces the one on disk
 export const FFMPEG_PROBE_ARGVS = Object.freeze([Object.freeze(["-version"])]);
+
+// Motion capture (just-mocap — the user's plan of 2026-11-07, "go for it all complete all testing then let me know"; the
+// engine's docs/plans/2026-11-07-non-commercial-option.md, "M3 build design"): the build is Astral's uv
+// (github.com/astral-sh/uv, MIT/Apache-2.0; its release's own .sha256), which makes the engine's Python environments
+// from the engine's hash-locked lists (runner/mocap.js MOCAP_SETUP). Its extras: the engine's source (just-mocap at a
+// pinned commit), GEM-X's (NVlabs/GEM-X, Apache-2.0 code) and ComfyUI's (comfyanonymous/ComfyUI, GPL-3.0, run as its
+// own process for SAM 3D Body) at the commits the engine was measured with, YOLOX's person detector as GEM-X's docs
+// name it (OpenMMLab's ONNX archive, Apache-2.0) and MediaPipe's face landmarker (Google, Apache-2.0). Windows x64 with
+// an NVIDIA card only: the one platform it was measured on (Linux and macOS rows are open work). SHA-256s and sizes:
+// GitHub's archives and Astral's .sha256, downloaded and hashed 2026-11-08; unpacked: a whole build as the kit's install
+// made it, 7.17 GB (2026-11-08: both environments, uv's cache linked into them, the Python, the sources), rounded up.
+// Its longest file path is 155 characters inside the build's folder (torch's headers), so a data folder whose path is
+// over about 75 characters needs Windows' long paths turned on.
+// A new engine commit is a new build tag (r<n>-<commit>), so an install made before it is offered the update.
+export const DEFAULT_MOCAP_BUILD = "r1-59d19d3";
+const MOCAP_ENGINE_COMMIT = "59d19d31a98ffbd267e03c259f9428eac5fef493";
+const GEMX_COMMIT = "20555befe2fbbe5b2015e1fff7ff214dc18ea9d6";
+const COMFYUI_COMMIT = "426f5eea52a7ece1dd599fff4cb6cd1f352ddd24";
+const MOCAP_EXTRAS = [
+  { name: "the motion capture engine", url: `https://github.com/delebash/just-mocap/archive/${MOCAP_ENGINE_COMMIT}.zip`, sha256: "7dffde38bb95f7caf39a01dd94c0ae068d65267161b7f4b0f125050512fa85df", bytes: 403186, archive: "zip", take: `just-mocap-${MOCAP_ENGINE_COMMIT}`, into: "engine", check: "bench/mocap.js" },
+  { name: "GEM-X", url: `https://github.com/NVlabs/GEM-X/archive/${GEMX_COMMIT}.zip`, sha256: "ea5882b5814fa1ef34398e8b455854decd72d6728971d2c216439d4131f92db0", bytes: 71637425, archive: "zip", take: `GEM-X-${GEMX_COMMIT}`, into: "gemx", check: "pyproject.toml" },
+  { name: "ComfyUI", url: `https://github.com/comfyanonymous/ComfyUI/archive/${COMFYUI_COMMIT}.zip`, sha256: "01f381c8330f5c5bec9bd3d4c651e8b53b45ffb70020b9e1e947fc63f93a1548", bytes: 13595371, archive: "zip", take: `ComfyUI-${COMFYUI_COMMIT}`, into: "comfyui", check: "main.py" },
+  {
+    name: "YOLOX person detector (Human-Art)",
+    url: "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/yolox_x_8xb8-300e_humanart-a39d44ed.zip",
+    sha256: "1c6fccc5cd450eb563b1fe4eba13c9bdf9ea8263b6ae1cb3ada765aa4ebea2c7",
+    bytes: 368200375,
+    archive: "zip",
+    take: "20230928/yolox_onnx/yolox_x_8xb8-300e_humanart-a39d44ed",
+    skipExt: [".jpg"],
+    into: "yolox",
+    check: "end2end.onnx",
+  },
+  {
+    name: "MediaPipe face landmarker",
+    url: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+    sha256: "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+    bytes: 3758596,
+    archive: "file",
+    file: "face_landmarker.task",
+    into: "face",
+  },
+];
+export const DEFAULT_MOCAP_BINARIES = [
+  {
+    platform: "windows",
+    gpu: "cuda12",
+    source: "github",
+    asset_url: "https://github.com/astral-sh/uv/releases/download/0.12.0/uv-x86_64-pc-windows-msvc.zip",
+    asset_bytes: 18813141,
+    // uv and what it makes (measured 7.17 GB, above)
+    asset_unpacked_bytes: 8_000_000_000,
+    sha256: "68200e25de594df92387186bbfb9d9df606ec1d87efaa0ae0c7f690970e53db6",
+    server_exe: "uv.exe",
+    requires: { arch: "x64" },
+    extras: MOCAP_EXTRAS,
+  },
+];
+// a staged uv must answer `--version` before it replaces the one on disk
+export const MOCAP_PROBE_ARGVS = Object.freeze([Object.freeze(["--version"])]);
+
+// The engine's models, as runtime_model rows an app lists in installLlm's `runtimeModels` (the kit's, so every app that
+// mounts the Mocap screen has the same ones): each a pinned Hugging Face file set, every SHA-256 the Hub's own at that
+// revision and the measured files' (2026-11-08). `slot` is the file's place in the engine: `gemx:<path>` inside GEM-X's
+// folder (GEM-X's docs/PRETRAINED_MODELS.md layout), `sam` and `detr` the two models ComfyUI loads for the finger step.
+// The card figure is a whole take's measured peak (about 4.7–6.4 GB on an 8 GB card — runtimes.js `mocap`).
+const hfFile = (slot, repo, revision, path, bytes, sha256) => ({ slot, repo, revision, path, bytes, sha256 });
+const GEMX_HF = "4fce057963671fd95cd4154297944397e7b5a9a0";
+const SOMA_HF = "d281db2d01553f7230c56e764cec00fe27ef23f7";
+export const MOCAP_MODELS = Object.freeze([
+  {
+    runtime: "mocap",
+    id: "gemx-body",
+    name: "GEM-X body and motion",
+    license: "NVIDIA Open Model License",
+    peakVramMb: 6600,
+    files: [
+      hfFile("gemx:weights/body_s240000.ckpt", "nvidia/GEM-X", GEMX_HF, "body_s240000.ckpt", 3538753341, "e244d27f2834eb6382c5f6b9cbf2a38681b685514a1b2e86f8f3d2592d614959"),
+      hfFile("gemx:weights/body_config.json", "nvidia/GEM-X", GEMX_HF, "body_config.json", 1086, "61c29c72b93f88789ecb7beb21c526c78e92e24ffbce91d91e51984272b26368"),
+      hfFile("gemx:weights/vitpose.pth", "nvidia/GEM-X", GEMX_HF, "vitpose.pth", 3388483384, "8e3eec71dbd6bb745eba8c6debe3e4b97bcfd1d01f300099f2eedf50b9a80c8e"),
+      hfFile("gemx:weights/motion_native77_e774_s292175.ckpt", "nvidia/GEM-X", GEMX_HF, "motion_native77_e774_s292175.ckpt", 187134331, "c7790f4587e518bcea40cb8281c9be2233d37f6caa668835462542760dcf82aa"),
+      hfFile("gemx:weights/motion_stats_raw.npz", "nvidia/GEM-X", GEMX_HF, "motion_stats_raw.npz", 21320, "b7719b634e0fc1f001005605d117d77448c8d4a110923149df58529c68112ed6"),
+    ],
+  },
+  {
+    runtime: "mocap",
+    id: "soma",
+    name: "SOMA body model",
+    license: "Apache-2.0",
+    files: [
+      hfFile("gemx:assets/soma/SOMA_neutral.npz", "nvidia/SOMA-X", SOMA_HF, "SOMA_neutral.npz", 26608121, "5829af4a5333abdba5ad449360b868faacee99d395971e62f35c0e7169432b63"),
+      hfFile("gemx:assets/soma/SOMA_template_rig.usda", "nvidia/SOMA-X", SOMA_HF, "SOMA_template_rig.usda", 28306038, "a952cb7bdf4ccd801e355d53122d395b985b69d0d9181439edad5081bb171856"),
+      hfFile("gemx:assets/soma/SOMA_procedural_transforms.json", "nvidia/SOMA-X", SOMA_HF, "SOMA_procedural_transforms.json", 20045, "9853e19ab51625ffaa7d9e7ccf0e443272c2740837604e6bacd66604e8edf509"),
+      hfFile("gemx:assets/soma/correctives_model.pt", "nvidia/SOMA-X", SOMA_HF, "correctives_model.pt", 70549157, "411d061a651051a7a4ec941543495d35eac21e5a7a69c8ce042b89cd12772a43"),
+      hfFile("gemx:assets/soma/SOMAHand.npz", "nvidia/SOMA-X", SOMA_HF, "SOMAHand.npz", 993833, "233e9225c1da05c6a3dd98107b9f027f2366e3b972bbe67e0d164e5d28619fff"),
+      hfFile("gemx:assets/soma/MHR/mhr_model_lod1.pt", "nvidia/SOMA-X", SOMA_HF, "MHR/mhr_model_lod1.pt", 696110248, "352e271a6c42729c68554ceaea0c955e866970160c31e35506d782dc0f7377bc"),
+      hfFile("gemx:assets/soma/MHR/base_body_lod1.obj", "nvidia/SOMA-X", SOMA_HF, "MHR/base_body_lod1.obj", 2277452, "e8bbb3f3681d76737635c10a9e6f6a058ad3d9be5a75547f84a578cea572e916"),
+      hfFile("gemx:assets/soma/MHR/SOMA_wrap_lod1.obj", "nvidia/SOMA-X", SOMA_HF, "MHR/SOMA_wrap_lod1.obj", 1816801, "9ab7a2328d5b026c17ef1d09ed692ffeb68f96d3fc74970cba72e667dbe0f728"),
+    ],
+  },
+  {
+    runtime: "mocap",
+    id: "sam-3d-body",
+    name: "SAM 3D Body (fingers)",
+    license: "SAM License",
+    files: [hfFile("sam", "Comfy-Org/sam-3d-body", "7c974aea58e062252a6cb5b6f9b7f639d545b729", "detection/sam_3d_body_dinov3_bf16.safetensors", 2830737652, "59fa45200c504c5b56625004d7d3385daf48c616613e88099e43bf83b3e249cf")],
+  },
+  {
+    runtime: "mocap",
+    id: "rt-detr",
+    name: "RT-DETR person boxes",
+    license: "MIT",
+    files: [hfFile("detr", "Comfy-Org/SDPose", "acb43fbe8142b54d9ebd52b720b81dd4e14c8d81", "diffusion_models/rt_detr_v4-x-hgnet_fp32.safetensors", 247790660, "1ba4a7794c2f8b176327c887ba38fbe0f977049cbef149960288aa923d0239f3")],
+  },
+]);

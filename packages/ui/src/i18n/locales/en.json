@@ -25,7 +25,8 @@
         "stt": "Transcription",
         "music": "Music",
         "sfx": "Sound effects",
-        "lipsync": "Lip-sync"
+        "lipsync": "Lip-sync",
+        "mocap": "Motion capture"
       }
     },
     "lab": {
@@ -820,7 +821,8 @@
           "image": "An image model",
           "video": "A video model",
           "vision": "A vision model",
-          "other": "A model"
+          "other": "A model",
+          "mocap": "A motion capture take"
         },
         "incoming": {
           "llm": "an AI model",
@@ -832,7 +834,8 @@
           "image": "an image model",
           "video": "a video model",
           "vision": "a vision model",
-          "other": "another model"
+          "other": "another model",
+          "mocap": "a motion capture take"
         }
       },
       "programs": {

@@ -17,6 +17,8 @@ import {
   DEFAULT_FFMPEG_BINARIES,
   DEFAULT_FFMPEG_BUILD,
   DEFAULT_FFMPEG_SETTINGS,
+  DEFAULT_MOCAP_BINARIES,
+  DEFAULT_MOCAP_BUILD,
   DEFAULT_SDCPP_BINARIES,
   DEFAULT_SDCPP_BUILD,
 } from "./config.js";
@@ -106,6 +108,26 @@ export const RUNTIMES = Object.freeze({
       settings: DEFAULT_FFMPEG_SETTINGS,
       // its `path` box sized for a full path (UiInput's `path` width), not a token
       settingsUi: Object.freeze({ path: Object.freeze({ width: "path" }) }),
+    }),
+  }),
+  // Motion capture (just-mocap — the user's plan of 2026-11-07: "the engine a separate Python program that the kit
+  // installs, starts, books the card for and runs, like audio.cpp"): a tool run per take (runner/mocap.js runMocap), no
+  // server; its build is uv, which makes the engine's Python environments at install (runner/mocap.js MOCAP_SETUP);
+  // its models are rows (config.js MOCAP_MODELS). memory: a take's measured peak on the card, the whole run (GEM-X, then
+  // SAM 3D Body in ComfyUI — about 4.7–6.4 GB on the RTX 2070 SUPER, just-mocap RESEARCH.md), booked for the job.
+  // `kind` "mocap": the card's ledger names what holds it.
+  mocap: Object.freeze({
+    id: "mocap",
+    kind: "mocap",
+    tool: true,
+    label: "Motion capture",
+    folder: "mocap",
+    license: "MIT",
+    defaults: Object.freeze({
+      pinnedBuild: DEFAULT_MOCAP_BUILD,
+      binaries: DEFAULT_MOCAP_BINARIES,
+      idleSeconds: 0,
+      memory: Object.freeze({ idleMb: 0, peakMb: 6600 }),
     }),
   }),
 });

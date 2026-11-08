@@ -225,3 +225,32 @@ function snapshot(j) {
     finishedAt: j.finishedAt,
   };
 }
+
+/**
+ * One job of a lane at a time (the kit's image jobs, JustStage 2026-10-29: a second job, accepted, ended at once "the
+ * graphics card is busy"; the mocap takes the same, 2026-11-08): `lane(signal, progress, work)` waits for the job before
+ * it to end, says `waiting` while it waits, and a Cancel while it waits ends it at once with `aborted(signal)`.
+ */
+export function makeLane(waiting, aborted) {
+  let tail = Promise.resolve();
+  return (signal, progress, work) => {
+    const before = tail;
+    let release;
+    const mine = new Promise((r) => {
+      release = r;
+    });
+    tail = before.then(() => mine); // the next one waits for this one's predecessor AND this one
+    progress(0, waiting);
+    const turn = new Promise((resolve, reject) => {
+      if (signal.aborted) return reject(aborted(signal));
+      signal.addEventListener("abort", () => reject(aborted(signal)), { once: true });
+      before.then(resolve);
+    });
+    return turn
+      .then(() => {
+        progress(0, "");
+        return work();
+      })
+      .finally(release);
+  };
+}

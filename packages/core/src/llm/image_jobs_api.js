@@ -19,6 +19,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Hono } from "hono";
 import { ApiError, notFound } from "../platform/errors.js";
+import { makeLane } from "../platform/jobs.js";
 import { opt, T } from "../platform/models.js";
 import { input } from "../platform/server.js";
 import { abortError } from "./base.js";
@@ -67,27 +68,9 @@ export function makeImageJobsRouter(jobs, { resultDir }) {
     }
   };
 
-  // One picture at a time (JustStage, 2026-10-29: a second job, accepted, ended at once "the graphics card is busy"):
-  // each job waits for the one before it to end, says so while it waits, and a Cancel while it waits ends it at once.
-  let tail = Promise.resolve();
-  const inLane = (signal, progress, work) => {
-    const before = tail;
-    let release;
-    const mine = new Promise((r) => {
-      release = r;
-    });
-    tail = before.then(() => mine); // the next one waits for this one's predecessor AND this one
-    progress(0, "waiting for the picture before it");
-    const turn = new Promise((resolve, reject) => {
-      if (signal.aborted) return reject(abortError(signal));
-      signal.addEventListener("abort", () => reject(abortError(signal)), { once: true });
-      before.then(resolve);
-    });
-    return turn.then(() => {
-      progress(0, "");
-      return work();
-    }).finally(release);
-  };
+  // One picture at a time (platform/jobs.js makeLane — JustStage, 2026-10-29: a second job, accepted, ended at once "the
+  // graphics card is busy"): each job waits for the one before it to end and says so while it waits.
+  const inLane = makeLane("waiting for the picture before it", abortError);
 
   const app = new Hono();
   app.post("/v1/ai/image/jobs", input({ body: ImageJobIn }), async (c) => {
