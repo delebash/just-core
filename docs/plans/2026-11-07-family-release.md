@@ -161,6 +161,21 @@ The user, verbatim: "do the release". The checklist, each line updated as it lan
       Attack: release 6d64f04e as JustVoice tested it — but the family rule ("a fork is brought up to date before we
       work on it") and the go ("everything updated … the forks") say merge; the refactor is exactly what must be
       heard before it ships, so the voice check below runs on the merged build. Survives.
+**RESTARTED WITHOUT JUSTVOICE (2026-11-08, later)** — the user, verbatim: "do the releae just not jv". So the
+release is JustWrite v2.1.0, house-paint v0.2.0 and docgen v0.1.0 on one kit commit, and the boxes for JustVoice drop
+out: no fork release, the kit's audio.cpp pin stays v0.9.2-jv.6 (JustVoice's TASKS keeps the fork item; the local
+merge 73a2b82e stays for JustVoice's session). Kit commits since the pass, read: runJob's idle stop, the runtime setup
+hook, audio.cpp's FFmpeg on PATH, motion capture (a runtime only an app that lists it gets — `installLlm({ runtimes })`;
+house-paint lists sdcpp and onnx, JustWrite and docgen none), the engine banner, the warm chips (cde0089f). The kit
+kept still from cde0089f (web-9e, web-4c told). This run's boxes:
+
+- [ ] Every dependency at its latest again (`outdated.js`, a day on); any move taken in the kit, template, sync, the
+      three apps and their sites.
+- [ ] The full pass once on the final kit commit (`pass.js`, without JustVoice's steps; the guard as it is).
+- [ ] Each app's version and What's new section checked (`release.js` needs `## v<version>`; JustWrite's is dated).
+- [ ] The three tags; each app's `npm run release -- --yes` (core_ref = the kit's HEAD); the runs watched.
+- [ ] The three site deploys (`npm run deploy`) once the releases are published.
+
 **STOPPED again (2026-11-08)** — the user, verbatim: "stop release". Stopped at once: the dev build halted at step
 174 of 179 (unfinished, never run), the outdated check halted; no build or engine process left. The merge 73a2b82e
 stays local in ../audio.cpp (origin/jv is still 6d64f04e), untested. Nothing tagged, dispatched, published or
