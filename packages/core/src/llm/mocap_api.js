@@ -93,8 +93,8 @@ function takeOf(row) {
     options: { ...DEFAULT_TAKE_OPTIONS, ...JSON.parse(row.options || "{}") },
     state: row.state,
     error: row.error,
-    // the files it made, by name (the done line of the engine: bvh, fbx, glb, usd, c3d, motion, face, preview, sheet,
-    // contacts) — each one's download is /files/<name>
+    // the files it made, by name (the done line of the engine: bvh, fbx, glb, usd, c3d, motion, face, preview, pose,
+    // sheet, contacts) — each one's download is /files/<name>
     files: Object.keys(JSON.parse(row.files || "{}")).filter((k) => k !== "take"),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

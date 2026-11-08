@@ -208,6 +208,8 @@ const STEP_SECONDS = Object.freeze({
   "join fingers": 47,
   export: 8,
   preview: 8,
+  "preview video": 1,
+  "pose video": 1,
 });
 const TOTAL_SECONDS = Object.values(STEP_SECONDS).reduce((a, b) => a + b, 0);
 

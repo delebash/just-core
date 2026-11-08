@@ -132,10 +132,12 @@ const primary = computed(() => {
 // ── its files ──
 const has = (n) => props.take.files.includes(n);
 const fileUrl = (n) => `${base.value}/files/${enc(n)}`;
-const FILE_ORDER = ["fbx", "bvh", "glb", "usd", "c3d", "face", "motion", "preview", "sheet", "contacts"];
+const FILE_ORDER = ["fbx", "bvh", "glb", "usd", "c3d", "face", "motion", "preview", "pose", "sheet", "contacts"];
 const files = computed(() => FILE_ORDER.filter(has));
-const EXT = { fbx: "fbx", bvh: "bvh", glb: "glb", usd: "usd", c3d: "c3d", face: "csv", motion: "json", preview: "mp4", sheet: "png", contacts: "json" };
-const fileName = (n) => `${props.take.name}${n === "face" ? "_face" : n === "motion" ? "_motion" : n === "preview" ? "_preview" : n === "sheet" ? "_sheet" : n === "contacts" ? "_contacts" : ""}.${EXT[n]}`;
+const EXT = { fbx: "fbx", bvh: "bvh", glb: "glb", usd: "usd", c3d: "c3d", face: "csv", motion: "json", preview: "mp4", pose: "mp4", sheet: "png", contacts: "json" };
+// a file's name as the engine writes it beside the take: the take's name, a suffix for all but the animation files
+const SUFFIX = { face: "_face", motion: "_motion", preview: "_preview", pose: "_pose", sheet: "_sheet", contacts: "_contacts" };
+const fileName = (n) => `${props.take.name}${SUFFIX[n] ?? ""}.${EXT[n]}`;
 async function saveFile(n) {
   try {
     const r = await saveUrlAs(fileUrl(n), fileName(n), { filterExt: EXT[n] });

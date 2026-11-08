@@ -515,12 +515,12 @@ export const FFMPEG_PROBE_ARGVS = Object.freeze([Object.freeze(["-version"])]);
 // Its longest file path is 155 characters inside the build's folder (torch's headers), so a data folder whose path is
 // over about 75 characters needs Windows' long paths turned on.
 // A new engine commit is a new build tag (r<n>-<commit>), so an install made before it is offered the update.
-export const DEFAULT_MOCAP_BUILD = "r3-af7aecb";
-const MOCAP_ENGINE_COMMIT = "af7aecb500c6e7813552653c92851e4d6229e3f6";
+export const DEFAULT_MOCAP_BUILD = "r4-4fc4560";
+const MOCAP_ENGINE_COMMIT = "4fc45609e6efbe95c6c8e8d3095a19d40fb4c1a7";
 const GEMX_COMMIT = "20555befe2fbbe5b2015e1fff7ff214dc18ea9d6";
 const COMFYUI_COMMIT = "426f5eea52a7ece1dd599fff4cb6cd1f352ddd24";
 const MOCAP_EXTRAS = [
-  { name: "the motion capture engine", url: `https://github.com/delebash/just-mocap/archive/${MOCAP_ENGINE_COMMIT}.zip`, sha256: "fef1762aa465f25a6b138b29d5c790b2b2479a67e3837953888afb3df90ae2d5", bytes: 401036, archive: "zip", take: `just-mocap-${MOCAP_ENGINE_COMMIT}`, into: "engine", check: "bench/mocap.js" },
+  { name: "the motion capture engine", url: `https://github.com/delebash/just-mocap/archive/${MOCAP_ENGINE_COMMIT}.zip`, sha256: "2698ea86a4b45736da802e8247665462b7ea8c678fc4e74a9fadd290964a3bc3", bytes: 415372, archive: "zip", take: `just-mocap-${MOCAP_ENGINE_COMMIT}`, into: "engine", check: "bench/mocap.js" },
   { name: "GEM-X", url: `https://github.com/NVlabs/GEM-X/archive/${GEMX_COMMIT}.zip`, sha256: "ea5882b5814fa1ef34398e8b455854decd72d6728971d2c216439d4131f92db0", bytes: 71637425, archive: "zip", take: `GEM-X-${GEMX_COMMIT}`, into: "gemx", check: "pyproject.toml" },
   { name: "ComfyUI", url: `https://github.com/comfyanonymous/ComfyUI/archive/${COMFYUI_COMMIT}.zip`, sha256: "01f381c8330f5c5bec9bd3d4c651e8b53b45ffb70020b9e1e947fc63f93a1548", bytes: 13595371, archive: "zip", take: `ComfyUI-${COMFYUI_COMMIT}`, into: "comfyui", check: "main.py" },
   {

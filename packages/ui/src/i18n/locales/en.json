@@ -2441,6 +2441,7 @@
           "face": "Face — Live Link Face CSV (52 ARKit curves)",
           "motion": "Motion data — every joint's rotation and position, JSON",
           "preview": "Preview video — MP4",
+          "pose": "Pose video — the skeleton on black (OpenPose style), for pose-guided video",
           "sheet": "Contact sheet — PNG",
           "contacts": "Foot contacts — JSON"
         }
