@@ -124,7 +124,7 @@ The user's order, relayed by JustVoice's session: "stop the fucking release sinc
 over testing and tweaking as now jv is not really ready". Stopped at once: the fork's release run 42444512703 cancelled
 before it published (no v0.9.4-jv.7 tag or release); no app tagged or dispatched; no site deployed; the kit freeze lifted.
 Where it stood, all pushed: the dependencies, SDK majors, llama.cpp b12110, Biome 2.6, the boot test, the versions, and
-the stale docs fixed in the four apps and their websites (JustWrite 7a478fd9 6d562c09 2765bbe0, house-paint 1a12d6a4,
+the stale docs fixed in the four apps and their websites (JustWrite 7a478fd9 6d562c09 2765bbe0, house-paint 1a12d6a,
 docgen 420f80e, JustVoice 74d0b0ff 8fc6b397; the sites 6636375, df1676b, 0d0e22b). The full pass, once, on that state:
 every lint, i18n lint and the guard; kit core 1698, kit ui 94, sync 75, template 64/141, JustVoice 1299/310, JustWrite
 198/887, house-paint 398/196, docgen 224/52; e2e template 15, JustVoice 10, JustWrite 9 (after `npm run build` — its
