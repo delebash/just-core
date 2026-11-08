@@ -39,8 +39,10 @@ function fakeFetch(input, init = {}) {
     server.engine = { ...server.engine, status: "installing", downloaded: 100e6, total: server.engine.downloadBytes };
     return Promise.resolve(json(server.engine, 202));
   }
+  // as the kit's server does it (llm/runtimes_api.js): the pin and rows move to the tested build first, then it installs —
+  // so while it runs, the new build isn't installed yet
   if (p === "/v1/ai/runtimes/sdcpp/engine/update") {
-    server.engine = { ...server.engine, status: "installing", downloaded: 100e6, total: server.engine.downloadBytes };
+    server.engine = { ...server.engine, installed: false, build: server.engine.updateTo, updateTo: "", status: "installing", downloaded: 100e6, total: server.engine.downloadBytes };
     return Promise.resolve(json(server.engine, 202));
   }
   if (p === "/v1/ai/runtimes/sdcpp/models") return Promise.resolve(json({ models: server.models }));
@@ -54,6 +56,12 @@ function fakeFetch(input, init = {}) {
   if (p === "/v1/ai/runtimes/sdcpp/models/tiny/download") {
     server.models = server.models.map((m) => ({ ...m, status: "downloading", downloaded: 3, total: 10 }));
     return Promise.resolve(json(server.models[0], 202));
+  }
+  // any other model's download (Motion capture's several models): that one starts
+  const download = p.match(/^\/v1\/ai\/runtimes\/sdcpp\/models\/([^/]+)\/download$/);
+  if (download && method === "POST") {
+    server.models = server.models.map((m) => (m.id === download[1] ? { ...m, status: "downloading", downloaded: 1, total: m.bytes } : m));
+    return Promise.resolve(json(server.models.find((m) => m.id === download[1]), 202));
   }
   if (p === "/v1/ai/features/photo.render/readiness") return Promise.resolve(json(server.readiness()));
   // a readiness route for something that isn't a routed feature (Motion capture's): its engine first, no model named yet
@@ -202,6 +210,38 @@ test("the banner over a readiness route that names no model yet (Motion capture'
   // the next thing it names: the model
   expect(text()).toContain("Turning a video into animation needs its model, Tiny, which isn't on this computer yet.");
   expect(errors).toEqual([]);
+});
+
+test("the banner over a readiness that names the next model once one is down (Motion capture's): its Download offered, no bar left over", async () => {
+  // the kit's /v1/mocap/readiness names the first of its models not on disk (just-core runner/mocap.js mocapReadiness)
+  server.engine = { ...server.engine, installed: true, status: "installed" };
+  server.models = [
+    { id: "soma", name: "SOMA body model", license: "Apache-2.0", bytes: 20, onDisk: false, running: false, status: "", downloaded: 0, total: 0 },
+    { id: "sam", name: "SAM 3D Body", license: "SAM License", bytes: 30, onDisk: false, running: false, status: "", downloaded: 0, total: 0 },
+  ];
+  server.readiness = () => {
+    const next = server.models.find((m) => !m.onDisk);
+    if (!next) return { ready: true, need: "", runtime: "sdcpp", model: "", engine: server.engine, modelState: null };
+    return { ready: false, need: "model-not-downloaded", runtime: "sdcpp", model: next.id, engine: server.engine, modelState: next };
+  };
+  wrapper = mount(LuEngineNeeded, { props: { readinessUrl: "/v1/mocap/readiness", label: "Turning a video into animation" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  expect(text()).toContain("Turning a video into animation needs its model, SOMA body model, which isn't on this computer yet.");
+  await click("Download the model");
+  await settle();
+  expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/sdcpp/models/soma/download")).toBe(true);
+  await later(1300);
+  expect(document.body.querySelector(".ui-progress, [role='progressbar']")).not.toBeNull(); // SOMA's bar, while it runs
+  server.models = [{ ...server.models[0], status: "downloaded", onDisk: true, downloaded: 0, total: 0 }, server.models[1]];
+  await later(1300);
+  // the next model: its own Download, ready to press — not SOMA's finished download read as SAM's, "Working" for ever
+  expect(text()).toContain("Turning a video into animation needs its model, SAM 3D Body, which isn't on this computer yet.");
+  const next = button("Download the model");
+  expect(next.getAttribute("aria-disabled") ?? String(next.disabled)).not.toMatch(/true/);
+  expect(document.body.querySelector(".ui-progress, [role='progressbar']")).toBeNull();
+  await click("Download the model");
+  await settle();
+  expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/sdcpp/models/sam/download")).toBe(true);
 });
 
 test("each model shows the catalog's chip — won't fit, its predicted speed; no room on the drive in the app's words, no bar left", async () => {
@@ -354,7 +394,12 @@ test("the runtime tab offers Update to the kit's tested build when the pin here 
   await click("Update to master-1024-77b72a2");
   await settle();
   expect(server.calls.some(([m, u]) => m === "POST" && u === "/v1/ai/runtimes/sdcpp/engine/update")).toBe(true);
-  server.engine = { ...server.engine, build: "master-1024-77b72a2", updateTo: "", status: "installed", downloaded: 0, total: 0 };
+  // while it installs: the build it is installing, never "Not installed" with a greyed Install
+  await later(1300);
+  expect(text()).toContain("Installing build master-1024-77b72a2…");
+  expect(text()).not.toContain("Not installed");
+  expect(button("Install (")).toBeFalsy();
+  server.engine = { ...server.engine, installed: true, build: "master-1024-77b72a2", updateTo: "", status: "installed", downloaded: 0, total: 0 };
   await later(1300);
   expect(button("Update to")).toBeFalsy();
   expect(text()).toContain("Installed — build master-1024-77b72a2.");

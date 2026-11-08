@@ -87,7 +87,9 @@ function atFrame() {
   if (frameVideo.value) frameVideo.value.currentTime = Math.max(0, Number(o.start) || 0);
 }
 function pickPerson(event) {
-  const box = event.currentTarget.getBoundingClientRect();
+  // fractions of the picture itself: the video's own box, never the frame's (a frame stretched wider than its video
+  // put the click on the man walking behind the guitarist — 2026-11-08, a click at 0.48 stored 0.40)
+  const box = (frameVideo.value ?? event.currentTarget).getBoundingClientRect();
   o.person = [Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)), Math.min(1, Math.max(0, (event.clientY - box.top) / box.height))];
 }
 
@@ -220,7 +222,7 @@ async function remove() {
       </UiButton>
       <UiButton
         v-if="take.state !== 'new'" :intent="primary ? 'secondary' : 'primary'" focusable-when-disabled :disabled="running"
-        :label="running ? t('kit.mocap.take.running') : t('kit.mocap.take.again')" :title="t('kit.mocap.take.againHint')" @click="captureAgain"
+        :label="running && !primary ? t('kit.mocap.take.running') : t('kit.mocap.take.again')" :title="t('kit.mocap.take.againHint')" @click="captureAgain"
       >
         <template #icon><Icon name="Refresh" :size="14" /></template>
       </UiButton>
@@ -260,8 +262,9 @@ async function remove() {
 .take__choices { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .take__lens { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .take__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.take__frame { position: relative; display: inline-block; margin-top: 6px; cursor: crosshair; line-height: 0; }
-.take__frame video { width: min(480px, 100%); border-radius: var(--r-sm); background: var(--surface-3); }
+/* the frame hugs its video, so the pin, placed in the frame, sits where the click was on the picture */
+.take__frame { position: relative; display: block; align-self: flex-start; width: min(480px, 100%); margin-top: 6px; cursor: crosshair; line-height: 0; }
+.take__frame video { display: block; width: 100%; border-radius: var(--r-sm); background: var(--surface-3); }
 .take__pin { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid var(--on-accent); background: var(--accent); }
 .take__results { display: flex; flex-direction: column; gap: 12px; }
 .take__views { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }

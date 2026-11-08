@@ -88,6 +88,11 @@ export const DEFAULT_TAKE_OPTIONS = Object.freeze({
   rest: "t",
 });
 const VIDEO_EXT = new Set([".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"]);
+// The take's video as the upload stores it: `source` and the added file's extension. The engine names what it makes
+// after its input (source.bvh, source.fbx, source.glb, …), so the video is only ever found by this exact name — the
+// first `source.*` in the folder is the BVH once a take has run (2026-11-08, "Capture again from the start" failed:
+// "Cannot open video: …\source.bvh").
+const sourceFileName = (addedName) => `source${path.extname(addedName || "").toLowerCase()}`;
 
 /** A take row as the screen reads it. */
 function takeOf(row) {
@@ -121,9 +126,9 @@ export function makeMocapRouter(jobs, { takesDir, run = runMocap, sender = new L
   // the take's running job as the wire shows it (the registry's snapshot), or null
   const running = (id) => registry().list({ kind: "mocap", key: id })[0] ?? null;
   const sourceOf = (id) => {
-    const name = readdirSync(folderOf(id)).find((n) => n.startsWith("source."));
-    if (!name) throw new ApiError(409, "take-without-video", "This take has no video", "its folder lost the video it was made from — add the video again as a new take");
-    return path.join(folderOf(id), name);
+    const file = path.join(folderOf(id), sourceFileName(row(id).source_name));
+    if (!existsSync(file)) throw new ApiError(409, "take-without-video", "This take has no video", "its folder lost the video it was made from — add the video again as a new take");
+    return file;
   };
 
   /** Run the engine on take `id` as a job: `options` its choices, `ranges` edited contacts (a re-apply). */
@@ -165,7 +170,7 @@ export function makeMocapRouter(jobs, { takesDir, run = runMocap, sender = new L
     const folder = folderOf(id);
     mkdirSync(folder, { recursive: true });
     try {
-      await receiveUpload(c, path.join(folder, `source${ext}`), {
+      await receiveUpload(c, path.join(folder, sourceFileName(name)), {
         maxBytes: Math.max(0, (await freeBytes(takesDir)) - 1e9),
         tooBig: () => new ApiError(507, "disk-full", "Not enough room for this video", "the drive that holds the app's data has no room for it beside 1 GB for what a take makes"),
         diskFull: () => new ApiError(507, "disk-full", "Not enough room for this video", "the drive filled while it was copied — nothing was kept"),
@@ -217,8 +222,10 @@ export function makeMocapRouter(jobs, { takesDir, run = runMocap, sender = new L
     if (existing) return c.json(existing, 202);
     if (options) save(id, { options: JSON.stringify({ ...JSON.parse(r.options || "{}"), ...options }) });
     if (fresh) {
-      // from the start: everything but the video goes (a new lens, ground or arm-fit choice needs the models again)
-      for (const n of readdirSync(folderOf(id))) if (!n.startsWith("source.")) await rm(path.join(folderOf(id), n), { recursive: true, force: true });
+      // from the start: everything but the video goes (a new lens, ground or arm-fit choice needs the models again),
+      // the engine's own source.bvh, source.fbx, … too
+      const video = sourceFileName(r.source_name);
+      for (const n of readdirSync(folderOf(id))) if (n !== video) await rm(path.join(folderOf(id), n), { recursive: true, force: true });
       save(id, { files: "{}" });
     }
     const take = takeOf(row(id));

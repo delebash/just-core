@@ -66,7 +66,7 @@ test("reseed keeps a row the user edited and the pin they set; reset puts the ki
   store.resetRuntimeToDefaults("sdcpp");
   cfg = store.getRuntimeConfig("sdcpp");
   expect(cfg.pinnedBuild).toBe(DEFAULT_SDCPP_BUILD);
-  expect(cfg.binaries.find((b) => b.gpu === "cuda12").assetUrl).toContain("sd-master-77b72a2-bin-win-cuda12-x64.zip");
+  expect(cfg.binaries.find((b) => b.gpu === "cuda12").assetUrl).toContain("sd-jd-3dba814-bin-win-cuda12-x64.zip");
   expect(cfg.binaries.find((b) => b.gpu === "cuda13").assetUrl).toBe("https://example.test/cu13.zip"); // the user's own
 });
 
@@ -130,7 +130,7 @@ test("Update moves an older pin to the kit's tested build, installs it, and puts
   await settle();
   expect(builds.at(-1)).toBe(DEFAULT_SDCPP_BUILD);
   expect(await status()).toMatchObject({ status: "installed", build: DEFAULT_SDCPP_BUILD, installed: true, updateTo: "" });
-  expect(store.getRuntimeConfig("sdcpp").binaries.find((b) => b.gpu === "cuda12").assetUrl).toContain("sd-master-77b72a2-bin-win-cuda12-x64.zip");
+  expect(store.getRuntimeConfig("sdcpp").binaries.find((b) => b.gpu === "cuda12").assetUrl).toContain("sd-jd-3dba814-bin-win-cuda12-x64.zip");
 });
 
 // Round E (2026-10-29, the user: "One runtime, two kinds", "Yes, pin the fork"): audio.cpp is a kit runtime with speech

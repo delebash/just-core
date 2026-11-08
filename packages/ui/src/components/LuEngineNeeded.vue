@@ -49,15 +49,23 @@ async function load() {
 }
 
 // a readiness that names the next thing each time (Motion capture: its engine, its models, then FFmpeg) moves the
-// engine's task to the runtime it names now, and the model's task reads the model named now
+// engine's task to the runtime it names now, and the model's task to the model it names now: each task follows the
+// one it was made for. The named model only moves on once the one before is on disk, so its task is done. (A single
+// task that read "the model named now" applied the next model's idle row to the finished download — not an end — and
+// read "Working" for ever with its Download greyed: 2026-11-08, SOMA's download then SAM's.)
 let engineFor = "";
+let modelFor = "";
 const tasks = () => {
   const s = state.value;
   if (s?.runtime && (!engineTask.value || (engineFor !== s.runtime && engineTask.value.state !== "running"))) {
     engineTask.value = createDownloadTask(runtimeEngineChannel(s.runtime));
     engineFor = s.runtime;
   }
-  if (s?.runtime && s.model && !modelTask.value) modelTask.value = createDownloadTask(runtimeModelChannel(s.runtime, () => state.value?.model || s.model));
+  if (s?.runtime && s.model && (!modelTask.value || modelFor !== s.model)) {
+    const model = s.model;
+    modelTask.value = createDownloadTask(runtimeModelChannel(s.runtime, () => model));
+    modelFor = model;
+  }
 };
 let timer = null;
 let gone = false;

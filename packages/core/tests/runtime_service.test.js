@@ -163,7 +163,7 @@ test("a resumed install counts what its own unfinished zips hold; a build row th
   expect(thrown(() => short().install()).diskFull).toBeTruthy();
   const downloads = path.join(root, "sdcpp", DEFAULT_SDCPP_BUILD, ".downloads");
   mkdirSync(downloads, { recursive: true });
-  writeFileSync(path.join(downloads, "sd-master-77b72a2-bin-win-cuda12-x64.zip.part"), Buffer.alloc(2000));
+  writeFileSync(path.join(downloads, "sd-jd-3dba814-bin-win-cuda12-x64.zip.part"), Buffer.alloc(2000));
   writeFileSync(path.join(downloads, "sd-master-old-bin-win-cuda12-x64.zip.part"), Buffer.alloc(9000)); // a leftover: not this build's
   expect(thrown(() => short().install({ gpu: "cpu" }))?.diskFull ?? null).toBeNull(); // the CPU build is small
   expect(thrown(() => short().install())).toBeNull();

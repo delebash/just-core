@@ -301,9 +301,18 @@ export const DEFAULT_BINARIES = [
 // master-973's binaries by house-paint (the same release workflow; master-1024's names show the same macOS 26.6.2 and
 // Ubuntu 24.04 bases — carried over, not re-measured). No Linux CUDA build is published (NVIDIA
 // on Linux takes Vulkan); the macOS zip is one universal build with Metal.
-export const DEFAULT_SDCPP_BUILD = "master-1024-77b72a2";
-const SD_REL = `https://github.com/leejet/stable-diffusion.cpp/releases/download/${DEFAULT_SDCPP_BUILD}`;
+// From 2026-11-08 the pin is OUR fork's release (github.com/delebash/stable-diffusion.cpp, branch `jd`: upstream plus
+// the LTX guide frames, audio-to-video and the 8 GB memory fixes JustDirect's clips need — the kit's TASKS, "JustDirect's
+// six decisions", item 1, NOT STANDARD by the user's word), built by upstream's own release workflow with its Linux jobs
+// on ubuntu-24.04. jd-1078-3dba814 is upstream 3d315c4 merged. Its rows measured 2026-11-08: sizes and SHA-256 from
+// GitHub's API, unpacked sizes from each zip's central directory (range requests), the Linux builds' highest GLIBC_2.x
+// symbol 2.38 in every ELF of the CPU, Vulkan and ROCm zips, the macOS build's LC_BUILD_VERSION minos 26.0.0, and the
+// Windows builds' Visual C++ DLL names from their exe and dll bytes (the ROCm build has no OpenMP: no VCOMP140). The cudart
+// zip is the same file as upstream's (the same digest).
+export const DEFAULT_SDCPP_BUILD = "jd-1078-3dba814";
+const SD_REL = `https://github.com/delebash/stable-diffusion.cpp/releases/download/${DEFAULT_SDCPP_BUILD}`;
 const SD_VC_DLLS = Object.freeze(["MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "VCOMP140.DLL"]);
+const SD_VC_DLLS_NO_OPENMP = Object.freeze(["MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll"]);
 const sdRow = (platform, gpu, asset, bytes, unpacked, sha256, extra = {}) => ({
   platform,
   gpu,
@@ -316,20 +325,20 @@ const sdRow = (platform, gpu, asset, bytes, unpacked, sha256, extra = {}) => ({
   ...extra,
 });
 export const DEFAULT_SDCPP_BINARIES = [
-  sdRow("windows", "cuda12", "sd-master-77b72a2-bin-win-cuda12-x64.zip", 350857718, 396351095, "e60e538b86ecd47d8e141297fa45734125fdf97925d8ed3b49acb1397b5ee90b", {
+  sdRow("windows", "cuda12", "sd-jd-3dba814-bin-win-cuda12-x64.zip", 366926855, 459080311, "03561f3cd9305668ee81cac9445a9f98bba450afa52712dbf1bbe70bdf15e56f", {
     runtime_url: `${SD_REL}/cudart-sd-bin-win-cu12-x64.zip`,
     runtime_bytes: 563452046,
     runtime_unpacked_bytes: 788957696,
     runtime_sha256: "fe20366827d357c00797eebb58244dddab7fd9a348d70090c3871004c320f38d",
     requires: { dlls: SD_VC_DLLS },
   }),
-  sdRow("windows", "rocm", "sd-master-77b72a2-bin-win-rocm-10.1.0-x64.zip", 265967330, 1226862028, "edba722c47b634de5a8897bb631e320c7d6635686096a64cd605a758f7221542", { requires: { dlls: SD_VC_DLLS } }),
-  sdRow("windows", "vulkan", "sd-master-77b72a2-bin-win-vulkan-x64.zip", 29747358, 88799313, "854cd219814e90ffd0a804a19bda60cdc04a7f89a6c52aa7e3b959227b495072", { requires: { dlls: SD_VC_DLLS } }),
-  sdRow("windows", "cpu", "sd-master-77b72a2-bin-win-cpu-x64.zip", 18083813, 48765521, "f56a021629bfbff2a4725af97147ae84090eb075489a5ce7883daaaf87d4169d", { requires: { dlls: SD_VC_DLLS } }),
-  sdRow("macos", "metal", "sd-master-77b72a2-bin-Darwin-macOS-26.6.2-arm64.zip", 37585331, 102161840, "2bdbadad6592350158b08d43b2c52cde3146ab52bbe7bcd1cbcc0d3f23856512", { requires: { macos: "26.0" } }),
-  sdRow("linux", "rocm", "sd-master-77b72a2-bin-Linux-Ubuntu-24.04-x86_64-rocm-10.1.0.zip", 298318102, 1461631814, "ac0d35934165d9fb11973bc81c35b9c262236d9281d31c80f9fd863358e0db0b", { requires: { glibc: "2.38" } }),
-  sdRow("linux", "vulkan", "sd-master-77b72a2-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip", 37649874, 103654664, "3833cb636e1ecef8a5445c8547e13d1771583158880fb20a70a602fdc4da0f2e", { requires: { glibc: "2.38" } }),
-  sdRow("linux", "cpu", "sd-master-77b72a2-bin-Linux-Ubuntu-24.04-x86_64.zip", 27325752, 70700728, "d44a17e278412bd45c1847a91d30a69146b9bb9144c91a61fa0e357d7e2466af", { requires: { glibc: "2.38" } }),
+  sdRow("windows", "rocm", "sd-jd-3dba814-bin-win-rocm-10.1.0-x64.zip", 266083105, 1230471116, "2cac9f8f5310f4b945e7829b8d684001a836587f14a74b7d9a80f8b9aaaea99c", { requires: { dlls: SD_VC_DLLS_NO_OPENMP } }),
+  sdRow("windows", "vulkan", "sd-jd-3dba814-bin-win-vulkan-x64.zip", 29954251, 89397841, "eb24152dc64f8cb4fa164026d5acb315655d0311b6af8f767e87c9be9ea392b4", { requires: { dlls: SD_VC_DLLS } }),
+  sdRow("windows", "cpu", "sd-jd-3dba814-bin-win-cpu-x64.zip", 18183942, 49025617, "7e3ea4ecdb43d31ab270b4bbee5e4ac1bf8f0aa135c5a9fd56aec3988c5a74f6", { requires: { dlls: SD_VC_DLLS } }),
+  sdRow("macos", "metal", "sd-jd-3dba814-bin-Darwin-macOS-26.7.2-arm64.zip", 37926653, 103248368, "93ceab2d9e3186a7d7ffe99bd9a1e49fff8c1549f9347b05ed1618ed0b851786", { requires: { macos: "26.0" } }),
+  sdRow("linux", "rocm", "sd-jd-3dba814-bin-Linux-Ubuntu-24.04-x86_64-rocm-10.1.0.zip", 298521841, 1466360278, "aa5ae657f1c5a4dd8aa1ad3d5600473fad99847a368e24975ffa273c47eb7c51", { requires: { glibc: "2.38" } }),
+  sdRow("linux", "vulkan", "sd-jd-3dba814-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip", 37942677, 104428096, "ebe4f695c0f31518f703b0be765591212767a8459a002ea07c8ea5668607bd0b", { requires: { glibc: "2.38" } }),
+  sdRow("linux", "cpu", "sd-jd-3dba814-bin-Linux-Ubuntu-24.04-x86_64.zip", 27573106, 71403832, "a19eca36c609c863443045f4aa4cc49460b76b30e1cb6751ee32fb2c03375ded", { requires: { glibc: "2.38" } }),
 ];
 
 /** A DEFAULT_BINARIES row (snake data keys) as a BinaryAsset value (camelCase fields). */
@@ -515,12 +524,14 @@ export const FFMPEG_PROBE_ARGVS = Object.freeze([Object.freeze(["-version"])]);
 // Its longest file path is 155 characters inside the build's folder (torch's headers), so a data folder whose path is
 // over about 75 characters needs Windows' long paths turned on.
 // A new engine commit is a new build tag (r<n>-<commit>), so an install made before it is offered the update.
-export const DEFAULT_MOCAP_BUILD = "r6-f14635f";
-const MOCAP_ENGINE_COMMIT = "f14635fa1205db5a7f5e7976512814e429b6a35d";
+// r7 (2026-11-08): each step says when it starts ({step, started: true}), so the progress names the step running
+// (progressTracker); the engine's locked lists are unchanged since r6, so the setup's download is too.
+export const DEFAULT_MOCAP_BUILD = "r7-c7bad04";
+const MOCAP_ENGINE_COMMIT = "c7bad0480b6a6eda34219759ad60b15d95c2d362";
 const GEMX_COMMIT = "20555befe2fbbe5b2015e1fff7ff214dc18ea9d6";
 const COMFYUI_COMMIT = "426f5eea52a7ece1dd599fff4cb6cd1f352ddd24";
 const MOCAP_EXTRAS = [
-  { name: "the motion capture engine", url: `https://github.com/delebash/just-mocap/archive/${MOCAP_ENGINE_COMMIT}.zip`, sha256: "d40ffddb7889e4a29e29b5b4177b96b66c6ce5f57237f93ea00a8616c5243ced", bytes: 419123, archive: "zip", take: `just-mocap-${MOCAP_ENGINE_COMMIT}`, into: "engine", check: "bench/mocap.js" },
+  { name: "the motion capture engine", url: `https://github.com/delebash/just-mocap/archive/${MOCAP_ENGINE_COMMIT}.zip`, sha256: "251e21482106ceb9b0a6ed354b2b6b4174da1c5d6b04373f75c096b07f0ea6c7", bytes: 431220, archive: "zip", take: `just-mocap-${MOCAP_ENGINE_COMMIT}`, into: "engine", check: "bench/mocap.js" },
   { name: "GEM-X", url: `https://github.com/NVlabs/GEM-X/archive/${GEMX_COMMIT}.zip`, sha256: "ea5882b5814fa1ef34398e8b455854decd72d6728971d2c216439d4131f92db0", bytes: 71637425, archive: "zip", take: `GEM-X-${GEMX_COMMIT}`, into: "gemx", check: "pyproject.toml" },
   { name: "ComfyUI", url: `https://github.com/comfyanonymous/ComfyUI/archive/${COMFYUI_COMMIT}.zip`, sha256: "01f381c8330f5c5bec9bd3d4c651e8b53b45ffb70020b9e1e947fc63f93a1548", bytes: 13595371, archive: "zip", take: `ComfyUI-${COMFYUI_COMMIT}`, into: "comfyui", check: "main.py" },
   {

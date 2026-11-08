@@ -4,7 +4,7 @@
 // engine before a take; runMocap runs the engine's mocap.js through the spawn seam with the card booked; the routes keep
 // takes as rows and folders and run them as jobs, one at a time. The engine and uv are stood in for.
 import { EventEmitter } from "node:events";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, test } from "vitest";
@@ -233,6 +233,9 @@ test("the progress bar moves by each step's measured share; SAM 3D Body's share 
   expect(stepKey("foot correction, edited contacts")).toBe("foot correction");
   const track = progressTracker();
   const a = track({ step: "30 fps copy", seconds: 1 });
+  // a step starting: its own name while it runs, the bar not moved until it ends
+  const running = track({ step: "GEM-X body", started: true });
+  expect(running).toEqual({ fraction: a.fraction, message: "GEM-X body" });
   const b = track({ step: "GEM-X body", seconds: 140 });
   track({ pieces: 2 });
   const c = track({ step: "piece p00, frames 0-299" });
@@ -388,13 +391,15 @@ test("the routes: a video becomes a take, runs as a job, its contacts re-apply, 
   readyMocap();
   const takesDir = path.join(root, "takes");
   const runs = [];
+  // the engine names what it makes after its input, as bench/mocap.js does: source.mp4 → source.bvh, source.fbx, …
   const run = async (source, folder, options, { onProgress }) => {
-    runs.push({ source, folder, options });
+    runs.push({ source, folder, options, before: readdirSync(folder).sort() });
     onProgress(0.5, "GEM-X body");
     writeFileSync(path.join(folder, "gem.pt"), "pt");
     writeFileSync(path.join(folder, "contacts.json"), JSON.stringify({ fps: 30, frames: 10, automatic: [[[0, 5]], []], applied: [[[0, 5]], []] }));
-    writeFileSync(path.join(folder, "t.bvh"), "HIERARCHY");
-    return { take: folder, bvh: path.join(folder, "t.bvh") };
+    writeFileSync(path.join(folder, "source.bvh"), "HIERARCHY");
+    writeFileSync(path.join(folder, "source.c3d"), "C3D");
+    return { take: folder, bvh: path.join(folder, "source.bvh"), c3d: path.join(folder, "source.c3d") };
   };
   const jobs = new JobRegistry();
   const app = serve(makeMocapRouter(jobs, { takesDir, run }));
@@ -421,7 +426,7 @@ test("the routes: a video becomes a take, runs as a job, its contacts re-apply, 
   expect(jobs.get(job.id)).toMatchObject({ state: "done" });
   expect(runs[0]).toMatchObject({ source: path.join(takesDir, take.id, "source.mp4"), folder: path.join(takesDir, take.id), options: { fov: 78 } });
   const list = await (await app.request("/v1/mocap/takes")).json();
-  expect(list.takes[0]).toMatchObject({ id: take.id, state: "done", files: ["bvh"], job: null });
+  expect(list.takes[0]).toMatchObject({ id: take.id, state: "done", files: ["bvh", "c3d"], job: null });
 
   const contacts = await (await app.request(`/v1/mocap/takes/${take.id}/contacts`)).json();
   expect(contacts.applied).toEqual([[[0, 5]], []]);
@@ -430,6 +435,8 @@ test("the routes: a video becomes a take, runs as a job, its contacts re-apply, 
   const re = await (await app.request(`/v1/mocap/takes/${take.id}/contacts`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ranges: [[[0, 8]], [[2, 4]]] }) })).json();
   await jobs.jobs.get(re.id).settled;
   expect(runs[1].options.ranges).toEqual([[[0, 8]], [[2, 4]]]);
+  // the video, never the engine's source.bvh or source.c3d beside it (which sort before source.mp4)
+  expect(runs[1].source).toBe(path.join(takesDir, take.id, "source.mp4"));
 
   const bvh = await app.request(`/v1/mocap/takes/${take.id}/files/bvh`);
   expect([bvh.status, await bvh.text()]).toEqual([200, "HIERARCHY"]);
@@ -439,10 +446,12 @@ test("the routes: a video becomes a take, runs as a job, its contacts re-apply, 
   const source = await app.request(`/v1/mocap/takes/${take.id}/files/source`);
   expect([source.status, await source.text()]).toEqual([200, "video bytes"]);
 
-  // from the start: everything but the video goes first
+  // from the start: everything but the video goes first, the engine's source.* files with the rest
   const fresh = await (await app.request(`/v1/mocap/takes/${take.id}/run`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fresh: true }) })).json();
   await jobs.jobs.get(fresh.id).settled;
-  expect(existsSync(path.join(takesDir, take.id, "source.mp4"))).toBe(true);
+  expect(runs[1].before).toContain("source.bvh");
+  expect(runs[2]).toMatchObject({ source: path.join(takesDir, take.id, "source.mp4"), before: ["source.mp4"] });
+  expect(readFileSync(path.join(takesDir, take.id, "source.mp4"), "utf8")).toBe("video bytes");
 
   expect((await app.request(`/v1/mocap/takes/${take.id}`, { method: "DELETE" })).status).toBe(204);
   expect(existsSync(path.join(takesDir, take.id))).toBe(false);

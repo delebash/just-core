@@ -11,7 +11,8 @@
 //  - plain OSC: every SOMA joint's rotation against the rest pose, in SOMA's own axes (/mocap/joint/<name> x y z w), and
 //    each ARKit curve (/mocap/blend/<name> value), for a receiver of one's own.
 // Checked 2026-11-08 from JustDirect's window by an independent decoder (python-osc) against the VMC spec's types and
-// Unity's HumanBodyBones names (just-mocap RESEARCH.md); not yet seen moving an avatar in a receiving app.
+// Unity's HumanBodyBones names, and seen moving an avatar in a receiving app the right way round: Blender's VMC Link
+// read every arm pose back as sent (just-mocap RESEARCH.md, "VMC into Unreal: VRM4U").
 
 // SOMA's joints → Unity's humanoid bones (HumanBodyBones). SOMA joints not named here (Neck2, the metacarpals, the end
 // joints, the eyes and jaw) are left out: a named bone's rotation is taken against its nearest named ancestor.

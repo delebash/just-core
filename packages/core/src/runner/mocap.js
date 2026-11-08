@@ -233,6 +233,9 @@ export function progressTracker() {
     if (r?.pieces) pieces = Math.max(1, Number(r.pieces));
     // the bench's Blender import check never runs in an app (no Blender): not a step to show
     if (!r?.step || r.step === "import check") return null;
+    // a step starting (the engine says so from r7): its name while it runs, the bar where it is — its share is added
+    // at its end line, so the bar never jumps ahead of the work
+    if (r.started) return { fraction: Math.min(0.99, done / TOTAL_SECONDS), message: String(r.step) };
     const key = stepKey(r.step);
     const share = STEP_SECONDS[key] ?? 0;
     // a piece of SAM 3D Body is split in two lines (cut, then run); each is half of its piece's share

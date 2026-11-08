@@ -87,9 +87,20 @@ onMounted(async () => {
       renderer.render(scene, camera);
     };
     tick();
+    // the drawing follows the box's size (a window resized, a panel opened beside it)
+    const resize = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    });
+    resize.observe(el);
     three.value = { renderer, mixer };
     state.value = "ready";
     stop = () => {
+      resize.disconnect();
       cancelAnimationFrame(frame);
       controls.dispose();
       geometry.dispose();
@@ -121,8 +132,10 @@ onBeforeUnmount(() => stop());
 </template>
 
 <style scoped>
-.view3d { margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.view3d__box { position: relative; width: min(480px, 100%); height: 360px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+/* the figure has its own width: as a wrapping flex item without one, the box's percentage resolved against the
+   figure's min-content width (its bar's, ~138 px) and the 3D view drew in a strip (2026-11-08) */
+.view3d { margin: 0; display: flex; flex-direction: column; gap: 4px; width: min(480px, 100%); }
+.view3d__box { position: relative; width: 100%; height: 360px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
 .view3d__note { position: absolute; inset: 0; display: grid; place-items: center; padding: 12px; text-align: center; }
-.view3d__bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: min(480px, 100%); }
+.view3d__bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
 </style>
