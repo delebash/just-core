@@ -313,7 +313,20 @@ Checklist (each line updated as it lands):
       Docs: docgen getting-started + What's new, house-paint ai-providers + What's new, JustWrite What's new
       (2026-11-08). Callers: the six MainLayouts (JustWrite, house-paint, docgen, JustVoice, JustDirect, template) —
       the component is used as is, no prop changed. Re-run on 3d18f8e7 (`endrun.js kitfix`, logs `endrun2\`).
-- [ ] The three tags; house-paint's and docgen's `npm run release -- --yes`, JustWrite's `echo y | npm run release`
+- [x] The three tags, pushed (2026-11-08 ~17:19): JustWrite v2.1.0 = 1b1f0d71, house-paint v0.2.0 = b7aa047, docgen
+      v0.1.0 = 0cdcd47 (each tree clean, nothing unpushed, package.json and server/package.json at the version).
+- [ ] The dry runs (the approved order, TASKS 2026-11-07 item 5: the releases "once every dry run is green"), each
+      `gh workflow run release.yml -f publish=false -f platforms=all -f core_ref=dcc413f5` (+ JustWrite's
+      `sync_ref=77059d34`): JustWrite 42529667669, house-paint 42529671325, docgen 42529674763. The kit is
+      dcc413f5 = 3d18f8e7 (tested) + this doc. The other sessions hold kit commits until "dispatched".
+      **All three green** on every job: setup, build on ubuntu-22.04, windows-latest and macos-latest, linux-user;
+      publish skipped (a dry run).
+- [x] The three real runs dispatched (~17:5x) through each app's release.js on kit dcc413f5 (its note: the kit has
+      uncommitted changes under packages/ — just-direct-mocap's, put back after "e2e done" — "the release builds its
+      last commit, without them"): house-paint 42530357120, docgen 42530368326, JustWrite 42530378509 (`echo y |`).
+      just-voice and just-direct-mocap told "dispatched" (their kit commits may land now).
+- [ ] The three real runs watched to green and each release checked on GitHub (its files, not a draft).
+- (the original line, kept for its commands:) house-paint's and docgen's `npm run release -- --yes`, JustWrite's `echo y | npm run release`
       (its release.js has no `--yes`; it reads "Proceed? [y/N]" and closes stdin for gh itself) — core_ref = the kit's
       HEAD; the runs watched to green; just-direct-mocap and just-voice told "dispatched".
 - [ ] The three site deploys (`npm run deploy`) once the releases are published; each site checked live.
