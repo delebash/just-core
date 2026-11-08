@@ -271,6 +271,14 @@
     "by": "Claude (AI review, 2026-10-17)",
     "at": "2026-10-18"
   },
+  "516c86b5a134fae7": {
+    "key": "kit.mocap.results.kinds.usd",
+    "code": "untranslated",
+    "src": "USD — Universal Scene Description",
+    "dst": "USD — Universal Scene Description",
+    "by": "Claude (just-mocap session)",
+    "at": "2026-11-08"
+  },
   "51da41f403c5c8a4": {
     "key": "kit.modelCatalog.form.tokens",
     "code": "untranslated",
@@ -439,6 +447,14 @@
     "by": "Claude (AI review, 2026-10-17)",
     "at": "2026-10-18"
   },
+  "7e954325a478fe2b": {
+    "key": "kit.mocap.contacts.seconds",
+    "code": "untranslated",
+    "src": "{s} s",
+    "dst": "{s} s",
+    "by": "Claude (just-mocap session)",
+    "at": "2026-11-08"
+  },
   "807195204d2ef668": {
     "key": "kit.configColumn.temp",
     "code": "untranslated",
@@ -462,6 +478,14 @@
     "dst": "costo est.",
     "by": "Claude (AI review, 2026-10-17)",
     "at": "2026-10-18"
+  },
+  "8b364622d5e83064": {
+    "key": "kit.mocap.take.source",
+    "code": "untranslated",
+    "src": "Video: {name}",
+    "dst": "Video: {name}",
+    "by": "Claude (just-mocap session)",
+    "at": "2026-11-08"
   },
   "8c0257049f8845ff": {
     "key": "kit.storage.total",
@@ -574,6 +598,14 @@
     "dst": "xAI (Grok)",
     "by": "Claude (AI review, 2026-10-17)",
     "at": "2026-10-18"
+  },
+  "b81b07fe27661586": {
+    "key": "kit.mocap.take.smoothing.default",
+    "code": "untranslated",
+    "src": "Normal",
+    "dst": "Normal",
+    "by": "Claude (just-mocap session)",
+    "at": "2026-11-08"
   },
   "bf8d05468fb95c5e": {
     "key": "kit.common.removeItem",

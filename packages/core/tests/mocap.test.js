@@ -126,6 +126,8 @@ test("the engine banner's size is everything Install downloads: the build, its e
   });
   const extras = row.extras.reduce((n, x) => n + x.bytes, 0);
   expect(svc.status().downloadBytes).toBe(row.asset_bytes + extras + MOCAP_SETUP.downloadBytes);
+  // a tool: its tab shows no "let go after idle" (it has no server)
+  expect(svc.status().tool).toBe(true);
   expect(MOCAP_SETUP.downloadBytes).toBe(3_739_653_047);
 });
 

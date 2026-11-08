@@ -25,7 +25,8 @@
         "stt": "Transcripción",
         "music": "Música",
         "sfx": "Efectos de sonido",
-        "lipsync": "Sincronización labial"
+        "lipsync": "Sincronización labial",
+        "mocap": "Captura de movimiento"
       }
     },
     "lab": {
@@ -820,7 +821,8 @@
           "image": "un modelo de imágenes",
           "video": "un modelo de vídeo",
           "vision": "un modelo de visión",
-          "other": "un modelo"
+          "other": "un modelo",
+          "mocap": "Una toma de captura de movimiento"
         },
         "incoming": {
           "llm": "un modelo de IA",
@@ -832,7 +834,8 @@
           "image": "un modelo de imágenes",
           "video": "un modelo de vídeo",
           "vision": "un modelo de visión",
-          "other": "otro modelo"
+          "other": "otro modelo",
+          "mocap": "una toma de captura de movimiento"
         }
       },
       "programs": {
@@ -2321,6 +2324,183 @@
       "endedAway": "Este trabajo terminó sin acabar mientras la aplicación no miraba. Vuelve a empezarlo.",
       "cancelledAway": "Este trabajo se canceló mientras la aplicación no miraba.",
       "percent": "{n}%"
+    },
+    "mocap": {
+      "title": "Captura de movimiento",
+      "feature": "Convirtiendo un video en animación",
+      "tabs": {
+        "label": "Captura de movimiento",
+        "takes": "Tomas",
+        "live": "En vivo"
+      },
+      "takes": {
+        "label": "Tomas",
+        "add": "Añadir un video",
+        "adding": "Añadiendo {name}…",
+        "added": "{name} añadido",
+        "empty": {
+          "title": "Aún no hay tomas",
+          "message": "Añade un video de una persona moviéndose, ya sea desde un teléfono, una cámara web o una cámara. El cuerpo, los dedos y el rostro se capturan a partir de él."
+        },
+        "state": {
+          "new": "No ejecutado",
+          "running": "Ejecutando",
+          "done": "Listo",
+          "failed": "Error",
+          "cancelled": "Detenido"
+        },
+        "made": "Añadido {when}",
+        "pick": "Elige una toma a la izquierda o añade un video."
+      },
+      "take": {
+        "name": "Nombre",
+        "source": "Video: {name}",
+        "lens": {
+          "label": "Lente de la cámara",
+          "hint": "El lente le indica a la captura qué tan lejos está la persona. El modo automático lee la etiqueta propia de un iPhone; de lo contrario, usa un lente estándar.",
+          "auto": "Automático",
+          "phone": "Teléfono (equivalente a 35 mm)",
+          "webcam": "Webcam (campo de visión)",
+          "focal35": "Equivalente a 35 mm, mm",
+          "fov": "Campo de visión diagonal, grados"
+        },
+        "ground": {
+          "label": "Suelo irregular",
+          "hint": "Escaleras, rampas o suelo irregular: cada escalón mantiene su propia altura en lugar de un solo piso."
+        },
+        "armFit": {
+          "label": "Ajuste de brazos",
+          "hint": "Ajusta los codos y las muñecas al video donde el modelo de dedos coincide. Activado por defecto."
+        },
+        "smoothing": {
+          "label": "Suavizado de dedos",
+          "none": "Ninguno",
+          "default": "Normal",
+          "strong": "Fuerte"
+        },
+        "run": "Capturar",
+        "continue": "Continuar",
+        "again": "Capturar de nuevo desde el principio",
+        "againHint": "Una nueva lente, ajuste de suelo o de brazos requiere los modelos nuevamente: todo excepto el video se vuelve a generar.",
+        "running": "Capturando…",
+        "task": "Capturando {name}",
+        "progress": "{step} · {n}%",
+        "done": "{name} ha sido capturado",
+        "failed": "La toma falló: {reason}",
+        "stopped": "La toma se detuvo. Continuar retoma desde donde se detuvo.",
+        "delete": {
+          "button": "Eliminar toma",
+          "title": "¿Eliminar {name}?",
+          "message": "Esto eliminará la copia de video de la toma y todos los archivos creados a partir de ella.",
+          "confirm": "Eliminar"
+        },
+        "trim": {
+          "label": "Parte del video",
+          "hint": "Una toma dura como máximo 60 segundos (el límite del modelo corporal). Deja la duración vacía para usar el video completo cuando sea así de corto.",
+          "from": "Desde, segundos",
+          "length": "Duración, segundos"
+        },
+        "camera": {
+          "label": "Cámara",
+          "still": "Fija",
+          "turning": "Girando para seguir",
+          "hint": "Girando: la cámara se mantiene en un solo lugar y gira para seguir a la persona, como lo hace un teléfono sostenido en la mano. No se admite una cámara que se desplace con la persona."
+        },
+        "person": {
+          "label": "Persona",
+          "auto": "La más grande en la vista",
+          "pick": "Selecciona en la imagen",
+          "hint": "Con varias personas en la vista, haz clic en la que quieras capturar en el primer fotograma de la toma.",
+          "frame": "El primer fotograma de la toma: haz clic en la persona para capturar"
+        },
+        "files": {
+          "label": "Archivos",
+          "inPlace": "En su lugar",
+          "inPlaceHint": "Se eliminó la trayectoria de las caderas sobre el suelo: el movimiento se mantiene en el sitio.",
+          "rest": "Pose de descanso",
+          "restT": "Pose en T",
+          "restA": "Pose en A"
+        },
+        "eta": "{step} · {n}% · quedan aproximadamente {min} min"
+      },
+      "results": {
+        "label": "Resultados",
+        "preview": "Vista previa: el esqueleto dibujado sobre el video",
+        "view3d": "Vista 3D",
+        "files": "Archivos",
+        "save": "Guardar",
+        "download": "Descargar",
+        "saved": "Guardado en {path}",
+        "downloaded": "Descargado en {name}",
+        "kinds": {
+          "fbx": "FBX — animación para Blender, Maya, Unreal, Unity",
+          "bvh": "BVH — animación de esqueleto",
+          "glb": "GLB — animación de glTF",
+          "usd": "USD — Universal Scene Description",
+          "c3d": "C3D — posiciones de las articulaciones para herramientas de biomecánica",
+          "face": "Cara — Live Link Face CSV (52 curvas ARKit)",
+          "motion": "Datos de movimiento — rotación y posición de cada articulación, JSON",
+          "preview": "Video de vista previa — MP4",
+          "pose": "Video de pose — el esqueleto sobre fondo negro (estilo OpenPose), para video guiado por pose",
+          "sheet": "Hoja de contactos — PNG",
+          "contacts": "Contactos de los pies — JSON"
+        }
+      },
+      "contacts": {
+        "label": "Contactos de los pies",
+        "hint": "Los fotogramas en los que cada pie se apoya en el suelo. Edítalos y aplícalos: los pies y todo lo que sigue se volverán a generar sin ejecutar los modelos.",
+        "left": "Pie izquierdo",
+        "right": "Pie derecho",
+        "from": "Desde el fotograma",
+        "to": "Enmarcar",
+        "add": "Añadir un contacto",
+        "remove": "Eliminar",
+        "reset": "Volver a los contactos encontrados",
+        "apply": "Aplicar contactos",
+        "applying": "Aplicando contactos…",
+        "task": "Aplicando los contactos de pie de {name}",
+        "applied": "Contactos aplicados a {name}",
+        "edited": "Los contactos editados están en uso",
+        "frames": "{frames} enmarca a {fps} fps",
+        "seconds": "{s} s",
+        "none": "Sin contactos"
+      },
+      "view": {
+        "label": "Vista 3D de la toma",
+        "play": "Reproducir",
+        "pause": "Pausa",
+        "loading": "Cargando la vista 3D…",
+        "failed": "No se pudo cargar la vista 3D: {reason}"
+      },
+      "live": {
+        "label": "En vivo",
+        "intro": "Captura en vivo desde una cámara web: el cuerpo y las manos se rastrean en esta ventana, y pueden grabarse o enviarse a otra aplicación.",
+        "camera": "Cámara",
+        "start": "Iniciar cámara",
+        "stop": "Detener cámara",
+        "starting": "Iniciando la cámara y sus modelos…",
+        "noCamera": "No se encontró ninguna cámara o no se le dio permiso para usarla.",
+        "fps": "{n} fotogramas por segundo",
+        "noPerson": "No hay personas en la vista",
+        "hands": "Manos: {n}",
+        "record": "Grabar",
+        "stopRecording": "Detener grabación",
+        "recording": "Grabando · {s} s",
+        "saveBvh": "Guardar la grabación (BVH)",
+        "saveFace": "Guardar las curvas faciales (CSV)",
+        "send": {
+          "label": "Enviar a",
+          "hint": "Envía la pose a otra aplicación mientras se mueve (VMC: VSeeFace, VNyan, Warudo, Unity; OSC).",
+          "vmc": "VMC",
+          "osc": "OSC",
+          "host": "Dirección",
+          "port": "Puerto",
+          "on": "Enviando",
+          "off": "No se está enviando",
+          "failed": "Error al enviar: {reason}"
+        },
+        "needsInstall": "La captura en vivo utiliza los modelos que vienen con la instalación de Motion capture."
+      }
     }
   }
 }

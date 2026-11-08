@@ -423,6 +423,8 @@ export class RuntimeService {
     return {
       id: this.rt.id,
       kind: this.rt.kind,
+      // a tool (FFmpeg, Motion capture): no server, so nothing to let go after idle
+      ...(this.rt.tool ? { tool: true } : {}),
       // several kinds (audio.cpp: tts, stt): each one's bands, in the kind's unit
       ...(kinds.length > 1 ? { kinds, bandsByKind: cfg.bandsByKind ?? null } : {}),
       // the settings the runtime declares (audio.cpp's build, threads, timeouts …), as set here, and how its tab shows each

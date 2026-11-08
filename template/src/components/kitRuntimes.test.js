@@ -249,6 +249,14 @@ test("a runtime's idle time: shown in minutes, saved in seconds", async () => {
   expect(server.calls.find(([m, u]) => m === "PUT" && u === "/v1/ai/runtimes/sdcpp/settings")[2]).toEqual({ idleSeconds: 600 });
 });
 
+test("a tool runtime (Motion capture, FFmpeg) has no server, so no idle time to set — its models still listed", async () => {
+  server.engine = { ...server.engine, tool: true };
+  wrapper = mount(LuRuntimeTab, { props: { runtimeId: "sdcpp" }, attachTo: document.body, global: { plugins: plugins() } });
+  await settle();
+  expect(document.body.querySelector("#lu-rt-sdcpp-idle")).toBeNull();
+  expect(text()).toContain("Tiny");
+});
+
 test("an in-process runtime (ONNX Runtime) is part of the app: nothing to install or remove, its models as any runtime's", async () => {
   wrapper = mount(LuRuntimeTab, { props: { runtimeId: "onnx" }, attachTo: document.body, global: { plugins: plugins() } });
   await settle();
