@@ -267,8 +267,15 @@ Checklist (each line updated as it lands):
 - [x] JustWrite's en.json: 15 "noProvider" messages said "Settings → AI"; the page is **AI Settings** in the sidebar
       (`nav.ai`) — now "on the AI Settings page" (JustWrite 8e20771f, pushed; also whats-new's three old mentions,
       StatPill's and planningDraft's comments, ARCHITECTURE.md). The archived plans keep their history.
-- [ ] JustWrite's Spanish for those 15 keys: docgen's CLI `translate` on JustWrite's config (it re-translates a key
-      whose English changed; the CLI writes the locale file), on the local model — with the kit tree clean.
+- [x] JustWrite's Spanish for those 15 keys: docgen's CLI `translate` on JustWrite's config, on the local model, the kit
+      tree clean (16:2x, after just-stage's "PC free"): "3163 unchanged, 15 to translate", all checks passed — but the
+      model wrote "Ajustes de IA", "movimientos Unstuck" and "informe" where the catalog says "Configuración de IA"
+      (`nav.ai`), "Desbloquear" (`stuck.chipLabel`) and "resumen" (`home.briefingChipLabel`). **MINE:** the fix is the
+      project's context, not a hand edit (the family rule: docgen's translator, not Claude) — the context now names
+      those three terms; the 15 machine-written keys were dropped from es.json and translated again: all 15 consistent,
+      checks passed (JustWrite 2fd5b56f, pushed). Attack: docgen's Review by hand — that is a person's tool; a
+      glossary entry — the glossary means "never translate", the wrong rule for a name that has a Spanish form.
+      Survives. No llama-server left after; the card handed to just-voice ("card free").
 - **The machine's order (2026-11-08 15:2x, agreed by message):** just-stage has the whole PC until about 16:15 (the
   user's word, 15:12) → its "PC free" → this session's card run, ~10 min ("need clean kit tree" to just-direct-mocap
   first; "card free" to just-voice after) → just-voice's ~40 min alone (Fish Audio Drama 3 + Nemotron; this load
@@ -279,8 +286,9 @@ Checklist (each line updated as it lands):
 - [ ] The end run on a clean kit tree (just-direct-mocap's "tree matches HEAD"): docgen lint, i18n lint, suites, guard,
       `npm run build:unpacked`, e2e; JustWrite's the same if touched, and its e2e 9; house-paint unchanged since its green
       pass (b6685e6) — checked by git. An installer build runs without CI (`env -u CI`).
-- [ ] The three tags; each app's `npm run release -- --yes` (core_ref = the kit's HEAD); the runs watched to green;
-      just-direct-mocap told "dispatched".
+- [ ] The three tags; house-paint's and docgen's `npm run release -- --yes`, JustWrite's `echo y | npm run release`
+      (its release.js has no `--yes`; it reads "Proceed? [y/N]" and closes stdin for gh itself) — core_ref = the kit's
+      HEAD; the runs watched to green; just-direct-mocap and just-voice told "dispatched".
 - [ ] The three site deploys (`npm run deploy`) once the releases are published; each site checked live.
 - [ ] The end-of-job report (every MINE decision listed).
 - [ ] The three tags; each app's `npm run release -- --yes` (core_ref = the kit's HEAD); the runs watched.
