@@ -197,7 +197,9 @@ kept still from cde0089f (web-9e, web-4c told). This run's boxes:
       **2026-11-08 14:15 the machine was rebooted** (measured after it: `node -e 0` starts in 0.1 s; MTKBTSVC at 14,034
       handles and growing about 4.6 a second, 14,034 → 14,126 in 20 s — the leak is back, so the slowdown returns in
       days). So the seven launch failures can be re-run now.
-- [ ] Each app's version and What's new section checked (`release.js` needs `## v<version>`; JustWrite's is dated).
+- [x] Each app's version and What's new section checked (2026-11-08, after the reboot): package.json 2.1.0 / 0.2.0 /
+      0.1.0; house-paint and docgen have `## v0.2.0` and `## v0.1.0` (their release.js checks for it); JustWrite's
+      release.js has no What's new check, so its dated `## 2026-11-07` section stands.
 - [ ] The three tags; each app's `npm run release -- --yes` (core_ref = the kit's HEAD); the runs watched.
 - [ ] The three site deploys (`npm run deploy`) once the releases are published.
 
