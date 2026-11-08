@@ -40,11 +40,13 @@ test("an app that turns sd.cpp on gets every build row and the pin, with sizes, 
   expect(h.get("runner_setting", pinKey("sdcpp")).value).toBe(DEFAULT_SDCPP_BUILD);
   const cfg = stores.getRunnerConfigStore().getRuntimeConfig("sdcpp");
   const cuda = cfg.binaries.find((b) => b.platform === "windows" && b.gpu === "cuda12");
+  // the measured row in runner/config.js, as seeded (the pin moves; the test reads the row, not a copy of its numbers)
+  const shipped = DEFAULT_SDCPP_BINARIES.find((b) => b.platform === "windows" && b.gpu === "cuda12");
   expect(cuda).toMatchObject({
     serverExe: "sd-server.exe",
-    assetBytes: 350857718,
-    sha256: "e60e538b86ecd47d8e141297fa45734125fdf97925d8ed3b49acb1397b5ee90b",
-    runtimeSha256: "fe20366827d357c00797eebb58244dddab7fd9a348d70090c3871004c320f38d",
+    assetBytes: shipped.asset_bytes,
+    sha256: shipped.sha256,
+    runtimeSha256: shipped.runtime_sha256,
     requires: { dlls: ["MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "VCOMP140.DLL"] },
   });
   expect(cfg.binaries.find((b) => b.platform === "linux" && b.gpu === "vulkan").requires).toEqual({ glibc: "2.38" });

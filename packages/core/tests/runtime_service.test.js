@@ -27,6 +27,8 @@ const ROWS = DEFAULT_SDCPP_BINARIES.map((b) => ({
   assetUnpackedBytes: b.asset_unpacked_bytes ?? 0,
   runtimeUnpackedBytes: b.runtime_unpacked_bytes ?? 0,
 }));
+// the CUDA 12 row as runner/config.js ships it (measured there): the numbers below are read from it, never copied
+const CUDA = DEFAULT_SDCPP_BINARIES.find((b) => b.platform === "windows" && b.gpu === "cuda12");
 const config = () => ({ id: "sdcpp", pinnedBuild: DEFAULT_SDCPP_BUILD, binaries: ROWS });
 const system = (missing = []) => ({ platform: "win32", arch: "x64", versions: {}, missingDlls: (names) => names.filter((n) => missing.includes(n)) });
 
@@ -72,7 +74,7 @@ const service = (extra = {}) => new RuntimeService({ id: "sdcpp", cacheRoot: roo
 test("status: this box's build, its download size, not installed, nothing it lacks", () => {
   const s = service().status();
   expect(s).toMatchObject({ id: "sdcpp", kind: "image", label: "stable-diffusion.cpp", build: DEFAULT_SDCPP_BUILD, gpu: "cuda12", installed: false, need: null });
-  expect(s.downloadBytes).toBe(350857718 + 563452046); // the build + its CUDA runtime
+  expect(s.downloadBytes).toBe(CUDA.asset_bytes + CUDA.runtime_bytes); // the build + its CUDA runtime
 });
 
 test("install: progress, then installed with the server in the cache — the launch-flag probe handed to the install", async () => {
@@ -141,7 +143,7 @@ const thrown = (fn) => {
   return null;
 };
 // the CUDA 12 build: its two zips, and what each unpacks to (runner/config.js, measured)
-const CUDA_ROOM = 350857718 + 396351095 + 563452046 + 788957696;
+const CUDA_ROOM = CUDA.asset_bytes + CUDA.asset_unpacked_bytes + CUDA.runtime_bytes + CUDA.runtime_unpacked_bytes;
 
 test("an install that wouldn't fit the drive is refused before anything downloads: its zips and what they unpack to, the margin", async () => {
   const acq = fakeAcquire();
@@ -169,7 +171,7 @@ test("a resumed install counts what its own unfinished zips hold; a build row th
   expect(thrown(() => short().install())).toBeNull();
   // unmeasured: room for five times each zip beside it
   const bare = ROWS.map(({ assetUnpackedBytes, runtimeUnpackedBytes, ...r }) => r);
-  const guess = (350857718 + 563452046) * 6 + ROOM_MARGIN;
+  const guess = (CUDA.asset_bytes + CUDA.runtime_bytes) * 6 + ROOM_MARGIN;
   const e = thrown(() => service({ acquire: fakeAcquire().fn, configFn: () => ({ ...config(), binaries: bare }), freeBytesFn: () => guess - 3000 }).install({ gpu: "cuda12", force: true }));
   expect(e.diskFull.needBytes).toBe(guess - 2000); // its .part still counts
 });
