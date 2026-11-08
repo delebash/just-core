@@ -12,6 +12,13 @@ websites ect, go" — on the list in TASKS (versions; JustVoice in; the fork's v
 releases on the user's word; the Sass pin; the boot test). Waits for the user even under the go (the global rules):
 the fork's release, the four apps' releases, the website deploys.
 
+Later the same night, the user, verbatim: "you dont need to do any big tests or anything big just get the apps
+releases"; then "dont stop keep going asi is if you need to , i understna the release and fork" (the fork's release
+started on it: run 42444512703); then, on the docs check, "i thought each app already maintied its docs i didnknow you
+are doing some big audit" — the check stopped (JustWrite's verified fixes kept, 7a478fd9 and 6d562c09; the rest put
+back) — and on the session's rec (no more audit; one test pass before tagging, inside the fork's two-hour build; one
+short llama.cpp card check; then the releases and the site deploys as they are): "whatever your rec is doi it go".
+
 ## Facts taken fresh (2026-11-07)
 
 - **npm** (`npm outdated --json --long` in 32 folders: the kit's three, the template's five, each app's five, the sync
@@ -62,6 +69,19 @@ the fork's release, the four apps' releases, the website deploys.
 | webdriverio 10 (its v10.0.0 notes) | Appium 3 required, `$` strict, `executeAsync`/`touchAction` removed, Node ≥ 22.19 | JustWrite's e2e/phone-ios.js only (Appium 3.8.0 already; getContexts, switchContext, execute, getLogs with a catch) | take it; runs on GitHub's macOS only, unrun here |
 | Biome 2.6 (its CHANGELOG, 2.6.2) | 59 nursery rules promoted, many recommended; `javascript.parser.gritMetavariables` removed | one biome.json in every app; JustVoice moves with it (now this session's) | take it; the lint fixes in the final pass |
 | Starlight 0.42 (withastro/starlight 0.42.0) | mobile menu markup (`starlight-menu-button`, `data-mobile-menu-expanded` gone), `tagline` removed, astro ≥ 7.2.10 | no site's src or config names them (grep) | take it with astro 7.4.7 |
+
+## Standards for the pieces
+
+| Piece | Standard it follows | Kit code |
+|---|---|---|
+| Every range at its latest | npm-check-updates 23.1.1 (`ncu -u`, the range style kept), then `npm install` / `npm update` (docs.npmjs.com/cli/commands/npm-update) | `packages/core/package.json`, `packages/ui/package.json`, `template/package.json` |
+| Claude on API version 2026-10-21 | the migration guide's TypeScript section (platform.claude.com/docs/en/api/migration-2026-10-21): no sampling parameters; `defaultHeaders: { "X-Api-Key", Authorization: null }` for a gateway | `packages/core/src/llm/anthropic.js` (`AnthropicAdapter`) |
+| Gemini on @google/genai 3 | the SDK's own `httpOptions.apiVersion` (googleapis/js-genai v3.0.0's notes) | `packages/core/src/llm/gemini.js` (`GeminiAdapter`) |
+| llama.cpp b12110 | the kit's review checklist, `docs/llama-cpp-watch.md` | `packages/core/src/runner/config.js` (`DEFAULT_PINNED_BUILD`) |
+| audio.cpp v0.9.4-jv.7 | our fork's release workflow (dispatch only); the rows measured as the config's comment says | `packages/core/src/runner/config.js` (`DEFAULT_AUDIOCPP_BUILD`) |
+| The boot test in each app | the template's test, copied as it is | `template/server/tests/boot.test.js` |
+| docgen's entry check | the template's serve.js | `template/server/src/serve.js` |
+| Biome 2.6 | `biome migrate` (biomejs.dev), one biome.json for every app | `template/biome.json` |
 
 ## Decisions made under the go (MINE — not the user's; each reversible)
 
