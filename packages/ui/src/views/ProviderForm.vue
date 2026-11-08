@@ -42,6 +42,8 @@ const props = defineProps({
 const emit = defineEmits(["saved", "deleted", "cancel", "signed-in"]);
 
 const isNew = computed(() => !props.provider);
+// Claude Code's sign-in command, shown as typed — a program's command, not a word to translate (the i18n lint)
+const CLAUDE_LOGIN_CMD = "claude auth login";
 // The bundled llama.cpp runner — its where-it-runs + type are fixed (it's THE
 // built-in engine), and it's the one provider with a managed model catalog.
 const isBuiltin = computed(() => props.provider?.providerType === "local-llamacpp");
@@ -415,7 +417,7 @@ async function putReasoningRow(row) {
           <div v-if="planInfo?.program" class="lu-fh">
             <template v-if="!planInfo.program.installed">{{ t('kit.provider.claudeCode.notInstalled') }}</template>
             <template v-else-if="!planInfo.program.signedIn">
-              <i18n-t keypath="kit.provider.claudeCode.notSignedIn" scope="global"><template #cmd><span class="lu-mono">claude auth login</span></template></i18n-t>
+              <i18n-t keypath="kit.provider.claudeCode.notSignedIn" scope="global"><template #cmd><span class="lu-mono">{{ CLAUDE_LOGIN_CMD }}</span></template></i18n-t>
             </template>
             <template v-else>{{ planInfo.program.plan ? t('kit.provider.claudeCode.signedInPlan', { plan: planInfo.program.plan }) : t('kit.provider.claudeCode.signedIn') }}</template>
           </div>

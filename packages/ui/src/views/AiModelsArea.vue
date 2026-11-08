@@ -24,6 +24,8 @@ import FeatureWorkbench from "./FeatureWorkbench.vue";
 const { t, n: fmtNum } = useI18n();
 // An example address, not a word — never translated.
 const LOCAL_URL_EXAMPLE = "http://localhost:…";
+// Claude Code's sign-in command, shown as typed — a program's command, not a word to translate (the i18n lint)
+const CLAUDE_LOGIN_CMD = "claude auth login";
 import ProviderForm from "./ProviderForm.vue";
 import QuickSetup from "./QuickSetup.vue";
 import PricingEditor from "./PricingEditor.vue";
@@ -783,7 +785,7 @@ onMounted(() => {
             <div class="lu-prog-text">
               <b>{{ t('kit.aiArea.programs.found', { name: d.name }) }}</b>
               <span v-if="d.program.signedIn">{{ d.program.plan ? t('kit.aiArea.programs.signedInPlan', { plan: d.program.plan }) : t('kit.aiArea.programs.signedIn') }}</span>
-              <i18n-t v-else keypath="kit.aiArea.programs.notSignedIn" tag="span" scope="global"><template #cmd><span class="lu-mono">claude auth login</span></template></i18n-t>
+              <i18n-t v-else keypath="kit.aiArea.programs.notSignedIn" tag="span" scope="global"><template #cmd><span class="lu-mono">{{ CLAUDE_LOGIN_CMD }}</span></template></i18n-t>
               <span class="lu-muted">{{ t('kit.aiArea.programs.what') }}</span>
             </div>
             <UiButton v-if="d.program.signedIn" intent="primary" size="small" @click="connectProgram(d)">{{ t('kit.aiArea.programs.connect') }}</UiButton>
