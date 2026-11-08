@@ -99,8 +99,10 @@ FOUND   2026-11-08 by JustDirect's session (web-4c), its axe run. Checked in cod
         formula on the tokens.css values): template, house-paint and JustDirect light 2.22:1 (no --gold-soft: the
         #f5edda fallback); their dark theme 1.73:1 (the same light fallback under the dark --gold); JustWrite light 2.89:1,
         dark 6.31:1 (it defines --gold-soft). Shown wherever a model fits tightly: LuEngineNeeded's banner, LuModelCatalog,
-        LuRuntimeTab, QuickSetup. A colour choice for the kit (the chip's own ink and soft tokens in the template's
-        tokens.css), so it waits for the user's go.
+        LuRuntimeTab, QuickSetup. The same gold-on-gold-soft pair also in `.lu-pill--load` (styles.css:318) and
+        LuModelCatalog's `.lu-lic--warn` (LuModelCatalog.vue:1692). Held by the kit's session (web-9e), put to the user
+        as a decision with its rec: the four rules onto the kit's existing --warn-ink on --warn-bg, defined in both
+        themes by every app (7.3–8.8:1, web-9e's measure). Waits for the user's go.
 
 ## JustDirect's kit gaps, filled before the app [2026-11-06]
 DECIDED: the user, verbatim, 2026-11-06: "your rec go", on item 4 of the session's list: "Four gaps to fill in the kit
