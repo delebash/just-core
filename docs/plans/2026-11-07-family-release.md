@@ -298,6 +298,21 @@ Checklist (each line updated as it lands):
       light 201 s, dark 86 s). The guard: one violation, not this release's — just-direct's v1 plan names kit code
       (`runner/dev_build.js`) that is only in just-direct-mocap's held edits; it clears when they are committed after
       "dispatched" (that session agreed). house-paint unchanged since its green pass (b6685e6, tree clean).
+- [x] docgen's real-window walk on the real data and THE real project (`dg-walk.js`, the harness's Driver with its
+      server on data/): with `--config` the project loads; restarted WITHOUT it, it loads again (`loaded=true
+      configPath=…justwrite-app\just-ai-i18n-docgen\config.json`; the log: "reopened the last project"). The real data
+      has no row the confirmation pass annotated (14 es rows, none), so the verdict line is shown by the mounted test
+      only. **Found:** the window opens on the start screen loading the default model; after **Cancel** the splash
+      stayed up with NO button for good (`dg-trap.js`: before `["Cancel","Continue without waiting"]`, +1/+5/+15 s
+      after `[]`) — in every app (the kit's BootModelLoad: its group rendered only while a task ran, and Cancel sends
+      the task back to the composable's IDLE). **MINE — fixed in the kit** (3d18f8e7): once a task has shown,
+      "Continue without waiting" stays; nothing shows before a load starts, as before. Test
+      `template/src/components/kitBootLoad.test.js` (fails on the old component, passes on the fix). Attack:
+      dismiss the splash when the task ends — a load passes engine → load phases and a gap would close it early;
+      leave it for a 2.1.1 — the family DECIDED "each app is complete bugs fixed", and Cancel always trapped. Survives.
+      Docs: docgen getting-started + What's new, house-paint ai-providers + What's new, JustWrite What's new
+      (2026-11-08). Callers: the six MainLayouts (JustWrite, house-paint, docgen, JustVoice, JustDirect, template) —
+      the component is used as is, no prop changed. Re-run on 3d18f8e7 (`endrun.js kitfix`, logs `endrun2\`).
 - [ ] The three tags; house-paint's and docgen's `npm run release -- --yes`, JustWrite's `echo y | npm run release`
       (its release.js has no `--yes`; it reads "Proceed? [y/N]" and closes stdin for gh itself) — core_ref = the kit's
       HEAD; the runs watched to green; just-direct-mocap and just-voice told "dispatched".
