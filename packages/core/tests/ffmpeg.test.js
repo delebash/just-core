@@ -11,7 +11,7 @@ import * as seed from "../src/llm/seed.js";
 import * as stores from "../src/llm/stores.js";
 import { runtimeVariantDir, selectRuntimeAsset } from "../src/runner/binary.js";
 import { DEFAULT_FFMPEG_BINARIES, DEFAULT_FFMPEG_BUILD } from "../src/runner/config.js";
-import { ffmpegExe, ffmpegReadiness } from "../src/runner/ffmpeg.js";
+import { ffmpegExe, ffmpegReadiness, runFfmpeg } from "../src/runner/ffmpeg.js";
 import { configureRuntimeServices, RuntimeService } from "../src/runner/runtime_service.js";
 import { pinKey, runtimeOf, settingKey, settingsUiOf } from "../src/runner/runtimes.js";
 import { freshDb } from "./helpers.js";
@@ -111,4 +111,45 @@ test("the user's own FFmpeg wins when its path is there; a path that isn't leave
   rmSync(runtimeVariantDir(root, "ffmpeg", DEFAULT_FFMPEG_BUILD, "cpu"), { recursive: true, force: true });
   service({ installed: false, own: path.join(root, "gone", "ffmpeg.exe") });
   expect(ffmpegExe()).toBeNull();
+});
+
+/** A stand-in for the kit's spawn seam: a child that writes `output` and ends with `code` (null: runs until killed). */
+function fakeSpawn({ output = "", code = 0 } = {}) {
+  const calls = [];
+  const spawn = async (_popen, argv) => {
+    calls.push(argv);
+    const { EventEmitter } = await import("node:events");
+    const proc = new EventEmitter();
+    proc.capturedOutput = output;
+    proc.killed = false;
+    proc.kill = () => {
+      proc.killed = true;
+      setTimeout(() => proc.emit("close", 1), 0);
+    };
+    if (code !== null) setTimeout(() => proc.emit("close", code), 0);
+    return [proc, null];
+  };
+  return { spawn, calls };
+}
+
+test("runFfmpeg: no FFmpeg is a 409 for the install offer; a run goes through the spawn seam with the app's exe", async () => {
+  await expect(runFfmpeg(["-version"])).rejects.toMatchObject({ statusCode: 409, slug: "engine-not-installed" });
+  service();
+  const ok = fakeSpawn({ output: "ffmpeg version 9.0.2" });
+  await expect(runFfmpeg(["-i", "a.mp4", "out/%05d.png"], { spawn: ok.spawn })).resolves.toEqual({ output: "ffmpeg version 9.0.2" });
+  const dir = runtimeVariantDir(root, "ffmpeg", DEFAULT_FFMPEG_BUILD, "cpu");
+  expect(ok.calls[0]).toEqual([path.join(dir, "ffmpeg.exe"), "-hide_banner", "-nostdin", "-i", "a.mp4", "out/%05d.png"]);
+});
+
+test("runFfmpeg: a failure says its last lines; a Cancel stops it; so does its time limit", async () => {
+  service();
+  const bad = fakeSpawn({ output: "line one\nline two\nin.mp4: Invalid data found when processing input", code: 1 });
+  await expect(runFfmpeg(["-i", "in.mp4"], { spawn: bad.spawn })).rejects.toThrow(/exit 1.*Invalid data found/);
+  const forever = fakeSpawn({ code: null });
+  const ctl = new AbortController();
+  const run = runFfmpeg(["-i", "x"], { spawn: forever.spawn, signal: ctl.signal });
+  await new Promise((r) => setTimeout(r, 5));
+  ctl.abort();
+  await expect(run).rejects.toMatchObject({ name: "AbortError" });
+  await expect(runFfmpeg(["-i", "x"], { spawn: fakeSpawn({ code: null }).spawn, timeoutMs: 20 })).rejects.toThrow(/ran past/);
 });
