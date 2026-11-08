@@ -53,6 +53,9 @@ STOPPED 2026-11-07 (late) — the user, verbatim, relayed by JustVoice's session
         2026-11-08: restarted ("do the release"), stopped ("stop release"), then restarted without JustVoice, the user,
         verbatim: "do the releae just not jv" — JustWrite v2.1.0, house-paint v0.2.0 and docgen v0.1.0 on one kit commit;
         the audio.cpp pin stays v0.9.2-jv.6. The plan's "RESTARTED WITHOUT JUSTVOICE" section has the boxes.
+GO:     2026-11-08 (after the reboot), the user, verbatim: "you can go on the relae for jw housepaint docgen and its
+        fixes and websitesk, get those apps done and rleased" — the three apps, their found faults, the three websites,
+        and the user's word for the releases and the site deploys. The plan's "GO (2026-11-08, after the reboot)" section.
 STATE:  OPEN — the "family release" session releases JustWrite, house-paint, docgen and JustVoice together, each on the
         same kit commit (each release.yml's `core_ref`), our audio.cpp fork's v0.9.4-jv.7 before them. JustDirect's kit
         gaps (below) are not in it.

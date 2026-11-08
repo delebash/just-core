@@ -206,6 +206,34 @@ kept still from cde0089f (web-9e, web-4c told). This run's boxes:
       tree" and wait for "tree matches HEAD" (it saves its edits as a patch, takes them out and puts them back after this
       session's "e2e done"). Commit only this session's own paths (`git commit <path>`, never `-a`). core_ref = the kit's
       HEAD at dispatch; tell that session if a docs commit of ours moves it.
+
+## GO (2026-11-08, after the reboot) — read this FIRST after any compaction
+
+The user, verbatim: "you can go on the relae for jw housepaint docgen and its fixes and websitesk, get those apps done
+and rleased" — the go for JustWrite v2.1.0, house-paint v0.2.0, docgen v0.1.0, the fixes, the three websites, and the
+user's word for the three releases and the three site deploys ("get those apps done and rleased").
+
+- **MINE — what "its fixes" covers:** the faults the docs pass found in these three apps (the "Stopped" section's
+  "Found and left for after"), each checked at its code before any fix: docgen forgets its project on every restart;
+  docgen's extract resolves docs/ against the config's folder; docgen's Review verdict line never shows; JustWrite's
+  en.json still names "Settings → AI". JustVoice's two are out (JustVoice isn't in this release). Attack: only docgen's
+  three (the literal "its") — but "get those apps done" and the family DECIDED ("each app is complete bugs fixed")
+  cover JustWrite's stale words too, and a stale label is a plain fault anyway. Survives.
+- **MINE — the kit's tree is cleared only for the end run.** Reading and fixing the apps' code doesn't need it; the
+  rules run tests once, at the end. So just-direct-mocap is asked for "need clean kit tree" only then, and gets "e2e
+  done" right after, keeping its block short.
+
+Checklist (each line updated as it lands):
+- [ ] docgen's three faults checked at their code; each real one fixed with its test written.
+- [ ] JustWrite's en.json "Settings → AI" checked; if stale, fixed, and its Spanish by docgen's translator on the local
+      model (the card booked with the other sessions first).
+- [ ] The end run on a clean kit tree (just-direct-mocap's "tree matches HEAD"): docgen lint, i18n lint, suites, guard,
+      `npm run build:unpacked`, e2e; JustWrite's the same if touched, and its e2e 9; house-paint unchanged since its green
+      pass (b6685e6) — checked by git. An installer build runs without CI (`env -u CI`).
+- [ ] The three tags; each app's `npm run release -- --yes` (core_ref = the kit's HEAD); the runs watched to green;
+      just-direct-mocap told "dispatched".
+- [ ] The three site deploys (`npm run deploy`) once the releases are published; each site checked live.
+- [ ] The end-of-job report (every MINE decision listed).
 - [ ] The three tags; each app's `npm run release -- --yes` (core_ref = the kit's HEAD); the runs watched.
 - [ ] The three site deploys (`npm run deploy`) once the releases are published.
 
