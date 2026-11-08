@@ -7,7 +7,13 @@
 // the `anthropic-version` header and retries; `_mapExtra` is an ALLOWLIST (only
 // Anthropic's typed params survive), so the `min_p` 400 unknown-field bug class dies at
 // the boundary. The model-generation table (GENERATIONS) and `_applyReasoning` are the
-// adaptive / legacy logic: how each generation turns thinking off and whether it takes samplers.
+// adaptive / legacy logic: how each generation turns thinking off.
+//
+// SDK 1.x sends API version 2026-10-21 (platform.claude.com/docs/en/api/migration-2026-10-21),
+// where `temperature`, `top_p` and `top_k` are a 400 on every model, so no request carries them
+// (the family release, 2026-11-07 — the session's decision, docs/plans/2026-11-07-family-release.md
+// MINE 1); and it sends the key as `Authorization: Bearer`, so a provider with its own base URL
+// (a gateway that read the `X-Api-Key` the 0.x SDK sent) keeps getting `X-Api-Key` (MINE 2).
 // (Record: docs/plans/2026-07-17-provider-native-dialects-plan.md §0.5 / §5.)
 //
 // JS SDK differences, handled here: `timeout` is milliseconds; an HTTP-status error is an
@@ -69,23 +75,22 @@ export const CURATED_MODELS = [
 //             model thinks as little as it can (the narrowings review, P41 — approved
 //             2026-10-15; platform.claude.com/docs/en/build-with-claude/effort, checked
 //             2026-10-15). The thinking control says so for these models (`alwaysThinks`).
-//   sampling  false where temperature / top_p / top_k 400 even with thinking off (removed, or
-//             any non-default value rejected)
 // First match wins, so a longer id sits above its prefix (opus-5-5 above opus-5).
 // Re-verify at each model launch.
 const GENERATIONS = [
-  ["fable-5", { off: null, sampling: false }],
-  ["mythos-5", { off: null, sampling: false }],
-  ["opus-5-5", { off: null, sampling: false }],
-  ["opus-5", { off: "disabled", sampling: false }],
-  ["sonnet-5-5", { off: "between_tools", sampling: false }],
-  ["sonnet-5", { off: "disabled", sampling: false }],
-  ["haiku-5-5", { off: "disabled", sampling: false }],
-  ["opus-4-8", { off: "disabled", sampling: false }],
-  ["opus-4-7", { off: "disabled", sampling: false }],
-  ["opus-4-6", { off: "disabled", sampling: true }],
-  ["sonnet-4-6", { off: "disabled", sampling: true }],
+  ["fable-5", { off: null }],
+  ["mythos-5", { off: null }],
+  ["opus-5-5", { off: null }],
+  ["opus-5", { off: "disabled" }],
+  ["sonnet-5-5", { off: "between_tools" }],
+  ["sonnet-5", { off: "disabled" }],
+  ["haiku-5-5", { off: "disabled" }],
+  ["opus-4-8", { off: "disabled" }],
+  ["opus-4-7", { off: "disabled" }],
+  ["opus-4-6", { off: "disabled" }],
+  ["sonnet-4-6", { off: "disabled" }],
 ];
+/** The sampling settings API version 2026-10-21 refuses on every model (a 400 even at the default value). */
 const SAMPLERS = ["temperature", "top_p", "top_k"];
 
 /** The model's GENERATIONS row, or null for a legacy model. */
@@ -123,12 +128,16 @@ export class AnthropicAdapter {
       const { Anthropic } = await loadAnthropic();
       // D9: maxRetries 2 (the SDK default) + the provider's timeout + base URL (equal to
       // the default is harmless). The SDK owns the anthropic-version header.
+      const key = this._apiKey || "";
       this._client = new Anthropic({
-        apiKey: this._apiKey || "",
+        apiKey: key,
         baseURL: this._baseUrl,
         timeout: this._timeoutSeconds * 1000,
         maxRetries: 2,
         fetch: sdkFetch,
+        // another base URL is a gateway the user set up, which read the X-Api-Key the 0.x SDK sent: the key keeps going
+        // there (the migration guide's TypeScript fix, "If a proxy or gateway reads X-Api-Key"; MINE 2 above)
+        ...(this._baseUrl === DEFAULT_BASE_URL ? {} : { defaultHeaders: { "X-Api-Key": key, Authorization: null } }),
         // in a web worker (the phone's in-app server) the SDK must be told it's a browser's call:
         // it then sends Anthropic's browser-access header, without which its CORS answer refuses
         ...(typeof WorkerGlobalScope === "undefined" ? {} : { dangerouslyAllowBrowser: true }),
@@ -156,50 +165,46 @@ export class AnthropicAdapter {
 
   /**
    * Anthropic extended thinking, model-aware (GENERATIONS). NEW models, on: adaptive
-   * thinking + output_config.effort (the map WORD), samplers dropped (400-rejected under
-   * thinking). NEW models, off: the generation's own off switch ("disabled" /
-   * "between_tools"; where the model can't stop thinking, no `thinking` field and effort
-   * "low"), samplers dropped where the generation rejects them. LEGACY models: a `thinking`
-   * block with budget_tokens (the map NUMBER, ≥1024 AND < max_tokens) + a max_tokens bump;
-   * drop the temperature override.
+   * thinking + output_config.effort (the map WORD). NEW models, off: the generation's own off
+   * switch ("disabled" / "between_tools"; where the model can't stop thinking, no `thinking`
+   * field and effort "low"). LEGACY models: a `thinking` block with budget_tokens (the map
+   * NUMBER, ≥1024 AND < max_tokens) + a max_tokens bump. Every body leaves without the sampling
+   * settings (SAMPLERS — a 400 on API version 2026-10-21, whatever the model).
    */
   static _applyReasoning(body, think, effort, budget, model) {
+    for (const k of SAMPLERS) delete body[k];
     const gen = generationOf(model);
     if (!think) {
       if (gen?.off) body.thinking = { type: gen.off };
       else if (gen) body.output_config = { ...body.output_config, effort: "low" };
-      if (gen && !gen.sampling) for (const k of SAMPLERS) delete body[k];
       return;
     }
     if (gen) {
       body.thinking = { type: "adaptive" };
       if (effort) body.output_config = { effort };
-      for (const k of SAMPLERS) delete body[k]; // 400-rejected under thinking
     } else {
       const b = budget != null ? budget : 4096;
       body.thinking = { type: "enabled", budget_tokens: b };
       body.max_tokens = Math.max(pyInt(body.max_tokens || 4096), b + 2048);
-      delete body.temperature; // thinking requires the default temperature
     }
   }
 
-  /** Allowlist — Anthropic's typed params only (top_p/top_k/metadata) + the
-   * stop → stop_sequences rename. Everything else (min_p, mirostat*, dry_*, xtc_*, seed,
-   * samplers, response_format) is DROPPED — the Messages API has none of them. Nothing
-   * left → null. */
+  /** Allowlist — Anthropic's typed params only (metadata) + the stop → stop_sequences rename.
+   * Everything else (top_p, top_k, min_p, mirostat*, dry_*, xtc_*, seed, samplers,
+   * response_format) is DROPPED — the Messages API on 2026-10-21 has none of them. Nothing left
+   * → null. */
   static _mapExtra(extra) {
-    const out = selectAllowed(extra, new Set(["top_p", "top_k", "metadata", "stop"]), { stop: "stop_sequences" });
+    const out = selectAllowed(extra, new Set(["metadata", "stop"]), { stop: "stop_sequences" });
     return Object.keys(out).length ? out : null;
   }
 
   /** The messages.create params: model / messages / max_tokens (default 4096 — Anthropic
-   * requires it) / temperature if set / system if any + the allowlisted extra + the
-   * model-aware reasoning mutation. */
-  _buildKwargs(messages, { model, temperature, maxTokens, system, think, extra }) {
+   * requires it) / system if any + the allowlisted extra + the model-aware reasoning mutation.
+   * The caller's `temperature` is not sent (SAMPLERS). */
+  _buildKwargs(messages, { model, maxTokens, system, think, extra }) {
     const [sysPrompt, msgs] = this._splitSystem(messages, system);
     const modelId = model || this.default_model;
     const kwargs = { model: modelId, messages: msgs, max_tokens: maxTokens || 4096 };
-    if (temperature != null) kwargs.temperature = temperature;
     if (sysPrompt) kwargs.system = sysPrompt;
     const [rest, effort, budget] = popReasoning(extra);
     const mapped = AnthropicAdapter._mapExtra(rest);
@@ -229,8 +234,8 @@ export class AnthropicAdapter {
 
   // ── the adapter contract ────────────────────────────────────────
 
-  async chat(messages, { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {}) {
-    const kwargs = this._buildKwargs(messages, { model, temperature, maxTokens, system, think, extra });
+  async chat(messages, { model = null, maxTokens = null, system = null, think = false, extra = null, signal = null } = {}) {
+    const kwargs = this._buildKwargs(messages, { model, maxTokens, system, think, extra });
     let msg;
     try {
       msg = await (await this._ensureClient()).messages.create(kwargs, signal ? { signal } : undefined);
@@ -258,9 +263,9 @@ export class AnthropicAdapter {
 
   async *streamChat(
     messages,
-    { model = null, temperature = 0.7, maxTokens = null, system = null, think = false, extra = null, signal = null } = {},
+    { model = null, maxTokens = null, system = null, think = false, extra = null, signal = null } = {},
   ) {
-    const kwargs = this._buildKwargs(messages, { model, temperature, maxTokens, system, think, extra });
+    const kwargs = this._buildKwargs(messages, { model, maxTokens, system, think, extra });
     let pt = 0;
     let ct = 0;
     let cw = 0;

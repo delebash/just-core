@@ -91,9 +91,10 @@ test("stop_blank_is_dropped", () => {
 });
 
 test("anthropic_renames_stop_to_stop_sequences", () => {
-  expect(AnthropicAdapter._mapExtra({ stop: ["END"], top_p: 0.9 })).toEqual({ stop_sequences: ["END"], top_p: 0.9 });
+  // top_p / top_k are a 400 on API version 2026-10-21 (SDK 1.x), so the allowlist drops them
+  expect(AnthropicAdapter._mapExtra({ stop: ["END"], top_p: 0.9 })).toEqual({ stop_sequences: ["END"] });
   expect(AnthropicAdapter._mapExtra(null)).toBeNull();
-  expect(AnthropicAdapter._mapExtra({ top_p: 0.9 })).toEqual({ top_p: 0.9 });
+  expect(AnthropicAdapter._mapExtra({ top_p: 0.9, top_k: 40 })).toBeNull();
 });
 
 // ── C1: json_schema (the action's CONTRACT) — schema-ENFORCED output ──────────────
@@ -129,8 +130,8 @@ test("prompt_store_roundtrips_contract", () => {
 });
 
 test("anthropic_strips_response_format", () => {
-  const out = AnthropicAdapter._mapExtra({ response_format: { type: "json_object" }, top_p: 0.9 });
-  expect(out).toEqual({ top_p: 0.9 });
+  const out = AnthropicAdapter._mapExtra({ response_format: { type: "json_object" }, metadata: { user_id: "u" } });
+  expect(out).toEqual({ metadata: { user_id: "u" } });
 });
 
 test("response_format_reaches_the_wire_unchanged_for_every_provider_type", async () => {

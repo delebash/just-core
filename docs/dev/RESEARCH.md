@@ -362,6 +362,23 @@ sheet `docs/plans/2026-10-07-kit-in-javascript.md`):
   schema (nested json_schema, think off) answers under draft-mtp; 10/10 shared-prefix requests; unload 1.1 s; the
   draft 1.09× on the 26B (36.3 vs 33.3 tok/s), ~1.0× on the fit-placed 12B. The b11960 Windows zip is genuine
   (`--version`: build 11960, commit 8642541b2).
+- **llama.cpp b12110 (v0.9.0) on the family's rows** (*read + measured*, 2026-11-07, the family release; the full
+  record: `docs/plans/2026-11-07-family-release.md`): all 150 commit titles b11961–b12110 read; no flag, models.ini key,
+  request field (`server-common.cpp` unchanged), router route or placement line changed; the Windows exes carry a
+  manifest that makes their code page UTF-8 and allows long paths (#31329), so `common/arg.cpp` dropped its argv
+  rebuild (#31417). Step 0b: the model MiB is identical at b11960 and b12110 on JustWrite's five configs (26B
+  4,998 · 4,968 · 13,573; 12B 6,269 · 6,390); the context MiB is 11–19 larger at b12110 (#31073, the KV rotation
+  constants on the GPU, most likely).
+- **The SDK majors of 2026-11** (*read*, each maker's own notes, 2026-11-07): `@anthropic-ai/sdk` 1.0 sends API
+  version 2026-10-21, where `temperature`/`top_p`/`top_k` are a 400 on every model and the key goes as
+  `Authorization: Bearer` (platform.claude.com/docs/en/api/migration-2026-10-21); `@google/genai` 3.0 moves the Gemini
+  API default v1beta → v1, where `gemini-flash-lite-latest` and the other `-latest` aliases don't exist
+  (googleapis/js-genai v3.0.0). The kit sends no samplers to Claude, `X-Api-Key` to a custom Anthropic base URL, and
+  `apiVersion: "v1beta"` to Gemini (the plan's MINE 1–3).
+- **sass-embedded 1.108.0's Windows package is broken; 1.108.1 is fixed** (*measured* with `npm view
+  sass-embedded-win32-x64@<v> dist.fileCount dist.unpackedSize`, 2026-11-07): 1.107.1 6 files / 10.7 MB, 1.108.0 4 files
+  / 5.3 MB (no `dart-sass/src/sass.snapshot`, which its loader needs — every Quasar build fails), 1.108.1 6 files /
+  10.7 MB.
 - **Process trees on Mac and Linux** (2026-10-29, read in code, not run on a Mac or Linux box): no job
   object — a server killed hard (crash, force quit) leaves its llama-server and the router's children
   running, holding the card. The kit's spawn seam records `<log>.pid` (pid, program, command line,

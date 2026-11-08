@@ -80,7 +80,8 @@ test("gemini_build_config_maps_typed_and_drops_unsupported", async () => {
   });
   const a = new GeminiAdapter("p", { apiKey: "x" });
   await a.chat([LLMMessage("system", "s"), user("hi")], { temperature: 0.7, maxTokens: 64, extra });
-  expect(sent.url).toContain("/models/gemini-flash-lite-latest:generateContent");
+  // v1beta asked for explicitly: @google/genai 3 defaults to v1, which has no `-latest` aliases
+  expect(sent.url).toContain("/v1beta/models/gemini-flash-lite-latest:generateContent");
   expect(sent.body.systemInstruction).toEqual({ parts: [{ text: "s" }], role: "user" });
   expect(sent.body.contents).toEqual([{ role: "user", parts: [{ text: "hi" }] }]);
   expect(sent.body.generationConfig).toEqual({
@@ -152,11 +153,41 @@ test("anthropic_reasoning_legacy_vs_new_model", () => {
   AnthropicAdapter._applyReasoning(b4, false, "high", null, "claude-fable-5");
   expect("thinking" in b4).toBe(false);
   expect(b4.output_config).toEqual({ effort: "low" });
-  // LEGACY off → untouched.
-  const b5 = { temperature: 0.7 };
+  // LEGACY off → no thinking field, and no sampler either (API version 2026-10-21 refuses one on every model).
+  const b5 = { temperature: 0.7, top_k: 40 };
   AnthropicAdapter._applyReasoning(b5, false, "high", 8192, "claude-haiku-4-5");
-  expect("thinking" in b5).toBe(false);
-  expect(b5.temperature).toBe(0.7);
+  expect(b5).toEqual({});
+});
+
+test("anthropic_requests_carry_no_sampling_settings_on_any_model", async () => {
+  // SDK 1.x sends API version 2026-10-21, where temperature, top_p and top_k are a 400 on every model
+  // (platform.claude.com/docs/en/api/migration-2026-10-21, "Sampling parameters are removed"): the caller's temperature
+  // and a preset's top_p / top_k never reach the wire, for an old model or a new one, thinking on or off.
+  for (const model of ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5", "claude-opus-5-5", "claude-sonnet-5-5"]) {
+    for (const think of [false, true]) {
+      const a = new AnthropicAdapter("p", { apiKey: "k", defaultModel: model });
+      let sent;
+      a._client = { messages: { create: async (body) => ((sent = body), { content: [], usage: {} }) } };
+      await a.chat([user("hi")], { temperature: 0.2, think, extra: { top_p: 0.9, top_k: 40, stop: ["END"] } });
+      expect(["temperature", "top_p", "top_k"].filter((k) => k in sent), `${model} think=${think}`).toEqual([]);
+      expect(sent.stop_sequences).toEqual(["END"]);
+    }
+  }
+});
+
+test("anthropic_key_goes_as_x_api_key_only_to_a_gateway", async () => {
+  // SDK 1.x sends the key as Authorization: Bearer; a provider with its own base URL (a gateway that read the X-Api-Key
+  // the 0.x SDK sent) keeps getting X-Api-Key and no Authorization (the migration guide's TypeScript fix).
+  const seen = {};
+  http.fetch.mockImplementation(async (url, init) => {
+    seen[new URL(String(url)).host] = new Headers(init.headers);
+    return jsonResponse({ id: "m", type: "message", role: "assistant", model: "x", content: [], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } });
+  });
+  await new AnthropicAdapter("a", { apiKey: "sk-test" }).chat([user("hi")]);
+  await new AnthropicAdapter("g", { apiKey: "sk-test", baseUrl: "https://gateway.example" }).chat([user("hi")]);
+  expect(seen["api.anthropic.com"].get("authorization")).toBe("Bearer sk-test");
+  expect(seen["gateway.example"].get("x-api-key")).toBe("sk-test");
+  expect(seen["gateway.example"].get("authorization")).toBeNull();
 });
 
 test("anthropic_reasoning_5x_generations", () => {
@@ -181,10 +212,10 @@ test("anthropic_reasoning_5x_generations", () => {
   const o = {};
   AnthropicAdapter._applyReasoning(o, false, "high", null, "claude-opus-5");
   expect(o.thinking).toEqual({ type: "disabled" });
-  // Opus 4.6 still takes samplers with thinking off.
+  // Opus 4.6 took samplers on API version 2023-06-01; on 2026-10-21 nothing does.
   const o46 = { temperature: 0.2 };
   AnthropicAdapter._applyReasoning(o46, false, "high", null, "claude-opus-4-6");
-  expect(o46.temperature).toBe(0.2);
+  expect("temperature" in o46).toBe(false);
 });
 
 test("anthropic_off_on_a_model_that_always_thinks_sends_effort_low", () => {
@@ -490,8 +521,8 @@ test("anthropic_lazy_client_built_once", async () => {
 
 test("anthropic_map_extra_is_an_allowlist", () => {
   // _mapExtra is an ALLOWLIST over base.selectAllowed — only Anthropic's typed params
-  // survive (top_p/top_k/metadata + the stop → stop_sequences rename); min_p / mirostat /
-  // seed / samplers / response_format are DROPPED at the boundary.
+  // survive (metadata + the stop → stop_sequences rename); top_p / top_k (a 400 on API version
+  // 2026-10-21), min_p / mirostat / seed / samplers / response_format are DROPPED at the boundary.
   const out = AnthropicAdapter._mapExtra({
     top_p: 0.9,
     top_k: 40,
@@ -503,7 +534,7 @@ test("anthropic_map_extra_is_an_allowlist", () => {
     samplers: ["top_k"],
     response_format: { type: "json_object" },
   });
-  expect(out).toEqual({ top_p: 0.9, top_k: 40, metadata: { user_id: "u" }, stop_sequences: ["END"] });
+  expect(out).toEqual({ metadata: { user_id: "u" }, stop_sequences: ["END"] });
   expect(AnthropicAdapter._mapExtra(null)).toBeNull();
   expect(AnthropicAdapter._mapExtra({ min_p: 0.05 })).toBeNull(); // nothing survives → null
 });
@@ -575,9 +606,8 @@ test("anthropic_chat_assembles_kwargs_and_parses", async () => {
   expect(sent.model).toBe("claude-haiku-4-5");
   expect(sent.system).toBe("be brief"); // swept out via splitSystem
   expect(sent.messages).toEqual([{ role: "user", content: "hi" }]); // only the user turn
-  expect(sent.temperature).toBe(0.5);
+  expect("temperature" in sent || "top_p" in sent).toBe(false); // a 400 on API version 2026-10-21
   expect(sent.max_tokens).toBe(256);
-  expect(sent.top_p).toBe(0.9);
   expect(sent.stop_sequences).toEqual(["END"]); // allowlisted + renamed
   expect("min_p" in sent).toBe(false); // dropped at the boundary
 });
@@ -1138,9 +1168,7 @@ test("wire: anthropic legacy and adaptive models send Python's bodies", async ()
         model: "claude-haiku-4-5",
         stop_sequences: ["END"],
         system: "be nice",
-        thinking: { type: "enabled", budget_tokens: 2048 },
-        top_k: 40,
-        top_p: 0.8,
+        thinking: { type: "enabled", budget_tokens: 2048 }, // no top_k / top_p: a 400 on API version 2026-10-21
       },
     },
     {

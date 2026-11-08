@@ -108,7 +108,10 @@ export class GeminiAdapter {
         );
       }
       const { GoogleGenAI } = await loadGenai();
-      const httpOptions = { timeout: this._timeoutMs, fetch: sdkFetch };
+      // v1beta, as @google/genai 2 sent by default: v3 defaults to v1, where the `-latest` aliases (DEFAULT_MODEL among
+      // them) don't exist (googleapis/js-genai v3.0.0's notes; the family release's MINE 3,
+      // just-core docs/plans/2026-11-07-family-release.md)
+      const httpOptions = { timeout: this._timeoutMs, fetch: sdkFetch, apiVersion: "v1beta" };
       if (this._baseUrl) httpOptions.baseUrl = this._baseUrl;
       this._client = new GoogleGenAI({ apiKey: key, httpOptions });
     }

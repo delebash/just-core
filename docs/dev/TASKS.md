@@ -15,7 +15,7 @@
 > `server/` (`@delebash/llm-runner`) is `packages/core/` (`@delebash/core`), `ui/`
 > (`@delebash/llm-ui`) is `packages/ui/` (`@delebash/ui`).
 
-## The family release: JustWrite, house-paint and docgen, together [2026-10-29; the three, 2026-11-06]
+## The family release: JustWrite, house-paint, docgen and JustVoice, together [2026-10-29; the three, 2026-11-06; JustVoice, 2026-11-07]
 DECIDED: the user, verbatim (2026-10-29, in JustWrite's session, relayed): "you dont understand we have several apps i
         want all kit work done for all apps before we release any app, i want to relase all apps that we are working on
         now but not until all kit work is done by each app that means each app is complete bugs fixed featrues done all
@@ -25,10 +25,23 @@ DECIDED 2026-11-06 — the user, verbatim, in JustVoice's session: "mark jw as c
         the items you listed website ect make sure all deps are updated all docs are updated all websites are updated and do
         a family releaeas have the new session do this it is called family release"; then "have it do all your recs for
         the apps that you listed".
-STATE:  OPEN — the "family release" session releases JustWrite, house-paint and docgen together, each on the same kit
-        commit (each release.yml's `core_ref`). JustVoice is not in it: its TASKS still holds work for the user's ears
-        and eyes, and it releases later with our audio.cpp fork's tag (JustVoice TASKS, "Our audio.cpp fork is released
-        with the family"). JustDirect's kit gaps (below) are not in it.
+DECIDED 2026-11-07 — JustVoice joins, the user, verbatim, in JustVoice's session (relayed): "pass what need to be done
+        to release session so we can do family release let it know if anyting needs updating for jv"; then "what are you
+        doing i said hand it off to the release session not do it yourslef" — every JustVoice release step, the audio.cpp
+        fork's included, is the "family release" session's.
+GO:     2026-11-07, the user, verbatim, in the "family release" session: "make sure you have everthing updated whatever
+        forks we have like for jv, and deps ect, verify you have latest info, go for all your rec for family release jv
+        jw docgen kit the forks housepant docs dev docs websites ect, go" — on the session's list: 1. versions JustWrite
+        v2.1.0, house-paint v0.2.0, docgen v0.1.0, JustVoice v0.1.0; 2. JustVoice joins, all its release work in this
+        session; 3. the audio.cpp fork: the two local commits kept, verified by this session's build and tests, tagged
+        v0.9.4-jv.7, released before the final pass on the user's word; 4. the kit kept still for the final checks and
+        the releases, the other sessions messaged first; 5. the four releases and three website deploys on the user's
+        word once every dry run is green; 6. sass-embedded held at 1.107.1 (npm `overrides`) until a fixed Sass ships;
+        7. the template's boot test (template/server/tests/boot.test.js) in the four apps, docgen's serve.js given the
+        template's entry check first. The working record: `docs/plans/2026-11-07-family-release.md`.
+STATE:  OPEN — the "family release" session releases JustWrite, house-paint, docgen and JustVoice together, each on the
+        same kit commit (each release.yml's `core_ref`), our audio.cpp fork's v0.9.4-jv.7 before them. JustDirect's kit
+        gaps (below) are not in it.
         Closed 2026-11-06 (JustVoice's session, each checked in its code): every JustVoice line this item carried — its
         workflows on actions v7/v8 (CodeQL's action on v4, its own latest), its e2e on the template's driver with the
         a11y test, no click or isolation exceptions left (the guard's CLICK_KNOWN and ISOLATION_KNOWN are empty), no
