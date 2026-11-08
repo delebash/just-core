@@ -11,6 +11,7 @@ import { afterEach, beforeEach, expect, test } from "vitest";
 import { makeMocapRouter } from "../src/llm/mocap_api.js";
 import * as seed from "../src/llm/seed.js";
 import { JobRegistry } from "../src/platform/jobs.js";
+import { createServer } from "../src/platform/server.js";
 import { VramArbiter } from "../src/runner/arbiter.js";
 import { runtimeVariantDir } from "../src/runner/binary.js";
 import { DEFAULT_FFMPEG_BUILD, DEFAULT_MOCAP_BINARIES, DEFAULT_MOCAP_BUILD, MOCAP_MODELS, MOCAP_PROBE_ARGVS } from "../src/runner/config.js";
@@ -33,6 +34,12 @@ afterEach(() => {
 
 const WIN = () => ({ platform: "windows", arch: "x64", runtimes: { cuda: true }, hasNvidia: true, gpus: [{ vendor: "NVIDIA", computeCapability: "7.5", vramMb: 8192 }], ramMb: 32768 });
 const SYS = () => ({ platform: "win32", arch: "x64", versions: {}, missingDlls: () => [] });
+/** The routes as the app serves them: inside the kit's server, whose error handlers answer a refusal with its status. */
+const serve = (router) => {
+  const app = createServer({ typeBase: "t/" });
+  app.route("/", router);
+  return app;
+};
 const camel = (r) => ({ platform: r.platform, gpu: r.gpu, assetUrl: r.asset_url, assetBytes: r.asset_bytes, sha256: r.sha256, serverExe: r.server_exe, requires: r.requires ?? {}, assetUnpackedBytes: r.asset_unpacked_bytes, extras: [] });
 
 /** A child the spawn seam hands back: `lines` printed on stdout (one each tick), then `code` (null: runs until killed). */
@@ -229,7 +236,7 @@ test("mocapArgs: the screen's choices on the engine's command line; the lens giv
   expect(mocapArgs("E:/eng", "v", "o", { start: 12.5, duration: 30, turningCamera: true, person: [0.25, 0.5], inPlace: true, rest: "a" }).slice(6)).toEqual([
     "--start", "12.5", "--duration", "30", "--turning-camera", "--person", "0.2500,0.5000", "--in-place", "--rest", "a",
   ]);
-  expect(() => mocapArgs("E:/eng", "v", "o", { focal35: 26, fov: 78 })).toThrow(/once/);
+  expect(() => mocapArgs("E:/eng", "v", "o", { focal35: 26, fov: 78 })).toThrow(/not both/);
 });
 
 /** An installed mocap build with its environments (stand-ins), the given models downloaded, and the kit's FFmpeg. */
@@ -275,7 +282,9 @@ test("mocapReadiness says what is missing: the runtime, its install, its models,
   expect(svc).toBeTruthy();
   // FFmpeg missing: the banner offers FFmpeg's install
   configureRuntimeServices([["mocap", svc]]);
-  writeFileSync(snapshotFilePath(path.join(root, "hf"), "o/s", "abc", "detection/s.safetensors"), "xx");
+  const back = snapshotFilePath(path.join(root, "hf"), "o/s", "abc", "detection/s.safetensors");
+  mkdirSync(path.dirname(back), { recursive: true });
+  writeFileSync(back, "xx");
   expect(mocapReadiness()).toMatchObject({ ready: false, need: "engine-not-on", runtime: "ffmpeg" });
 });
 
@@ -369,7 +378,7 @@ test("the routes: a video becomes a take, runs as a job, its contacts re-apply, 
     return { take: folder, bvh: path.join(folder, "t.bvh") };
   };
   const jobs = new JobRegistry();
-  const app = makeMocapRouter(jobs, { takesDir, run });
+  const app = serve(makeMocapRouter(jobs, { takesDir, run }));
   const form = new FormData();
   form.append("file", new Blob([Buffer.from("video bytes")]), "walk.mp4");
   const made = await app.request("/v1/mocap/takes?name=walk.mp4", { method: "POST", body: form });
@@ -425,7 +434,7 @@ test("a take that fails says why on its row; the routes refuse a run while mocap
   readyMocap();
   const takesDir = path.join(root, "takes");
   const jobs = new JobRegistry();
-  const app = makeMocapRouter(jobs, { takesDir, run: async () => Promise.reject(new Error("GEM-X body failed: out of memory")) });
+  const app = serve(makeMocapRouter(jobs, { takesDir, run: async () => Promise.reject(new Error("GEM-X body failed: out of memory")) }));
   const form = new FormData();
   form.append("file", new Blob([Buffer.from("v")]), "a.mov");
   const take = await (await app.request("/v1/mocap/takes?name=a.mov", { method: "POST", body: form })).json();
@@ -436,7 +445,8 @@ test("a take that fails says why on its row; the routes refuse a run while mocap
   expect(row).toMatchObject({ state: "failed", error: "GEM-X body failed: out of memory" });
   configureRuntimeServices([]);
   const refused = await app.request(`/v1/mocap/takes/${take.id}/run`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-  expect([refused.status, (await refused.json()).slug]).toEqual([409, "engine-not-on"]);
+  // the problem's type is the server's type base and the refusal's slug (platform/errors.js)
+  expect([refused.status, (await refused.json()).type]).toEqual([409, "t/engine-not-on"]);
 });
 
 test("the OSC relay: one frame's messages arrive as one bundle, floats, ints and strings as sent", async () => {
@@ -449,7 +459,7 @@ test("the OSC relay: one frame's messages arrive as one bundle, floats, ints and
   const got = new Promise((r) => server.once("bundle", r));
   const sender = new LiveSender({ idleMs: 50 });
   const jobs = new JobRegistry();
-  const app = makeMocapRouter(jobs, { takesDir: path.join(root, "takes"), sender });
+  const app = serve(makeMocapRouter(jobs, { takesDir: path.join(root, "takes"), sender }));
   const sent = await app.request("/v1/mocap/live/send", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -470,7 +480,7 @@ test("the OSC relay: one frame's messages arrive as one bundle, floats, ints and
 
 test("the Live tab's models come from the install, and only once it is there", async () => {
   const jobs = new JobRegistry();
-  const app = makeMocapRouter(jobs, { takesDir: path.join(root, "takes") });
+  const app = serve(makeMocapRouter(jobs, { takesDir: path.join(root, "takes") }));
   configureRuntimeServices([["mocap", mocapService({ setup: { done: () => false, run: async () => {} } })]]);
   expect((await app.request("/v1/mocap/live/models/pose")).status).toBe(409);
   const { svc } = readyMocap();

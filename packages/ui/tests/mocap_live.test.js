@@ -36,7 +36,8 @@ test("the live BVH: SOMA's 77 joints from Hips, centimetres, one line a frame, a
   const motion = lines.indexOf("MOTION");
   expect(lines.slice(motion, motion + 3)).toEqual(["MOTION", "Frames: 3", "Frame Time: 0.03333333"]);
   const rows = lines.slice(motion + 3).map((l) => l.split(" ").map(Number));
-  expect(rows.every((r) => r.length === 6 + 77 * 3)).toBe(true);
+  // the root's 3 positions, then 3 angles for each of the 77 joints
+  expect(rows.every((r) => r.length === 3 + 77 * 3)).toBe(true);
   // the root stays at the rest hips' height, in centimetres
   expect(rows[0].slice(0, 3)).toEqual(skeleton.rest[0].map((v) => Number((v * 100).toFixed(6))));
   // the arm's Y turn (and its child's turn back) goes on past 180 degrees: no angle jumps by 360 between frames

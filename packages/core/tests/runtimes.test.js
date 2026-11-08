@@ -24,7 +24,7 @@ beforeEach(() => {
 test("the registry: llama.cpp keeps its router path; stable-diffusion.cpp is the image runtime with kit-owned builds", () => {
   expect(runtimeOf("llamacpp")).toMatchObject({ kind: "llm", router: true });
   expect(runtimeOf("sdcpp")).toMatchObject({ kind: "image", folder: "sdcpp", defaults: { pinnedBuild: DEFAULT_SDCPP_BUILD } });
-  expect(rowRuntimes().map((r) => r.id)).toEqual(["sdcpp", "audiocpp", "ffmpeg"]);
+  expect(rowRuntimes().map((r) => r.id)).toEqual(["sdcpp", "audiocpp", "ffmpeg", "mocap"]);
   expect(runtimeOf("nope")).toBeNull();
 });
 
