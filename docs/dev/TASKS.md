@@ -56,9 +56,12 @@ STOPPED 2026-11-07 (late) — the user, verbatim, relayed by JustVoice's session
 GO:     2026-11-08 (after the reboot), the user, verbatim: "you can go on the relae for jw housepaint docgen and its
         fixes and websitesk, get those apps done and rleased" — the three apps, their found faults, the three websites,
         and the user's word for the releases and the site deploys. The plan's "GO (2026-11-08, after the reboot)" section.
-STATE:  OPEN — the "family release" session releases JustWrite, house-paint, docgen and JustVoice together, each on the
-        same kit commit (each release.yml's `core_ref`), our audio.cpp fork's v0.9.4-jv.7 before them. JustDirect's kit
-        gaps (below) are not in it.
+STATE:  2026-11-08 — RELEASED: JustWrite v2.1.0, house-paint v0.2.0 and docgen v0.1.0, all three on kit dcc413f5
+        (published 22:34–22:37 UTC, every platform's job green, a green dry run first), and their three websites deployed
+        from those releases' docs. The plan's "GO (2026-11-08, after the reboot)" section has each step with its proof.
+        OPEN: JustVoice's release — our audio.cpp fork's v0.9.4-jv.7 first, then the kit's audio.cpp pin and rows, then
+        the release — on the user's word (the user, 2026-11-08: "do the releae just not jv"). JustDirect's kit gaps
+        (below) are not in it.
         Closed 2026-11-06 (JustVoice's session, each checked in its code): every JustVoice line this item carried — its
         workflows on actions v7/v8 (CodeQL's action on v4, its own latest), its e2e on the template's driver with the
         a11y test, no click or isolation exceptions left (the guard's CLICK_KNOWN and ISOLATION_KNOWN are empty), no
@@ -67,7 +70,9 @@ STATE:  OPEN — the "family release" session releases JustWrite, house-paint, d
         roadmap and ideas listed and decided (its TASKS, "The finish run's nine decisions") — which closed "Each app's
         roadmap and ideas, listed with recommendations, for the user" for every app (house-paint's and docgen's
         2026-10-29, JustWrite's its own, the kit's "Finish the kit").
-OPEN:   the release work, as JustVoice's session listed it on 2026-11-06 (its recs, which the user said to do):
+DONE 2026-11-08 for JustWrite, house-paint and docgen (each item's proof in the plan); for JustVoice's release items 1,
+        2, 4, 6 and 7 run again. The release work, as JustVoice's session listed it on 2026-11-06 (its recs, which the
+        user said to do):
         1. Dependencies at their latest in the three apps, the template and the kit — minor and patch first; each major
            after reading its breaking changes: Electron 45 (from 44.10.0), jsdom 31, the kit core's @anthropic-ai/sdk 1.x
            (from 0.132) and @google/genai 3, JustWrite's simple-statistics 8 and webdriverio 10. Biome is one exact pin

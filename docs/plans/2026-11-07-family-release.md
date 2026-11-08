@@ -325,7 +325,21 @@ Checklist (each line updated as it lands):
       uncommitted changes under packages/ — just-direct-mocap's, put back after "e2e done" — "the release builds its
       last commit, without them"): house-paint 42530357120, docgen 42530368326, JustWrite 42530378509 (`echo y |`).
       just-voice and just-direct-mocap told "dispatched" (their kit commits may land now).
-- [ ] The three real runs watched to green and each release checked on GitHub (its files, not a draft).
+- [x] The three real runs green on every job (publish=success) and each release checked on GitHub — not a draft, not
+      a prerelease: docgen v0.1.0 (22:34:27 UTC; win exe, mac arm64 dmg+zip, linux AppImage, three latest*.yml,
+      docs.tar.gz), house-paint v0.2.0 (22:35:16; the same set), JustWrite v2.1.0 (22:37:04, "Latest"; win Setup exe, mac
+      universal dmg+zip, linux AppImage + deb, three latest*.yml, docs.tar.gz). After "dispatched" just-direct-mocap
+      pushed 9611e1cd, 5633a5c7, 404ef332 (the kit's sd.cpp pin to our fork's jd-1078-3dba814) and just-voice 6e89c974:
+      the releases build on dcc413f5, so house-paint ships upstream's sd.cpp master-1024, as tested.
+- [x] The three site deploys (`npm run deploy -- --yes`, each the site's own workflow with its app's latest release
+      docs): docgen's 42530970527 and house-paint's 42531060775 green; JustWrite's first refused — "No ref found for:
+      main": the kit's website/scripts/deploy.js dispatched with a fixed `--ref main` and justwrite-website's only
+      branch is master. **Fixed** (plain fault): no `--ref`, gh runs on the site repo's default branch; the kit's file and
+      the three sites' copies kept identical (the guard's WEBSITE_FILES) — kit e2eb9639, sites 6e76f35, 329a266,
+      49bdadb; then JustWrite's 42531326482 green. Checked live: each site's What's new page carries "Cancel on the start
+      screen no longer strands you."; JustWrite's home names 2.1.0; house-paint's links releases/latest, docgen's its
+      releases page.
+- [x] The end-of-job report (below, and in the session).
 - (the original line, kept for its commands:) house-paint's and docgen's `npm run release -- --yes`, JustWrite's `echo y | npm run release`
       (its release.js has no `--yes`; it reads "Proceed? [y/N]" and closes stdin for gh itself) — core_ref = the kit's
       HEAD; the runs watched to green; just-direct-mocap and just-voice told "dispatched".
