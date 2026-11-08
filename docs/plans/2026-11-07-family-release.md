@@ -135,3 +135,15 @@ full run. Found and left for after (the docs pass's reports): docgen forgets its
 extract resolves docs/ against the config's folder; docgen's Review verdict line never shows; JustWrite's en.json still
 names "Settings → AI" (a change there needs docgen's Spanish run); JustVoice's thinking claims vs the kit's JSON mode,
 one 500 where its docs say 503.
+
+**2026-11-08 — JustVoice's side done** (justvioce-e3; nothing started on it, the restart is the user's word). JustVoice
+main e23e09a8: the one-click defaults are now voices you can sell — VoxCPM2 for the characters, Fish Audio Drama 3
+(Conditional) narrating — with a Voices choice (Best voices you can sell / Lighter voices you can sell / Best acting —
+not for sale, BreezeTTS 2); Ming 3.0 TTS takes direction; a client API for JustDirect. Its end run: lint, server 1310,
+unit 312 (on kit 0076ba18), the guard, e2e 10/10, the smoke gate on the user's data, the real window. **The release now
+needs the fork's v0.9.4-jv.7**, not optional: checked in the fork — `src/models/ming3_tts`, `src/models/ming3_audio` and
+`src/community_models/fish_drama3` are in jv 6d64f04e (pushed, = origin/jv) and not in v0.9.2-jv.6, so on the old pin a
+packaged app's default narrator won't load. On the restart, in order: the fork's release from 6d64f04e (the user's
+word), the kit's audio.cpp pin and rows moved to it (`audiocpp-rows.js`, `AUDIOCPP_BUILDS_IN_ORDER`), JustVoice's
+`seed_audiocpp_catalog.json` regenerated at that tag, then the full pass again — the kit has moved since the pass
+(0076ba18, motion capture) — then the four releases on one `core_ref` and the three site deploys.

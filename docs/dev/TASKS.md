@@ -46,6 +46,10 @@ STOPPED 2026-11-07 (late) — the user, verbatim, relayed by JustVoice's session
         it published. Done and pushed (no release): every dependency at its latest, the SDK majors, llama.cpp b12110, Biome
         2.6, the boot test, the versions (JustWrite 2.1.0, house-paint 0.2.0), the stale docs fixed in the four apps and their
         sites; the full pass green on it (the plan's record). The audio.cpp pin stays v0.9.2-jv.6. Restart: on the user's word.
+        2026-11-08: JustVoice's side done (main e23e09a8; defaults VoxCPM2 + Fish Audio Drama 3, which with Ming 3.0 are
+        only in the fork's jv 6d64f04e, not v0.9.2-jv.6 — checked), so the restart must ship v0.9.4-jv.7, move the kit's
+        audio.cpp pin and rows to it and regenerate JustVoice's seed_audiocpp_catalog.json, then run the full pass again
+        (the kit moved since: 0076ba18). The plan's "Stopped" section has the order.
 STATE:  OPEN — the "family release" session releases JustWrite, house-paint, docgen and JustVoice together, each on the
         same kit commit (each release.yml's `core_ref`), our audio.cpp fork's v0.9.4-jv.7 before them. JustDirect's kit
         gaps (below) are not in it.
