@@ -14,7 +14,7 @@ import { JobRegistry } from "../src/platform/jobs.js";
 import { VramArbiter } from "../src/runner/arbiter.js";
 import { runtimeVariantDir } from "../src/runner/binary.js";
 import { DEFAULT_FFMPEG_BUILD, DEFAULT_MOCAP_BINARIES, DEFAULT_MOCAP_BUILD, MOCAP_MODELS, MOCAP_PROBE_ARGVS } from "../src/runner/config.js";
-import { MOCAP_SETUP, mocapArgs, mocapEnv, mocapPaths, mocapReadiness, progressTracker, runEngineScript, runMocap, stepKey } from "../src/runner/mocap.js";
+import { LIVE_MODELS, MOCAP_SETUP, mocapArgs, mocapEnv, mocapPaths, mocapReadiness, progressTracker, runEngineScript, runMocap, stepKey } from "../src/runner/mocap.js";
 import { snapshotFilePath } from "../src/runner/models.js";
 import { configureRuntimeServices, EngineBusyError, RuntimeService } from "../src/runner/runtime_service.js";
 import { pinKey, runtimeOf } from "../src/runner/runtimes.js";
@@ -63,7 +63,7 @@ test("an app that turns mocap on gets its uv build row with the engine's extras,
   expect(runtimeOf("mocap")).toMatchObject({ kind: "mocap", tool: true, label: "Motion capture" });
   const rows = h.all("select * from runtime_binary where runtime = 'mocap'");
   expect(rows.map((r) => [r.platform, r.gpu, r.server_exe])).toEqual([["windows", "cuda12", "uv.exe"]]);
-  expect(JSON.parse(rows[0].extras).map((x) => x.into)).toEqual(["engine", "gemx", "comfyui", "yolox", "face"]);
+  expect(JSON.parse(rows[0].extras).map((x) => x.into)).toEqual(["engine", "gemx", "comfyui", "yolox", "face", "pose", "hand"]);
   expect(h.get("runner_setting", pinKey("mocap")).value).toBe(DEFAULT_MOCAP_BUILD);
   expect(h.get("llm_providers", "local-mocap")).toBeNull();
   const models = h.all("select id, kind from runtime_model where runtime = 'mocap' order by position");
@@ -78,7 +78,7 @@ test("an app that turns mocap on gets its uv build row with the engine's extras,
   expect(MOCAP_PROBE_ARGVS).toEqual([["--version"]]);
   // each extra is pinned by SHA-256; the face model is one file kept as it is
   for (const x of DEFAULT_MOCAP_BINARIES[0].extras) expect(x.sha256).toMatch(/^[0-9a-f]{64}$/);
-  expect(DEFAULT_MOCAP_BINARIES[0].extras.at(-1)).toMatchObject({ archive: "file", file: "face_landmarker.task" });
+  expect(DEFAULT_MOCAP_BINARIES[0].extras.filter((x) => x.archive === "file").map((x) => x.file)).toEqual(["face_landmarker.task", "pose_landmarker_full.task", "hand_landmarker.task"]);
 });
 
 /** A mocap service on an NVIDIA Windows box; `setup` its setup (MOCAP_SETUP by default); the build "acquired" as uv.exe. */
@@ -126,7 +126,9 @@ test("the setup hook: the build counts as installed only once its setup says the
   expect(runs[0].exe).toMatch(/uv\.exe$/);
   expect(runs[0].dir).toBe(runtimeVariantDir(root, "mocap", DEFAULT_MOCAP_BUILD, "cuda12"));
   expect(runs[0].extrasDir).toBe(path.join(runs[0].dir, "_extras"));
-  expect(svc.buildPlace()).toEqual({ dir: runs[0].dir, extrasDir: runs[0].extrasDir });
+  // the cache the runtime keeps across its builds, beside them
+  expect(runs[0].cacheDir).toBe(path.join(root, "mocap", "_cache"));
+  expect(svc.buildPlace()).toEqual({ dir: runs[0].dir, extrasDir: runs[0].extrasDir, cacheDir: runs[0].cacheDir });
   // a setup that is whole isn't run again by a second install
   svc.install();
   await settle(svc);
@@ -157,6 +159,11 @@ test("MOCAP_SETUP puts GEM-X's config and person detector in place, then runs th
   writeFileSync(path.join(p.engine, "engine", "gemx", "body_video_native77_static.yaml"), "camera:\n  mode: static\n");
   mkdirSync(path.dirname(p.yolox), { recursive: true });
   writeFileSync(p.yolox, "onnx");
+  // the Live tab's models, as the build's extras leave them
+  for (const [folder, file] of Object.values(LIVE_MODELS)) {
+    mkdirSync(path.join(extrasDir, folder), { recursive: true });
+    writeFileSync(path.join(extrasDir, folder, file), "task");
+  }
   // the engine's setup.js stood in for: it makes the two Pythons and ready.json, and says its steps
   const { spawn, calls } = fakeSpawn({
     lines: [{ step: "Python 3.12.9" }, { step: "main packages" }, { done: { main: p.python, face: p.facePython } }],
@@ -169,12 +176,12 @@ test("MOCAP_SETUP puts GEM-X's config and person detector in place, then runs th
   });
   const steps = [];
   expect(MOCAP_SETUP.done({ dir, extrasDir })).toBe(false);
-  await MOCAP_SETUP.run({ exe: path.join(dir, "uv.exe"), dir, extrasDir, onStep: (s) => steps.push(s), spawn });
+  await MOCAP_SETUP.run({ exe: path.join(dir, "uv.exe"), dir, extrasDir, cacheDir: path.join(root, "mocap", "_cache"), onStep: (s) => steps.push(s), spawn });
   expect(readFileSync(path.join(p.weights, "body_video_native77_static.yaml"), "utf8")).toContain("mode: static");
   expect(readFileSync(path.join(p.weights, "yolox_humanart.onnx"), "utf8")).toBe("onnx");
   const argv = calls[0].argv;
   expect(argv[0]).toBe(process.execPath); // the app's own executable as Node
-  expect(argv.slice(1)).toEqual([path.join(p.engine, "engine", "setup.js"), "--uv", path.join(dir, "uv.exe"), "--root", p.envRoot, "--gemx", p.gemx]);
+  expect(argv.slice(1)).toEqual([path.join(p.engine, "engine", "setup.js"), "--uv", path.join(dir, "uv.exe"), "--root", p.envRoot, "--gemx", p.gemx, "--cache", path.join(root, "mocap", "_cache", "uv")]);
   expect(calls[0].logPath).toBe(path.join(dir, "setup.log"));
   expect(steps).toEqual(["Setting up the engine's Python", "Setting up: Python 3.12.9", "Setting up: main packages"]);
   expect(MOCAP_SETUP.done({ dir, extrasDir })).toBe(true);
@@ -218,6 +225,10 @@ test("mocapArgs: the screen's choices on the engine's command line; the lens giv
   const args = mocapArgs("E:/eng", "E:/t/source.mp4", "E:/t", { smoothing: "strong", fov: 78, unevenGround: true, armFit: false, rangesFile: "E:/t/c.json" });
   expect(args).toEqual([path.join("E:/eng", "bench", "mocap.js"), "E:/t/source.mp4", "strong", "--out", "E:/t", "--json", "--fov", "78", "--uneven-ground", "--no-arm-fit", "--ranges", "E:/t/c.json"]);
   expect(mocapArgs("E:/eng", "v", "o")).toEqual([path.join("E:/eng", "bench", "mocap.js"), "v", "default", "--out", "o", "--json"]);
+  // the part of the video, a turning camera, the person picked, the files in place with an A-pose rest
+  expect(mocapArgs("E:/eng", "v", "o", { start: 12.5, duration: 30, turningCamera: true, person: [0.25, 0.5], inPlace: true, rest: "a" }).slice(6)).toEqual([
+    "--start", "12.5", "--duration", "30", "--turning-camera", "--person", "0.2500,0.5000", "--in-place", "--rest", "a",
+  ]);
   expect(() => mocapArgs("E:/eng", "v", "o", { focal35: 26, fov: 78 })).toThrow(/once/);
 });
 
@@ -255,13 +266,30 @@ function readyMocap() {
 test("mocapReadiness says what is missing: the runtime, its install, its models, FFmpeg", () => {
   expect(mocapReadiness()).toMatchObject({ ready: false, need: "engine-not-on" });
   configureRuntimeServices([["mocap", mocapService({ setup: { done: () => false, run: async () => {} } })]]);
-  expect(mocapReadiness()).toMatchObject({ ready: false, need: "engine-not-installed" });
+  expect(mocapReadiness()).toMatchObject({ ready: false, need: "engine-not-installed", runtime: "mocap", engine: { label: "Motion capture" } });
   const { svc } = readyMocap();
   expect(mocapReadiness()).toMatchObject({ ready: true, need: "" });
   // a model not downloaded is named
   rmSync(path.join(root, "hf", "models--o--s"), { recursive: true, force: true });
-  expect(mocapReadiness()).toMatchObject({ ready: false, need: "models-missing", models: ["Test model"] });
+  expect(mocapReadiness()).toMatchObject({ ready: false, need: "model-not-downloaded", runtime: "mocap", model: "m", modelState: { id: "m", onDisk: false }, models: ["Test model"] });
   expect(svc).toBeTruthy();
+  // FFmpeg missing: the banner offers FFmpeg's install
+  configureRuntimeServices([["mocap", svc]]);
+  writeFileSync(snapshotFilePath(path.join(root, "hf"), "o/s", "abc", "detection/s.safetensors"), "xx");
+  expect(mocapReadiness()).toMatchObject({ ready: false, need: "engine-not-on", runtime: "ffmpeg" });
+});
+
+test("a computer with no build for mocap (no NVIDIA card) hears why before anything downloads", () => {
+  const svc = new RuntimeService({
+    id: "mocap",
+    cacheRoot: root,
+    configFn: () => ({ id: "mocap", pinnedBuild: DEFAULT_MOCAP_BUILD, binaries: DEFAULT_MOCAP_BINARIES.map(camel), settings: {} }),
+    hardwareFn: () => ({ platform: "windows", arch: "x64", runtimes: {}, gpus: [] }),
+    systemFn: SYS,
+    setup: MOCAP_SETUP,
+  });
+  configureRuntimeServices([["mocap", svc]]);
+  expect(mocapReadiness()).toMatchObject({ ready: false, need: "engine-cant-run-here", engine: { need: { reason: "no-build" } } });
 });
 
 test("runMocap: the engine's mocap.js with the install's paths, its models linked in, the card booked while it runs", async () => {
@@ -380,6 +408,8 @@ test("the routes: a video becomes a take, runs as a job, its contacts re-apply, 
   const part = await app.request(`/v1/mocap/takes/${take.id}/files/bvh`, { headers: { range: "bytes=0-3" } });
   expect([part.status, await part.text()]).toEqual([206, "HIER"]);
   expect((await app.request(`/v1/mocap/takes/${take.id}/files/fbx`)).status).toBe(404);
+  const source = await app.request(`/v1/mocap/takes/${take.id}/files/source`);
+  expect([source.status, await source.text()]).toEqual([200, "video bytes"]);
 
   // from the start: everything but the video goes first
   const fresh = await (await app.request(`/v1/mocap/takes/${take.id}/run`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fresh: true }) })).json();
@@ -407,4 +437,47 @@ test("a take that fails says why on its row; the routes refuse a run while mocap
   configureRuntimeServices([]);
   const refused = await app.request(`/v1/mocap/takes/${take.id}/run`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
   expect([refused.status, (await refused.json()).slug]).toEqual([409, "engine-not-on"]);
+});
+
+test("the OSC relay: one frame's messages arrive as one bundle, floats, ints and strings as sent", async () => {
+  const { Server } = await import("node-osc");
+  const { LiveSender, oscArgs } = await import("../src/runner/mocap_live.js");
+  expect(oscArgs([1, { i: 1 }, "Hips", 0.5])).toEqual([{ type: "float", value: 1 }, { type: "integer", value: 1 }, "Hips", { type: "float", value: 0.5 }]);
+  const port = 39000 + Math.floor(Math.random() * 1000);
+  const server = new Server(port, "127.0.0.1");
+  await new Promise((r) => server.once("listening", r));
+  const got = new Promise((r) => server.once("bundle", r));
+  const sender = new LiveSender({ idleMs: 50 });
+  const jobs = new JobRegistry();
+  const app = makeMocapRouter(jobs, { takesDir: path.join(root, "takes"), sender });
+  const sent = await app.request("/v1/mocap/live/send", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ host: "127.0.0.1", port, messages: [["/VMC/Ext/OK", { i: 1 }], ["/VMC/Ext/Bone/Pos", "Hips", 0, 1, 0, 0, 0, 0, 1]] }),
+  });
+  expect(sent.status).toBe(204);
+  const bundle = await got;
+  const [ok, bone] = bundle.elements;
+  expect(ok).toEqual(["/VMC/Ext/OK", 1]);
+  expect(bone[0]).toBe("/VMC/Ext/Bone/Pos");
+  expect(bone.slice(1)).toEqual(["Hips", 0, 1, 0, 0, 0, 0, 1]);
+  // not an OSC address: refused before anything is sent
+  const bad = await app.request("/v1/mocap/live/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ host: "127.0.0.1", port, messages: [["nope", 1]] }) });
+  expect(bad.status).toBe(422);
+  await sender.closeAll();
+  await new Promise((r) => server.close(r));
+});
+
+test("the Live tab's models come from the install, and only once it is there", async () => {
+  const jobs = new JobRegistry();
+  const app = makeMocapRouter(jobs, { takesDir: path.join(root, "takes") });
+  configureRuntimeServices([["mocap", mocapService({ setup: { done: () => false, run: async () => {} } })]]);
+  expect((await app.request("/v1/mocap/live/models/pose")).status).toBe(409);
+  const { svc } = readyMocap();
+  const [folder, file] = LIVE_MODELS.pose;
+  mkdirSync(path.join(svc.buildPlace().extrasDir, folder), { recursive: true });
+  writeFileSync(path.join(svc.buildPlace().extrasDir, folder, file), "pose task");
+  const got = await app.request("/v1/mocap/live/models/pose");
+  expect([got.status, await got.text()]).toEqual([200, "pose task"]);
+  expect((await app.request("/v1/mocap/live/models/other")).status).toBe(422);
 });

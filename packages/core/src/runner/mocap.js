@@ -27,7 +27,9 @@ import { runtimeOf } from "./runtimes.js";
 const log = getLogger("llm_runner.runner.mocap");
 
 /** The extras' folders (config.js DEFAULT_MOCAP_BINARIES `into`) and where the engine's pieces are inside them. */
-export const MOCAP_PARTS = Object.freeze({ engine: "engine", gemx: "gemx", comfy: "comfyui", yolox: "yolox", face: "face" });
+export const MOCAP_PARTS = Object.freeze({ engine: "engine", gemx: "gemx", comfy: "comfyui", yolox: "yolox", face: "face", pose: "pose", hand: "hand" });
+// The Live tab's MediaPipe models, by name: the extras' files (config.js) the window loads through the server
+export const LIVE_MODELS = Object.freeze({ pose: ["pose", "pose_landmarker_full.task"], hand: ["hand", "hand_landmarker.task"], face: ["face", "face_landmarker.task"] });
 // GEM-X's video config the engine ships (GEM-X's own with the camera static, as measured) and the file GEM-X reads it as
 const GEMX_CONFIG = "body_video_native77_static.yaml";
 const ENV = "_env";
@@ -48,6 +50,15 @@ export function mocapPaths({ dir, extrasDir }) {
     facePython: exeIn(path.join(dir, ENV, "face")),
     cache: path.join(dir, "cache"),
   };
+}
+
+/** The file of the Live tab's model `name` (LIVE_MODELS) in the installed build, or null (not installed, unknown name). */
+export function liveModelFile(name) {
+  const svc = getRuntimeService("mocap");
+  const part = LIVE_MODELS[name];
+  if (!svc || !part || !svc.installedExe()) return null;
+  const file = path.join(svc.buildPlace().extrasDir, ...part);
+  return existsSync(file) ? file : null;
 }
 
 /** A program run as Node: the app's own executable (Electron's, as Node) — never a Node of the user's PATH. */
@@ -128,10 +139,12 @@ export const MOCAP_SETUP = Object.freeze({
       existsSync(p.python) &&
       existsSync(p.facePython) &&
       existsSync(path.join(p.weights, GEMX_CONFIG)) &&
-      existsSync(path.join(p.weights, "yolox_humanart.onnx"))
+      existsSync(path.join(p.weights, "yolox_humanart.onnx")) &&
+      // the Live tab's models came with the build (its extras)
+      Object.values(LIVE_MODELS).every((part) => existsSync(path.join(place.extrasDir, ...part)))
     );
   },
-  async run({ exe, dir, extrasDir, onStep = () => {}, cancelCheck = null, spawn = processMod.spawnChild }) {
+  async run({ exe, dir, extrasDir, cacheDir = null, onStep = () => {}, cancelCheck = null, spawn = processMod.spawnChild }) {
     const p = mocapPaths({ dir, extrasDir });
     // GEM-X reads its config and person detector from its weights folder (its docs/PRETRAINED_MODELS.md)
     mkdirSync(p.weights, { recursive: true });
@@ -139,7 +152,9 @@ export const MOCAP_SETUP = Object.freeze({
     const detector = path.join(p.weights, "yolox_humanart.onnx");
     if (!existsSync(detector)) linkSnapshot(p.yolox, detector);
     onStep("Setting up the engine's Python");
-    await runEngineScript(nodeArgv(path.join(p.engine, "engine", "setup.js"), ["--uv", exe, "--root", p.envRoot, "--gemx", p.gemx]), {
+    // uv's downloads kept beside the builds: the next engine build reuses them (several GB: PyTorch alone is 2.5)
+    const cache = cacheDir ? ["--cache", path.join(cacheDir, "uv")] : [];
+    await runEngineScript(nodeArgv(path.join(p.engine, "engine", "setup.js"), ["--uv", exe, "--root", p.envRoot, "--gemx", p.gemx, ...cache]), {
       cwd: p.engine,
       env: nodeEnv(),
       logPath: path.join(dir, "setup.log"),
@@ -150,31 +165,37 @@ export const MOCAP_SETUP = Object.freeze({
   },
 });
 
-/** The mocap runtime's model rows that aren't all downloaded yet (their names), from its service. */
-function missingModels(svc) {
-  return svc
-    .modelsStatus()
-    .filter((m) => !m.onDisk)
-    .map((m) => m.name);
-}
-
-/** What a take needs before it can run: `{ready, need, detail, engine, models}` — `need` "engine-not-on" (the app
- *  didn't turn the runtime on), "engine-not-installed", "models-missing" (with their names), "ffmpeg-missing", or "". */
+/**
+ * What a take needs before it can run, the first thing missing — in the shape a feature's readiness has (llm
+ * runtimeFeatureReadiness), so the kit's engine banner (LuEngineNeeded) offers the next step in place: `{ready, need,
+ * detail, runtime, engine, model, modelState, models}` — `need` "engine-not-on" (the app didn't turn the runtime on),
+ * "engine-cant-run-here" (no build for this computer: `engine.need` says why), "engine-not-installed" (Motion capture's
+ * own, or FFmpeg's when `runtime` is "ffmpeg": the takes' video is read with it), "model-not-downloaded" (`model` the
+ * first one missing, `models` every missing one's name), or "".
+ */
 export function mocapReadiness() {
+  const none = { runtime: "mocap", engine: null, model: "", modelState: null, models: [] };
   const svc = getRuntimeService("mocap");
-  if (!svc) return { ready: false, need: "engine-not-on", detail: "This app has no motion capture", engine: null, models: [] };
+  if (!svc) return { ...none, ready: false, need: "engine-not-on", detail: "This app has no motion capture" };
   const engine = svc.status();
-  if (!svc.installedExe()) return { ready: false, need: "engine-not-installed", detail: "Install Motion capture on the AI page", engine, models: [] };
-  const models = missingModels(svc);
-  if (models.length) return { ready: false, need: "models-missing", detail: `Download ${models.join(", ")} on the AI page's Motion capture tab`, engine, models };
-  if (!ffmpegExe()?.ffprobe) return { ready: false, need: "ffmpeg-missing", detail: "Install FFmpeg on the AI page — the takes' video is read with it", engine, models: [] };
-  return { ready: true, need: "", detail: "", engine, models: [] };
+  if (engine.need) return { ...none, ready: false, need: "engine-cant-run-here", detail: engine.need.detail, engine };
+  if (!svc.installedExe()) return { ...none, ready: false, need: "engine-not-installed", detail: "Install Motion capture on the AI page", engine };
+  const missing = svc.modelsStatus().filter((m) => !m.onDisk);
+  if (missing.length) {
+    return { ...none, ready: false, need: "model-not-downloaded", detail: `Download ${missing.map((m) => m.name).join(", ")} for Motion capture`, engine, model: missing[0].id, modelState: missing[0], models: missing.map((m) => m.name) };
+  }
+  if (!ffmpegExe()?.ffprobe) {
+    const ff = getRuntimeService("ffmpeg");
+    return { ...none, ready: false, need: ff ? "engine-not-installed" : "engine-not-on", detail: "Install FFmpeg on the AI page — the takes' video is read with it", runtime: "ffmpeg", engine: ff?.status() ?? null };
+  }
+  return { ...none, ready: true, need: "", detail: "", engine };
 }
 
 // Each step's share of a run, from one measured take (just-mocap tmp/mocap_guitar.log: 151 frames, 1280x720, RTX 2070
 // SUPER; seconds per step) — only the progress bar's shape; "start ComfyUI" and "arm fit" weren't in that run.
 const STEP_SECONDS = Object.freeze({
   "30 fps copy": 1,
+  "GEM-X config with the lens and camera": 0,
   "GEM-X body": 147,
   "foot correction": 6,
   "GEM-X's person boxes": 2,
@@ -218,14 +239,30 @@ export function progressTracker() {
   };
 }
 
-/** The engine's command line for one take: `video` its source, `out` its folder; `options` the screen's choices. */
-export function mocapArgs(engine, video, out, { smoothing = "default", focal35 = null, fov = null, unevenGround = false, armFit = true, rangesFile = null } = {}) {
+/**
+ * The engine's command line for one take: `video` its source, `out` its folder; `options` the screen's choices — the
+ * finger `smoothing`, the lens once (`focal35` a phone's 35 mm equivalent, or `fov` a webcam's field of view), the part
+ * of the video (`start`, `duration` in seconds: GEM-X takes at most 60), `turningCamera`, `person` ([x, y], fractions of
+ * the picture: the person to follow), `unevenGround`, `armFit`, `inPlace`, `rest` ("t" or "a"), `rangesFile`.
+ */
+export function mocapArgs(
+  engine,
+  video,
+  out,
+  { smoothing = "default", focal35 = null, fov = null, start = 0, duration = null, turningCamera = false, person = null, unevenGround = false, armFit = true, inPlace = false, rest = "t", rangesFile = null } = {},
+) {
   const args = [path.join(engine, "bench", "mocap.js"), String(video), String(smoothing), "--out", String(out), "--json"];
   if (focal35 != null && fov != null) throw new ApiError(422, "lens-twice", "Give the lens once", "Give the 35 mm equivalent or the field of view, not both");
   if (focal35 != null) args.push("--focal35", String(focal35));
   if (fov != null) args.push("--fov", String(fov));
+  if (start) args.push("--start", String(start));
+  if (duration != null) args.push("--duration", String(duration));
+  if (turningCamera) args.push("--turning-camera");
+  if (person) args.push("--person", person.map((v) => Number(v).toFixed(4)).join(","));
   if (unevenGround) args.push("--uneven-ground");
   if (!armFit) args.push("--no-arm-fit");
+  if (inPlace) args.push("--in-place");
+  if (rest && rest !== "t") args.push("--rest", String(rest));
   if (rangesFile) args.push("--ranges", String(rangesFile));
   return args;
 }

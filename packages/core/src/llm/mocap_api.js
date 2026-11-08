@@ -13,7 +13,10 @@
 //   POST   /v1/mocap/takes/:id/contacts     {ranges} → 202 its job: the foot correction with these contacts, and every
 //                                           step after it, without running the models again
 //   GET    /v1/mocap/takes/:id/files/:name  one of the files it made (by its name in the take's `files`; byte ranges, so
-//                                           the preview video plays and seeks)
+//                                           the preview video plays and seeks), or "source": the video it was made from
+//   GET    /v1/mocap/live/models/:name      one of the Live tab's MediaPipe models (pose, hand, face) from the install
+//   POST   /v1/mocap/live/send              {host, port, messages} → one frame's OSC messages sent over UDP as one bundle
+//                                           (the window shapes them: packages/ui src/mocap/liveOut.js — VMC or OSC)
 // Takes run one at a time (makeLane): the card holds one.
 
 import { randomUUID } from "node:crypto";
@@ -28,7 +31,8 @@ import { makeLane } from "../platform/jobs.js";
 import { nullable, opt, T } from "../platform/models.js";
 import { serveStatic } from "../platform/serve.js";
 import { input } from "../platform/server.js";
-import { mocapReadiness, runMocap } from "../runner/mocap.js";
+import { liveModelFile, mocapReadiness, runMocap } from "../runner/mocap.js";
+import { LiveSender } from "../runner/mocap_live.js";
 import { abortError } from "./base.js";
 import * as db from "./db.js";
 
@@ -40,16 +44,44 @@ const Options = T.Object({
   smoothing: opt(T.Union([T.Literal("none"), T.Literal("default"), T.Literal("strong")])),
   focal35: opt(nullable(T.Number({ minimum: 8, maximum: 300 }))),
   fov: opt(nullable(T.Number({ minimum: 20, maximum: 175 }))),
+  // the part of the video: GEM-X takes at most 60 seconds (its gem/inference/video.py)
+  start: opt(T.Number({ minimum: 0 })),
+  duration: opt(nullable(T.Number({ exclusiveMinimum: 0, maximum: 60 }))),
+  turningCamera: opt(T.Boolean()),
+  // the person to follow: a point of the first frame, as fractions of the picture; null: GEM-X's own (the largest)
+  person: opt(nullable(T.Array(T.Number({ minimum: 0, maximum: 1 }), { minItems: 2, maxItems: 2 }))),
   unevenGround: opt(T.Boolean()),
   armFit: opt(T.Boolean()),
+  inPlace: opt(T.Boolean()),
+  rest: opt(T.Union([T.Literal("t"), T.Literal("a")])),
 });
 const TakePatch = T.Object({ name: opt(T.String({ minLength: 1, maxLength: 200 })), options: opt(Options) });
 const RunIn = T.Object({ options: opt(Options), fresh: opt(T.Boolean()) });
 // per foot, the frames it is planted: [[start, end], …] with end exclusive (contacts.json's own shape)
 const Range = T.Array(T.Integer({ minimum: 0 }), { minItems: 2, maxItems: 2 });
 const ContactsIn = T.Object({ ranges: T.Array(T.Array(Range, { maxItems: 10_000 }), { minItems: 2, maxItems: 2 }) });
+const LiveModelParams = T.Object({ name: T.Union([T.Literal("pose"), T.Literal("hand"), T.Literal("face")]) });
+// one OSC message: its address, then numbers (floats), {i} (int32s) and strings
+const OscArg = T.Union([T.Number(), T.String({ maxLength: 128 }), T.Object({ i: T.Integer() })]);
+const LiveSendIn = T.Object({
+  host: T.String({ minLength: 1, maxLength: 253, pattern: "^[A-Za-z0-9.:-]+$" }),
+  port: T.Integer({ minimum: 1, maximum: 65535 }),
+  messages: T.Array(T.Array(T.Union([T.String({ minLength: 1, maxLength: 128 }), OscArg]), { minItems: 1, maxItems: 16 }), { minItems: 1, maxItems: 400 }),
+});
 
-export const DEFAULT_TAKE_OPTIONS = Object.freeze({ smoothing: "default", focal35: null, fov: null, unevenGround: false, armFit: true });
+export const DEFAULT_TAKE_OPTIONS = Object.freeze({
+  smoothing: "default",
+  focal35: null,
+  fov: null,
+  start: 0,
+  duration: null,
+  turningCamera: false,
+  person: null,
+  unevenGround: false,
+  armFit: true,
+  inPlace: false,
+  rest: "t",
+});
 const VIDEO_EXT = new Set([".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"]);
 
 /** A take row as the screen reads it. */
@@ -70,7 +102,7 @@ function takeOf(row) {
 }
 
 /** The mocap routes over `jobs` (the app's JobRegistry, or a function answering it); takes live under `takesDir`. */
-export function makeMocapRouter(jobs, { takesDir, run = runMocap }) {
+export function makeMocapRouter(jobs, { takesDir, run = runMocap, sender = new LiveSender() }) {
   if (!takesDir) throw new TypeError("makeMocapRouter needs a takesDir for the takes' folders");
   const registry = typeof jobs === "function" ? jobs : () => jobs;
   const folderOf = (id) => path.join(takesDir, id);
@@ -112,10 +144,8 @@ export function makeMocapRouter(jobs, { takesDir, run = runMocap }) {
   };
 
   const app = new Hono();
-  app.get("/v1/mocap/readiness", (c) => {
-    const { engine, ...ready } = mocapReadiness();
-    return c.json({ ...ready, engine: engine ? { build: engine.build, installed: engine.installed, status: engine.status, detail: engine.detail } : null });
-  });
+  // in a feature readiness's shape: the kit's engine banner (LuEngineNeeded readiness-url) offers the next step
+  app.get("/v1/mocap/readiness", (c) => c.json(mocapReadiness()));
 
   app.get("/v1/mocap/takes", (c) => {
     const rows = db.session().all("select * from mocap_take order by created_at desc", [], "mocap_take");
@@ -211,12 +241,30 @@ export function makeMocapRouter(jobs, { takesDir, run = runMocap }) {
   app.get("/v1/mocap/takes/:id/files/:name", input({ params: FileParams }), async (c, next) => {
     const { id, name } = c.req.valid("param");
     const files = JSON.parse(row(id).files || "{}");
-    const file = name === "take" ? null : files[name];
+    // "source": the take's own video as it was added (a JustDirect shot's guide clip); else a file the engine made
+    const file = name === "source" ? sourceOf(id) : name === "take" ? null : files[name];
     if (!file || !existsSync(file)) throw notFound(`take ${id} has no ${name} file`);
     // only a file inside the take's own folder
     if (path.relative(folderOf(id), file).startsWith("..")) throw notFound(`take ${id} has no ${name} file`);
     c.header("Content-Disposition", `attachment; filename="${path.basename(file)}"`);
     return serveStatic({ path: file })(c, next);
+  });
+
+  app.get("/v1/mocap/live/models/:name", input({ params: LiveModelParams }), async (c, next) => {
+    const file = liveModelFile(c.req.valid("param").name);
+    if (!file) throw new ApiError(409, "engine-not-installed", "Motion capture isn't installed", "Live capture's models come with Motion capture's install on the AI page");
+    return serveStatic({ path: file })(c, next);
+  });
+
+  app.post("/v1/mocap/live/send", input({ body: LiveSendIn }), async (c) => {
+    const { host, port, messages } = c.req.valid("json");
+    if (messages.some((m) => typeof m[0] !== "string" || !m[0].startsWith("/"))) throw new ApiError(422, "bad-osc", "Not an OSC message", "each message starts with its address, like /VMC/Ext/Bone/Pos");
+    try {
+      await sender.send(host, port, messages);
+    } catch (e) {
+      throw new ApiError(502, "osc-send-failed", "Sending failed", String(e?.message || e));
+    }
+    return c.body(null, 204);
   });
 
   return app;

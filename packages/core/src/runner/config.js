@@ -515,12 +515,12 @@ export const FFMPEG_PROBE_ARGVS = Object.freeze([Object.freeze(["-version"])]);
 // Its longest file path is 155 characters inside the build's folder (torch's headers), so a data folder whose path is
 // over about 75 characters needs Windows' long paths turned on.
 // A new engine commit is a new build tag (r<n>-<commit>), so an install made before it is offered the update.
-export const DEFAULT_MOCAP_BUILD = "r1-59d19d3";
-const MOCAP_ENGINE_COMMIT = "59d19d31a98ffbd267e03c259f9428eac5fef493";
+export const DEFAULT_MOCAP_BUILD = "r3-af7aecb";
+const MOCAP_ENGINE_COMMIT = "af7aecb500c6e7813552653c92851e4d6229e3f6";
 const GEMX_COMMIT = "20555befe2fbbe5b2015e1fff7ff214dc18ea9d6";
 const COMFYUI_COMMIT = "426f5eea52a7ece1dd599fff4cb6cd1f352ddd24";
 const MOCAP_EXTRAS = [
-  { name: "the motion capture engine", url: `https://github.com/delebash/just-mocap/archive/${MOCAP_ENGINE_COMMIT}.zip`, sha256: "7dffde38bb95f7caf39a01dd94c0ae068d65267161b7f4b0f125050512fa85df", bytes: 403186, archive: "zip", take: `just-mocap-${MOCAP_ENGINE_COMMIT}`, into: "engine", check: "bench/mocap.js" },
+  { name: "the motion capture engine", url: `https://github.com/delebash/just-mocap/archive/${MOCAP_ENGINE_COMMIT}.zip`, sha256: "fef1762aa465f25a6b138b29d5c790b2b2479a67e3837953888afb3df90ae2d5", bytes: 401036, archive: "zip", take: `just-mocap-${MOCAP_ENGINE_COMMIT}`, into: "engine", check: "bench/mocap.js" },
   { name: "GEM-X", url: `https://github.com/NVlabs/GEM-X/archive/${GEMX_COMMIT}.zip`, sha256: "ea5882b5814fa1ef34398e8b455854decd72d6728971d2c216439d4131f92db0", bytes: 71637425, archive: "zip", take: `GEM-X-${GEMX_COMMIT}`, into: "gemx", check: "pyproject.toml" },
   { name: "ComfyUI", url: `https://github.com/comfyanonymous/ComfyUI/archive/${COMFYUI_COMMIT}.zip`, sha256: "01f381c8330f5c5bec9bd3d4c651e8b53b45ffb70020b9e1e947fc63f93a1548", bytes: 13595371, archive: "zip", take: `ComfyUI-${COMFYUI_COMMIT}`, into: "comfyui", check: "main.py" },
   {
@@ -542,6 +542,27 @@ const MOCAP_EXTRAS = [
     archive: "file",
     file: "face_landmarker.task",
     into: "face",
+  },
+  // the Live tab's models, loaded by the window (MediaPipe Tasks for the web): Pose Landmarker full, the one the live
+  // solver was scored with (just-mocap RESEARCH.md) — Google publishes it under float16/1 and float16/latest, and the
+  // scored file is latest's, so its SHA-256 is what pins it (another file there would be refused) — and Hand Landmarker
+  {
+    name: "MediaPipe pose landmarker (full)",
+    url: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task",
+    sha256: "4eaa5eb7a98365221087693fcc286334cf0858e2eb6e15b506aa4a7ecdcec4ad",
+    bytes: 9398198,
+    archive: "file",
+    file: "pose_landmarker_full.task",
+    into: "pose",
+  },
+  {
+    name: "MediaPipe hand landmarker",
+    url: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+    sha256: "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1",
+    bytes: 7819105,
+    archive: "file",
+    file: "hand_landmarker.task",
+    into: "hand",
   },
 ];
 export const DEFAULT_MOCAP_BINARIES = [

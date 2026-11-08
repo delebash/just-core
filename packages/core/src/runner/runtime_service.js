@@ -336,13 +336,15 @@ export class RuntimeService {
     return this._setup.done(this._setupPlace(cfg.pinnedBuild, asset)) ? exe : null;
   }
 
-  /** Where a setup works: the build's own folder and its extras' folder. */
+  /** Where a setup works: the build's own folder, its extras' folder, and a cache the runtime keeps across its builds
+   *  (`<runtime>/_cache` — a folder named "_…" is never swept as an old build: the next build's setup reuses what this
+   *  one downloaded). */
   _setupPlace(build, asset) {
-    return { dir: binary.runtimeVariantDir(this.cacheRoot, this.rt.folder, build, asset.gpu), extrasDir: this._extrasDir(build, asset) };
+    return { dir: binary.runtimeVariantDir(this.cacheRoot, this.rt.folder, build, asset.gpu), extrasDir: this._extrasDir(build, asset), cacheDir: path.join(this.root, "_cache") };
   }
 
-  /** The pinned build's folders for this box, `{dir, extrasDir}` — where a toolchain runtime's engine is (the mocap
-   *  engine's sources and environments: runner/mocap.js) — or null when no build row fits this box. */
+  /** The pinned build's folders for this box, `{dir, extrasDir, cacheDir}` — where a toolchain runtime's engine is (the
+   *  mocap engine's sources and environments: runner/mocap.js) — or null when no build row fits this box. */
   buildPlace() {
     const { cfg, asset } = this._pick();
     return asset ? this._setupPlace(cfg.pinnedBuild, asset) : null;

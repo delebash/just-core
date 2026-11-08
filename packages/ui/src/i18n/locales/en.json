@@ -2324,6 +2324,182 @@
       "endedAway": "This work ended while the app wasn't looking, without finishing. Start it again.",
       "cancelledAway": "This work was cancelled while the app wasn't looking.",
       "percent": "{n}%"
+    },
+    "mocap": {
+      "title": "Motion capture",
+      "feature": "Motion capture",
+      "tabs": {
+        "label": "Motion capture",
+        "takes": "Takes",
+        "live": "Live"
+      },
+      "takes": {
+        "label": "Takes",
+        "add": "Add a video",
+        "adding": "Adding {name}…",
+        "added": "{name} added",
+        "empty": {
+          "title": "No takes yet",
+          "message": "Add a video of one person moving — from a phone, a webcam or a camera. Body, fingers and face are captured from it."
+        },
+        "state": {
+          "new": "Not run",
+          "running": "Running",
+          "done": "Done",
+          "failed": "Failed",
+          "cancelled": "Stopped"
+        },
+        "made": "Added {when}",
+        "pick": "Pick a take on the left, or add a video."
+      },
+      "take": {
+        "name": "Name",
+        "source": "Video: {name}",
+        "lens": {
+          "label": "Camera lens",
+          "hint": "The lens tells the capture how far the person is. Automatic reads an iPhone's own tag, else a standard lens.",
+          "auto": "Automatic",
+          "phone": "Phone (35 mm equivalent)",
+          "webcam": "Webcam (field of view)",
+          "focal35": "35 mm equivalent, mm",
+          "fov": "Diagonal field of view, degrees"
+        },
+        "ground": {
+          "label": "Uneven ground",
+          "hint": "Stairs, ramps or uneven ground: each step keeps its own height instead of one floor."
+        },
+        "armFit": {
+          "label": "Arm fit",
+          "hint": "Pulls the elbows and wrists onto the video where the finger model agrees. On by default."
+        },
+        "smoothing": {
+          "label": "Finger smoothing",
+          "none": "None",
+          "default": "Normal",
+          "strong": "Strong"
+        },
+        "run": "Capture",
+        "continue": "Continue",
+        "again": "Capture again from the start",
+        "againHint": "A new lens, ground or arm-fit choice needs the models again: everything but the video is made again.",
+        "running": "Capturing…",
+        "task": "Capturing {name}",
+        "progress": "{step} · {n}%",
+        "done": "{name} is captured",
+        "failed": "The take failed: {reason}",
+        "stopped": "The take was stopped. Continue picks up where it stopped.",
+        "delete": {
+          "button": "Delete take",
+          "title": "Delete {name}?",
+          "message": "This deletes the take's video copy and every file made from it.",
+          "confirm": "Delete"
+        },
+        "trim": {
+          "label": "Part of the video",
+          "hint": "A take is at most 60 seconds (the body model's limit). Leave the length empty to use the whole video when it is that short.",
+          "from": "From, seconds",
+          "length": "Length, seconds"
+        },
+        "camera": {
+          "label": "Camera",
+          "still": "Still",
+          "turning": "Turning to follow",
+          "hint": "Turning: the camera stays in one place and turns to follow the person, as a phone held in the hand does. A camera that travels with the person isn't supported."
+        },
+        "person": {
+          "label": "Person",
+          "auto": "The largest in view",
+          "pick": "Pick in the picture",
+          "hint": "With several people in view, click the one to capture on the take's first frame.",
+          "frame": "The take's first frame: click the person to capture"
+        },
+        "files": {
+          "label": "Files",
+          "inPlace": "In place",
+          "inPlaceHint": "The hips' path over the floor is taken out: the motion stays on the spot.",
+          "rest": "Rest pose",
+          "restT": "T-pose",
+          "restA": "A-pose"
+        },
+        "eta": "{step} · {n}% · about {min} min left"
+      },
+      "results": {
+        "label": "Results",
+        "preview": "Preview: the skeleton drawn on the video",
+        "view3d": "3D view",
+        "files": "Files",
+        "save": "Save",
+        "download": "Download",
+        "saved": "Saved to {path}",
+        "downloaded": "Downloaded {name}",
+        "kinds": {
+          "fbx": "FBX — animation for Blender, Maya, Unreal, Unity",
+          "bvh": "BVH — skeleton animation",
+          "glb": "GLB — glTF animation",
+          "usd": "USD — Universal Scene Description",
+          "c3d": "C3D — joint positions for biomechanics tools",
+          "face": "Face — Live Link Face CSV (52 ARKit curves)",
+          "motion": "Motion data — every joint's rotation and position, JSON",
+          "preview": "Preview video — MP4",
+          "sheet": "Contact sheet — PNG",
+          "contacts": "Foot contacts — JSON"
+        }
+      },
+      "contacts": {
+        "label": "Foot contacts",
+        "hint": "The frames each foot is planted on the ground. Edit them and apply: the feet and everything after them are made again, without running the models.",
+        "left": "Left foot",
+        "right": "Right foot",
+        "from": "From frame",
+        "to": "To frame",
+        "add": "Add a contact",
+        "remove": "Remove",
+        "reset": "Back to the found contacts",
+        "apply": "Apply contacts",
+        "applying": "Applying contacts…",
+        "task": "Applying {name}'s foot contacts",
+        "applied": "Contacts applied to {name}",
+        "edited": "Edited contacts are in use",
+        "frames": "{frames} frames at {fps} fps",
+        "seconds": "{s} s",
+        "none": "No contacts"
+      },
+      "view": {
+        "label": "3D view of the take",
+        "play": "Play",
+        "pause": "Pause",
+        "loading": "Loading the 3D view…",
+        "failed": "The 3D view couldn't load: {reason}"
+      },
+      "live": {
+        "label": "Live",
+        "intro": "Live capture from a webcam: the body and hands are tracked in this window, and can be recorded or sent to another app.",
+        "camera": "Camera",
+        "start": "Start camera",
+        "stop": "Stop camera",
+        "starting": "Starting the camera and its models…",
+        "noCamera": "No camera was found, or the camera wasn't allowed.",
+        "fps": "{n} frames a second",
+        "noPerson": "No person in view",
+        "hands": "Hands: {n}",
+        "record": "Record",
+        "stopRecording": "Stop recording",
+        "recording": "Recording · {s} s",
+        "saveBvh": "Save the recording (BVH)",
+        "saveFace": "Save the face curves (CSV)",
+        "send": {
+          "label": "Send to",
+          "hint": "Sends the pose to another app as it moves (VMC: VSeeFace, VNyan, Warudo, Unity; OSC).",
+          "vmc": "VMC",
+          "osc": "OSC",
+          "host": "Address",
+          "port": "Port",
+          "on": "Sending",
+          "off": "Not sending",
+          "failed": "Sending failed: {reason}"
+        },
+        "needsInstall": "Live capture uses models that come with Motion capture's install."
+      }
     }
   }
 }

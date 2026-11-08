@@ -3,7 +3,7 @@
   "targets": [
     "es"
   ],
-  "context": "Shared screens of a family of desktop apps: AI model setup, providers, sync, appearance and settings; write neutral Latin American Spanish and address the user as tú.",
+  "context": "Shared screens of a family of desktop apps: AI model setup, providers, sync, appearance and settings, and motion capture (a video or a webcam turned into animation files); write neutral Latin American Spanish and address the user as tú.",
   "glossary": [
     "JustWrite",
     "JustVoice",
@@ -19,6 +19,34 @@
     "Tailscale",
     "ZeroTier",
     "EPUB",
-    "DOCX"
+    "DOCX",
+    "FBX",
+    "BVH",
+    "GLB",
+    "glTF",
+    "USD",
+    "C3D",
+    "CSV",
+    "JSON",
+    "MP4",
+    "PNG",
+    "VMC",
+    "OSC",
+    "GEM-X",
+    "SOMA",
+    "SAM 3D Body",
+    "RT-DETR",
+    "MediaPipe",
+    "ARKit",
+    "Live Link Face",
+    "VSeeFace",
+    "VNyan",
+    "Warudo",
+    "Unity",
+    "Blender",
+    "Maya",
+    "Unreal",
+    "iClone",
+    "FFmpeg"
   ]
 }

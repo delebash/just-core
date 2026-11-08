@@ -8,7 +8,9 @@
 // page. Beside the next step, before the download: the model's chip — whether it fits this computer and its speed
 // band, the catalog's (modelPick.js: the one way, 2026-10-27); no room on the drive is said in words (K10b). Nothing
 // shows once the feature can run; `ready` is emitted when it becomes so. `label` names the feature in the sentence (the
-// app's own words); `feature` is its key.
+// app's own words); `feature` is its key — or `readinessUrl` a route that answers in the same shape for something that
+// isn't a routed feature (Motion capture's engine and its several models: /v1/mocap/readiness, the next one missing
+// each time it is read — 2026-11-08).
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { request } from "../client.js";
@@ -23,7 +25,8 @@ import { createDownloadTask, readEngineStatus, readRuntimeModelStatus, runtimeEn
 import { engineNeedWords, refusalProblem } from "../services/runtimeWords.js";
 
 const props = defineProps({
-  feature: { type: String, required: true },
+  feature: { type: String, default: "" },
+  readinessUrl: { type: String, default: "" },
   label: { type: String, default: "" },
 });
 const emit = defineEmits(["ready"]);
@@ -38,17 +41,23 @@ const size = (n) => fmtBytes(n || 0);
 async function load() {
   try {
     const was = state.value?.ready;
-    state.value = await request(`/v1/ai/features/${encodeURIComponent(props.feature)}/readiness`);
+    state.value = await request(props.readinessUrl || `/v1/ai/features/${encodeURIComponent(props.feature)}/readiness`);
     if (state.value.ready && was === false) emit("ready");
   } catch {
     // the banner never fails a page: it shows nothing until the server answers
   }
 }
 
+// a readiness that names the next thing each time (Motion capture: its engine, its models, then FFmpeg) moves the
+// engine's task to the runtime it names now, and the model's task reads the model named now
+let engineFor = "";
 const tasks = () => {
   const s = state.value;
-  if (s?.runtime && !engineTask.value) engineTask.value = createDownloadTask(runtimeEngineChannel(s.runtime));
-  if (s?.runtime && s.model && !modelTask.value) modelTask.value = createDownloadTask(runtimeModelChannel(s.runtime, () => s.model));
+  if (s?.runtime && (!engineTask.value || (engineFor !== s.runtime && engineTask.value.state !== "running"))) {
+    engineTask.value = createDownloadTask(runtimeEngineChannel(s.runtime));
+    engineFor = s.runtime;
+  }
+  if (s?.runtime && s.model && !modelTask.value) modelTask.value = createDownloadTask(runtimeModelChannel(s.runtime, () => state.value?.model || s.model));
 };
 let timer = null;
 let gone = false;
