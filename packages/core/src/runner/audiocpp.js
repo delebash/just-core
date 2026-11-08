@@ -43,13 +43,21 @@ export const AUDIOCPP_PROBE_ARGVS = Object.freeze([Object.freeze(["--no-ui", "--
 // removing one starts it again with them. An inherited value is never passed on.
 export const RUNTIME_ENV = Object.freeze(["AUDIOCPP_ESPEAK_LIBRARY", "AUDIOCPP_ESPEAK_DATA", "AUDIOCPP_UNIDIC_DIR"]);
 
-/** The process environment: this one's, minus any inherited runtime variable, plus `extra` (`envFn()`'s). */
+/** The process environment: this one's, minus any inherited runtime variable, plus `extra` (`envFn()`'s) — its
+ *  `toolDirs` put first on PATH (LatentSync runs `ffmpeg` from PATH, so the kit's FFmpeg goes there). */
 export function childEnv(extra = {}) {
   const env = { ...process.env };
   for (const key of RUNTIME_ENV) {
     for (const k of Object.keys(env)) if (k.toUpperCase() === key) delete env[k];
   }
-  for (const [k, v] of Object.entries(extra || {})) if (v != null && v !== "") env[k] = String(v);
+  const { toolDirs = [], ...vars } = extra || {};
+  for (const [k, v] of Object.entries(vars)) if (v != null && v !== "") env[k] = String(v);
+  const dirs = toolDirs.filter(Boolean);
+  if (dirs.length) {
+    // Windows names it Path
+    const key = Object.keys(env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
+    env[key] = [...dirs, env[key]].filter(Boolean).join(path.delimiter);
+  }
   return env;
 }
 
@@ -107,12 +115,14 @@ export function espeakPaths(dir) {
 }
 
 /** The environment audio.cpp's side programs need, from what is installed: eSpeak NG (`espeakDir`) — Kokoro reads its
- *  library and data ONLY from these variables — and the Japanese dictionary (`unidicDir`, MeCab's). */
-export function sideEnv({ espeakDir = null, unidicDir = null } = {}) {
+ *  library and data ONLY from these variables — the Japanese dictionary (`unidicDir`, MeCab's), and FFmpeg's folder
+ *  (`ffmpegDir`, as `toolDirs` — LatentSync's frames are read by it). */
+export function sideEnv({ espeakDir = null, unidicDir = null, ffmpegDir = null } = {}) {
   const env = {};
   const found = espeakDir ? espeakPaths(espeakDir) : null;
   if (found) [env.AUDIOCPP_ESPEAK_LIBRARY, env.AUDIOCPP_ESPEAK_DATA] = found;
   if (unidicDir) env.AUDIOCPP_UNIDIC_DIR = unidicDir;
+  if (ffmpegDir) env.toolDirs = [ffmpegDir];
   return env;
 }
 
@@ -299,8 +309,10 @@ export class AudioCppServer {
       models: managed ? [] : sorted.map((m) => m.toConfig()),
     };
     if (managed) conf.model_management = true;
-    const env = childEnv(this._envFn());
-    const signature = pyJson({ exe: String(exe), ...conf, env: Object.fromEntries(RUNTIME_ENV.map((k) => [k, env[k] ?? null])) }, { sortKeys: true });
+    const extra = this._envFn();
+    const env = childEnv(extra);
+    const vars = Object.fromEntries(RUNTIME_ENV.map((k) => [k, env[k] ?? null]));
+    const signature = pyJson({ exe: String(exe), ...conf, env: { ...vars, toolDirs: extra?.toolDirs ?? [] } }, { sortKeys: true });
     await this._lock.run(async () => {
       if (this._run && this._run.signature === signature && kitProcess.pollProc(this._run.proc) === null) return;
       await this._stopUnlocked();

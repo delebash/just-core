@@ -27,6 +27,7 @@ import { getArbiter } from "./arbiter.js";
 import { AudioCppError, AudioCppPool, backendOf, ModelEntry, physicalCores, physicalCoresKnown, sideEnv } from "./audiocpp.js";
 import * as binary from "./binary.js";
 import { buildsInUse, recordBuild } from "./cache_registry.js";
+import { ffmpegExe } from "./ffmpeg.js";
 import * as fit from "./fit.js";
 import * as hardware from "./hardware.js";
 import * as models from "./models.js";
@@ -1155,15 +1156,17 @@ export class RuntimeService {
     return path.join(this.root, "_addons");
   }
 
-  /** The environment the runtime's side programs need, from what is installed: the pinned build's extras (eSpeak NG)
-   *  and the add-ons (the Japanese dictionary). */
+  /** The environment the runtime's side programs need, from what is installed: the pinned build's extras (eSpeak NG),
+   *  the add-ons (the Japanese dictionary) and the app's FFmpeg (LatentSync reads a clip's frames with it). */
   extrasEnv() {
     const { cfg, asset } = this._pick();
     const espeak = asset?.extras?.find((x) => x.into?.startsWith("espeak"));
     const unidic = (this.rt.defaults.addons ?? []).find((a) => a.id === "unidic");
+    const ffmpeg = ffmpegExe();
     return sideEnv({
       espeakDir: espeak && asset ? path.join(this._extrasDir(cfg.pinnedBuild, asset), espeak.into) : null,
       unidicDir: unidic && extraInstalled(this.addonsDir, unidic) ? path.join(this.addonsDir, unidic.into) : null,
+      ffmpegDir: ffmpeg ? path.dirname(ffmpeg.exe) : null,
     });
   }
 

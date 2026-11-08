@@ -67,6 +67,15 @@ test("a model's config row; the backend a build runs; the environment carries on
   expect("AUDIOCPP_UNIDIC_DIR" in env).toBe(false);
 });
 
+test("a tool's folder goes first on the process's PATH, whatever case the PATH key has", () => {
+  const key = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
+  const env = childEnv({ toolDirs: ["/kit/ffmpeg/bin", null] });
+  expect(env[key].split(path.delimiter)[0]).toBe("/kit/ffmpeg/bin");
+  expect(env[key]).toContain(process.env[key] ?? "");
+  expect("toolDirs" in env).toBe(false);
+  expect(Object.keys(env).filter((k) => k.toUpperCase() === "PATH")).toHaveLength(1);
+});
+
 test("a log over its limit becomes <name>.1.log as its process starts", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "kit-ac-log-"));
   const p = path.join(dir, "audiocpp-server.log");
