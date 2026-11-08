@@ -33,10 +33,13 @@ npm run bump 0.2.0     # the version (package.json and server/package.json)
 npm run release        # the release: installers + the update feed built on GitHub (.github/workflows/release.yml, manual only)
 ```
 
-**Must pass before a commit:** `npm run lint && npm run test:server && npm run test:unit` and the
-family guard, `node ../scripts/check-family.js` — run by hand; no hook runs anything on a commit (the
-user, 2026-10-29: no commit hooks, family-wide). A change a user can see also passes `npm run i18n:lint`, updates `docs/*.md`,
-and `npm run build:unpacked && npm test`.
+**When the checks run: once, when the job's whole list is done — never before each commit.** Write each change's
+test as you go; at the end run `npm run lint && npm run test:server && npm run test:unit`, the family guard
+`node ../scripts/check-family.js`, and for a change a user can see `npm run i18n:lint` and
+`npm run build:unpacked && npm test`, then fix until green. A commit made before that run is reported as
+unverified; a lone small repair runs only its own test. All by hand: no hook runs anything on a commit (the user,
+2026-10-29: no commit hooks, family-wide). A change a user can see also updates `docs/*.md`. (The user, 2026-11-07:
+"stop running tests when you dont need to".)
 
 ## What bites
 

@@ -504,7 +504,7 @@ getting this wrong is the #1 confusion) — §Q.9.
   (`src/phone/worker-bundle/`); the native projects (`src-capacitor/android`, `/ios`) are
   committed (§Q.7).
 - **AGENTS.md + CLAUDE.md** (decided 2026-10-17) — `AGENTS.md` holds the repo's instructions for any AI
-  (agents.md): what it is, the commands, "must pass before a commit", "what bites", a Where-to-look
+  (agents.md): what it is, the commands, "when the checks run", "what bites", a Where-to-look
   table whose FIRST row points at this document, and a copy of `family-rules.md` between
   `<!-- family-rules:start -->` and `<!-- family-rules:end -->` (the guard keeps it identical).
   `CLAUDE.md` is `@AGENTS.md` plus the Claude-only lines. Both start from the template's. Every app, the kit and just-sqlite-sync have the pair (the last, JustVoice's, 2026-10-29).
@@ -1204,8 +1204,9 @@ JustWrite and JustVoice drop and reseed instead of migrating (an open deviation,
 | Accessibility | every page against WCAG 2.2 AA, light and dark (§17) | `e2e/tests/a11y.test.js` · `@axe-core/playwright` (playwright.dev/docs/accessibility-testing) |
 
 Every test is hermetic: a temp data folder, `JUST_AI_HOME` pointed there, no network, no real model
-unless an env flag asks for one (`<APP>_REAL_*=1`). **Must pass before a commit:** `npm run lint &&
-npm run test:server && npm run test:unit` and the guard, run by hand — **no commit hooks, family-wide** (the user,
+unless an env flag asks for one (`<APP>_REAL_*=1`). **The checks run once, when the job's whole list
+is done** — `npm run lint && npm run test:server && npm run test:unit` and the guard, by hand, never before each
+commit (the user, 2026-11-07: "stop running tests when you dont need to") — **no commit hooks, family-wide** (the user,
 2026-10-29: "i dont want tests just running or things just running on commit in gituhb unless we need it often").
 `npm run test:coverage` (Vitest's v8) reports coverage, with no gate. No performance budgets (the user,
 2026-10-29).
