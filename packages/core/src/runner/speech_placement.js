@@ -66,11 +66,18 @@ export function filesGbOf(row) {
  * model, shared by its precisions, and below the files of some (FireRedAudio's original weights are 23 GB against an
  * estimate of 10), and MOSS-TTSD has none (decided 2026-10-12). `by` says which decided: "estimate" or "files". null
  * with neither number — "memory not measured yet".
+ *
+ * `filesOnCard: false` — the app says the row's chosen load options keep weights off the card (audio.cpp's disk-backed
+ * experts: "Dense weights and all expert computation remain on the selected backend", the routed experts read from the
+ * file into a bounded cache — docs/models/fish_drama3.md, nemotron_transcribe.md). Its files then don't bound what the
+ * card needs: only the estimate does, and with none it is "memory not measured yet", so Auto tries the card, measures,
+ * and moves it to the CPU if the load doesn't fit (decided 2026-11-08, JustVoice's latest-models D16: Fish Audio Drama 3's
+ * 22.9 GB of files took ~7.2 GB of an 8 GB card, and weighed at its files it went to the CPU on every fresh install).
  */
-export function needOf(row) {
-  const files = filesGbOf(row);
-  if (files === null) return null;
+export function needOf(row, { filesOnCard = true } = {}) {
+  const files = filesOnCard ? filesGbOf(row) : null;
   const estimate = Math.round(((Number(row?.peakVramMb) || 0) / 1024) * 10) / 10;
+  if (files === null) return filesOnCard || !estimate ? null : { gb: estimate, by: "estimate" };
   if (files > estimate) return { gb: Math.round(files * 10) / 10, by: "files" };
   return estimate ? { gb: estimate, by: "estimate" } : null;
 }
@@ -119,8 +126,9 @@ const DEFAULT_MEMORY = Object.freeze({
  * memory is held to; `cardBackendFn()` the installed build's backend ("cuda", "vulkan", "metal"; "cpu" for the CPU
  * build; null: none installed); `buildFn()` the build a measurement belongs to; `cpuThreadsFn()` the CPU process's
  * threads; `occupantFn(kind)` the kind's model now (`{modelId, placement, device, row}` or null); `instanceKey(kind,
- * placement)` a server's booking key. The app's: `pieceLength(row)`, `loadOptionsKey(row)`, `warm({server, row,
- * modelId, entries, calibrate})` → whether it calibrated. Seams: `llmFn`, `probes`, `memory`, `sleep(s)`, `now()`.
+ * placement)` a server's booking key. The app's: `pieceLength(row)`, `loadOptionsKey(row)`, `filesOnCard(row)` —
+ * false when the row's chosen load options keep weights off the card (needOf), `warm({server, row, modelId, entries,
+ * calibrate})` → whether it calibrated. Seams: `llmFn`, `probes`, `memory`, `sleep(s)`, `now()`.
  */
 export class SpeechPlacement {
   constructor({
@@ -138,6 +146,7 @@ export class SpeechPlacement {
     instanceKey = (kind, placement) => `${kind}:${placement}`,
     pieceLength = () => null,
     loadOptionsKey = () => "",
+    filesOnCard = () => true,
     warm = async () => false,
     llmFn = wiredLlm,
     probes = null,
@@ -159,6 +168,7 @@ export class SpeechPlacement {
     this.instanceKey = instanceKey;
     this._pieceLength = pieceLength;
     this._loadOptionsKey = loadOptionsKey;
+    this._filesOnCard = filesOnCard;
     this.warm = warm;
     this._llmFn = llmFn;
     this._probes = { ...DEFAULT_PROBES, ...(probes ?? {}) };
@@ -674,8 +684,11 @@ export class SpeechPlacement {
     // A model not measured here: what it needs — audio.cpp's estimate or its files, whichever is more — decides when it
     // is more than the card has: "too big for this card", and Load runs it on the CPU (decided 2026-10-11, the engine
     // list's answer 4; the files since 2026-10-12; the seven engines described by JustVoice's own files since
-    // 2026-10-15, the build's answer 3).
-    const need = needOf(row);
+    // 2026-10-15, the build's answer 3). The files count only where the app says they all go to the card (needOf's
+    // `filesOnCard`, decided 2026-11-08).
+    const filesOnCard = this._filesOnCard(row) !== false;
+    const cardFiles = filesOnCard ? filesGbOf(row) : null;
+    const need = needOf(row, { filesOnCard });
     let cardFirst = "";
     // Whether the card is weighed at the model's files (only an estimate past the whole card).
     let atFiles = false;
@@ -686,7 +699,7 @@ export class SpeechPlacement {
     const tight = Boolean(need) && need.by === "estimate" && need.gb * 1024 + margin > cardMb;
     if (need && !prior && cardMb > 0 && (tooBig || tight)) {
       const card = Math.round(cardMb / 1024);
-      const files = filesGbOf(row);
+      const files = cardFiles;
       if (need.by === "estimate" && files !== null && files * 1024 + margin <= cardMb) {
         // Its files fit the card easily, so the estimate alone says too big: try the card first, and it is measured
         // there (decided 2026-10-12 — OmniVoice's 1.3 GB took 1.2 GB of an 8 GB card against audio.cpp's 10 GB, and ran
@@ -715,13 +728,13 @@ export class SpeechPlacement {
     // counts the app's own unbooked processes — an idle speech runtime, a sleeping AI server, about 0.2 GB: accepted
     // 2026-10-15, as per-process card memory isn't readable on Windows.
     let size = prior || null;
-    if (size === null && need && cardMb > 0) size = (atFiles ? filesGbOf(row) : need.gb) * 1024;
+    if (size === null && need && cardMb > 0) size = (atFiles ? cardFiles : need.gb) * 1024;
     const others = size !== null && size + margin <= cardMb ? await this.otherProgramsCardMb() : null;
     // The same for an estimate that fits the card but not beside other programs, where the files do: the card first, at
     // its files (2026-10-15 — Kitten TTS 2's 7 GB estimate plus the margin is a whole 8 GB card, so any other use sent its
     // 3.1 GB to the CPU, while OmniVoice's 10 GB was tried on the card).
     if (others !== null && !prior && !cardFirst && need?.by === "estimate" && size + margin + others > cardMb) {
-      const files = filesGbOf(row);
+      const files = cardFiles;
       if (files !== null && files * 1024 + margin + others <= cardMb) {
         cardFirst =
           `${this.label} says it needs about ${need.gb} GB, but its files are about ${fmtGb(files)} GB, ` +

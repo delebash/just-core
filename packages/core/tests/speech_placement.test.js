@@ -217,6 +217,10 @@ test("what a model needs before a load measures it: audio.cpp's estimate or its 
   // one field (round E, B11): the row's `peakVramMb` — the one its fit word reads; `spec.minVramGb` is read no more
   expect(needOf({ id: "old", files: [{ bytes: GB }], spec: { minVramGb: 10 } })).toEqual({ gb: 1, by: "files" });
   expect(needOf({ id: "mb", files: [{ bytes: 0.2 * GB }], peakVramMb: 900 })).toEqual({ gb: 0.9, by: "estimate" });
+  // load options that keep the weights off the card (decided 2026-11-08): the files don't count, the estimate alone does
+  expect(needOf(row("drama", "Drama 3", { filesGb: 22.9 }), { filesOnCard: false })).toBeNull();
+  expect(needOf(row("nemo", "Nemotron", { filesGb: 20.5, needGb: 12 }), { filesOnCard: false })).toEqual({ gb: 12, by: "estimate" });
+  expect(needOf(row("drama", "Drama 3", { filesGb: 22.9 }))).toEqual({ gb: 22.9, by: "files" });
   expect([fmtGb(1.31), fmtGb(12.4), fmtX(3.15), fmtX(12.2), fmtX(0.06)]).toEqual(["1.3", "12", "3.1×", "12×", "0.1×"]);
 });
 
@@ -262,6 +266,28 @@ test("too big for the card by audio.cpp's estimate or by its files goes to the C
   // beside the AI model, card-first is Auto's third step: the AI model makes room
   aiOnCard(arb);
   expect(await place(sp, "omnivoice")).toEqual({ placement: "gpu", reason: omni, unloadAi: true });
+});
+
+test("load options that keep the weights off the card: the files don't decide, the card's first load measures it (decided 2026-11-08)", async () => {
+  // Fish Audio Drama 3's shape: 22.9 GB of files, no estimate, its routed experts read from the file (disk_experts)
+  const drama = row("drama", "Drama 3", { filesGb: 22.9 });
+  const nemo = row("nemo", "Nemotron Transcribe", { kind: "stt", filesGb: 20.5, needGb: 12 });
+  {
+    const { sp } = standalone(); // an app that says nothing: the files decide, as before
+    expect(await sp.placementFor(drama)).toEqual({ placement: "cpu", reason: "its files are about 23 GB, more than this card's 8 GB — this may be slow on the CPU", unloadAi: false });
+  }
+  const { sp, ledger, arb } = standalone({ filesOnCard: (r) => !["drama", "nemo"].includes(r.id) });
+  expect(await sp.placementFor(drama)).toEqual({ placement: "gpu", reason: "memory not measured yet", unloadAi: false });
+  // an estimate still decides, now on its own
+  expect(await sp.placementFor(nemo)).toEqual({ placement: "cpu", reason: "audio.cpp says it needs about 12 GB, more than this card's 8 GB — this may be slow on the CPU", unloadAi: false });
+  // a row the app doesn't name keeps its files
+  expect((await place(sp, "mossd")).placement).toBe("cpu");
+  // beside the AI model it is Auto's third step, as for any model not measured here: the AI model makes room
+  aiOnCard(arb);
+  expect(await sp.placementFor(drama)).toEqual({ placement: "gpu", reason: "it has no usable speed on the CPU, so the AI model makes room", unloadAi: true });
+  // once a load measured it here, the measurement decides
+  ledger.rows.push(peakRow("drama", 5000));
+  expect((await sp.placementFor(drama)).placement).toBe("gpu");
 });
 
 test("a card load that failed or spilled, or a price the card can't hold, sends the model to the CPU — until a card load measures it", async () => {
