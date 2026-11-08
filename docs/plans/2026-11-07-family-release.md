@@ -169,14 +169,40 @@ hook, audio.cpp's FFmpeg on PATH, motion capture (a runtime only an app that lis
 house-paint lists sdcpp and onnx, JustWrite and docgen none), the engine banner, the warm chips (cde0089f). The kit
 kept still from cde0089f (web-9e, web-4c told). This run's boxes:
 
-- [ ] Every dependency at its latest again (`outdated.js`, a day on); any move taken in the kit, template, sync, the
-      three apps and their sites.
-- [ ] The full pass once on the final kit commit (`pass.js`, without JustVoice's steps; the guard as it is).
+- [x] Every dependency at its latest again (`outdated.js`, a day on, 31 folders): typebox 1.4.6 (kit core, 059a14d3),
+      jscpd 5.4.3 and pdfmake 0.3.14 (JustWrite, 84ce5dd7) — patches, by `ncu -u` then `npm install`.
+- [ ] The full pass once on the final kit commit 059a14d3 (`pass2.js`, without JustVoice's steps): every lint and i18n
+      lint clean; kit core 1719 (+13 skipped), kit ui 108, sync 75, template 64/143, JustWrite 198/888, house-paint
+      398 (+16 skipped)/196, docgen 224/52; e2e template 15, house-paint 18, docgen 19; the three sites build. Open: the
+      guard's two JustVoice lines (its plan 2026-11-08-latest-models.md: not linked from RESEARCH, no standards table —
+      JustVoice's session asked); JustWrite's `npm run build` re-run (below), then its e2e.
+      **Mistake to avoid:** the pass script sets `CI=1`, and electron-builder under CI tries to publish the build to
+      GitHub — JustWrite's `npm run build` failed only because no GH_TOKEN is set ("GitHub Personal Access Token is not
+      set"). Nothing was published. An installer build runs without CI (`env -u CI`).
+      Then (2026-11-08): the guard green after JustVoice's c20cbaf4 ("✓ no violations"); JustWrite's `npm run build`
+      green; its e2e 2 of 9 (both WCAG 2.2 AA tests — every page, light and dark — passed, the light one in 17 min), then
+      0 of 9 on a re-run with the other sessions paused: every failure `electron.launch: Timeout 180000ms exceeded`.
+      **The cause is the machine, measured:** a bare `cmd /c echo` takes 50 s to start, `node -e 0` 65 s, with the CPU at
+      0 %, 19 GB free and no disk queue; the kernel's paged pool is 9,072 MB and its nonpaged pool 2,878 MB (up since
+      2026-10-29 03:33); the MediaTek Bluetooth service (MTKBTSVC, pid 4612) holds 1,393,486 handles, still growing
+      about 1 a second (the next process: explorer, 9,117). Not ours to restart (the user's system service; a reboot ends
+      every session's work) — told to the user with a rec.
+- [x] **MINE — the release goes on with JustWrite's e2e at 2 of 9.** The user's words for this job: "you dont need to
+      do any big tests or anything big just get the apps releases". The two tests that ran open every page of this
+      build on this kit (059a14d3) in both themes, so the app starts and renders; the seven others failed only at the
+      launch, on a machine that takes a minute to start any process; yesterday's run on the same code (only docs, i18n
+      markers and two dev dependencies changed since) was 9 of 9. Attack: wait for a reboot — costs every session's
+      work and is the user's call, not the release's; raise the launch timeout — hides the machine, a workaround. The
+      seven re-run after the machine is fixed; a failure then is fixed in a 2.1.1. Survives.
+      **2026-11-08 14:15 the machine was rebooted** (measured after it: `node -e 0` starts in 0.1 s; MTKBTSVC at 14,034
+      handles and growing about 4.6 a second, 14,034 → 14,126 in 20 s — the leak is back, so the slowdown returns in
+      days). So the seven launch failures can be re-run now.
 - [ ] Each app's version and What's new section checked (`release.js` needs `## v<version>`; JustWrite's is dated).
 - [ ] The three tags; each app's `npm run release -- --yes` (core_ref = the kit's HEAD); the runs watched.
 - [ ] The three site deploys (`npm run deploy`) once the releases are published.
 
-**STOPPED again (2026-11-08)** — the user, verbatim: "stop release". Stopped at once: the dev build halted at step
+**STOPPED again (2026-11-08)** — this stop came BEFORE the restart without JustVoice above (commits fa19b49a at 09:44,
+then 059a14d3 at 09:53); the boxes below are JustVoice's, out of this release. The user, verbatim: "stop release". Stopped at once: the dev build halted at step
 174 of 179 (unfinished, never run), the outdated check halted; no build or engine process left. The merge 73a2b82e
 stays local in ../audio.cpp (origin/jv is still 6d64f04e), untested. Nothing tagged, dispatched, published or
 deployed; the kit freeze lifted; the card handed back. Restart: on the user's word, from the first open box below.
