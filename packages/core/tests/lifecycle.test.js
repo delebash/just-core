@@ -610,15 +610,37 @@ test("parse_router_models_reads_nested_status", () => {
       { id: "embed", status: { value: "unloaded" } },
       { id: "flat", status: "loading" }, // a hypothetical flat-string build
       { status: { value: "x" } }, // no id → dropped
+      // a child that died, as b11960's router reports it (server-models.cpp: unloaded + failed + exit_code)
+      { id: "crashed", status: { value: "unloaded", failed: true, exit_code: -1 } },
     ],
   };
   const out = lifecycle._parseRouterModels(payload);
+  expect(out.get("crashed")).toEqual({ value: "unloaded", failed: true });
+  expect("failed" in out.get("embed")).toBe(false);
   expect(out.get("chat").value).toBe("loaded");
   expect(out.get("chat").meta.n_params).toBe(7);
   expect(out.get("embed").value).toBe("unloaded");
   expect("meta" in out.get("embed")).toBe(false); // unloaded → no meta block
   expect(out.get("flat").value).toBe("loading"); // flat string tolerated
-  expect(out.size).toBe(3); // the id-less entry dropped
+  expect(out.size).toBe(4); // the id-less entry dropped
+});
+
+test("load_errors_when_the_router_says_its_child_died", async () => {
+  // llama.cpp's router never says "failed": a child that died is "unloaded" with failed: true (b11960) → an error at
+  // once, not a poll to the deadline
+  const sleeps = { n: 0 };
+  const svc = serviceFor(tmp(), {
+    routerModels: () => ({ object: "list", data: [{ id: TEST_MODEL.id, status: { value: "unloaded", failed: true, exit_code: -1 } }] }),
+    sleep: () => {
+      sleeps.n += 1;
+    },
+  });
+  await svc.load(TEST_MODEL.id, { overrides: new Overrides({ nGpuLayers: 0 }) });
+  await join5(svc);
+  const st = svc.status();
+  expect(st.status).toBe("error");
+  expect(st.error).toContain("failed to load");
+  expect(sleeps.n).toBe(0);
 });
 
 test("load_polls_until_loaded", async () => {

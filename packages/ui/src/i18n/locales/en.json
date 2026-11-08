@@ -2136,6 +2136,7 @@
       "installedRunning": "Installed — build {build}, running {model}.",
       "notInstalled": "Not installed — {size} to download.",
       "notInstalledNoSize": "Not installed.",
+      "installingBuild": "Installing build {build}…",
       "inProcess": "Part of this app — nothing to install.",
       "install": "Install ({size})",
       "installPlain": "Install",

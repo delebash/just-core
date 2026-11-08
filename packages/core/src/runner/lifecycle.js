@@ -797,6 +797,11 @@ export function _parseRouterModels(payload) {
     const s = entry.status;
     const value = isJsonObject(s) ? s.value : typeof s === "string" ? s : "";
     const row = { value: value || "" };
+    // a child that died: llama.cpp's router says "unloaded" with `failed: true` and its exit code, never "failed"
+    // (tools/server/server-models.cpp at b11960: is_failed() = UNLOADED and exit_code != 0; the /models status adds
+    // failed and exit_code) — so a load whose child crashed was polled to its deadline (2026-11-08, JustDirect's splash
+    // read "Getting ready" minutes after its warm model's process was gone)
+    if (isJsonObject(s) && s.failed === true) row.failed = true;
     const meta = entry.meta;
     if (meta != null && typeof meta === "object" && !Array.isArray(meta) && Object.keys(meta).length) row.meta = meta;
     out.set(mid, row);
@@ -4614,7 +4619,8 @@ export class RunnerService {
       }
       const value = live.get(modelId)?.value || "";
       if (value === "loaded" || value === "sleeping") return "loaded";
-      if (value === "failed" || value === "error") return "failed";
+      // the router clears a model's failed state when it accepts the load (server-models.cpp), so one seen now is this load's
+      if (value === "failed" || value === "error" || live.get(modelId)?.failed) return "failed";
       if (logOffset != null && this._childExitedSince(modelId, logOffset)) return "failed";
       if (this._now() >= deadline) return "timeout";
       await this._sleep(this._loadPollInterval);

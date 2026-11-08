@@ -526,6 +526,9 @@ defineExpose({ refresh, filters });
           <!-- in-process (ONNX Runtime): part of the app — nothing to install or remove -->
           <template v-if="engine.inProcess">{{ t("kit.runtimes.inProcess") }}</template>
           <template v-else-if="engine.installed">{{ engine.running ? t("kit.runtimes.installedRunning", { build: engine.build, model: engine.running }) : t("kit.runtimes.installed", { build: engine.build }) }}</template>
+          <!-- installing, an update's too: the pin is already the new build, so "Not installed" would be wrong (2026-11-08,
+               Motion capture's Update to r6 read "Not installed — 3.9 GB to download" with a greyed Install) -->
+          <template v-else-if="engine.status === 'installing'">{{ t("kit.runtimes.installingBuild", { build: engine.build }) }}</template>
           <template v-else>{{ engine.downloadBytes ? t("kit.runtimes.notInstalled", { size: size(engine.downloadBytes) }) : t("kit.runtimes.notInstalledNoSize") }}</template>
         </p>
         <UiBanner v-if="need()" intent="danger" class="lu-rt-note">
@@ -551,7 +554,7 @@ defineExpose({ refresh, filters });
         </UiField>
         <div v-if="!engine.inProcess" class="lu-rt-actions">
           <UiButton
-            v-if="!engine.installed" intent="primary" size="small" focusable-when-disabled
+            v-if="!engine.installed && engine.status !== 'installing'" intent="primary" size="small" focusable-when-disabled
             :disabled="!!need() || engineTask.state === 'running'"
             :label="engine.downloadBytes ? t('kit.runtimes.install', { size: size(engine.downloadBytes) }) : t('kit.runtimes.installPlain')"
             @click="engineJob('install')"
