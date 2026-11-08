@@ -200,6 +200,12 @@ kept still from cde0089f (web-9e, web-4c told). This run's boxes:
 - [x] Each app's version and What's new section checked (2026-11-08, after the reboot): package.json 2.1.0 / 0.2.0 /
       0.1.0; house-paint and docgen have `## v0.2.0` and `## v0.1.0` (their release.js checks for it); JustWrite's
       release.js has no What's new check, so its dated `## 2026-11-07` section stands.
+      **The kit's working tree is shared (2026-11-08, after the reboot):** the just-direct-mocap session is editing the
+      kit's tree (Motion capture, the sd.cpp rows, a guard check, a dev-build module) and commits nothing to the kit until
+      this session sends it "dispatched". Before any local run on the kit (JustWrite's e2e re-run), send it "need clean kit
+      tree" and wait for "tree matches HEAD" (it saves its edits as a patch, takes them out and puts them back after this
+      session's "e2e done"). Commit only this session's own paths (`git commit <path>`, never `-a`). core_ref = the kit's
+      HEAD at dispatch; tell that session if a docs commit of ours moves it.
 - [ ] The three tags; each app's `npm run release -- --yes` (core_ref = the kit's HEAD); the runs watched.
 - [ ] The three site deploys (`npm run deploy`) once the releases are published.
 
