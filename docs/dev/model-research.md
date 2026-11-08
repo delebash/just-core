@@ -16,9 +16,16 @@ app data). This doc keeps the durable laws, measured numbers, and the why.
   Apache-2.0** (HF-API verified). Never seed Gemma ≤ 3. Llama carries the
   "Llama Community" flag; Mistral Large is research-non-commercial. A model's licence binds the family only if
   its weights are ever BUNDLED with an app (the apps download them from the hub); that day it is the user's call.
-- **llama.cpp drops JSON-schema enforcement when thinking is on** (reproduced) →
-  extraction runs think-off; attribution = 2-pass (reason → emit). **Deep schemas
-  break every constrained-decode engine** → keep extraction schemas FLAT.
+- **A strict JSON schema holds with thinking on, on the kit's pinned llama.cpp (b11960)** — measured
+  2026-10-30 by JustDirect's planner test (`E:\Dev\Web\test-just-direct\planner`, Gemma 4 26B-A4B,
+  `response_format` json_schema): every pass of 3 plans validated against its schema with thinking on, and the
+  revisions were correct only then (the kit's `docs/plans/2026-10-24-just-direct-feasibility.md` §J.3). So the
+  kit lets an action whose contract is a strict schema think when its preset says so (`llm/prompts.js`
+  `_effectiveThink`, 2026-11-07); the weak json_object stays think-off. (Was: "llama.cpp drops JSON-schema
+  enforcement when thinking is on (reproduced) → extraction runs think-off" — reproduced on an older build,
+  until 2026-11-07.) Thinking needs room: a budget the answer still fits after (4,096 tokens, the local
+  "medium" level, with `max_tokens` well above it) — the old 1,500 cap ran out before the answer every time.
+  **Deep schemas break every constrained-decode engine** → keep extraction schemas FLAT.
 - **MoE is RAM-gated**: a small-active MoE runs at the 32 GB-RAM floor and cannot
   below it. **`--n-cpu-moe` counts from layer 0** (the "counts backwards" lore was
   refuted 0-3).

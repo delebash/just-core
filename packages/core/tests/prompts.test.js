@@ -8,6 +8,7 @@ import { setEnsureLocalModel, setLocalRunnerBaseUrl } from "../src/llm/dispatch.
 import { EnginePresetRow } from "../src/llm/presets_api.js";
 import {
   _effectiveThink,
+  _plane2Extra,
   FeaturePromptRow,
   MissingTemplateVariables,
   makeFeatureRouter,
@@ -437,6 +438,26 @@ test("effective_think_guardrail_off_under_json", () => {
   expect(_effectiveThink(spec(false), req(null, true), preset(true))).toBe(false); // request json → off
   expect(_effectiveThink(spec(true), req(true), preset(false))).toBe(false); // guardrail beats override
   expect(_effectiveThink(spec(false), req(), preset(false))).toBe(false); // think off → off
+});
+
+test("effective_think_follows_the_preset_under_a_strict_schema", () => {
+  // A contract that is a strict JSON schema (json_mode + a schema object) may think: the engine holds the answer to
+  // the schema apart from the reasoning (JustDirect's planner, 2026-11-07). The weak json_object stays forced off.
+  const spec = (schema) => FeaturePromptRow({ key: "f", feature: "f", system: "", user_template: "", built_in: true, json_mode: true, json_schema: schema });
+  const preset = (think) => model(EnginePresetRow, { name: "p", think });
+  const req = (think = null) => model(RunRequest, { action: "f", think });
+  const schema = JSON.stringify({ type: "object", properties: { shots: { type: "array" } }, required: ["shots"] });
+
+  expect(_effectiveThink(spec(schema), req(), preset(true))).toBe(true); // a strict schema: the preset's think
+  expect(_effectiveThink(spec(schema), req(), preset(false))).toBe(false); // the preset's think off stays off
+  expect(_effectiveThink(spec(schema), req(false), preset(true))).toBe(false); // a request override still wins
+  expect(_effectiveThink(spec(""), req(), preset(true))).toBe(false); // json_object: forced off, as before
+  expect(_effectiveThink(spec("{}"), req(), preset(true))).toBe(false); // an empty schema is json_object
+  expect(_effectiveThink(spec("{not json"), req(), preset(true))).toBe(false); // an invalid one degrades the same way
+  // and the level reaches the engine only then (dispatch's applyReasoning reads it)
+  const presetLevel = model(EnginePresetRow, { name: "p", think: true, reasoningEffort: "medium" });
+  expect(_plane2Extra(spec(schema), req(), presetLevel)).toMatchObject({ response_format: { type: "json_schema" }, reasoning_effort: "medium" });
+  expect(_plane2Extra(spec(""), req(), presetLevel).reasoning_effort).toBeUndefined();
 });
 
 test("run_uses_resolved_preset", async () => {

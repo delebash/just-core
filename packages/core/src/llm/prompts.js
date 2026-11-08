@@ -492,7 +492,7 @@ export function _plane2Extra(spec, body, preset = null) {
   }
   // Reasoning-effort LEVEL (a1/E2) — from the PRESET, carried under the reserved
   // `reasoning_effort` key each adapter pops + maps to its backend's native control. ONLY
-  // when reasoning is effectively on (B3: think gated off under json_mode), so it never
+  // when reasoning is effectively on (B3: think gated off under the weak json_object mode), so it never
   // corrupts JSON.
   if (_effectiveThink(spec, body, preset)) {
     // ALWAYS injected under effective think — the key's PRESENCE marks think-on for
@@ -524,15 +524,31 @@ export function _plane2Extra(spec, body, preset = null) {
 
 /**
  * The think flag for this call = the PRESET's think (the one source, 2026-07-15), with the
- * B3 guardrail: a reasoning block corrupts strict JSON, so think is FORCED off whenever
- * json_mode is on (the request's jsonMode override, else the action's CONTRACT json_mode).
- * A request `think` override still wins (a Lab column comparing think on vs off). No preset
- * → think off.
+ * B3 guardrail: a reasoning block corrupts loose JSON, so think is FORCED off when json_mode is
+ * on (the request's jsonMode override, else the action's CONTRACT json_mode) with no schema — the
+ * weak json_object. An action whose contract is a strict JSON schema (`_responseFormat`'s
+ * json_schema) may think: the engine holds the answer to the schema apart from the reasoning
+ * (llama-server parses the reasoning out and constrains the content), and JustDirect's planner was
+ * correct on 3 of 3 revisions only with thinking on (the kit's JustDirect feasibility record §J.3,
+ * 2026-10-31; 2026-11-07). A request `think` override still wins (a Lab column comparing think on
+ * vs off). No preset → think off.
  */
 export function _effectiveThink(spec, body, preset = null) {
   const think = body.think != null ? body.think : preset ? preset.think : false;
   const jsonMode = body.jsonMode == null ? (spec ? spec.json_mode : false) : body.jsonMode;
-  return truthy(think) && !jsonMode;
+  return truthy(think) && (!jsonMode || _hasStrictSchema(spec));
+}
+
+/** Whether the action's contract is a strict JSON schema (`_responseFormat` sends json_schema), not the weak json_object. */
+function _hasStrictSchema(spec) {
+  const raw = strip((spec ? spec.json_schema : "") || "");
+  if (!raw) return false;
+  try {
+    const obj = JSON.parse(raw);
+    return isJsonObject(obj) && Object.keys(obj).length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**
