@@ -171,7 +171,8 @@ kept still from cde0089f (web-9e, web-4c told). This run's boxes:
 
 - [x] Every dependency at its latest again (`outdated.js`, a day on, 31 folders): typebox 1.4.6 (kit core, 059a14d3),
       jscpd 5.4.3 and pdfmake 0.3.14 (JustWrite, 84ce5dd7) — patches, by `ncu -u` then `npm install`.
-- [ ] The full pass once on the final kit commit 059a14d3 (`pass2.js`, without JustVoice's steps): every lint and i18n
+- [x] (Superseded by the GO section's end runs — on 7b368726, then on 3d18f8e7 after the kit's BootModelLoad fix —
+      where JustWrite's e2e went 9/9.) The full pass once on the final kit commit 059a14d3 (`pass2.js`, without JustVoice's steps): every lint and i18n
       lint clean; kit core 1719 (+13 skipped), kit ui 108, sync 75, template 64/143, JustWrite 198/888, house-paint
       398 (+16 skipped)/196, docgen 224/52; e2e template 15, house-paint 18, docgen 19; the three sites build. Open: the
       guard's two JustVoice lines (its plan 2026-11-08-latest-models.md: not linked from RESEARCH, no standards table —
@@ -297,7 +298,8 @@ Checklist (each line updated as it lands):
       rendered, zero JS errors"), server 198/198, unit 888/888, the installer build, e2e 9/9 (both WCAG 2.2 AA tests,
       light 201 s, dark 86 s). The guard: one violation, not this release's — just-direct's v1 plan names kit code
       (`runner/dev_build.js`) that is only in just-direct-mocap's held edits; it clears when they are committed after
-      "dispatched" (that session agreed). house-paint unchanged since its green pass (b6685e6, tree clean).
+      "dispatched" (that session agreed). **Cleared** after the releases: just-direct-mocap fixed its plan line, and
+      `node scripts/check-family.js` on kit 0ae63705 says "✓ no violations" (exit 0). house-paint unchanged since its green pass (b6685e6, tree clean).
 - [x] docgen's real-window walk on the real data and THE real project (`dg-walk.js`, the harness's Driver with its
       server on data/): with `--config` the project loads; restarted WITHOUT it, it loads again (`loaded=true
       configPath=…justwrite-app\just-ai-i18n-docgen\config.json`; the log: "reopened the last project"). The real data
@@ -315,7 +317,7 @@ Checklist (each line updated as it lands):
       the component is used as is, no prop changed. Re-run on 3d18f8e7 (`endrun.js kitfix`, logs `endrun2\`).
 - [x] The three tags, pushed (2026-11-08 ~17:19): JustWrite v2.1.0 = 1b1f0d71, house-paint v0.2.0 = b7aa047, docgen
       v0.1.0 = 0cdcd47 (each tree clean, nothing unpushed, package.json and server/package.json at the version).
-- [ ] The dry runs (the approved order, TASKS 2026-11-07 item 5: the releases "once every dry run is green"), each
+- [x] The dry runs (the approved order, TASKS 2026-11-07 item 5: the releases "once every dry run is green"), each
       `gh workflow run release.yml -f publish=false -f platforms=all -f core_ref=dcc413f5` (+ JustWrite's
       `sync_ref=77059d34`): JustWrite 42529667669, house-paint 42529671325, docgen 42529674763. The kit is
       dcc413f5 = 3d18f8e7 (tested) + this doc. The other sessions hold kit commits until "dispatched".
@@ -343,10 +345,6 @@ Checklist (each line updated as it lands):
 - (the original line, kept for its commands:) house-paint's and docgen's `npm run release -- --yes`, JustWrite's `echo y | npm run release`
       (its release.js has no `--yes`; it reads "Proceed? [y/N]" and closes stdin for gh itself) — core_ref = the kit's
       HEAD; the runs watched to green; just-direct-mocap and just-voice told "dispatched".
-- [ ] The three site deploys (`npm run deploy`) once the releases are published; each site checked live.
-- [ ] The end-of-job report (every MINE decision listed).
-- [ ] The three tags; each app's `npm run release -- --yes` (core_ref = the kit's HEAD); the runs watched.
-- [ ] The three site deploys (`npm run deploy`) once the releases are published.
 
 **STOPPED again (2026-11-08)** — this stop came BEFORE the restart without JustVoice above (commits fa19b49a at 09:44,
 then 059a14d3 at 09:53); the boxes below are JustVoice's, out of this release. The user, verbatim: "stop release". Stopped at once: the dev build halted at step
