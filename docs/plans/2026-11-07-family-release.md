@@ -409,11 +409,20 @@ Checklist (each line updated as it lands):
       nonpaged 2,049 MB, MTKBTSVC stopped; top paged tag MmSt 110 MB.
 - [x] Fetched upstream (nothing past 047fb424); merged upstream/main into jv: **9784e04c**, no conflicts, 108 files,
       `git describe` v0.9.4-86; not pushed (pushed at the release step). Sent to just-voice (~16:55) with the ctest question.
-- [ ] just-voice: JustVoice's dev build from it + the app test (Ming3 Audio, Qwen3-TTS, Nemotron Transcribe, Audio8,
-      VoxCPM2, Drama 3) → PASS or the fault. The fork's CPU ctest (`build/jv-test`): ask who runs it.
+- [x] just-voice: JustVoice's dev build from it + the app test → **PASS** (17:08–17:25, its report): Drama 3, VoxCPM2,
+      Audio8 TTS 0.6B, Qwen3-TTS CustomVoice 1.7B (en + zh voices), Nemotron Transcribe — every word read back by
+      Qwen3-ASR; SenseVoice's `<period>`/`<io>` tags identical on v0.9.2-jv.6 (RESEARCH 2026-10-15, not the merge). Ming3
+      Audio not tested (10 GB, never run in JustVoice, not a pick). Catalog preview at 9784e04c: no family or package
+      added or removed — no curation. Its server suite 1313 passed / 1 skipped. Its commit 89a1c0b4 (scripts on ES
+      imports + the test record `docs/plans/2026-11-09-fork-release-test.md`).
+- [ ] The fork's CPU ctest (`build/jv-test`, `fork-ctest.cmd` in the scratchpad: ninja -j12, ctest -j4; logs
+      `_spikes\release-2026-11-09\ctest\`) — this session's (just-voice's build runs none). Booked: just-stage sends
+      "CPU free" ~17:36; then "CPU free" to just-voice for its smoke run. 2026-11-07's run failed only
+      lfm2/lfm3_audio_assets_test ("--model must be the package directory": no model package on this machine).
 - [ ] Push jv; `gh workflow run release.yml -R delebash/audio.cpp --ref jv -f version=v0.9.4-jv.7 -f publish=true`;
       watched to green; the release checked on GitHub.
-- [ ] Every dependency at its latest again (`outdated.js`, 35 folders, 17:0x, `_spikes\release-2026-11-09\outdated.txt`):
+- [x] (applied 17:3x: kit 3fdd917c, JustVoice f2f4cb3e, pushed; unverified until the full pass; log `deps.log`)
+      Every dependency at its latest again (`outdated.js`, 35 folders, 17:0x, `_spikes\release-2026-11-09\outdated.txt`):
       kit core @anthropic-ai/sdk 1.6.0→1.7.0 and openai 7.53.0→7.54.0; kit ui quasar 2.35.2→2.35.3 (peer, in range);
       template and JustVoice quasar 2.35.3 + @quasar/app-vite 3.10.4 — minors and patches, no major. **MINE:** applied to
       the kit, the template and JustVoice only (what this release ships); JustWrite, house-paint, docgen (released
