@@ -47,6 +47,9 @@ const add = (f) => {
 };
 const removeRow = (f, i) => feet.value[f].splice(i, 1);
 const reset = () => (feet.value = toRows(found.value.automatic));
+// "edited" only while the take's contacts differ from the found ones: the engine marks any applied list as edited,
+// the found ones applied again too (2026-11-08, JustDirect's window read "Edited contacts are in use" after Back + Apply)
+const editedInUse = computed(() => !!found.value?.edited && JSON.stringify(found.value.applied) !== JSON.stringify(found.value.automatic));
 // each contact inside the take and ending after it starts; overlaps within one foot are joined by the engine's own rules
 const valid = computed(() => feet.value.every((foot) => foot.every((r) => Number.isInteger(r.from) && Number.isInteger(r.to) && r.from >= 0 && r.to > r.from && r.to <= frames.value)));
 const ranges = () => feet.value.map((foot) => [...foot].sort((a, b) => a.from - b.from).map((r) => [r.from, r.to]));
@@ -74,7 +77,7 @@ async function apply() {
   <section v-if="found" class="contacts" :aria-label="t('kit.mocap.contacts.label')">
     <h3 class="contacts__h">{{ t("kit.mocap.contacts.label") }}</h3>
     <p class="muted contacts__hint">{{ t("kit.mocap.contacts.hint") }} {{ t("kit.mocap.contacts.frames", { frames, fps: found.fps }) }}</p>
-    <p v-if="found.edited" class="muted">{{ t("kit.mocap.contacts.edited") }}</p>
+    <p v-if="editedInUse" class="muted">{{ t("kit.mocap.contacts.edited") }}</p>
     <div v-for="(foot, f) in feet" :key="f" class="contacts__foot">
       <div class="contacts__strip" role="img" :aria-label="`${FEET[f]}: ${foot.map((r) => `${r.from}–${r.to}`).join(', ') || t('kit.mocap.contacts.none')}`">
         <span class="contacts__name">{{ FEET[f] }}</span>
