@@ -229,9 +229,11 @@ STATE 2026-11-06:
      `master` is never pushed or synced; upstream reaches us only by a local merge into `jd`.
      PINNED 2026-11-08 (JustDirect's session, under the user's "finish this app … go"): upstream's 3d315c4 merged into
      `jd` (3dba814), released as jd-1078-3dba814 (run 42493526732, every job green, Linux jobs on ubuntu-24.04), its rows
-     measured and written into `runner/config.js` (the comment there lists how). Open: JustStage's image features on it
-     (just-stage's session, held by the user on one job) and house-paint's (its aiphoto real test, run from JustDirect's
-     end run); then this item closes.
+     measured and written into `runner/config.js` (the comment there lists how). house-paint's AI photo on it: its real
+     test (`HP_REAL_SD=1 … tests/aiphoto/real.test.js`) 5 passed, 1 skipped (the opt-in 1 MP run), run from
+     `sdcpp\jd-1078-3dba814\cuda12`, the siding repainted at ΔE 0.21 in 18.5 s (2026-11-08 20:20). JustDirect's clips
+     made on it from the dev window and the packaged app. Open: JustStage's image features on it (just-stage's session,
+     held by the user on one job — it presses Update to jd-1078-3dba814 when free); then this item closes.
   2. Not done, by the user's word.
   3. DONE `336d6556`: the spec `docs/plans/2026-11-06-motion-tracks-spec.md` (written from sparse_tracks.py at
      ComfyUI-LTXVideo `220e1d4`, no code in it); `runner/motion_tracks.js` written from it alone by a separate agent;
