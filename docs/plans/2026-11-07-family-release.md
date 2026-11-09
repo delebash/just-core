@@ -413,7 +413,14 @@ Checklist (each line updated as it lands):
       VoxCPM2, Drama 3) → PASS or the fault. The fork's CPU ctest (`build/jv-test`): ask who runs it.
 - [ ] Push jv; `gh workflow run release.yml -R delebash/audio.cpp --ref jv -f version=v0.9.4-jv.7 -f publish=true`;
       watched to green; the release checked on GitHub.
-- [ ] Every dependency at its latest again (`outdated.js`).
+- [ ] Every dependency at its latest again (`outdated.js`, 35 folders, 17:0x, `_spikes\release-2026-11-09\outdated.txt`):
+      kit core @anthropic-ai/sdk 1.6.0→1.7.0 and openai 7.53.0→7.54.0; kit ui quasar 2.35.2→2.35.3 (peer, in range);
+      template and JustVoice quasar 2.35.3 + @quasar/app-vite 3.10.4 — minors and patches, no major. **MINE:** applied to
+      the kit, the template and JustVoice only (what this release ships); JustWrite, house-paint, docgen (released
+      yesterday), their sites (astro 7.4.8) and just-direct (its session's) take theirs at their next release. Attack:
+      "everything at latest" — churn in three released apps with no release behind it; the full pass runs their suites
+      on the new kit anyway. Survives. **Applied after just-voice's "CPU free"** — its dev server and tests run on
+      JustVoice's and the kit's node_modules now.
 - [ ] The kit's audio.cpp pin, rows and `AUDIOCPP_BUILDS_IN_ORDER`; JustVoice's `seed_audiocpp_catalog.json` at the tag
       (`JustVioce/scripts/audiocpp-catalog.js`), engines.md and What's new.
 - [ ] just-voice confirms nothing of JustVoice is still in work.
