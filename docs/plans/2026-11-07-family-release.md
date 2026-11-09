@@ -440,7 +440,10 @@ Checklist (each line updated as it lands):
       JustVoice's and the kit's node_modules now.
 - [ ] The kit's audio.cpp pin, rows and `AUDIOCPP_BUILDS_IN_ORDER`; JustVoice's `seed_audiocpp_catalog.json` at the tag
       (`JustVioce/scripts/audiocpp-catalog.js`), engines.md and What's new.
-- [ ] just-voice confirms nothing of JustVoice is still in work.
+- [x] just-voice confirms nothing of JustVoice is still in work: **"JustVoice ready"** (~17:5x) — its smoke gate green
+      (build:spa, every view, zero JS errors); JustVioce main 3a871b45, clean, pushed; nothing of it running (its model-test
+      server ran until 17:38, then stopped; 17494 free). Its note — just-direct-mocap's sd.cpp size pins failed 5 kit
+      core tests yesterday — checked at kit 054ad64c: runtimes.test.js + runtime_service.test.js 20/20 (fixed since).
 - [ ] The full pass once on the final kit commit (lint, suites, e2e, sites), fixed until green.
 - [ ] JustVoice's tag, its dry run green, its release (it has no website — none under E:\Dev\Web, checked).
 - [ ] The end-of-job report (every MINE decision listed).
