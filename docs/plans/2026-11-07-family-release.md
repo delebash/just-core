@@ -228,6 +228,17 @@ kept still from cde0089f (web-9e, web-4c told). This run's boxes:
   `usb\vid_0e8d&pid_0616&mi_00` (update id 21288fbb-b2f3-401b-95da-453d6b78b6ce). Its notes don't say what it fixes.
   MSI's own driver page refused automated reads (403) and the Chrome extension wasn't connected — MSI's package
   unread.
+- **New fact (2026-11-09 09:28): the MediaTek card is not in use, and its service leaks anyway.** `Get-PnpDevice`:
+  "RZ616 Bluetooth(R) Adapter" Status Error, problem code 22 (= disabled in Device Manager); the RZ616 Wi-Fi is "Not
+  Present". Bluetooth and Wi-Fi run on a **Qualcomm FastConnect 7800** (Wi-Fi 7 + Bluetooth, `USB\VID_0489&PID_E10A`,
+  installed 2026-07-20, driver 3.1.0.1647, Status OK; its Wi-Fi "Wi-Fi 2" is the live link at 1.2 Gbps). Yet MTKBTSVC
+  (AUTO_START, no dependent or required services — `sc qc`, `Get-Service -DependentServices`) still runs: 115,867
+  handles at 09:28:26, 116,031 at 09:29:04 (~4.3 a second). **Rec, old and new side by side:** old — install
+  MediaTek's newer driver 1.1147.0.618; new — the user sets MTKBTSVC to Disabled and stops it (admin PowerShell:
+  `Set-Service MTKBTSVC -StartupType Disabled; Stop-Service MTKBTSVC -Force`; undo: `-StartupType Automatic` +
+  `Start-Service`), since its adapter is off and nothing depends on it, which ends this leak whatever its cause; the
+  driver update is then moot. Changing a system service is the user's to do. Whether the paged-pool growth stops too
+  is unknown until measured over the next days.
 - **Searched (2026-11-08), no report of this leak found:** "mtkbtsvc.exe handle leak"; "MediaTek bluetooth service
   mtkbtsvc memory leak Windows 11 paged pool"; "mtkbtsvc high memory usage"; "Windows 11 26H2 bluetooth service handle
   leak"; "MSI MAG B550 TOMAHAWK MAX WIFI bluetooth driver download RZ616"; "RZ616 MT7922 bluetooth driver latest version
