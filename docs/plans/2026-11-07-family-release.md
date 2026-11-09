@@ -238,7 +238,9 @@ kept still from cde0089f (web-9e, web-4c told). This run's boxes:
   `Set-Service MTKBTSVC -StartupType Disabled; Stop-Service MTKBTSVC -Force`; undo: `-StartupType Automatic` +
   `Start-Service`), since its adapter is off and nothing depends on it, which ends this leak whatever its cause; the
   driver update is then moot. Changing a system service is the user's to do. Whether the paged-pool growth stops too
-  is unknown until measured over the next days.
+  is unknown until measured over the next days. **Done by the user 2026-11-09 (~16:45)**, checked 16:49: MTKBTSVC
+  Stopped, startup Disabled, no mtkbtsvc process; MX Keys and MX Master 3 OK on the Qualcomm adapter. Baseline then:
+  paged pool 858 MB, nonpaged pool 2,379 MB (Win32_PerfRawData_PerfOS_Memory).
 - **Searched (2026-11-08), no report of this leak found:** "mtkbtsvc.exe handle leak"; "MediaTek bluetooth service
   mtkbtsvc memory leak Windows 11 paged pool"; "mtkbtsvc high memory usage"; "Windows 11 26H2 bluetooth service handle
   leak"; "MSI MAG B550 TOMAHAWK MAX WIFI bluetooth driver download RZ616"; "RZ616 MT7922 bluetooth driver latest version
