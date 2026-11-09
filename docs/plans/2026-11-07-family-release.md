@@ -404,8 +404,11 @@ v0.9.4-jv.7, then the kit's pin and rows and the catalog at the tag; 3. JustVoic
   (just-voice's rec, agreed).
 
 Checklist (each line updated as it lands):
-- [ ] Pool log: hourly, ~3 days, background job; logs in `E:\Dev\Web\_spikes\pool-log-2026-11-09\`.
-- [ ] Fetch upstream; merge upstream/main into jv (single merge); send the commit to just-voice.
+- [x] Pool log: hourly, 72 samples, background job (`poollog.ps1` in the session scratchpad, pwsh), from 16:51; logs in
+      `E:\Dev\Web\_spikes\pool-log-2026-11-09\` (totals.csv; tags.csv = every tag >= 5 MB). First sample: paged 857 MB,
+      nonpaged 2,049 MB, MTKBTSVC stopped; top paged tag MmSt 110 MB.
+- [x] Fetched upstream (nothing past 047fb424); merged upstream/main into jv: **9784e04c**, no conflicts, 108 files,
+      `git describe` v0.9.4-86; not pushed (pushed at the release step). Sent to just-voice (~16:55) with the ctest question.
 - [ ] just-voice: JustVoice's dev build from it + the app test (Ming3 Audio, Qwen3-TTS, Nemotron Transcribe, Audio8,
       VoxCPM2, Drama 3) → PASS or the fault. The fork's CPU ctest (`build/jv-test`): ask who runs it.
 - [ ] Push jv; `gh workflow run release.yml -R delebash/audio.cpp --ref jv -f version=v0.9.4-jv.7 -f publish=true`;
@@ -415,5 +418,10 @@ Checklist (each line updated as it lands):
       (`JustVioce/scripts/audiocpp-catalog.js`), engines.md and What's new.
 - [ ] just-voice confirms nothing of JustVoice is still in work.
 - [ ] The full pass once on the final kit commit (lint, suites, e2e, sites), fixed until green.
-- [ ] JustVoice's tag, its dry run green, its release; its site deploy if it has one.
+- [ ] JustVoice's tag, its dry run green, its release (it has no website — none under E:\Dev\Web, checked).
 - [ ] The end-of-job report (every MINE decision listed).
+
+**just-direct-mocap asked (2026-11-09 ~16:55)** for JustDirect v0.0.1's first release, relaying the user (in its
+session): "send it to the releae session to do a normal relelawe no input should be needed fropm me". Not in this go's
+list — asked the user here; not started until then. Its facts: main 2934256, v0.0.1, dry run 42545403584 green
+(core_ref 062d0eeb), end run 2026-11-08 green; no website (none under E:\Dev\Web — checked).
