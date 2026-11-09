@@ -17,6 +17,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { QMenu } from "quasar";
+import { cssColorToHex } from "../services/cssColor.js";
 
 const { t } = useI18n();
 const props = defineProps({
@@ -42,25 +43,9 @@ function pickPreset(color) {
   close();
 }
 
-// Native <input type="color"> only speaks #RRGGBB hex. Use canvas to translate
-// the current oklch (or named) value to hex so the picker starts on the color
-// the user already sees — the browser normalizes the color space via fillStyle.
-const customHexValue = computed(() => {
-  const v = String(props.modelValue || "");
-  if (/^#[0-9a-fA-F]{6}$/.test(v)) return v;
-  try {
-    const c = document.createElement("canvas");
-    c.width = c.height = 1;
-    const ctx = c.getContext("2d");
-    ctx.fillStyle = v || "#888";
-    ctx.fillRect(0, 0, 1, 1);
-    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-    const hex = (n) => n.toString(16).padStart(2, "0");
-    return `#${hex(r)}${hex(g)}${hex(b)}`;
-  } catch {
-    return "#888888";
-  }
-});
+// Native <input type="color"> only speaks #RRGGBB hex: the current oklch (or named) value as hex (the kit's
+// cssColorToHex), so the picker starts on the color the user already sees.
+const customHexValue = computed(() => cssColorToHex(props.modelValue));
 
 function onCustomChange(e) {
   emit("update:modelValue", e.target.value);

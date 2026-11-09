@@ -9,6 +9,7 @@ import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import Icon from "../common/components/Icon.vue";
 import UiButton from "../common/components/UiButton.vue";
+import { cssColorToHex } from "../common/services/cssColor.js";
 
 const props = defineProps({ src: { type: String, required: true } });
 const { t } = useI18n();
@@ -29,7 +30,8 @@ onMounted(async () => {
     const el = box.value;
     if (!el) return;
     const css = getComputedStyle(el);
-    const colour = (name, fallback) => css.getPropertyValue(name).trim() || fallback;
+    // the app's tokens are oklch, which three.js's colour parser doesn't read (it drew the skeleton white): as hex
+    const colour = (name, fallback) => cssColorToHex(css.getPropertyValue(name), fallback);
     const width = el.clientWidth || 480;
     const height = el.clientHeight || 360;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
