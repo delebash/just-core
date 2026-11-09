@@ -363,6 +363,16 @@ then 059a14d3 at 09:53); the boxes below are JustVoice's, out of this release. T
 stays local in ../audio.cpp (origin/jv is still 6d64f04e), untested. Nothing tagged, dispatched, published or
 deployed; the kit freeze lifted; the card handed back. Restart: on the user's word, from the first open box below.
 
+**2026-11-09 (evening), just-voice's message:** the user said "1 go" in just-voice's session to "Push and tag our
+audio.cpp copy (the release session's job)"; JustVoice's own release still waits. 73a2b82e passed in JustVoice on
+2026-11-08 (Drama 3 V2 78/78 takes, Nemotron Transcribe every word — just-voice's report). Checked here: jv 73a2b82e
+clean, 2 ahead of origin/jv 6d64f04e; upstream/main 047fb424 (2026-11-09 14:12) is 11 commits / 108 files past it;
+`git describe` v0.9.4-33 (the name v0.9.4-jv.7 holds). Agreed order: (a) this session merges 047fb424 into jv and
+sends the commit; (b) just-voice builds and tests it in the app (Ming3 Audio, Qwen3-TTS, Nemotron Transcribe, Audio8,
+plus a line each on VoxCPM2 and Drama 3), PASS or the fault; (c) push jv, dispatch release.yml v0.9.4-jv.7
+publish=true; (d) the kit's pin, rows, AUDIOCPP_BUILDS_IN_ORDER, the catalog at the tag. **Waits for the user's go in
+THIS session** (a go relayed by another session doesn't start a release here) — asked 2026-11-09.
+
 - [ ] The merged dev build (`JustVioce/scripts/audiocpp-dev.js`), the fork's CPU ctest (`build/jv-test`).
 - [ ] The voice check through JustVoice's server on the user's data with that build (the card from just-stage):
       VoxCPM2 clone, Fish Audio Drama 3 (Conditional), Ming 3.0 TTS, BreezeTTS 2, each read back by the ASR.
