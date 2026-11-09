@@ -415,12 +415,20 @@ Checklist (each line updated as it lands):
       Audio not tested (10 GB, never run in JustVoice, not a pick). Catalog preview at 9784e04c: no family or package
       added or removed — no curation. Its server suite 1313 passed / 1 skipped. Its commit 89a1c0b4 (scripts on ES
       imports + the test record `docs/plans/2026-11-09-fork-release-test.md`).
-- [ ] The fork's CPU ctest (`build/jv-test`, `fork-ctest.cmd` in the scratchpad: ninja -j12, ctest -j4; logs
-      `_spikes\release-2026-11-09\ctest\`) — this session's (just-voice's build runs none). Booked: just-stage sends
-      "CPU free" ~17:36; then "CPU free" to just-voice for its smoke run. 2026-11-07's run failed only
-      lfm2/lfm3_audio_assets_test ("--model must be the package directory": no model package on this machine).
-- [ ] Push jv; `gh workflow run release.yml -R delebash/audio.cpp --ref jv -f version=v0.9.4-jv.7 -f publish=true`;
-      watched to green; the release checked on GitHub.
+- [x] The fork's CPU ctest (`build/jv-test`, `fork-ctest.cmd` in the scratchpad: ninja -j12, ctest -j4; logs
+      `_spikes\release-2026-11-09\ctest\`), after just-stage's "CPU free" (17:29): the build at 9784e04c (1291 steps)
+      green; ctest **103/104** — `lfm3_audio_assets_test` failed, three times alone too: "gguf_write_to_file: failed to
+      open file …LFM3-Audio-2B-F32.gguf for writing". Cause, read in the code: the test's loaded assets map that GGUF
+      (MapViewOfFile, `src/framework/io/binary.cpp`, from upstream #97) and stay alive while the count checks rewrite
+      it; Windows refuses to open a file for writing while a view is mapped (Linux allows it). Neither the test nor
+      binary.cpp changed in the merge; upstream's windows-build.yml runs no ctest. **MINE — fixed in our fork's test**
+      (jv bae19b6b: the loads and their checks in a block that ends before the rewrite; test only, no engine change):
+      ctest **104/104**. Attack: leave it red as a known Windows test fault — the family standard is green; a test-only
+      fork commit may conflict at a later merge — small, and it is our fork's way (no upstream patches). Survives.
+      "CPU free" sent to just-voice (its smoke run) and just-stage.
+- [ ] Pushed jv (bae19b6b = 9784e04c, which just-voice tested, + the test fix); release run **42713390686**
+      (`gh workflow run release.yml -R delebash/audio.cpp --ref jv -f version=v0.9.4-jv.7 -f publish=true`, 22:36 UTC),
+      watched in the background (`fork-release-watch.log`); then the release checked on GitHub.
 - [x] (applied 17:3x: kit 3fdd917c, JustVoice f2f4cb3e, pushed; unverified until the full pass; log `deps.log`)
       Every dependency at its latest again (`outdated.js`, 35 folders, 17:0x, `_spikes\release-2026-11-09\outdated.txt`):
       kit core @anthropic-ai/sdk 1.6.0→1.7.0 and openai 7.53.0→7.54.0; kit ui quasar 2.35.2→2.35.3 (peer, in range);
