@@ -56,6 +56,11 @@ STOPPED 2026-11-07 (late) — the user, verbatim, relayed by JustVoice's session
 GO:     2026-11-08 (after the reboot), the user, verbatim: "you can go on the relae for jw housepaint docgen and its
         fixes and websitesk, get those apps done and rleased" — the three apps, their found faults, the three websites,
         and the user's word for the releases and the site deploys. The plan's "GO (2026-11-08, after the reboot)" section.
+GO:     2026-11-09, the user, verbatim, in the "family release" session: "your rec on all go" — on the session's list:
+        1. a pool-tag log of the kernel's paged pool, hourly over the next days, after MTKBTSVC was stopped; 2. the
+        audio.cpp fork: upstream merged into jv once more, JustVoice's session builds and tests it in the app, then push
+        jv and release v0.9.4-jv.7 (then the kit's pin and rows, the catalog at the tag); 3. JustVoice's own release.
+        The plan's "GO (2026-11-09)" section.
 STATE:  2026-11-08 — RELEASED: JustWrite v2.1.0, house-paint v0.2.0 and docgen v0.1.0, all three on kit dcc413f5
         (published 22:34–22:37 UTC, every platform's job green, a green dry run first), and their three websites deployed
         from those releases' docs. The plan's "GO (2026-11-08, after the reboot)" section has each step with its proof.

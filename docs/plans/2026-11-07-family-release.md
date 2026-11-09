@@ -1,5 +1,7 @@
 # The family release — JustWrite, house-paint, docgen, JustVoice, the kit and our audio.cpp fork (2026-11-07)
 
+> **Read this FIRST after any compaction — the live section is "GO (2026-11-09)" at the end.**
+
 The working record of the "family release" session. The approved text is in the kit's TASKS ("The family release");
 this file holds the order, the facts each step stands on, and **the decisions this session made under the go — each
 marked MINE, never the user's**, with the attack that tested it, so a later session never quotes one as approved.
@@ -249,7 +251,7 @@ kept still from cde0089f (web-9e, web-4c told). This run's boxes:
   forum thread "MAG B550 TOMAHAWK MAX WIFI's Bluetooth is a nightmare" (pairing drops; antennas), a Linux btusb MediaTek
   memory-leak fix (a different driver).
 
-## GO (2026-11-08, after the reboot) — read this FIRST after any compaction
+## GO (2026-11-08, after the reboot) — done; the 2026-11-09 GO at the end is the live one
 
 The user, verbatim: "you can go on the relae for jw housepaint docgen and its fixes and websitesk, get those apps done
 and rleased" — the go for JustWrite v2.1.0, house-paint v0.2.0, docgen v0.1.0, the fixes, the three websites, and the
@@ -385,3 +387,33 @@ THIS session** (a go relayed by another session doesn't start a release here) �
       `seed_audiocpp_catalog.json` at the tag (`scripts/audiocpp-catalog.js`), engines.md and What's new.
 - [ ] The full pass once, on the final kit commit (`pass.js`: lint, suites, e2e, sites), fixed until green.
 - [ ] The four tags and release.yml runs on one `core_ref`; the three site deploys.
+
+---
+## GO (2026-11-09) — read this FIRST after any compaction
+
+The user, verbatim: "your rec on all go" — on the list the session showed (2026-11-09 ~16:50): 1. log the kernel's
+paged pool by tag hourly over the next days (MTKBTSVC was stopped and disabled by the user just before); 2. the
+audio.cpp fork — merge upstream once more, JustVoice's session builds and tests it in the app, then push jv and release
+v0.9.4-jv.7, then the kit's pin and rows and the catalog at the tag; 3. JustVoice's own release.
+
+- **MINE — "all" includes JustVoice's release (item 3).** The list's item 3 said it "waits for a separate go"; "all go"
+  is that go. Attack: the user answered just-voice's "2. Release JustVoice" with "1 go" only — but that was before this
+  list; here they said "all". The release run itself starts only after just-voice says nothing of JustVoice is still
+  being worked on (the global rule: no release step while any part of the product is in work). Survives.
+- **MINE — one merge.** upstream/main as fetched at the merge; later upstream commits wait for the next release
+  (just-voice's rec, agreed).
+
+Checklist (each line updated as it lands):
+- [ ] Pool log: hourly, ~3 days, background job; logs in `E:\Dev\Web\_spikes\pool-log-2026-11-09\`.
+- [ ] Fetch upstream; merge upstream/main into jv (single merge); send the commit to just-voice.
+- [ ] just-voice: JustVoice's dev build from it + the app test (Ming3 Audio, Qwen3-TTS, Nemotron Transcribe, Audio8,
+      VoxCPM2, Drama 3) → PASS or the fault. The fork's CPU ctest (`build/jv-test`): ask who runs it.
+- [ ] Push jv; `gh workflow run release.yml -R delebash/audio.cpp --ref jv -f version=v0.9.4-jv.7 -f publish=true`;
+      watched to green; the release checked on GitHub.
+- [ ] Every dependency at its latest again (`outdated.js`).
+- [ ] The kit's audio.cpp pin, rows and `AUDIOCPP_BUILDS_IN_ORDER`; JustVoice's `seed_audiocpp_catalog.json` at the tag
+      (`JustVioce/scripts/audiocpp-catalog.js`), engines.md and What's new.
+- [ ] just-voice confirms nothing of JustVoice is still in work.
+- [ ] The full pass once on the final kit commit (lint, suites, e2e, sites), fixed until green.
+- [ ] JustVoice's tag, its dry run green, its release; its site deploy if it has one.
+- [ ] The end-of-job report (every MINE decision listed).
