@@ -115,6 +115,10 @@ FOUND   2026-11-08 by JustDirect's session (web-4c), in a real run: its dev data
         passed as featurePromptHeals, and server/tests/prompts.test.js holding each prompt's system-text fingerprint (the
         kit's `fingerprint`, as settings_upgrade.test.js does for settings) plus a heal run through the app's own seed.
         Waits for the user's go: the shape into the template, then each app.
+GO:     2026-11-10, the user, verbatim, in the "family release" session: "finihs any open itmes go" — after the session's
+        list, whose one open item was this: the shape into the template (FEATURE_PROMPT_HEALS beside the prompts, passed as
+        featurePromptHeals, a test holding each prompt's fingerprint), then house-paint, docgen and JustVoice. The record:
+        `docs/plans/2026-11-10-prompt-heals.md`.
 
 ## JustDirect's kit gaps, filled before the app [2026-11-06]
 DECIDED: the user, verbatim, 2026-11-06: "your rec go", on item 4 of the session's list: "Four gaps to fill in the kit
