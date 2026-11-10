@@ -592,5 +592,13 @@ Checklist (each line updated as it lands):
       Was: Book the PC; the end run: the guard, every changed app's lint, docgen's e2e (+a11y), each changed copy's
       installer build + packaged start (window and launcher); JustDirect's full list (lint, server, unit, i18n lint
       and report, check-plan, build:unpacked, e2e) and the kit's suites on the final kit commit.
-- [ ] JustDirect: tag v0.0.1, dry run green, release; its feeds checked (no website).
-- [ ] The end-of-job report (every MINE decision listed).
+- [x] JustDirect: tag **v0.0.1 = 0e755d4** (= origin/main, clean), pushed; dry run **42835830364** (core_ref
+      fcf09ccbfbea3a9412fa91fcb383978eb44c92df, the end run's kit commit, full SHA) green on every job (14:36–14:44 UTC);
+      release **42837310306** green, publish success. **Published JustDirect v0.0.1** 2026-11-10 14:52:48 UTC, not a
+      draft, not a prerelease, "Latest": just-direct-0.0.1-win-x64.exe, -mac-arm64.dmg + .zip (its config: one Mac
+      architecture, the template's), -linux-x86_64.AppImage, blockmaps, latest.yml / latest-mac.yml /
+      latest-linux.yml (each names its file — read from the release), docs.tar.gz. No website. just-direct-mocap's
+      and just-voice's sessions had closed by then (ListAgents) — nobody else in the trees.
+- [x] The end-of-job report (in the session, 2026-11-10). MINE decisions under this go, each above with its attack:
+      item 3 covers every app's copy now; JustDirect's dry run first with full SHAs; house-paint's engine-status
+      print moved into the template (the template's was stale); docgen's greys, dark danger and the named controls.
