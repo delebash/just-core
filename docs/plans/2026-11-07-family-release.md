@@ -491,7 +491,31 @@ Checklist (each line updated as it lands):
       on every platform (git exit 1) — actions/checkout fetches a commit only by its full 40-character SHA, and I had
       typed short ones. **Mistake to avoid:** a hand-typed dispatch passes `git rev-parse <ref>` (release.js does).
       Dry run again **42746376544** with core_ref ae6f09a716adbbf11b11442ec82264adf8f89183 and sync_ref
-      77059d34ee398669bdbeda97aef2ea85d4475c6a: the kit and sync checkouts green, builds running.
+      77059d34ee398669bdbeda97aef2ea85d4475c6a: the kit and sync checkouts green, builds running. **Failed on all three
+      platforms at the release machinery** — JustVoice's release workflow had never been green (its last runs 2026-08-05,
+      all failures): (1) Linux: electron-builder "Please specify project homepage" (the .deb); (2) macOS: the universal
+      merge stopped on `@koromix/koffi-darwin-arm64/.../koffi.node`, the same in both halves and not in
+      `mac.x64ArchFiles`; (3) Windows: "Start the packaged app" started `audiocpp_dsp.exe` — the template's start script
+      takes "the first .exe", and JustVoice ships the DSP program beside its own — then waited 120 s. Time box 1 h
+      (22:00). **MINE — fixed as release steps** (JustVioce **ac1d03ee**): package.json `homepage` = the repo's page
+      (JustVoice has no website; the repo is public) and `linux.maintainer` = the owner's no-reply address, both as
+      JustWrite has them; `mac.x64ArchFiles` names koffi's and better-sqlite3's prebuilds beside audiocpp_dsp
+      (JustWrite's pattern); **the start check fixed in the template** (kit **33545426**, just-voice's rec: the family's
+      way) — Windows starts the .exe the app's own `build/launcher/<server package>.cmd` names, Linux the launcher's
+      own rule (`<name without "-server">`) when that file exists, else the old rule — and JustVoice's copy replaced by
+      the template's whole (it was 96 lines behind, the RUNNER~1 realpath fix among them; my first fix, skipping
+      DSP_EXE, undone). Attack: skip only audiocpp_dsp in JustVoice — a copy drifting further from the template, the
+      next app with a helper hits it again; read executableName from quasar.config.js — a regex over a config file,
+      and on Linux the name isn't executableName. Survives. Checked here: JustVoice's `npm run build` (the DSP staged
+      from v0.9.4-jv.7, its sha256 matching the kit's row), its window (justvoice.exe 8.3 s) and launcher (8.6 s); the
+      template's build, window (familytemplate.exe 7.7 s) and launcher (8.1 s); both lints clean; nothing left running.
+      **Found:** JustWrite's and house-paint's copies of start-packaged.js drift from the template too (82 and 37
+      lines), and the guard checks only that the file exists — written into the kit's TASKS.
+      **MINE — the tag moved:** v0.1.0 (made by this session ~02:57 UTC, no release from it) re-pointed from 14df2fc7
+      to ac1d03ee (deleted on origin and pushed again; the old target written in `_spikes\release-2026-11-09\
+      jv-tag-moves.txt` — moving it back undoes it). Attack: v0.1.1 instead — a version never released and a What's new
+      section to rename for a tag nobody consumed. Survives. Dry run **42748041679** (03:13 UTC, the same full core_ref
+      and sync_ref — JustVoice builds nothing of the template) watched in the background.
 - [ ] The end-of-job report (every MINE decision listed).
 
 **just-direct-mocap asked (2026-11-09 ~16:55)** for JustDirect v0.0.1's first release, relaying the user (in its

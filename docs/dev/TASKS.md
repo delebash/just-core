@@ -93,6 +93,16 @@ DONE 2026-11-08 for JustWrite, house-paint and docgen (each item's proof in the 
            after the release (house-paint's close-ups, fef4d64, wait for it).
         7. The releases: each app's release.yml by hand (`workflow_dispatch`), one `core_ref` for all three.
 
+## The apps' copies of the template's scripts drift [found 2026-11-10]
+
+FOUND   2026-11-10 by JustVoice's release dry runs: `scripts/start-packaged.js` started the first .exe (JustVoice's
+        audiocpp_dsp.exe) — fixed in the template (kit 33545426: the .exe the launcher names) and JustVoice's copy replaced
+        by it (ac1d03ee; it was 96 lines behind). JustWrite's (82 lines) and house-paint's (37) copies differ from the
+        template too; docgen's and JustDirect's matched it before this fix. The guard checks only that the file exists
+        (check-family.js, "no scripts/start-packaged.js (the template's)"). Not started: re-copy the template's script into
+        each app (their next release), and whether the guard should hold the template's scripts identical — waits for the
+        user's go.
+
 ## docgen has no accessibility test; house-paint's lacked the template's animation wait [found 2026-11-10]
 
 FOUND   2026-11-10 by the family release's full pass (the plan's "GO (2026-11-09)"): docgen's `e2e/tests` holds only
