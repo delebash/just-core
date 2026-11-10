@@ -650,6 +650,7 @@ app.route("/", runnerRouter());                           // the host's line (/v
 await installLlm(app, { db, dataDir, product: PRODUCT,
   featureCatalog: FEATURES,                               // this app's actions
   featurePrompts: {} /* or PROMPTS */,                    // {} if the app builds its own
+  featurePromptHeals: FEATURE_PROMPT_HEALS,               // a revised prompt's earlier texts (below)
   enginePresets, featurePresets, defaultPresetId });
 // the app's seed pass:
 seedLlm(h);                                               // idempotent, insert-if-missing
@@ -945,7 +946,13 @@ shell flash between them; the control exists so none of that can be rebuilt.
 every ask-param — and its whole editing surface (the Feature Workbench's Lab, columns,
 Save-as-preset, "Use in production") are the KIT's. The FEATURE LIST is the app's, and every chat
 feature's prompt is **prompt rows**: editable system/user templates the kit seeds, renders and runs
-(`runAction`), saved and applied — JustWrite's writing actions, docgen's translate/confirm/review. The
+(`runAction`), saved and applied — JustWrite's writing actions, docgen's translate/confirm/review. A row is
+seeded insert-if-missing, so a revised prompt reaches a database seeded before it only through the app's
+`featurePromptHeals` {key: [earlier system texts, byte for byte]}: a row still holding one of them takes today's, one
+its owner edited is never touched. Each app keeps `FEATURE_PROMPT_HEALS` beside its prompts (the template's
+`server/src/seed_feature_prompts.js`), and its `server/tests/prompts.test.js` holds every prompt's fingerprint, so a
+prompt can't change without its old text listed; the family guard fails an app that passes prompts without heals
+(since 2026-11-10). The
 pipeline-owned kind (`featurePrompts: {}`, the app building the prompt in code and serving
 `POST /v1/ai/prompt-preview` for the Lab) retired on 2026-10-29, when docgen, its last user, moved onto
 rows. One carve-out keeps that door: a **sectioned** feature (`installLlmUi({ sectionedFeatures })` —

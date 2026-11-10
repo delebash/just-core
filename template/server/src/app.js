@@ -51,7 +51,7 @@ import { openAppDatabase } from "./database/index.js";
 import { getSetting, setSetting } from "./database/settings.js";
 import { FEATURE_CATALOG } from "./feature_catalog.js";
 import { defaultDataDir, SOURCE_ROOT } from "./paths.js";
-import { DEFAULT_FEATURE_PROMPTS } from "./seed_feature_prompts.js";
+import { DEFAULT_FEATURE_PROMPTS, FEATURE_PROMPT_HEALS } from "./seed_feature_prompts.js";
 import {
   CLASS_TUNE_IDENTITY,
   CLASS_TUNES,
@@ -111,6 +111,8 @@ const llmArgs = (db, dataDir) => ({
   product: PRODUCT,
   featureCatalog: FEATURE_CATALOG,
   featurePrompts: DEFAULT_FEATURE_PROMPTS,
+  // a revised prompt reaches a database seeded before it (seed_feature_prompts.js)
+  featurePromptHeals: FEATURE_PROMPT_HEALS,
   enginePresets: DEFAULT_ENGINE_PRESETS,
   featurePresets: DEFAULT_FEATURE_PRESETS,
   defaultPresetId: DEFAULT_PRESET_ID,

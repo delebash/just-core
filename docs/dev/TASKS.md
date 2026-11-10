@@ -102,24 +102,6 @@ DONE 2026-11-08 for JustWrite, house-paint and docgen (each item's proof in the 
            after the release (house-paint's close-ups, fef4d64, wait for it).
         7. The releases: each app's release.yml by hand (`workflow_dispatch`), one `core_ref` for all three.
 
-## A revised prompt never reaches an existing database: no heals outside JustWrite [found 2026-11-08, not started]
-
-FOUND   2026-11-08 by JustDirect's session (web-4c), in a real run: its dev database planned all day with its first
-        prompts. Checked in code: prompt rows are seeded insert-if-missing (`packages/core/src/llm/seed.js`); the kit's
-        way to carry a revision is the app's `featurePromptHeals` {key: [old exact system texts]} (seed.js:141-146,
-        installLlm). Only JustWrite passes it (server/src/app.js:339, phone.js:119). The template (server/src/app.js:113),
-        house-paint (app.js:126), docgen (app.js:383) and JustVoice (app.js:347) pass featurePrompts with no heals, and no
-        test or guard stops a prompt's text changing without its old text kept. House-paint today: its prompts
-        (seed_feature_prompts.js, schemes_ai.js SCHEMES_PROMPT) are unchanged since v0.1.0, so nothing is stale yet.
-        JustDirect's fix (just-direct 5fcbaf7, b14e8c3, local only): `FEATURE_PROMPT_HEALS` beside DEFAULT_FEATURE_PROMPTS,
-        passed as featurePromptHeals, and server/tests/prompts.test.js holding each prompt's system-text fingerprint (the
-        kit's `fingerprint`, as settings_upgrade.test.js does for settings) plus a heal run through the app's own seed.
-        Waits for the user's go: the shape into the template, then each app.
-GO:     2026-11-10, the user, verbatim, in the "family release" session: "finihs any open itmes go" — after the session's
-        list, whose one open item was this: the shape into the template (FEATURE_PROMPT_HEALS beside the prompts, passed as
-        featurePromptHeals, a test holding each prompt's fingerprint), then house-paint, docgen and JustVoice. The record:
-        `docs/plans/2026-11-10-prompt-heals.md`.
-
 ## JustDirect's kit gaps, filled before the app [2026-11-06]
 DECIDED: the user, verbatim, 2026-11-06: "your rec go", on item 4 of the session's list: "Four gaps to fill in the kit
         before the app. These aren't NOT STANDARD, but kit changes reach every app, so I want your go: the video job

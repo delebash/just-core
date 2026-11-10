@@ -1527,6 +1527,21 @@ function checkServesUi(app) {
       report(`${relative(app.dir, f).replace(/\\/g, "/")} serves its built UI by hand — the kit's serveUi(app, uiDir) (@delebash/core/platform): 405 with Allow, an unknown /v1 write the API's 404, ETags, hashed assets kept`);
   }
 }
+// ── a revised prompt reaches an installed copy ────────────────────────────────
+// Prompt rows are seeded insert-if-missing (the kit's llm/seed.js), so a revision reaches a database seeded before it
+// only through the app's featurePromptHeals {key: [earlier system texts]}: a file that hands installLlm its
+// featurePrompts hands it its heals too (FEATURE_PROMPT_HEALS beside the prompts, empty until one is revised — the
+// template's seed_feature_prompts.js and tests/prompts.test.js). Found 2026-11-08: JustDirect's dev database planned
+// all day with its first prompts; four apps passed no heals until 2026-11-10. Every app, whatever its release state.
+function checkPromptHeals(app) {
+  const src = join(app.dir, "server", "src");
+  if (!existsSync(src)) return;
+  for (const f of walk(src).filter((p) => p.endsWith(".js"))) {
+    const code = codeOf(f);
+    if (/\bfeaturePrompts:/.test(code) && !/\bfeaturePromptHeals:/.test(code))
+      fail(app.name, `${relative(app.dir, f).replace(/\\/g, "/")} hands installLlm its featurePrompts without featurePromptHeals — a revised prompt never reaches an installed copy (the template's FEATURE_PROMPT_HEALS, seed_feature_prompts.js)`);
+  }
+}
 // ── the connection page says why ──────────────────────────────────────────────
 // The shell's serverStatus names why the server didn't start (2026-10-20, the thirteenth review): another OS user's
 // copy on the port, a port Windows reserved, the server's own first error — the app's connection page says each.
@@ -1944,6 +1959,7 @@ for (const app of [...APPS, TEMPLATE]) {
   checkRestoreKeepsTokens(app);
   checkMaintenanceGate(app);
   checkServesUi(app);
+  checkPromptHeals(app);
   checkConnectionReasons(app);
   checkCorsOrigins(app);
   checkResourceIsolation(app);

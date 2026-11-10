@@ -3127,6 +3127,9 @@ and `bench/results/README.md` (cold first token 27–67 s, decode 6.8–9.4 tok/
 
 **Jobs across the three apps** — [`2026-08-14-three-app-job-matrix.md`](../plans/2026-08-14-three-app-job-matrix.md).
 
+**Prompt heals — a revised prompt in an installed copy** (seed.js `featurePromptHeals`; every app since 2026-11-10) —
+[`2026-11-10-prompt-heals.md`](../plans/2026-11-10-prompt-heals.md).
+
 **Models** — [`model-research.md`](model-research.md) (distilled verdicts, licensing laws).
 
 **Features and routing** — [`../feature-model-system.md`](../feature-model-system.md).
