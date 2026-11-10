@@ -99,11 +99,19 @@ function findExecutable(dir = out, platform = process.platform) {
     return path.join(at, app, "Contents", "MacOS", app.slice(0, -4));
   }
   if (platform === "win32") {
-    const exe = readdirSync(at).find((f) => f.endsWith(".exe") && !/^uninstall/i.test(f));
-    if (!exe) throw new Error(`no .exe in ${at}`);
-    return path.join(at, exe);
+    // the .exe the app's own headless launcher runs (build/launcher/<server package>.cmd names it) — never another
+    // program the build ships beside it: "the first .exe" started JustVoice's audiocpp_dsp.exe in its release dry run
+    // and waited 120 s for an app that never ran (2026-11-10)
+    const cmd = path.join(root, "build", "launcher", `${launcherName}.cmd`);
+    const named = readFileSync(cmd, "utf8").match(/%~dp0([^"\\\s]+\.exe)/i)?.[1];
+    if (!named) throw new Error(`${cmd} names no .exe`);
+    if (!existsSync(path.join(at, named))) throw new Error(`no ${named} in ${at}`);
+    return path.join(at, named);
   }
-  // Linux: the one executable file that isn't Chromium's helpers, a library or a script (the headless launcher)
+  // Linux: the executable the launcher's shell script runs — `$here/<its own name without "-server">` — when the build
+  // has it; otherwise the one executable file that isn't Chromium's helpers, a library or a script (the launcher)
+  const own = path.join(at, launcherName.replace(/-server$/, ""));
+  if (existsSync(own) && statSync(own).isFile()) return own;
   const helpers = new Set(["chrome-sandbox", "chrome_crashpad_handler"]);
   const isScript = (f) => readFileSync(path.join(at, f)).subarray(0, 2).toString() === "#!";
   const exe = readdirSync(at).find((f) => !helpers.has(f) && !f.includes(".") && statSync(path.join(at, f)).isFile() && statSync(path.join(at, f)).mode & 0o111 && !isScript(f));
