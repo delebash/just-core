@@ -487,7 +487,11 @@ Checklist (each line updated as it lands):
 - [ ] JustVoice's tag, its dry run green, its release (it has no website — none under E:\Dev\Web, checked). Tag
       **v0.1.0 = 14df2fc7** (= origin/main; e93392b3 + just-voice's docs-only fix), pushed ~21:57; dry run
       **42746196498** (`gh workflow run release.yml -R delebash/JustVoice -f tag=v0.1.0 -f publish=false -f platforms=all
-      -f core_ref=ae6f09a7 -f sync_ref=77059d3` — the commits the pass ran on), watched in the background.
+      -f core_ref=ae6f09a7 -f sync_ref=77059d3` — the commits the pass ran on) **failed at once**: "Checkout the kit"
+      on every platform (git exit 1) — actions/checkout fetches a commit only by its full 40-character SHA, and I had
+      typed short ones. **Mistake to avoid:** a hand-typed dispatch passes `git rev-parse <ref>` (release.js does).
+      Dry run again **42746376544** with core_ref ae6f09a716adbbf11b11442ec82264adf8f89183 and sync_ref
+      77059d34ee398669bdbeda97aef2ea85d4475c6a: the kit and sync checkouts green, builds running.
 - [ ] The end-of-job report (every MINE decision listed).
 
 **just-direct-mocap asked (2026-11-09 ~16:55)** for JustDirect v0.0.1's first release, relaying the user (in its
