@@ -516,6 +516,9 @@ Checklist (each line updated as it lands):
       jv-tag-moves.txt` — moving it back undoes it). Attack: v0.1.1 instead — a version never released and a What's new
       section to rename for a tag nobody consumed. Survives. Dry run **42748041679** (03:13 UTC, the same full core_ref
       and sync_ref — JustVoice builds nothing of the template) watched in the background.
+      **Green** (03:13–03:21 UTC): setup, the installers on ubuntu-22.04, windows-latest and macos-latest, linux-user;
+      publish skipped (a dry run). **The release run 42749002955** (03:22 UTC, publish=true, the same tag, core_ref and
+      sync_ref; JustVioce HEAD = origin/main = the tag ac1d03ee, tree clean) watched in the background.
 - [ ] The end-of-job report (every MINE decision listed).
 
 **just-direct-mocap asked (2026-11-09 ~16:55)** for JustDirect v0.0.1's first release, relaying the user (in its
