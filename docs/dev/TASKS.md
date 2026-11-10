@@ -64,9 +64,11 @@ GO:     2026-11-09, the user, verbatim, in the "family release" session: "your r
 STATE:  2026-11-08 — RELEASED: JustWrite v2.1.0, house-paint v0.2.0 and docgen v0.1.0, all three on kit dcc413f5
         (published 22:34–22:37 UTC, every platform's job green, a green dry run first), and their three websites deployed
         from those releases' docs. The plan's "GO (2026-11-08, after the reboot)" section has each step with its proof.
-        OPEN: JustVoice's release — our audio.cpp fork's v0.9.4-jv.7 first, then the kit's audio.cpp pin and rows, then
-        the release — on the user's word (the user, 2026-11-08: "do the releae just not jv"). JustDirect's kit gaps
-        (below) are not in it.
+        2026-11-10 — RELEASED: our audio.cpp fork v0.9.4-jv.7 (02:26 UTC, tag 86d82b1f), the kit pinned to it (9d531c91),
+        and **JustVoice v0.1.0** (03:31 UTC, tag ac1d03ee, on kit ae6f09a7 and sync 77059d3; every platform green, a green
+        dry run first; Latest). JustVoice has no website. The plan's "GO (2026-11-09)" section has each step with its proof.
+        OPEN: JustDirect v0.0.1's first release — on the user's word in this session (just-direct-mocap relayed it,
+        2026-11-09). JustDirect's kit gaps (below) are not in it.
         Closed 2026-11-06 (JustVoice's session, each checked in its code): every JustVoice line this item carried — its
         workflows on actions v7/v8 (CodeQL's action on v4, its own latest), its e2e on the template's driver with the
         a11y test, no click or isolation exceptions left (the guard's CLICK_KNOWN and ISOLATION_KNOWN are empty), no

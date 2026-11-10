@@ -484,7 +484,7 @@ Checklist (each line updated as it lands):
       ("card free" / "PC free"); just-direct-mocap asked for a clean kit tree ("tree matches HEAD" / "e2e done");
       just-voice keeps both trees still. JustVoice's smoke gate not re-run: just-voice ran it at 3a871b45, after the
       dependency bump, and this change touches no renderer code.
-- [ ] JustVoice's tag, its dry run green, its release (it has no website — none under E:\Dev\Web, checked). Tag
+- [x] JustVoice's tag, its dry run green, its release (it has no website — none under E:\Dev\Web, checked). Tag
       **v0.1.0 = 14df2fc7** (= origin/main; e93392b3 + just-voice's docs-only fix), pushed ~21:57; dry run
       **42746196498** (`gh workflow run release.yml -R delebash/JustVoice -f tag=v0.1.0 -f publish=false -f platforms=all
       -f core_ref=ae6f09a7 -f sync_ref=77059d3` — the commits the pass ran on) **failed at once**: "Checkout the kit"
@@ -518,8 +518,19 @@ Checklist (each line updated as it lands):
       and sync_ref — JustVoice builds nothing of the template) watched in the background.
       **Green** (03:13–03:21 UTC): setup, the installers on ubuntu-22.04, windows-latest and macos-latest, linux-user;
       publish skipped (a dry run). **The release run 42749002955** (03:22 UTC, publish=true, the same tag, core_ref and
-      sync_ref; JustVioce HEAD = origin/main = the tag ac1d03ee, tree clean) watched in the background.
-- [ ] The end-of-job report (every MINE decision listed).
+      sync_ref; JustVioce HEAD = origin/main = the tag ac1d03ee, tree clean): every job green (setup, the three
+      installers, linux-user, publish). **Published JustVoice v0.1.0** 2026-11-10 03:31:55 UTC — not a draft, not a
+      prerelease, "Latest"; justvoice-0.1.0-win-x64.exe, -mac-universal.dmg + .zip, -linux-x86_64.AppImage,
+      -linux-amd64.deb, their blockmaps, latest.yml / latest-mac.yml / latest-linux.yml, docs.tar.gz; latest.yml names
+      the .exe with its size and sha512, latest-mac.yml the universal .zip and .dmg (read from the release).
+- [x] The end-of-job report (in the session, 2026-11-10). MINE decisions under this go, each above with its attack:
+      "all" includes JustVoice's release; one upstream merge; dependencies for the kit, the template and JustVoice only;
+      the lfm3 test fixed in our fork; the HIP jobs skipped outside upstream (the fork's release.yml); the kit keeps
+      jv.6's set of builds; the release dispatched by hand with the tested commits (release.js takes the kit's HEAD of
+      the moment); JustVoice's release machinery (homepage, maintainer, universal Mac files) and the start check fixed
+      in the template; the tag moved; house-paint's a11y wait (a plain fault). Found and left for the user (kit TASKS):
+      docgen has no a11y test; the apps' copies of the template's scripts drift. Open: JustDirect's release (asked).
+      Still running: the pool log (72 samples from 16:51, 2026-11-09).
 
 **just-direct-mocap asked (2026-11-09 ~16:55)** for JustDirect v0.0.1's first release, relaying the user (in its
 session): "send it to the releae session to do a normal relelawe no input should be needed fropm me". Not in this go's
