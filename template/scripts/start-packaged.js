@@ -6,9 +6,9 @@
 // (`xvfb-run -a node scripts/start-packaged.js` — the release workflow does).
 // The port and the data folder's variable are read from src-electron/electron-main.js (runDesktopApp's
 // `port` and `dataDirEnv`), the version from package.json. Paths given as arguments are asked after
-// /v1/health answers and must answer 2xx too — an app's own checks (just-house-paint: its part
-// finder's runtime loads, `node scripts/start-packaged.js v1/segment/runtime`; written without the
-// leading slash, which Git Bash on Windows turns into a file path). `--appimage` (Linux)
+// /v1/health answers and must answer 2xx too — an app's own checks (just-house-paint: the part finder's
+// engine — the kit's ONNX runtime — runs here, `node scripts/start-packaged.js v1/ai/runtimes/onnx/engine/check`;
+// written without the leading slash, which Git Bash on Windows turns into a file path). `--appimage` (Linux)
 // runs the .AppImage file itself with no flags, as a user opens it — the sandbox and FUSE as they are on
 // that machine — instead of the unpacked folder. `--headless` starts the server on its own through the
 // app's launcher instead (build/launcher: `<name>-server.cmd` beside the Windows exe, `<name>-server`
@@ -264,13 +264,14 @@ async function started(temp) {
           const script = await fetch(new URL(src, `http://127.0.0.1:${port}/`), { signal: AbortSignal.timeout(10_000) });
           if (!script.ok || !/javascript/.test(script.headers.get("content-type") || "")) throw new Error(`the page's script ${src} answered ${script.status} ${script.headers.get("content-type")}`);
           console.log(`/: ${page.status} ${page.headers.get("content-type")}; its script ${script.status}`);
-          // what the app's own engines say of this runner (an app with none answers 404 — nothing to say): read inside
-          // the packaged server, the system versions they go by (the AppImage's glibc — the thirteenth review)
-          for (const engine of ["aiphoto", "segment"]) {
-            const st = await fetch(`http://127.0.0.1:${port}/v1/${engine}/status`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
-            if (st?.ok) {
-              const j = await st.json();
-              console.log(`${engine} status: ${JSON.stringify({ available: j.available, backend: j.backend, need: j.need, runtime: j.runtime })}`);
+          // what the kit's engines say of this runner (an app with none answers 404 — nothing to say): read inside
+          // the packaged server, the system versions they go by (the AppImage's glibc — the thirteenth review). The
+          // kit's runtimes route since the engines moved into the kit (house-paint 8b6b0da, 2026-10-28; this copy asked
+          // house-paint's old /v1/aiphoto and /v1/segment status until 2026-11-10)
+          const rts = await fetch(`http://127.0.0.1:${port}/v1/ai/runtimes`, { signal: AbortSignal.timeout(30_000) }).catch(() => null);
+          if (rts?.ok) {
+            for (const j of (await rts.json()).runtimes || []) {
+              console.log(`${j.id} status: ${JSON.stringify({ installed: j.installed, platform: j.platform, gpu: j.gpu, need: j.need })}`);
             }
           }
         }

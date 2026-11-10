@@ -1578,6 +1578,12 @@ function checkRelease(app) {
       report(".github/workflows/release.yml lets a step fail and go on (continue-on-error: true) — every check must stop the release");
   }
   for (const rel of ["scripts/release.js", "scripts/bump.js", "scripts/start-packaged.js"]) if (!existsSync(join(app.dir, rel))) report(`no ${rel} (the template's)`);
+  // the template's packaged-app start, as it is, in every app whatever its release state: a copy that drifted started the
+  // wrong program (JustVoice's release dry run, 2026-11-10: "the first .exe", its audiocpp_dsp.exe, from a copy 96 lines
+  // behind the template's) — its app-specific facts (the port, the launcher's name) are read from the app's own files
+  const startCheck = join(app.dir, "scripts", "start-packaged.js");
+  if (app.dir !== TEMPLATE.dir && existsSync(startCheck) && !sameText(readFileSync(startCheck, "utf8"), readFileSync(join(TEMPLATE.dir, "scripts", "start-packaged.js"), "utf8")))
+    fail(app.name, "scripts/start-packaged.js isn't the template's — copy template/scripts/start-packaged.js as it is");
   const pkgPath = join(app.dir, "package.json");
   const scripts = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, "utf8")).scripts || {} : {};
   for (const name of ["bump", "release"]) if (!scripts[name]) report(`package.json has no "${name}" script (the template's scripts/${name}.js)`);

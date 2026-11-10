@@ -554,9 +554,17 @@ accessibility test, anything it finds fixed; 3. JustWrite's and house-paint's co
   full 40-character SHAs (the 2026-11-10 mistake).
 
 Checklist (each line updated as it lands):
-- [ ] The guard: a check that each app's `scripts/start-packaged.js` matches the template's.
-- [ ] The template's start-packaged.js re-copied into JustWrite, house-paint, docgen, JustDirect.
-- [ ] docgen: the template's `e2e/tests/a11y.test.js` with docgen's pages; its findings fixed.
+- [x] The guard (check-family.js, checkRelease): every app's `scripts/start-packaged.js` must be the template's, as
+      it is (fail, whatever the app's release state). Run before the copies: ✗ JustWrite, docgen, just-house-paint,
+      just-direct (JustVoice already matched); after: "✓ no violations".
+- [x] The template's start-packaged.js re-copied into JustWrite, house-paint, docgen, JustDirect and JustVoice
+      (uncommitted until the end run). What the copies had that the template lacked, read line by line: JustWrite's and
+      JustVoice's nothing (older code); house-paint's the engine-status print through the kit's `/v1/ai/runtimes` —
+      **moved into the template**, replacing the template's stale loop over house-paint's old `/v1/aiphoto` and
+      `/v1/segment` status routes (gone since 8b6b0da, 2026-10-28), and the header's example path likewise
+      (`v1/ai/runtimes/onnx/engine/check`, what house-paint's release.yml passes).
+- [ ] docgen: the template's `e2e/tests/a11y.test.js` with docgen's pages (written: its seven nav pages, the smoke
+      suite's project fixture so Review, Runs and Docs have rows, the template's animation wait); its findings fixed.
 - [ ] Book the PC; the end run: the guard, every changed app's lint, docgen's e2e (+a11y), each changed copy's
       installer build + packaged start (window and launcher); JustDirect's full list (lint, server, unit, i18n lint
       and report, check-plan, build:unpacked, e2e) and the kit's suites on the final kit commit.
