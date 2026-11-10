@@ -93,6 +93,15 @@ DONE 2026-11-08 for JustWrite, house-paint and docgen (each item's proof in the 
            after the release (house-paint's close-ups, fef4d64, wait for it).
         7. The releases: each app's release.yml by hand (`workflow_dispatch`), one `core_ref` for all three.
 
+## docgen has no accessibility test; house-paint's lacked the template's animation wait [found 2026-11-10]
+
+FOUND   2026-11-10 by the family release's full pass (the plan's "GO (2026-11-09)"): docgen's `e2e/tests` holds only
+        contract.test.js and smoke.test.js — the template's `e2e/tests/a11y.test.js` (axe, WCAG 2.2 AA, light and dark;
+        app-structure §17) was never copied, so docgen's pages were never checked; nothing in the guard asks for it.
+        house-paint's copy lacked the template's wait for every finite animation, so its dark run failed 1 in 3 (fixed,
+        house-paint 3236d4c). Not started: docgen's test (its pages' own findings may need fixes), and whether the guard
+        should hold every app's a11y test to the template's (a check, or the test moved into the kit) — waits for the user's go.
+
 ## A revised prompt never reaches an existing database: no heals outside JustWrite [found 2026-11-08, not started]
 
 FOUND   2026-11-08 by JustDirect's session (web-4c), in a real run: its dev database planned all day with its first

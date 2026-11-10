@@ -466,13 +466,28 @@ Checklist (each line updated as it lands):
       (build:spa, every view, zero JS errors); JustVioce main 3a871b45, clean, pushed; nothing of it running (its model-test
       server ran until 17:38, then stopped; 17494 free). Its note — just-direct-mocap's sd.cpp size pins failed 5 kit
       core tests yesterday — checked at kit 054ad64c: runtimes.test.js + runtime_service.test.js 20/20 (fixed since).
-- [ ] The full pass once on the final kit commit (lint, suites, e2e, sites), fixed until green — `pass3.js` in the
+- [x] **Green** (21:4x–21:53, kit ae6f09a7 = 9d531c91 + this doc, JustVoice e93392b3, sync 77059d3; `SUMMARY-*.txt`):
+      lint and i18n lint all clean (JustVoice 3 warnings / 4 infos, JustWrite 2/21 and its 1 i18n warning, house-paint
+      1 — exit 0 each); kit core 1725 (+13 skipped), kit ui 110, sync 75, template 64/146, **JustVoice 1314/318**,
+      JustWrite 198/888, house-paint 398 (+16 skipped)/196, docgen 225/54; builds; e2e template 15, **JustVoice 10**,
+      JustWrite smoke + e2e 9/9 (its chat model on the card), docgen 19; the three sites build. Two failures, both
+      fixed: (1) the guard — just-voice's new test record had no standards table; just-voice fixed it (JustVioce
+      14df2fc7, docs only), the guard re-run "✓ no violations"; (2) house-paint's e2e, the dark a11y test — "Your
+      houses"' nav row read mid-fade (color-contrast), 1 run in 3: its copy of the template's a11y test lacked the
+      template's wait for every finite animation (since 2026-10-29). **Plain fault, fixed** (house-paint 3236d4c, the
+      template's wait): 18/18 three times, lint clean. **Found, not fixed (outside this go):** docgen has no a11y test
+      at all (`e2e/tests` holds only contract and smoke) — its axe check (app-structure §17) never ran; written into
+      the kit's TASKS. "PC free" / "e2e done" sent.
+      The full pass once on the final kit commit (lint, suites, e2e, sites), fixed until green — `pass3.js` in the
       scratchpad (the 2026-11-07 pass.js + CI=1 only for tests, TEMP on E:, JustWrite's installer build before its e2e
       and its smoke); logs `_spikes\release-2026-11-09\pass\`. Booked ~21:40: just-stage holds after its current render
       ("card free" / "PC free"); just-direct-mocap asked for a clean kit tree ("tree matches HEAD" / "e2e done");
       just-voice keeps both trees still. JustVoice's smoke gate not re-run: just-voice ran it at 3a871b45, after the
       dependency bump, and this change touches no renderer code.
-- [ ] JustVoice's tag, its dry run green, its release (it has no website — none under E:\Dev\Web, checked).
+- [ ] JustVoice's tag, its dry run green, its release (it has no website — none under E:\Dev\Web, checked). Tag
+      **v0.1.0 = 14df2fc7** (= origin/main; e93392b3 + just-voice's docs-only fix), pushed ~21:57; dry run
+      **42746196498** (`gh workflow run release.yml -R delebash/JustVoice -f tag=v0.1.0 -f publish=false -f platforms=all
+      -f core_ref=ae6f09a7 -f sync_ref=77059d3` — the commits the pass ran on), watched in the background.
 - [ ] The end-of-job report (every MINE decision listed).
 
 **just-direct-mocap asked (2026-11-09 ~16:55)** for JustDirect v0.0.1's first release, relaying the user (in its
