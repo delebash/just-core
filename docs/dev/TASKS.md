@@ -293,5 +293,5 @@ DECIDED: the user, verbatim, 2026-11-07: "finish the app, dont stop coding at tu
      beside a strict JSON schema (2e34fd67, c5b47f87); the template's `server/tests/boot.test.js` (307ec7d2) — the
      server's entry loaded by Node itself, because Vitest let a wrong kit import pass while JustDirect's server
      couldn't start. The other apps copy that test in their own sessions (told to the family release session).
-HERE:   JustDirect's milestones 1–7 are built (the app's TASKS and its plan's "Where it stands"); its first real run
-        waits for the card (JustStage), its clips for our sd.cpp release run 42431109657.
+HERE:   JustDirect's milestones 1–7 are built (the app's TASKS and its plan's "Where it stands"), its clips made on our
+        sd.cpp fork's jd-1078-3dba814, and **JustDirect v0.0.1 is released** (2026-11-10, the family release section).
