@@ -138,9 +138,8 @@ PLAN (each its own test, the suites once at the end):
      has no speed unit or band (sd.cpp's runtime has one kind, image), so it moved to FOUND.
   3. audio.cpp music, sfx and lipsync kinds, each its own process as tts and stt are — standard: audio.cpp's
      `POST /v1/tasks/run` (app/server/api.md), task `gen`, the one route its music (Stable Audio 3, ACE-Step), effects
-     (Stable Audio 3 SFX) and lip-sync (LatentSync) families run by. Needs the merged fork (281de44a; the pinned
-     v0.9.2-jv.6 has no LatentSync) — the pin moves with the family release (JustVoice TASKS, "Our audio.cpp fork is
-     released with the family"). LatentSync runs `ffmpeg` from PATH.
+     (Stable Audio 3 SFX) and lip-sync (LatentSync) families run by. Needs the merged fork (281de44a; v0.9.2-jv.6
+     had no LatentSync) — in the pin since v0.9.4-jv.7 (2026-11-10, its model_specs/latentsync.json). LatentSync runs `ffmpeg` from PATH.
      BUILT 2026-11-06, e547bded (kinds, providers, placement rules, speed bands, runAudioFeature, the screens' words in
      en and es; unit tests). DONE 2026-11-06, real run (`E:\Dev\Web\test-just-direct\kit-audio.js`, the merged fork's
      server at 281de44a): sfx 10 s of three sword clashes in 2.1 s, music 30 s with a storm swell in 5.0 s, each in its

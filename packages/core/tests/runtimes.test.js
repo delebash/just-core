@@ -162,9 +162,16 @@ test("an app that turns audio.cpp on gets its fork's rows, a provider per kind, 
   expect(h.get("runner_setting", pinKey("audiocpp")).value).toBe(DEFAULT_AUDIOCPP_BUILD);
   expect(rows.find((r) => r.platform === "windows" && r.gpu === "cuda12")).toMatchObject({
     server_exe: "audiocpp_server.exe",
-    sha256: "e7061704063e2b583714670ddd4479126c23040a1bfed1ac4720d397e0d7a94a",
-    runtime_sha256: "5172d93ab24a378ea9b4877c5a0055836c81d3bf031d46d0e2722d1a1ad313cc",
+    sha256: "574ebc0e7a7e4dc3b91e3fcbde4eb78ae31b5952d3fee2540f1d309521f16d0b",
+    runtime_sha256: "de67f0466bb9eeac20e91bd0824fb3ef6421626ea2f7b1f231a9816f529137ed",
   });
+  // every archive — and every CUDA runtime companion — is the pinned release's: a pin bump that leaves a row behind
+  // would install another build than the one the pin names
+  for (const r of rows) {
+    for (const url of [r.asset_url, r.runtime_url].filter(Boolean)) {
+      expect(url, `${r.platform}/${r.gpu}`).toContain(`/releases/download/${DEFAULT_AUDIOCPP_BUILD}/audio-${DEFAULT_AUDIOCPP_BUILD}-`);
+    }
+  }
   // a provider per kind, both of the runtime's type
   expect(h.get("llm_providers", providerIdOf(rt, "tts"))).toMatchObject({ id: "local-audiocpp", kind: "tts", provider_type: "local-audiocpp" });
   expect(h.get("llm_providers", providerIdOf(rt, "stt"))).toMatchObject({ id: "local-audiocpp-stt", kind: "stt", provider_type: "local-audiocpp" });

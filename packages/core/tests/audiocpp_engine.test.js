@@ -239,9 +239,9 @@ test("removing the dictionary waits for the line in flight; the runtime isn't re
 test("macOS Intel has its build back: the x64 Metal row on an Intel Mac, the arm64 one on Apple silicon (B9)", () => {
   const mac = (arch) => ({ platform: "macos", arch, runtimes: { metal: true }, gpus: [] });
   const intel = selectRuntimeAsset(AC_ROWS, mac("x64"));
-  expect(intel).toMatchObject({ platform: "macos-x64", gpu: "metal", sha256: "edfda2bce4a719f2307466daf3e25760f5c61f159bbdc3f0cec8246d84f955f5", assetBytes: 37675142 });
-  expect(intel.assetUrl).toMatch(/audio-v0\.9\.2-jv\.6-bin-macos-x64-metal\.tar\.gz$/);
-  expect(selectRuntimeAsset(AC_ROWS, mac("arm64"))).toMatchObject({ platform: "macos", gpu: "metal", sha256: "b97e66f85ecfce7aa597fcbabced9eeba4907e049f520da46826d71d3b94c1ef" });
+  expect(intel).toMatchObject({ platform: "macos-x64", gpu: "metal", sha256: "380466d0c1d5ff4876a9bd995f11a1a248f4c25651f60bc07684c536e20217ed", assetBytes: 43934306 });
+  expect(intel.assetUrl).toMatch(/audio-v0\.9\.4-jv\.7-bin-macos-x64-metal\.tar\.gz$/);
+  expect(selectRuntimeAsset(AC_ROWS, mac("arm64"))).toMatchObject({ platform: "macos", gpu: "metal", sha256: "df6cb378320e72779464436a17833f033e4b4b21da793e5b4c065bd3dff5ff71" });
   // a database seeded before: its macOS row names no processor — the Intel row, named for this one, still wins
   const old = AC_ROWS.map((r) => (r.platform === "macos" ? { ...r, requires: {} } : r));
   expect(selectRuntimeAsset(old, mac("x64")).platform).toBe("macos-x64");

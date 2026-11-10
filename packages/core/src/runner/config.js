@@ -373,7 +373,7 @@ export function defaultConfig() {
 // The user's fork (github.com/delebash/audio.cpp — the user's word, 2026-10-29: "Yes, pin the fork"): upstream audio.cpp
 // plus the DSP program, voice packs, Turbo cloning and models registered at run time (`model_management`, from
 // v0.9.0-jv.4). Rows as seed DATA like sd.cpp's: each archive's size and SHA-256 as GitHub's API reports them
-// (GET …/releases/tags/v0.9.2-jv.6, 2026-10-29), what a zip unpacks to (its central directory by range requests — a
+// (GET …/releases/tags/v0.9.4-jv.7, 2026-11-10; the rows' first set from v0.9.2-jv.6, 2026-10-29), what a zip unpacks to (its central directory by range requests — a
 // tar.gz row says 0: an install asks 5× its archive), and the Windows CUDA builds' runtime DLLs as their companion zip.
 // CUDA 13.3 is the Blackwell build (the kit's chip rule picks it at compute capability ≥ 10). Linux NVIDIA takes Vulkan,
 // as llama.cpp's rows do. The CPU builds are the PORTABLE ones: the plain build assumes this CPU's newest instructions
@@ -381,7 +381,7 @@ export function defaultConfig() {
 // release.js had them — Apple silicon's on "macos" (`requires.arch` arm64), Intel's on its own platform word "macos-x64"
 // (the table's key is runtime, platform, gpu — binary.rowFitsBox; put back 2026-10-29, round E B9: its size and digest
 // from GitHub's API that day, the digest the one JustVoice pinned). `requires` otherwise not measured for these builds.
-export const DEFAULT_AUDIOCPP_BUILD = "v0.9.2-jv.6";
+export const DEFAULT_AUDIOCPP_BUILD = "v0.9.4-jv.7";
 const AC_REL = `https://github.com/delebash/audio.cpp/releases/download/${DEFAULT_AUDIOCPP_BUILD}`;
 const acRow = (platform, gpu, asset, bytes, unpacked, sha256, extra = {}) => ({
   platform,
@@ -407,16 +407,16 @@ const ESPEAK_LINUX = espeak("de/1e/25ec5ab07528c0fbb215a61800a38eca05c8a99445515
 const ESPEAK_MAC = espeak("a8/26/258c0cd43b9bc1043301c5f61767d6a6c3b679df82790c9cb43a3277b865/espeakng_loader-0.2.4-py3-none-macosx_11_0_arm64.whl", 9892565, "d27cdca31112226e7299d8562e889d3e38a1e48055c9ee381b45d669072ee59f");
 const ESPEAK_MAC_X64 = espeak("f8/92/f44ed7f531143c3c6c97d56e2b0f9be8728dc05e18b96d46eb539230ed46/espeakng_loader-0.2.4-py3-none-macosx_10_12_x86_64.whl", 9938387, "b77477ae2ddf62a748e04e49714eabb2f3a24f344166200b00539083bd669904");
 export const DEFAULT_AUDIOCPP_BINARIES = [
-  acRow("windows", "cuda12", "audio-v0.9.2-jv.6-bin-windows-x64-cuda12.4.zip", 467437957, 1222597316, "e7061704063e2b583714670ddd4479126c23040a1bfed1ac4720d397e0d7a94a",
-    { ...acCudart("audio-v0.9.2-jv.6-cudart-windows-x64-cuda12.4.zip", 607273675, 865923072, "5172d93ab24a378ea9b4877c5a0055836c81d3bf031d46d0e2722d1a1ad313cc"), extras: ESPEAK_WIN }),
-  acRow("windows", "cuda13", "audio-v0.9.2-jv.6-bin-windows-x64-cuda13.3.zip", 279082215, 341290692, "caeff2e01879ad619f1275ac3848ed1a527902e4929e502c2bec5e08780f8c9b",
-    { ...acCudart("audio-v0.9.2-jv.6-cudart-windows-x64-cuda13.3.zip", 575457454, 768815552, "8aa9b806a800ab2491ace9aea0910201206e592d17ab7ed445474a6c2e7ab955"), extras: ESPEAK_WIN }),
-  acRow("windows", "vulkan", "audio-v0.9.2-jv.6-bin-windows-x64-vulkan.zip", 66608834, 191689540, "04ef95c99dc33c02feb4516c6d03b4c45fdf658675dfc53881ba646c27a76660", { extras: ESPEAK_WIN }),
-  acRow("windows", "cpu", "audio-v0.9.2-jv.6-bin-windows-x64-cpu-portable.zip", 32029202, 76319044, "94847349a42ad052250b29c7cd8b5ede4918c1092207671d47235112d9bd856e", { extras: ESPEAK_WIN }),
-  acRow("linux", "vulkan", "audio-v0.9.2-jv.6-bin-ubuntu-x64-vulkan.tar.gz", 85268472, 0, "9979081d11214c84ba4302351c7413db45d453f0bb8dc76734c1a0261b3eed93", { extras: ESPEAK_LINUX }),
-  acRow("linux", "cpu", "audio-v0.9.2-jv.6-bin-ubuntu-x64-cpu-portable.tar.gz", 63696990, 0, "80d7c998cc7911c2e988da44cb16110f505d6b6e5d5f93968f3756ab27cd9ced", { extras: ESPEAK_LINUX }),
-  acRow("macos", "metal", "audio-v0.9.2-jv.6-bin-macos-arm64-metal.tar.gz", 35780548, 0, "b97e66f85ecfce7aa597fcbabced9eeba4907e049f520da46826d71d3b94c1ef", { extras: ESPEAK_MAC, requires: { arch: "arm64" } }),
-  acRow("macos-x64", "metal", "audio-v0.9.2-jv.6-bin-macos-x64-metal.tar.gz", 37675142, 0, "edfda2bce4a719f2307466daf3e25760f5c61f159bbdc3f0cec8246d84f955f5", { extras: ESPEAK_MAC_X64, requires: { arch: "x64" } }),
+  acRow("windows", "cuda12", "audio-v0.9.4-jv.7-bin-windows-x64-cuda12.4.zip", 472292400, 1235060919, "574ebc0e7a7e4dc3b91e3fcbde4eb78ae31b5952d3fee2540f1d309521f16d0b",
+    { ...acCudart("audio-v0.9.4-jv.7-cudart-windows-x64-cuda12.4.zip", 607273675, 865923072, "de67f0466bb9eeac20e91bd0824fb3ef6421626ea2f7b1f231a9816f529137ed"), extras: ESPEAK_WIN }),
+  acRow("windows", "cuda13", "audio-v0.9.4-jv.7-bin-windows-x64-cuda13.3.zip", 283700229, 352541367, "066b6182b7b39084256340847be617a8fcefc4375ea0856ce2f86155df70d2a2",
+    { ...acCudart("audio-v0.9.4-jv.7-cudart-windows-x64-cuda13.3.zip", 575457454, 768815552, "f68ff449d3fd6046c5abaa259c043732aeac25029ab127532b77aa5ba3f0a723"), extras: ESPEAK_WIN }),
+  acRow("windows", "vulkan", "audio-v0.9.4-jv.7-bin-windows-x64-vulkan.zip", 88662199, 261459255, "d4f59b65e254f40a9aedd14f4c46ee1d6b68ac8f1ce0c4cc155b85afc76d62f6", { extras: ESPEAK_WIN }),
+  acRow("windows", "cpu", "audio-v0.9.4-jv.7-bin-windows-x64-cpu-portable.zip", 36688273, 88082743, "55b484bdfa1cce9bf535e567f3d03459c337d843bd5eed4866ac722d431a002d", { extras: ESPEAK_WIN }),
+  acRow("linux", "vulkan", "audio-v0.9.4-jv.7-bin-ubuntu-x64-vulkan.tar.gz", 121987726, 0, "f7bb9b63c0b624266c2470465fafae18de3844b0c3c7bab45397cb1edbed9acd", { extras: ESPEAK_LINUX }),
+  acRow("linux", "cpu", "audio-v0.9.4-jv.7-bin-ubuntu-x64-cpu-portable.tar.gz", 75164227, 0, "b97e66e79a5cebfd224fc9477331abb8d1b4f44ad690ce13ff09114f04ed9bdf", { extras: ESPEAK_LINUX }),
+  acRow("macos", "metal", "audio-v0.9.4-jv.7-bin-macos-arm64-metal.tar.gz", 41478871, 0, "df6cb378320e72779464436a17833f033e4b4b21da793e5b4c065bd3dff5ff71", { extras: ESPEAK_MAC, requires: { arch: "arm64" } }),
+  acRow("macos-x64", "metal", "audio-v0.9.4-jv.7-bin-macos-x64-metal.tar.gz", 43934306, 0, "380466d0c1d5ff4876a9bd995f11a1a248f4c25651f60bc07684c536e20217ed", { extras: ESPEAK_MAC_X64, requires: { arch: "x64" } }),
 ];
 // What an audio.cpp install leaves out of its archive, by the file's ending: the release ships upstream's Python reference
 // scripts (tools/…), which the app never runs, and the family keeps no Python (2026-10-08; JustVoice's runtime.install —
@@ -443,7 +443,7 @@ export const AUDIOCPP_ADDONS = Object.freeze([
 ]);
 // The first build that has each fork feature (JustVoice's release.js FEATURES): an older build on disk refuses the feature
 // by name instead of failing inside. Builds in order, oldest first.
-export const AUDIOCPP_BUILDS_IN_ORDER = Object.freeze(["v0.9.0", "v0.9.0-jv.1", "v0.9.0-jv.4", "v0.9.0-jv.5", "v0.9.2-jv.6"]);
+export const AUDIOCPP_BUILDS_IN_ORDER = Object.freeze(["v0.9.0", "v0.9.0-jv.1", "v0.9.0-jv.4", "v0.9.0-jv.5", "v0.9.2-jv.6", "v0.9.4-jv.7"]);
 export const AUDIOCPP_FEATURES = Object.freeze({
   voxcpm2_transcript: "v0.9.0-jv.1",
   voice_pack: "v0.9.0-jv.4",

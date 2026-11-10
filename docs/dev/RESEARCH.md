@@ -2978,7 +2978,8 @@ What the kit's `audiocpp` runtime is built on — JustVoice's code (`server/src/
 `runtime.js`, `slot.js`, `espeak.js`, `japanese.js`), read 2026-10-29, and the kit's port of it
 (`runner/audiocpp.js`, `runner/runtime_extras.js`, `runner/config.js`).
 
-- **The builds are the fork's** (github.com/delebash/audio.cpp, pinned `v0.9.2-jv.6`): Windows x64 cuda12.4 and
+- **The builds are the fork's** (github.com/delebash/audio.cpp, pinned `v0.9.2-jv.6` when this was read; `v0.9.4-jv.7`
+  since 2026-11-10, the same set of rows — runner/config.js): Windows x64 cuda12.4 and
   cuda13.3 (each with its own cudart zip), Vulkan, CPU (portable); Linux x64 Vulkan and CPU; macOS Metal for Apple silicon
   and for Intel (`audio-v0.9.2-jv.6-bin-macos-x64-metal.tar.gz`, 37,675,142 bytes, SHA-256 `edfda2bc…f955f5` — GitHub's
   API 2026-10-29, the digest JustVoice pinned; its eSpeak NG the `macosx_10_12_x86_64` wheel, 9,938,387 bytes, `b77477ae…`
