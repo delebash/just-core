@@ -449,13 +449,29 @@ Checklist (each line updated as it lands):
       "everything at latest" — churn in three released apps with no release behind it; the full pass runs their suites
       on the new kit anyway. Survives. **Applied after just-voice's "CPU free"** — its dev server and tests run on
       JustVoice's and the kit's node_modules now.
-- [ ] The kit's audio.cpp pin, rows and `AUDIOCPP_BUILDS_IN_ORDER`; JustVoice's `seed_audiocpp_catalog.json` at the tag
-      (`JustVioce/scripts/audiocpp-catalog.js`), engines.md and What's new.
+- [x] The kit's audio.cpp pin, rows and `AUDIOCPP_BUILDS_IN_ORDER` (kit **9d531c91**, pushed): every row re-measured
+      (`audiocpp-rows.js v0.9.4-jv.7` — GitHub's API size and SHA-256, a zip's central directory for its unpacked size;
+      `_spikes\release-2026-11-09\audiocpp-rows-v0.9.4-jv.7.txt`), the same builds as jv.6 (the Vulkan portable builds
+      existed before jv.6, which chose the plain ones — kept); runtimes.test.js and audiocpp_engine.test.js on jv.7's
+      digests, plus a new check that every row's URLs name the pin. Callers: DEFAULT_AUDIOCPP_BINARIES is read by the
+      kit's seed and JustVoice's `scripts/audiocpp-dsp-package.js` (the installer's DSP program — follows the rows).
+      JustVoice (**e93392b3**, pushed): `seed_audiocpp_catalog.json` regenerated at the tag (`npm run catalog:audiocpp`:
+      generated_from v0.9.4-jv.7 / 86d82b1f; +Qwen3-TTS activation_type, +SenseVoice return_timestamps, VoxCPM2's
+      revision — just-voice's preview, exactly), engines.md (the pin, its sizes 472/284/89 MB, what it brings), What's
+      new (the runtime line), NOTICE.md and LICENSES.md (jv.7's CUDA 12.4 archive lists the same licence files as
+      jv.6's — `zip-names.js`, the file list by range requests, no download — and `git diff v0.9.2-jv.6 v0.9.4-jv.7`
+      shows their sources unchanged), turbo_cloning.test.js (+jv.7). Stale kit lines fixed: RESEARCH's pin, TASKS'
+      LatentSync line (jv.7 has `model_specs/latentsync.json`). Unverified until the full pass.
 - [x] just-voice confirms nothing of JustVoice is still in work: **"JustVoice ready"** (~17:5x) — its smoke gate green
       (build:spa, every view, zero JS errors); JustVioce main 3a871b45, clean, pushed; nothing of it running (its model-test
       server ran until 17:38, then stopped; 17494 free). Its note — just-direct-mocap's sd.cpp size pins failed 5 kit
       core tests yesterday — checked at kit 054ad64c: runtimes.test.js + runtime_service.test.js 20/20 (fixed since).
-- [ ] The full pass once on the final kit commit (lint, suites, e2e, sites), fixed until green.
+- [ ] The full pass once on the final kit commit (lint, suites, e2e, sites), fixed until green — `pass3.js` in the
+      scratchpad (the 2026-11-07 pass.js + CI=1 only for tests, TEMP on E:, JustWrite's installer build before its e2e
+      and its smoke); logs `_spikes\release-2026-11-09\pass\`. Booked ~21:40: just-stage holds after its current render
+      ("card free" / "PC free"); just-direct-mocap asked for a clean kit tree ("tree matches HEAD" / "e2e done");
+      just-voice keeps both trees still. JustVoice's smoke gate not re-run: just-voice ran it at 3a871b45, after the
+      dependency bump, and this change touches no renderer code.
 - [ ] JustVoice's tag, its dry run green, its release (it has no website — none under E:\Dev\Web, checked).
 - [ ] The end-of-job report (every MINE decision listed).
 
