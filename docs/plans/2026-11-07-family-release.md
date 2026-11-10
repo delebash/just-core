@@ -536,3 +536,29 @@ Checklist (each line updated as it lands):
 session): "send it to the releae session to do a normal relelawe no input should be needed fropm me". Not in this go's
 list — asked the user here; not started until then. Its facts: main 2934256, v0.0.1, dry run 42545403584 green
 (core_ref 062d0eeb), end run 2026-11-08 green; no website (none under E:\Dev\Web — checked).
+
+---
+## GO (2026-11-10) — read this FIRST after any compaction
+
+The user, verbatim: "your rec all go" — on the list the session showed (2026-11-10, morning): 1. JustDirect v0.0.1's
+first release — a fresh test pass on the kit as it is now, then its tag and release; 2. docgen gets the template's
+accessibility test, anything it finds fixed; 3. JustWrite's and house-paint's copies of the template's
+`scripts/start-packaged.js` re-copied from the template, and the family guard checks the copies match the template.
+
+- **MINE — item 3 covers every app's copy, now.** The rec said "at their next release" with a guard check; a check
+  that copies match fails until they do, so all of them are re-copied now: JustWrite, house-paint, and docgen and
+  JustDirect (they matched the template until its 2026-11-10 start fix). The script runs only in a release workflow
+  and by hand; each copy is checked by its app's installer build and a packaged start here. Attack: wait for each
+  app's release — the guard would stay red until then, or the check waits too. Survives.
+- **MINE — JustDirect gets a dry run first** on the new kit commit (its last, 42545403584, was on 062d0eeb), with
+  full 40-character SHAs (the 2026-11-10 mistake).
+
+Checklist (each line updated as it lands):
+- [ ] The guard: a check that each app's `scripts/start-packaged.js` matches the template's.
+- [ ] The template's start-packaged.js re-copied into JustWrite, house-paint, docgen, JustDirect.
+- [ ] docgen: the template's `e2e/tests/a11y.test.js` with docgen's pages; its findings fixed.
+- [ ] Book the PC; the end run: the guard, every changed app's lint, docgen's e2e (+a11y), each changed copy's
+      installer build + packaged start (window and launcher); JustDirect's full list (lint, server, unit, i18n lint
+      and report, check-plan, build:unpacked, e2e) and the kit's suites on the final kit commit.
+- [ ] JustDirect: tag v0.0.1, dry run green, release; its feeds checked (no website).
+- [ ] The end-of-job report (every MINE decision listed).

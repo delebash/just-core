@@ -56,6 +56,12 @@ STOPPED 2026-11-07 (late) — the user, verbatim, relayed by JustVoice's session
 GO:     2026-11-08 (after the reboot), the user, verbatim: "you can go on the relae for jw housepaint docgen and its
         fixes and websitesk, get those apps done and rleased" — the three apps, their found faults, the three websites,
         and the user's word for the releases and the site deploys. The plan's "GO (2026-11-08, after the reboot)" section.
+GO:     2026-11-10, the user, verbatim, in the "family release" session: "your rec all go" — on the session's list:
+        1. JustDirect v0.0.1's first release — a fresh test pass on the kit as it is now, then its tag and release;
+        2. docgen gets the template's accessibility test (anything it finds fixed before docgen's next release);
+        3. JustWrite's and house-paint's copies of the template's release-check script re-copied from the template, and
+        the family guard checks that these copies match the template, not just that they exist.
+        The plan's "GO (2026-11-10)" section.
 GO:     2026-11-09, the user, verbatim, in the "family release" session: "your rec on all go" — on the session's list:
         1. a pool-tag log of the kernel's paged pool, hourly over the next days, after MTKBTSVC was stopped; 2. the
         audio.cpp fork: upstream merged into jv once more, JustVoice's session builds and tests it in the app, then push
