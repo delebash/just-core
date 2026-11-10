@@ -426,7 +426,7 @@ Checklist (each line updated as it lands):
       ctest **104/104**. Attack: leave it red as a known Windows test fault — the family standard is green; a test-only
       fork commit may conflict at a later merge — small, and it is our fork's way (no upstream patches). Survives.
       "CPU free" sent to just-voice (its smoke run) and just-stage.
-- [ ] Pushed jv (bae19b6b = 9784e04c, which just-voice tested, + the test fix); release run 42713390686
+- [x] Pushed jv (bae19b6b = 9784e04c, which just-voice tested, + the test fix); release run 42713390686
       (`gh workflow run release.yml -R delebash/audio.cpp --ref jv -f version=v0.9.4-jv.7 -f publish=true`, 22:36 UTC).
       **Found:** every build green but its two "HIP test binaries (best-effort)" jobs queued for 1.5 h — their runners
       are upstream's self-hosted Strix Halo machines (release-hip.yml, upstream #1100 of 2026-10-26, after jv.6); the
@@ -437,8 +437,9 @@ Checklist (each line updated as it lands):
       docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/using-conditions-to-control-job-execution);
       the release job never reads `needs.hip.result`, and its artifact pattern `{audio-*,hip-release-*}` still matches.
       Attack: remove the job — a bigger diff against upstream at each merge; wait 24 h — no. Survives. Run 42713390686
-      cancelled (nothing published, no tag); **run 42726131453** (00:09 UTC, jv 86d82b1f) watched in the background
-      (`fork-release-watch2.log`); then the release checked on GitHub.
+      cancelled (nothing published, no tag); **run 42726131453** (00:09 UTC, jv 86d82b1f): every job green, HIP
+      skipped, "Create release" success. **Published v0.9.4-jv.7** 2026-11-10 02:26:24 UTC, not a draft, not a
+      prerelease, 33 assets; the tag is 86d82b1f (= jv; the release page's "target main" is only its default).
 - [x] (applied 17:3x: kit 3fdd917c, JustVoice f2f4cb3e, pushed; unverified until the full pass; log `deps.log`)
       Every dependency at its latest again (`outdated.js`, 35 folders, 17:0x, `_spikes\release-2026-11-09\outdated.txt`):
       kit core @anthropic-ai/sdk 1.6.0→1.7.0 and openai 7.53.0→7.54.0; kit ui quasar 2.35.2→2.35.3 (peer, in range);
