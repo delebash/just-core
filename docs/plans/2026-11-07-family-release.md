@@ -563,9 +563,33 @@ Checklist (each line updated as it lands):
       **moved into the template**, replacing the template's stale loop over house-paint's old `/v1/aiphoto` and
       `/v1/segment` status routes (gone since 8b6b0da, 2026-10-28), and the header's example path likewise
       (`v1/ai/runtimes/onnx/engine/check`, what house-paint's release.yml passes).
-- [ ] docgen: the template's `e2e/tests/a11y.test.js` with docgen's pages (written: its seven nav pages, the smoke
-      suite's project fixture so Review, Runs and Docs have rows, the template's animation wait); its findings fixed.
-- [ ] Book the PC; the end run: the guard, every changed app's lint, docgen's e2e (+a11y), each changed copy's
+- [x] docgen: the template's `e2e/tests/a11y.test.js` with docgen's pages (its seven nav pages, the smoke suite's
+      project fixture so Review, Runs and Docs have rows, the template's animation wait); its e2e package gained
+      `@axe-core/playwright` (the template's devDependency — it never had it). First run: Home failed in both themes;
+      the full scan (`dg-a11y-scan.js`, every page, both themes, every node — `_spikeselease-2026-11-10\n      dg-a11y-scan.json`): **136 contrast nodes** in 6 colour pairs — `--muted` #888 light (3.33–3.54:1) and #7d7d7d dark
+      (3.65–3.93:1), the dark `--danger` #d06a53 on the kit's danger tag (3.55–3.81:1); **aria-required-children**
+      (critical) on the nav's q-list, every page — the template's `role="none"` fix of 2026-10-29, never taken here;
+      Home's row **checkboxes** and **progress bars** unnamed; Review's two **text areas** unlabelled. **MINE — fixed**
+      (each measured by `contrast.js`, WCAG 2.2's formula, on all three surfaces of each theme): light `--muted` #6b6b6b
+      (the template's; 4.71–5.33:1) and `--ink-3` #5c5c5c (it was #777, 3.96–4.48:1 — kept between --ink-2 and
+      --muted), dark `--muted` #9a9a9a (4.73–5.75:1) and `--ink-3` #a8a8a8, dark `--danger` oklch(0.750 0.110 34)
+      (the tag 4.54–5.57:1, plain text 5.74:1+); the nav list `role="none"`; each row checkbox named by its language
+      (`:aria-label="row.name"`), each bare progress bar by its language and the column's own "Progress"; the draft and
+      note text areas named by their cards' headings (`aria-labelledby`) — no new words to translate. Attack: keep
+      docgen's own greys and waive — the family standard is AA (app-structure §17); a kit-wide danger-tag ink — every
+      app's look moves for docgen's fault. Survives. Scan again: **0 violations** on all 14 page/theme pairs. The real
+      window looked at (Home and Review, light and dark — `shots`): the quiet text reads clearly, the layout
+      unchanged. What's new: a "Next release" line.
+- [x] **Green** (`endrun3.js`, 09:1x–09:5x, kit fcf09ccb, beside just-stage's light jobs; `_spikeselease-2026-11-10endrun`):
+      the guard "✓ no violations", JustDirect's plan check; lint in the template, JustVoice, JustWrite, house-paint, docgen
+      (+ i18n lint and report: no missing key — its 48-row table is unused and dynamic keys, as on 2026-11-08) and
+      JustDirect (+ i18n); kit core 1725 (+13 skipped), kit ui 110, template 64/146, docgen 225/54, JustDirect 148/149;
+      e2e docgen 21/21 (the a11y test's two among them), JustDirect 16/16; the installer build and the packaged window
+      and launcher of the template, JustVoice, JustWrite, house-paint (its engine check 200, both engines' status printed
+      through /v1/ai/runtimes), docgen and JustDirect — each answered in 7–13 s; nothing left running. Committed:
+      docgen fe916c7, JustWrite 8b9ca165, house-paint fd0ce5f, JustDirect 0e755d4, JustVoice 9d82d264. The two kit
+      TASKS findings (docgen's a11y test, the scripts' drift) deleted as done.
+      Was: Book the PC; the end run: the guard, every changed app's lint, docgen's e2e (+a11y), each changed copy's
       installer build + packaged start (window and launcher); JustDirect's full list (lint, server, unit, i18n lint
       and report, check-plan, build:unpacked, e2e) and the kit's suites on the final kit commit.
 - [ ] JustDirect: tag v0.0.1, dry run green, release; its feeds checked (no website).
